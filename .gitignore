@@ -1,0 +1,27 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# next
+.next
+out
+build
+
+# misc
+.DS_Store
+*.log
+npm-debug.log*
+
+# env
+.env
+.env.local
+.env*.local
+
+# runtime data
+data/store.json
+migration.sql
+
+# editor
+.vscode
+.idea
