@@ -17,10 +17,14 @@ export default function DashboardClient({ data, performance, holidays, users = [
 
   const fmt = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  // const allDoers = useMemo(() => {
+  //   const set = new Set(data.pendingTasks.map((t) => t.doer).filter(Boolean));
+  //   return Array.from(set).sort();
+  // }, [data.pendingTasks]);
+
   const allDoers = useMemo(() => {
-    const set = new Set(data.pendingTasks.map((t) => t.doer).filter(Boolean));
-    return Array.from(set).sort();
-  }, [data.pendingTasks]);
+  return users.map((u) => u.name).sort();
+}, [users]);
 
   const filtered = data.pendingTasks.filter((t) =>
     (subTab === 'All' || t.type === subTab) &&
