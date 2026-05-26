@@ -20,6 +20,13 @@ export default function UsersClient({ users, departments }) {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [pwdModal, setPwdModal] = useState(false);   // ← add karo
+  const [pwdUser, setPwdUser] = useState(null);       // ← add karo
+
+  function openSetPassword(u) {                       // ← add karo
+    setPwdUser(u);
+    setPwdModal(true);
+  }
 
   const filtered = users.filter((u) => {
     if (!search) return true;
@@ -137,6 +144,7 @@ export default function UsersClient({ users, departments }) {
                   <td className="table-td">
                     <div className="flex gap-1.5">
                       <button onClick={() => openEdit(u)}   className="pill bg-primary-50 text-primary-700 hover:bg-primary-100 cursor-pointer">Edit</button>
+                      <button onClick={() => openSetPassword(u)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Set Password</button>
                       <button onClick={() => deleteUser(u.id)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Delete</button>
                     </div>
                   </td>
@@ -264,4 +272,87 @@ function Avatar({ name = '' }) {
   return <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${grad} text-white grid place-items-center text-[11px] font-bold shrink-0`}>{ini}</div>;
 }
 
+<SetPasswordModal 
+  open={pwdModal} 
+  onClose={() => setPwdModal(false)} 
+  user={pwdUser} 
+/>
 function PlusIcon() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
+
+function SetPasswordModal({ open, onClose, user }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!open) return null;
+
+  async function save() {
+    setError('');
+    if (password.length < 6) {
+      setError('Password kam se kam 6 characters ka hona chahiye');
+      return;
+    }
+    if (password !== confirm) {
+      setError('Passwords match nahi kar rahe!');
+      return;
+    }
+    setSaving(true);
+    const res = await fetch('/api/users/set-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, password }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setDone(true);
+      setPassword('');
+      setConfirm('');
+      setTimeout(() => { setDone(false); onClose(); }, 1500);
+    } else {
+      const d = await res.json();
+      setError(d.error || 'Something went wrong');
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Set Password</h2>
+            <p className="text-[12px] text-slate-500 mt-0.5">{user?.name}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          {done ? (
+            <div className="text-center py-4">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 grid place-items-center mx-auto mb-2">
+                <svg className="w-6 h-6 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+              </div>
+              <p className="text-emerald-600 font-medium">Password set ho gaya! ✅</p>
+            </div>
+          ) : (
+            <>
+              <Field label="New Password" value={password} onChange={setPassword} type="password" placeholder="Min 6 characters" />
+              <Field label="Confirm Password" value={confirm} onChange={setConfirm} type="password" placeholder="Dobara likho" />
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+            </>
+          )}
+        </div>
+        {!done && (
+          <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+            <button onClick={onClose} className="btn-secondary">Cancel</button>
+            <button onClick={save} disabled={saving} className="btn-primary">
+              {saving ? 'Setting...' : 'Set Password'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
