@@ -156,6 +156,8 @@ export default function UsersClient({ users, departments }) {
       </div>
 
       <UserModal open={modalOpen} onClose={() => setModalOpen(false)} user={editing} departments={departments} />
+      <SetPasswordModal open={pwdModal} onClose={() => setPwdModal(false)} user={pwdUser} />  {/* ← YAHAN */}
+ 
     </div>
   );
 }
@@ -272,11 +274,11 @@ function Avatar({ name = '' }) {
   return <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${grad} text-white grid place-items-center text-[11px] font-bold shrink-0`}>{ini}</div>;
 }
 
-<SetPasswordModal 
+{/* <SetPasswordModal 
   open={pwdModal} 
   onClose={() => setPwdModal(false)} 
   user={pwdUser} 
-/>
+/> */}
 function PlusIcon() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
 
 function SetPasswordModal({ open, onClose, user }) {
