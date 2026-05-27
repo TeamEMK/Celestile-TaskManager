@@ -2,8 +2,17 @@ import { NextResponse } from 'next/server';
 import { readStore, writeStore, buildPlannedSteps } from '@/lib/store';
 
 export async function GET() {
-  const store = await readStore();
-  return NextResponse.json(store.fms || []);
+  const masters = await sql`
+    SELECT 
+      id,
+      task,
+      assigned_to as "assignedTo",
+      frequency,
+      created_at as "createdAt"
+    FROM masters 
+    ORDER BY created_at DESC
+  `;
+  return NextResponse.json(masters);
 }
 
 export async function POST(req) {
