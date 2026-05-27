@@ -236,7 +236,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
         </div>
       )}
 
-      <AddMasterModal   open={masterOpen}   onClose={() => setMasterOpen(false)} />
+      <AddMasterModal open={masterOpen} onClose={() => setMasterOpen(false)} users={users} />
       <AddDelegateModal open={delegateOpen} onClose={() => setDelegateOpen(false)} users={users} />
       <HolidaysModal    open={holidayOpen}  onClose={() => setHolidayOpen(false)} holidays={holidays} />
     </div>
