@@ -12,4 +12,4 @@ export default async function MastersPage() {
     readStore(),
   ]);
   return <MastersClient masters={masters} users={store.users || []} />;
-}
+} 
