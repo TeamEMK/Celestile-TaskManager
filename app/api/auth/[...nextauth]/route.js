@@ -3,39 +3,70 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { neon } from '@neondatabase/serverless';
 
-const handler = NextAuth({
+export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
+
   providers: [
     CredentialsProvider({
       name: 'Credentials',
+
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
+        email: {
+          label: 'Email',
+          type: 'email',
+        },
+        password: {
+          label: 'Password',
+          type: 'password',
+        },
       },
+
       async authorize(credentials) {
-        const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+        const sql = neon(
+          process.env.DATABASE_URL || process.env.POSTGRES_URL
+        );
+
         const rows = await sql`
-          SELECT * FROM users 
-          WHERE email = ${credentials.email} 
+          SELECT * FROM users
+          WHERE email = ${credentials.email}
           AND active = TRUE
         `;
+
         const user = rows[0];
-        if (!user || !user.password_hash) return null;
-        const valid = await bcrypt.compare(credentials.password, user.password_hash);
-        if (!valid) return null;
+
+        if (!user || !user.password_hash) {
+          return null;
+        }
+
+        const valid = await bcrypt.compare(
+          credentials.password,
+          user.password_hash
+        );
+
+        if (!valid) {
+          return null;
+        }
+
         return {
           id: user.id,
           name: user.name,
           email: user.email,
           department: user.department,
+
           roles: Array.isArray(user.roles)
             ? user.roles
-            : (user.roles || 'User').split(',').map(r => r.trim()),
+            : (user.roles || 'User')
+                .split(',')
+                .map((r) => r.trim()),
         };
       },
     }),
   ],
-  session: { strategy: 'jwt' },
+
+  session: {
+    strategy: 'jwt',
+  },
+
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -43,18 +74,24 @@ const handler = NextAuth({
         token.department = user.department;
         token.roles = user.roles;
       }
+
       return token;
     },
+
     async session({ session, token }) {
       session.user.id = token.id;
       session.user.department = token.department;
       session.user.roles = token.roles;
+
       return session;
     },
   },
+
   pages: {
     signIn: '/login',
   },
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
