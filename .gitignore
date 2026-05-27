@@ -25,3 +25,8 @@ migration.sql
 # editor
 .vscode
 .idea
+node_modules
+.next
+.env
+.env.local
+data/store.json
