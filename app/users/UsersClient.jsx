@@ -275,6 +275,13 @@ export default function UsersClient({ users = [], departments = [] }) {
                           Edit
                         </button>
 
+                          <button
+                              onClick={() => openSetPassword(u)}
+                              className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                            >
+                              Set Password
+                            </button>
+                            
                         <button
                           onClick={() => deleteUser(u.id)}
                           className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer"
