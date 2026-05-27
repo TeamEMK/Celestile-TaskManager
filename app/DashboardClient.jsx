@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { useSession }  from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AddMasterModal from './components/AddMasterModal';
 import AddDelegateModal from './components/AddDelegateModal';
@@ -12,6 +12,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
   const router = useRouter();
   const { data: session } = useSession();
   const userName = session?.user?.name?.split(' ')[0] || 'User';
+
   const [masterOpen, setMasterOpen]     = useState(false);
   const [delegateOpen, setDelegateOpen] = useState(false);
   const [holidayOpen, setHolidayOpen]   = useState(false);
@@ -20,31 +21,27 @@ export default function DashboardClient({ data, performance, holidays, users = [
 
   const fmt = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-  // const allDoers = useMemo(() => {
-  //   const set = new Set(data.pendingTasks.map((t) => t.doer).filter(Boolean));
-  //   return Array.from(set).sort();
-  // }, [data.pendingTasks]);
-
-  const allDoers = useMemo(() => {
-  return users.map((u) => u.name).sort();
-}, [users]);
-
   const roles = Array.isArray(session?.user?.roles)
-  ? session.user.roles
-  : [session?.user?.roles];
+    ? session.user.roles
+    : [session?.user?.roles];
+  const isAdmin = roles.includes('Admin');
 
-const isAdmin = roles.includes('Admin');
+  // Non-admin sirf apne tasks dekhega
+  const visibleTasks = isAdmin
+    ? data.pendingTasks
+    : data.pendingTasks.filter((t) => t.doer === session?.user?.name);
 
-const visibleTasks = isAdmin
-  ? data.pendingTasks
-  : data.pendingTasks.filter(
-      (t) => t.doerId === session?.user?.id
-    );
+  const allDoers = useMemo(() => users.map((u) => u.name).sort(), [users]);
 
-const filtered = visibleTasks.filter((t) =>
-  (subTab === 'All' || t.type === subTab) &&
-  (userFilter === 'All' || t.doer === userFilter)
-);
+  const filtered = visibleTasks.filter((t) =>
+    (subTab === 'All' || t.type === subTab) &&
+    (userFilter === 'All' || t.doer === userFilter)
+  );
+
+  // Pie chart ke liye visible tasks ka stats
+  const visibleCompleted = isAdmin ? data.completed : 0;
+  const visiblePending = visibleTasks.length;
+  const visibleRevised = isAdmin ? data.revised : 0;
 
   const completionPct = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
 
@@ -78,7 +75,7 @@ const filtered = visibleTasks.filter((t) =>
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-[10px] font-medium text-primary-100/90 uppercase tracking-wider mb-1.5">Welcome back</div>
-            <h1 className="text-[20px] font-bold tracking-tight">Hi, {userName} 👋</h1>  
+            <h1 className="text-[20px] font-bold tracking-tight">Hi, {userName} 👋</h1>
             <p className="text-primary-100/90 mt-1 text-[12.5px] max-w-xl">
               You have <span className="font-semibold text-white">{visibleTasks.length}</span> pending tasks. Completion sits at <span className="font-semibold text-white">{completionPct}%</span>.
             </p>
@@ -87,21 +84,25 @@ const filtered = visibleTasks.filter((t) =>
             <button onClick={() => setHolidayOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium bg-white/10 hover:bg-white/20 text-white border border-white/15 backdrop-blur transition">
               <CalIcon /> Holidays
             </button>
-            <button onClick={() => setMasterOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium bg-white/10 hover:bg-white/20 text-white border border-white/15 backdrop-blur transition">
-              <PlusIcon /> Checklist
-            </button>
-            <button onClick={() => setDelegateOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold bg-white text-primary-700 hover:bg-primary-50 transition shadow-sm">
-              <PlusIcon /> Delegation
-            </button>
+            {isAdmin && (
+              <>
+                <button onClick={() => setMasterOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium bg-white/10 hover:bg-white/20 text-white border border-white/15 backdrop-blur transition">
+                  <PlusIcon /> Checklist
+                </button>
+                <button onClick={() => setDelegateOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold bg-white text-primary-700 hover:bg-primary-50 transition shadow-sm">
+                  <PlusIcon /> Delegation
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* KPIs (3 cards) */}
+      {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Total Tasks" value={data.total}     tone="primary" icon={<TaskIcon />}  trend={`${completionPct}%`} trendLabel="complete" />
-        <StatCard label="Completed"   value={data.completed} tone="emerald" icon={<CheckIcon />} trend="On track" trendUp />
-        <StatCard label="Pending"     value={visibleTasks.length}   tone="red"     icon={<ClockIcon />} trend={data.revised > 0 ? `${data.revised} revised` : 'Action needed'} trendDown />
+        <StatCard label="Total Tasks" value={isAdmin ? data.total : visibleTasks.length} tone="primary" icon={<TaskIcon />} trend={`${completionPct}%`} trendLabel="complete" />
+        <StatCard label="Completed"   value={isAdmin ? data.completed : 0}               tone="emerald" icon={<CheckIcon />} trend="On track" trendUp />
+        <StatCard label="Pending"     value={visibleTasks.length}                         tone="red"     icon={<ClockIcon />} trend={data.revised > 0 ? `${data.revised} revised` : 'Action needed'} trendDown />
       </div>
 
       {/* Filter bar */}
@@ -111,14 +112,18 @@ const filtered = visibleTasks.filter((t) =>
             <button key={t} onClick={() => setSubTab(t)} className={`seg-btn ${subTab === t ? 'seg-btn-active' : ''}`}>{t}</button>
           ))}
         </div>
-        <div className="w-px h-5 bg-slate-200" />
-        <div className="flex items-center gap-1.5">
-          <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-          <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="input !w-auto !py-1">
-            <option value="All">All Users</option>
-            {allDoers.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </div>
+        {isAdmin && (
+          <>
+            <div className="w-px h-5 bg-slate-200" />
+            <div className="flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="input !w-auto !py-1">
+                <option value="All">All Users</option>
+                {allDoers.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          </>
+        )}
         <div className="flex-1" />
         <div className="text-[11.5px] text-slate-500">
           {filtered.length} of {visibleTasks.length} pending
@@ -199,31 +204,37 @@ const filtered = visibleTasks.filter((t) =>
             <span className="pill bg-slate-100 text-slate-600">Today</span>
           </div>
           <div className="flex-1 flex items-center justify-center pt-1">
-            <PieChart completed={data.completed} pending={data.pending} revised={data.revised} />
+            <PieChart
+              completed={visibleCompleted}
+              pending={visiblePending}
+              revised={visibleRevised}
+            />
           </div>
         </div>
       </div>
 
-      {/* Performance */}
-      <div className="card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary-50 grid place-items-center text-primary-600">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-6"/></svg>
+      {/* Performance — sirf Admin ko dikhao */}
+      {isAdmin && (
+        <div className="card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary-50 grid place-items-center text-primary-600">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-6"/></svg>
+              </div>
+              <div>
+                <h2 className="text-[13.5px] font-semibold text-slate-900">Performance & Activity</h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">Team leaderboard</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-[13.5px] font-semibold text-slate-900">Performance & Activity</h2>
-              <p className="text-[11px] text-slate-500 mt-0.5">Team leaderboard</p>
-            </div>
+            <span className="pill bg-primary-50 text-primary-700 border border-primary-100">Last 30 days</span>
           </div>
-          <span className="pill bg-primary-50 text-primary-700 border border-primary-100">Last 30 days</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <BarList title="Top Performers"  items={performance.top5}       valueKey="completed" tone="emerald" icon="★" />
+            <BarList title="Needs Attention" items={performance.bottom5}    valueKey="pending"   tone="red"     icon="!" />
+            <BarList title="Most Active"     items={performance.mostActive} valueKey="total"     tone="blue"    icon="⚡" />
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <BarList title="Top Performers"  items={performance.top5}       valueKey="completed" tone="emerald" icon="★" />
-          <BarList title="Needs Attention" items={performance.bottom5}    valueKey="pending"   tone="red"     icon="!" />
-          <BarList title="Most Active"     items={performance.mostActive} valueKey="total"     tone="blue"    icon="⚡" />
-        </div>
-      </div>
+      )}
 
       <AddMasterModal   open={masterOpen}   onClose={() => setMasterOpen(false)} />
       <AddDelegateModal open={delegateOpen} onClose={() => setDelegateOpen(false)} users={users} />
