@@ -29,10 +29,22 @@ export default function DashboardClient({ data, performance, holidays, users = [
   return users.map((u) => u.name).sort();
 }, [users]);
 
-  const filtered = data.pendingTasks.filter((t) =>
-    (subTab === 'All' || t.type === subTab) &&
-    (userFilter === 'All' || t.doer === userFilter)
-  );
+  const roles = Array.isArray(session?.user?.roles)
+  ? session.user.roles
+  : [session?.user?.roles];
+
+const isAdmin = roles.includes('Admin');
+
+const myTasks = isAdmin
+  ? data.pendingTasks
+  : data.pendingTasks.filter(
+      (t) => t.doerId === session?.user?.id
+    );
+
+const filtered = myTasks.filter((t) =>
+  (subTab === 'All' || t.type === subTab) &&
+  (userFilter === 'All' || t.doer === userFilter)
+);
 
   const completionPct = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
 
@@ -109,7 +121,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
         </div>
         <div className="flex-1" />
         <div className="text-[11.5px] text-slate-500">
-          {filtered.length} of {data.pendingTasks.length} pending
+          {filtered.length} of {visibleTasks.length} pending
         </div>
       </div>
 
