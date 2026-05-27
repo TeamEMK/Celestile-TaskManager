@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
+import { useSession }  from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AddMasterModal from './components/AddMasterModal';
 import AddDelegateModal from './components/AddDelegateModal';
@@ -9,6 +10,8 @@ import BarList from './components/BarList';
 
 export default function DashboardClient({ data, performance, holidays, users = [] }) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const userName = session?.user?.name?.split(' ')[0] || 'User';
   const [masterOpen, setMasterOpen]     = useState(false);
   const [delegateOpen, setDelegateOpen] = useState(false);
   const [holidayOpen, setHolidayOpen]   = useState(false);
@@ -63,7 +66,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-[10px] font-medium text-primary-100/90 uppercase tracking-wider mb-1.5">Welcome back</div>
-            <h1 className="text-[20px] font-bold tracking-tight">Hi, Tushar 👋</h1>
+            <h1 className="text-[20px] font-bold tracking-tight">Hi, {userName} 👋</h1>  
             <p className="text-primary-100/90 mt-1 text-[12.5px] max-w-xl">
               You have <span className="font-semibold text-white">{data.pending}</span> pending tasks. Completion sits at <span className="font-semibold text-white">{completionPct}%</span>.
             </p>
