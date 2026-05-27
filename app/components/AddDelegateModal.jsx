@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 
 export default function AddDelegateModal({ open, onClose, users = [] }) {
   const router = useRouter();
-  const [form, setForm] = useState({ description: '', doerId: '', dueDate: '', client: '' });
+  const [form, setForm] = useState({ description: '', doerId: '', dueDate: '' });
   const [saving, setSaving] = useState(false);
 
   if (!open) return null;
@@ -21,7 +21,7 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
     });
     setSaving(false);
     if (res.ok) {
-      setForm({ description: '', doerId: '', dueDate: '', client: '' });
+      setForm({ description: '', doerId: '', dueDate: '' });
       onClose();
       router.refresh();
     }
@@ -54,15 +54,9 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
               {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Due Date *</label>
-              <input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="input" />
-            </div>
-            <div>
-              <label className="label">Client</label>
-              <input value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} className="input" placeholder="Optional" />
-            </div>
+          <div>
+            <label className="label">Due Date *</label>
+            <input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="input" />
           </div>
         </div>
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
