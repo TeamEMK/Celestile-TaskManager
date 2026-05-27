@@ -35,13 +35,13 @@ export default function DashboardClient({ data, performance, holidays, users = [
 
 const isAdmin = roles.includes('Admin');
 
-const myTasks = isAdmin
+const visibleTasks = isAdmin
   ? data.pendingTasks
   : data.pendingTasks.filter(
       (t) => t.doerId === session?.user?.id
     );
 
-const filtered = myTasks.filter((t) =>
+const filtered = visibleTasks.filter((t) =>
   (subTab === 'All' || t.type === subTab) &&
   (userFilter === 'All' || t.doer === userFilter)
 );
@@ -80,7 +80,7 @@ const filtered = myTasks.filter((t) =>
             <div className="text-[10px] font-medium text-primary-100/90 uppercase tracking-wider mb-1.5">Welcome back</div>
             <h1 className="text-[20px] font-bold tracking-tight">Hi, {userName} 👋</h1>  
             <p className="text-primary-100/90 mt-1 text-[12.5px] max-w-xl">
-              You have <span className="font-semibold text-white">{data.pending}</span> pending tasks. Completion sits at <span className="font-semibold text-white">{completionPct}%</span>.
+              You have <span className="font-semibold text-white">{visibleTasks.length}</span> pending tasks. Completion sits at <span className="font-semibold text-white">{completionPct}%</span>.
             </p>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -101,7 +101,7 @@ const filtered = myTasks.filter((t) =>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label="Total Tasks" value={data.total}     tone="primary" icon={<TaskIcon />}  trend={`${completionPct}%`} trendLabel="complete" />
         <StatCard label="Completed"   value={data.completed} tone="emerald" icon={<CheckIcon />} trend="On track" trendUp />
-        <StatCard label="Pending"     value={data.pending}   tone="red"     icon={<ClockIcon />} trend={data.revised > 0 ? `${data.revised} revised` : 'Action needed'} trendDown />
+        <StatCard label="Pending"     value={visibleTasks.length}   tone="red"     icon={<ClockIcon />} trend={data.revised > 0 ? `${data.revised} revised` : 'Action needed'} trendDown />
       </div>
 
       {/* Filter bar */}
