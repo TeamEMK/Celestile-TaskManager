@@ -114,3 +114,28 @@ export async function POST(req) {
     );
   }
 }
+export async function PATCH(req) {
+  try {
+    const body = await req.json();
+    if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    const result = await sql`
+      UPDATE delegations
+      SET
+        status = COALESCE(${body.status}, status),
+        description = COALESCE(${body.description}, description),
+        due_date = COALESCE(${body.dueDate}, due_date),
+        client = COALESCE(${body.client}, client),
+        completed_at = CASE WHEN ${body.status} = 'done' THEN NOW() ELSE completed_at END
+      WHERE id = ${body.id}
+      RETURNING *
+    `;
+
+    if (!result.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(result[0]);
+
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
