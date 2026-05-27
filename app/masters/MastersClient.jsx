@@ -5,11 +5,16 @@ import AddMasterModal from '../components/AddMasterModal';
 import CsvImport from '../components/CsvImport';
 
 const FREQ_TONE = {
-  Daily:    'bg-emerald-50 text-emerald-700 border-emerald-100',
-  Weekly:   'bg-primary-50 text-primary-700 border-primary-100',
-  Monthly:  'bg-violet-50 text-violet-700 border-violet-100',
-  'One-time': 'bg-amber-50 text-amber-700 border-amber-100',
+  Daily:              'bg-emerald-50 text-emerald-700 border-emerald-100',
+  Weekly:             'bg-primary-50 text-primary-700 border-primary-100',
+  'Alternative Week': 'bg-sky-50 text-sky-700 border-sky-100',
+  Monthly:            'bg-violet-50 text-violet-700 border-violet-100',
+  Quarterly:          'bg-rose-50 text-rose-700 border-rose-100',
+  Yearly:             'bg-orange-50 text-orange-700 border-orange-100',
+  'One-time':         'bg-amber-50 text-amber-700 border-amber-100',
 };
+
+const ALL_FREQS = ['All', 'Daily', 'Weekly', 'Alternative Week', 'Monthly', 'Quarterly', 'Yearly', 'One-time'];
 
 export default function MastersClient({ masters, users = [] }) {
   const router = useRouter();
@@ -29,8 +34,16 @@ export default function MastersClient({ masters, users = [] }) {
   }, [masters, search, freq]);
 
   const counts = useMemo(() => {
-    const c = { All: masters.length, Daily: 0, Weekly: 0, Monthly: 0, 'One-time': 0 };
-    masters.forEach((m) => { if (c[m.frequency] !== undefined) c[m.frequency]++; });
+    const c = {
+      All: masters.length,
+      Daily: 0, Weekly: 0,
+      'Alternative Week': 0,
+      Monthly: 0,
+      Quarterly: 0,
+      Yearly: 0,
+      'One-time': 0,
+    };
+    masters.forEach((m) => { if (c[m.frequency] !== undefined) c[m.frequency]++; else c[m.frequency] = 1; });
     return c;
   }, [masters]);
 
@@ -60,15 +73,15 @@ export default function MastersClient({ masters, users = [] }) {
       </div>
 
       <div className="card p-4 flex flex-wrap items-center gap-3">
-        <div className="seg">
-          {['All', 'Daily', 'Weekly', 'Monthly', 'One-time'].map((f) => (
+        <div className="seg flex-wrap">
+          {ALL_FREQS.map((f) => (
             <button
               key={f}
               onClick={() => setFreq(f)}
               className={`seg-btn ${freq === f ? 'seg-btn-active' : ''}`}
             >
               {f}
-              <span className="ml-1 text-[10px] text-slate-400">{counts[f]}</span>
+              <span className="ml-1 text-[10px] text-slate-400">{counts[f] || 0}</span>
             </button>
           ))}
         </div>
