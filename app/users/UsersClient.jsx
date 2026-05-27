@@ -60,30 +60,46 @@ const ROLE_ICON = {
   ),
 };
 
-export default function UsersClient({ users = [], departments = [] }) {
+function normalizeRoles(roles) {
+  if (Array.isArray(roles)) return roles;
+
+  if (typeof roles === 'string') {
+    return roles
+      .split(',')
+      .map((r) => r.trim())
+      .filter(Boolean);
+  }
+
+  return ['User'];
+}
+
+export default function UsersClient({
+  users = [],
+  departments = [],
+}) {
   const router = useRouter();
 
   const { data: session } = useSession();
 
-  const isAdmin =
-    Array.isArray(session?.user?.roles) &&
-    session.user.roles.includes('Admin');
+  const roles = normalizeRoles(session?.user?.roles);
+
+  const isAdmin = roles.includes('Admin');
+  console.log('DEBUG roles:', session?.user?.roles, '| isAdmin:', isAdmin); 
 
   const [search, setSearch] = useState('');
+
   const [modalOpen, setModalOpen] = useState(false);
+
   const [editing, setEditing] = useState(null);
 
-  function normalizeRoles(roles) {
-    if (Array.isArray(roles)) return roles;
+  const [pwdModal, setPwdModal] = useState(false);
 
-    if (typeof roles === 'string') {
-      return roles
-        .split(',')
-        .map((r) => r.trim())
-        .filter(Boolean);
-    }
+  const [pwdUser, setPwdUser] = useState(null);
 
-    return ['User'];
+  function openSetPassword(u) {
+    if (!u) return;
+    setPwdUser(u);
+    setPwdModal(true);
   }
 
   const filtered = users.filter((u) => {
@@ -94,6 +110,7 @@ export default function UsersClient({ users = [], departments = [] }) {
     return (
       (u?.name || '').toLowerCase().includes(s) ||
       (u?.email || '').toLowerCase().includes(s) ||
+      (u?.phone || '').toLowerCase().includes(s) ||
       (u?.department || '').toLowerCase().includes(s) ||
       normalizeRoles(u?.roles).some((r) =>
         (r || '').toLowerCase().includes(s)
@@ -140,7 +157,8 @@ export default function UsersClient({ users = [], departments = [] }) {
           <h1 className="page-title">Users</h1>
 
           <p className="page-sub">
-            Manage team members, roles, and department assignments
+            Manage team members, roles, and department
+            assignments
           </p>
         </div>
 
@@ -176,14 +194,18 @@ export default function UsersClient({ users = [], departments = [] }) {
                   phone: r.phone || '',
                   department:
                     r.department || (departments[0] || ''),
-                  roles: roles.length ? roles : ['User'],
+                  roles:
+                    roles.length ? roles : ['User'],
                 };
               }}
               endpoint="/api/users"
               onDone={() => router.refresh()}
             />
 
-            <button onClick={openAdd} className="btn-primary">
+            <button
+              onClick={openAdd}
+              className="btn-primary"
+            >
               <PlusIcon />
               Add User
             </button>
@@ -199,11 +221,13 @@ export default function UsersClient({ users = [], departments = [] }) {
                 <th className="table-th">User</th>
                 <th className="table-th">Email</th>
                 <th className="table-th">Phone</th>
-                <th className="table-th">Department</th>
+                <th className="table-th">
+                  Department
+                </th>
                 <th className="table-th">Roles</th>
 
                 {isAdmin && (
-                  <th className="table-th w-48">
+                  <th className="table-th w-60">
                     Action
                   </th>
                 )}
@@ -212,10 +236,15 @@ export default function UsersClient({ users = [], departments = [] }) {
 
             <tbody>
               {filtered.map((u) => (
-                <tr key={u.id} className="table-row">
+                <tr
+                  key={u.id}
+                  className="table-row"
+                >
                   <td className="table-td">
                     <div className="flex items-center gap-2.5">
-                      <Avatar name={u?.name || ''} />
+                      <Avatar
+                        name={u?.name || ''}
+                      />
 
                       <div>
                         <div className="font-medium text-slate-900">
@@ -243,8 +272,11 @@ export default function UsersClient({ users = [], departments = [] }) {
 
                   <td className="table-td">
                     <div className="flex flex-wrap gap-1">
-                      {normalizeRoles(u?.roles).map((r) => {
-                        const Icon = ROLE_ICON[r];
+                      {normalizeRoles(
+                        u?.roles
+                      ).map((r) => {
+                        const Icon =
+                          ROLE_ICON[r];
 
                         return (
                           <span
@@ -267,23 +299,29 @@ export default function UsersClient({ users = [], departments = [] }) {
 
                   {isAdmin && (
                     <td className="table-td">
-                      <div className="flex gap-1.5">
+                      <div className="flex gap-1.5 flex-wrap">
                         <button
-                          onClick={() => openEdit(u)}
+                          onClick={() =>
+                            openEdit(u)
+                          }
                           className="pill bg-primary-50 text-primary-700 hover:bg-primary-100 cursor-pointer"
                         >
                           Edit
                         </button>
 
-                          <button
-                              onClick={() => openSetPassword(u)}
-                              className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
-                            >
-                              Set Password
-                            </button>
-                            
                         <button
-                          onClick={() => deleteUser(u.id)}
+                          onClick={() =>
+                            openSetPassword(u)
+                          }
+                          className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                        >
+                          Set Password
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            deleteUser(u.id)
+                          }
                           className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer"
                         >
                           Delete
@@ -305,6 +343,12 @@ export default function UsersClient({ users = [], departments = [] }) {
         departments={departments}
         onSaved={() => router.refresh()}
       />
+
+      <SetPasswordModal
+        open={pwdModal}
+        onClose={() => setPwdModal(false)}
+        user={pwdUser}
+      />
     </div>
   );
 }
@@ -317,20 +361,8 @@ function UserModal({
   onSaved,
 }) {
   const [form, setForm] = useState({});
+
   const [saving, setSaving] = useState(false);
-
-  function normalizeRoles(roles) {
-    if (Array.isArray(roles)) return roles;
-
-    if (typeof roles === 'string') {
-      return roles
-        .split(',')
-        .map((r) => r.trim())
-        .filter(Boolean);
-    }
-
-    return ['User'];
-  }
 
   useEffect(() => {
     if (open) {
@@ -341,15 +373,19 @@ function UserModal({
           email: user.email || '',
           phone: user.phone || '',
           department:
-            user.department || departments[0] || '',
+            user.department ||
+            departments[0] ||
+            '',
           roles: normalizeRoles(user.roles),
+          active: user.active !== false,
         });
       } else {
         setForm({
           name: '',
           email: '',
           phone: '',
-          department: departments[0] || '',
+          department:
+            departments[0] || '',
           roles: ['User'],
         });
       }
@@ -359,7 +395,9 @@ function UserModal({
   if (!open) return null;
 
   function toggleRole(r) {
-    const roles = normalizeRoles(form.roles).includes(r)
+    const roles = normalizeRoles(
+      form.roles
+    ).includes(r)
       ? normalizeRoles(form.roles).filter(
           (x) => x !== r
         )
@@ -374,12 +412,15 @@ function UserModal({
   async function save() {
     setSaving(true);
 
-    const method = user ? 'PATCH' : 'POST';
+    const method = user
+      ? 'PATCH'
+      : 'POST';
 
     await fetch('/api/users', {
       method,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':
+          'application/json',
       },
       body: JSON.stringify(form),
     });
@@ -387,6 +428,7 @@ function UserModal({
     setSaving(false);
 
     onClose();
+
     onSaved();
   }
 
@@ -397,10 +439,14 @@ function UserModal({
     >
       <div
         className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) =>
+          e.stopPropagation()
+        }
       >
         <h2 className="text-lg font-semibold mb-5">
-          {user ? 'Edit User' : 'Add User'}
+          {user
+            ? 'Edit User'
+            : 'Add User'}
         </h2>
 
         <div className="space-y-4">
@@ -443,11 +489,14 @@ function UserModal({
             </label>
 
             <select
-              value={form.department || ''}
+              value={
+                form.department || ''
+              }
               onChange={(e) =>
                 setForm({
                   ...form,
-                  department: e.target.value,
+                  department:
+                    e.target.value,
                 })
               }
               className="input"
@@ -468,13 +517,17 @@ function UserModal({
             <div className="flex gap-2 flex-wrap">
               {ROLES.map((r) => {
                 const active =
-                  normalizeRoles(form.roles).includes(r);
+                  normalizeRoles(
+                    form.roles
+                  ).includes(r);
 
                 return (
                   <button
                     key={r}
                     type="button"
-                    onClick={() => toggleRole(r)}
+                    onClick={() =>
+                      toggleRole(r)
+                    }
                     className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition ${
                       active
                         ? ROLE_STYLE[r]
@@ -502,7 +555,150 @@ function UserModal({
             disabled={saving}
             className="btn-primary"
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving
+              ? 'Saving...'
+              : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SetPasswordModal({
+  open,
+  onClose,
+  user,
+}) {
+  const [password, setPassword] =
+    useState('');
+
+  const [confirm, setConfirm] =
+    useState('');
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [error, setError] =
+    useState('');
+
+  useEffect(() => {
+    if (open) {
+      setPassword('');
+      setConfirm('');
+      setError('');
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  async function save() {
+    setError('');
+
+    if (password.length < 6) {
+      setError(
+        'Password minimum 6 characters ka hona chahiye'
+      );
+
+      return;
+    }
+
+    if (password !== confirm) {
+      setError(
+        'Passwords match nahi kar rahe'
+      );
+
+      return;
+    }
+
+    setSaving(true);
+
+    const res = await fetch(
+      '/api/users/set-password',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          password,
+        }),
+      }
+    );
+
+    setSaving(false);
+
+    if (res.ok) {
+      onClose();
+    } else {
+      const d = await res.json();
+
+      setError(
+        d.error ||
+          'Something went wrong'
+      );
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+        onClick={(e) =>
+          e.stopPropagation()
+        }
+      >
+        <h2 className="text-lg font-semibold mb-5">
+          Set Password
+        </h2>
+
+        <p className="text-sm text-slate-500 mb-4">
+          {user?.name}
+        </p>
+
+        <div className="space-y-4">
+          <Field
+            label="New Password"
+            value={password}
+            onChange={setPassword}
+            type="password"
+          />
+
+          <Field
+            label="Confirm Password"
+            value={confirm}
+            onChange={setConfirm}
+            type="password"
+          />
+
+          {error && (
+            <p className="text-red-500 text-sm">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            onClick={onClose}
+            className="btn-secondary"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={save}
+            disabled={saving}
+            className="btn-primary"
+          >
+            {saving
+              ? 'Saving...'
+              : 'Set Password'}
           </button>
         </div>
       </div>
