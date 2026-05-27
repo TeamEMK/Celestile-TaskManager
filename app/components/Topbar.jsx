@@ -1,5 +1,6 @@
 'use client';
 import { usePathname } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 
 const TITLES = {
   '/':          { title: 'Dashboard',     sub: 'Operations overview' },
@@ -14,13 +15,18 @@ const TITLES = {
 
 export default function Topbar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const meta = TITLES[pathname] || { title: '', sub: '' };
   const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const userName = session?.user?.name || 'User';
+  const userRole = session?.user?.roles?.[0] || 'User';
+  const initials = userName.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase() || 'U';
 
   return (
     <header className="sticky top-0 z-20 bg-white/85 backdrop-blur border-b border-slate-200/70">
       <div className="px-6 lg:px-8 h-16 flex items-center gap-4">
-        {/* Title block (single row, no wrapping) */}
+        {/* Title block */}
         <div className="min-w-0 flex items-baseline gap-3 whitespace-nowrap">
           <h1 className="text-[18px] font-semibold tracking-tight text-slate-900 truncate">{meta.title}</h1>
           <span className="hidden lg:inline text-[12.5px] text-slate-400 truncate">{meta.sub}</span>
@@ -49,13 +55,27 @@ export default function Topbar() {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white"></span>
         </button>
 
-        {/* Avatar */}
+        {/* Avatar + Logout */}
         <div className="flex items-center gap-2 pl-3 ml-1 border-l border-slate-200 shrink-0">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white font-semibold text-sm">TS</div>
-          <div className="hidden lg:block leading-tight">
-            <div className="text-[13px] font-semibold text-slate-800">Tushar S.</div>
-            <div className="text-[11px] text-slate-500">Admin</div>
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white font-semibold text-sm">
+            {initials}
           </div>
+          <div className="hidden lg:block leading-tight">
+            <div className="text-[13px] font-semibold text-slate-800">{userName}</div>
+            <div className="text-[11px] text-slate-500">{userRole}</div>
+          </div>
+          {/* Logout Button */}
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            title="Logout"
+            className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition ml-1"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
         </div>
       </div>
     </header>
