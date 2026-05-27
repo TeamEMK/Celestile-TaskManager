@@ -53,11 +53,11 @@ export const authOptions = {
           email: user.email,
           department: user.department,
 
-          roles: Array.isArray(user.roles)
-            ? user.roles
-            : (user.roles || 'User')
-                .split(',')
-                .map((r) => r.trim()),
+        roles: Array.isArray(user.roles)
+          ? user.roles
+          : typeof user.roles === 'string'
+          ? user.roles.replace(/[{}"]/g, '').split(',').map(r => r.trim()).filter(Boolean)
+          : ['User'],
         };
       },
     }),
