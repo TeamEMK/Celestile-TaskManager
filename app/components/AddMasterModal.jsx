@@ -46,6 +46,7 @@ export default function AddMasterModal({ open, onClose, users = [] }) {
       setForm({ assignedTo: '', frequency: 'Daily', startDate: new Date().toISOString().slice(0, 10), endDate: '', task: '', remarks: '' });
       onClose();
       router.refresh();
+      router.push('/masters');
     } else {
       const d = await res.json();
       alert(d.error || 'Something went wrong');
