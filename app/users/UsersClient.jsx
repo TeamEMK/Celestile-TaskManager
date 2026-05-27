@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import CsvImport from '../components/CsvImport';
-
+import { useState, useEffect } from 'react';
 const ROLES = ['Admin', 'User', 'HOD'];
 const ROLE_STYLE = {
   Admin: 'bg-amber-50  text-amber-700  border-amber-200',
@@ -164,10 +164,17 @@ export default function UsersClient({ users, departments }) {
 
 function UserModal({ open, onClose, user, departments }) {
   const router = useRouter();
-  const [form, setForm] = useState(
-    user || { name: '', email: '', phone: '', department: departments[0], roles: ['User'] }
-  );
+  const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm(user
+        ? { ...user }
+        : { name: '', email: '', phone: '', department: departments[0], roles: ['User'] }
+      );
+    }
+  }, [user, open]);
 
   if (!open) return null;
 
@@ -336,7 +343,7 @@ function SetPasswordModal({ open, onClose, user }) {
           ) : (
             <>
               <Field label="New Password" value={password} onChange={setPassword} type="password" placeholder="Min 6 characters" />
-              <Field label="Confirm Password" value={confirm} onChange={setConfirm} type="password" placeholder="Dobara likho" />
+              <Field label="Confirm Password" value={confirm} onChange={setConfirm} type="password" placeholder="Write Again" />
               {error && <p className="text-red-500 text-sm">{error}</p>}
             </>
           )}
