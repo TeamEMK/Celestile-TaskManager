@@ -11,7 +11,7 @@ const FREQ_TONE = {
   'One-time': 'bg-amber-50 text-amber-700 border-amber-100',
 };
 
-export default function MastersClient({ masters }) {
+export default function MastersClient({ masters, users = [] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -122,7 +122,7 @@ export default function MastersClient({ masters }) {
         )}
       </div>
 
-      <AddMasterModal open={open} onClose={() => setOpen(false)} />
+      <AddMasterModal open={open} onClose={() => setOpen(false)} users={users} />
     </div>
   );
 }
