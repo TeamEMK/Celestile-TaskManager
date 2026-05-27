@@ -1,12 +1,13 @@
 'use client';
 import { useState } from 'react';
+import { FMS_ENABLED } from '@/lib/config';
 
 const TABS = [
   { key: 'Delegation MIS', desc: 'Delegated tasks and statuses' },
   { key: 'Checklist MIS',  desc: 'Recurring checklist activity' },
   { key: 'FMS MIS',        desc: 'Campaign workflow performance' },
   { key: 'All MIS',        desc: 'Combined report across types' },
-];
+].filter((t) => t.key !== 'FMS MIS' || FMS_ENABLED);
 
 export default function MISPage() {
   const today = new Date().toISOString().split('T')[0];

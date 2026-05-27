@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
+import { FMS_ENABLED } from '@/lib/config';
 const Icon = {
   dashboard: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>,
   tasks:     (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>,
@@ -20,7 +21,7 @@ const SECTIONS = [
     { href: '/approvals', label: 'Approvals',  icon: 'approve' },
   ]},
   { title: 'Operations',     items: [
-    { href: '/fms',       label: 'FMS Master', icon: 'fms' },
+    { href: '/fms',       label: 'FMS Master', icon: 'fms', flag: 'fms' },
     { href: '/masters',   label: 'Checklists', icon: 'masters' },
     { href: '/mis',       label: 'MIS Report', icon: 'mis' },
   ]},
@@ -57,7 +58,7 @@ export default function Sidebar() {
               {sec.title}
             </div>
             <div className="px-2 space-y-0.5">
-              {sec.items.map((n) => {
+              {sec.items.filter((n) => n.flag !== 'fms' || FMS_ENABLED).map((n) => {
                 const active = pathname === n.href;
                 const IconComp = Icon[n.icon];
                 return (

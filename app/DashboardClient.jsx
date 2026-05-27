@@ -7,6 +7,7 @@ import AddDelegateModal from './components/AddDelegateModal';
 import HolidaysModal from './components/HolidaysModal';
 import PieChart from './components/PieChart';
 import BarList from './components/BarList';
+import { FMS_ENABLED } from '@/lib/config';
 
 export default function DashboardClient({ data, performance, holidays, users = [] }) {
   const router = useRouter();
@@ -108,7 +109,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
       {/* Filter bar */}
       <div className="card p-2.5 flex items-center gap-2 flex-wrap">
         <div className="seg">
-          {['All', 'Delegation', 'Checklist', 'FMS'].map((t) => (
+          {['All', 'Delegation', 'Checklist', ...(FMS_ENABLED ? ['FMS'] : [])].map((t) => (
             <button key={t} onClick={() => setSubTab(t)} className={`seg-btn ${subTab === t ? 'seg-btn-active' : ''}`}>{t}</button>
           ))}
         </div>

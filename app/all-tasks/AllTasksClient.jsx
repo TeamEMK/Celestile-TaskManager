@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AddDelegateModal from '../components/AddDelegateModal';
+import { FMS_ENABLED } from '@/lib/config';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -13,8 +14,18 @@ export default function AllTasksClient({ grouped, users }) {
 
   const fmt = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  // Map each top tab to the task type it should show
+  const tabType = {
+    'Delegation': 'Delegation',
+    'Checklist': 'Checklist',
+    'Delegate by Me': 'Delegation',
+    'FMS Tasks': 'FMS',
+  };
+
   const filterTasks = (tasks) => {
     let arr = tasks;
+    const wantType = tabType[tab];
+    if (wantType) arr = arr.filter((t) => (t.type || 'Delegation') === wantType);
     if (statusTab === 'Pending')   arr = arr.filter((t) => t.status === 'pending' || t.status === 'revise');
     else if (statusTab === 'Completed') arr = arr.filter((t) => t.status === 'done');
     if (search) {
@@ -59,7 +70,7 @@ export default function AllTasksClient({ grouped, users }) {
       {/* Filter bar */}
       <div className="card p-3 flex items-center gap-2 flex-wrap">
         <div className="seg">
-          {['Delegation', 'Checklist', 'Delegate by Me', 'FMS Tasks'].map((t) => (
+          {['Delegation', 'Checklist', 'Delegate by Me', ...(FMS_ENABLED ? ['FMS Tasks'] : [])].map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`seg-btn ${tab === t ? 'seg-btn-active' : ''}`}>{t}</button>
           ))}
         </div>
@@ -144,10 +155,12 @@ export default function AllTasksClient({ grouped, users }) {
                           {g.tasks.map((t) => (
                             <tr key={t.id} className="border-t border-slate-200/60">
                               <td className="px-2 py-2.5 text-slate-700">{t.description}</td>
-                              <td className="px-2 py-2.5 text-slate-600 whitespace-nowrap">{fmt(t.dueDate)}</td>
+                              <td className="px-2 py-2.5 text-slate-600 whitespace-nowrap">{t.type === 'Checklist' ? (t.frequency || 'Recurring') : fmt(t.dueDate)}</td>
                               <td className="px-2 py-2.5 text-slate-600">{t.client || '—'}</td>
                               <td className="px-2 py-2.5">
-                                {t.status === 'done' ? (
+                                {t.type === 'Checklist' ? (
+                                  <span className="pill bg-emerald-50 text-emerald-700">Recurring</span>
+                                ) : t.status === 'done' ? (
                                   <span className="pill bg-emerald-50 text-emerald-700">✓ Done</span>
                                 ) : t.status === 'revise' ? (
                                   <div className="flex gap-1.5">
