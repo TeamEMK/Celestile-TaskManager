@@ -14,6 +14,12 @@ export default function PieChart({ completed = 0, pending = 0, revised = 0, size
   const innerR = r * 0.62;
 
   const arcs = [];
+if (slices.length === 1) {
+  // Single slice — full donut circle banao
+  arcs.push(
+    <circle key="outer" cx={cx} cy={cy} r={(r + innerR) / 2} fill="none" stroke={slices[0].color} strokeWidth={r - innerR} />
+  );
+} else {
   let angle = -Math.PI / 2;
   slices.forEach((s, i) => {
     const slice = (s.value / Math.max(total, 1)) * Math.PI * 2;
@@ -27,12 +33,10 @@ export default function PieChart({ completed = 0, pending = 0, revised = 0, size
     const ix2 = cx + innerR * Math.cos(angle);
     const iy2 = cy + innerR * Math.sin(angle);
     const largeArc = slice > Math.PI ? 1 : 0;
-    const d = `M ${x1} ${y1}
-               A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}
-               L ${ix2} ${iy2}
-               A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1} Z`;
+    const d = `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1} Z`;
     arcs.push(<path key={i} d={d} fill={s.color} />);
   });
+}
 
   const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
 

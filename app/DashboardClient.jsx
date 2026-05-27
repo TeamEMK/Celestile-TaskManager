@@ -84,7 +84,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
             <button onClick={() => setHolidayOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium bg-white/10 hover:bg-white/20 text-white border border-white/15 backdrop-blur transition">
               <CalIcon /> Holidays
             </button>
-            {isAdmin && (
+            
               <>
                 <button onClick={() => setMasterOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium bg-white/10 hover:bg-white/20 text-white border border-white/15 backdrop-blur transition">
                   <PlusIcon /> Checklist
@@ -93,7 +93,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
                   <PlusIcon /> Delegation
                 </button>
               </>
-            )}
+            
           </div>
         </div>
       </div>
