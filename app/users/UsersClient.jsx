@@ -1,7 +1,9 @@
 'use client';
-import { useRouter } from 'next/navigation';
-import CsvImport from '../components/CsvImport';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import CsvImport from '../components/CsvImport';
+
 const ROLES = ['Admin', 'User', 'HOD'];
 const ROLE_STYLE = {
   Admin: 'bg-amber-50  text-amber-700  border-amber-200',
@@ -16,13 +18,16 @@ const ROLE_ICON = {
 
 export default function UsersClient({ users, departments }) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.roles?.includes('Admin');
+
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [pwdModal, setPwdModal] = useState(false);   // ← add karo
-  const [pwdUser, setPwdUser] = useState(null);       // ← add karo
+  const [pwdModal, setPwdModal] = useState(false);
+  const [pwdUser, setPwdUser] = useState(null);
 
-  function openSetPassword(u) {                       // ← add karo
+  function openSetPassword(u) {
     setPwdUser(u);
     setPwdModal(true);
   }
@@ -59,29 +64,31 @@ export default function UsersClient({ users, departments }) {
           <h1 className="page-title">Users</h1>
           <p className="page-sub">Manage team members, roles, and department assignments</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <CsvImport
-            templateName="users_template.csv"
-            columns={['name', 'email', 'phone', 'department', 'roles']}
-            sampleRow={['Tushar Singh', 'tushar@example.com', '9876543210', departments[0] || 'Operations', 'User;Admin']}
-            parseRow={(r) => {
-              if (!r.name || !r.email) return null;
-              const roles = (r.roles || 'User').split(/[;|,]/).map((x) => x.trim()).filter(Boolean);
-              return {
-                name: r.name,
-                email: r.email,
-                phone: r.phone || '',
-                department: r.department || (departments[0] || ''),
-                roles: roles.length ? roles : ['User'],
-              };
-            }}
-            endpoint="/api/users"
-            onDone={() => router.refresh()}
-          />
-          <button onClick={openAdd} className="btn-primary">
-            <PlusIcon /> Add User
-          </button>
-        </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <CsvImport
+              templateName="users_template.csv"
+              columns={['name', 'email', 'phone', 'department', 'roles']}
+              sampleRow={['Tushar Singh', 'tushar@example.com', '9876543210', departments[0] || 'Operations', 'User;Admin']}
+              parseRow={(r) => {
+                if (!r.name || !r.email) return null;
+                const roles = (r.roles || 'User').split(/[;|,]/).map((x) => x.trim()).filter(Boolean);
+                return {
+                  name: r.name,
+                  email: r.email,
+                  phone: r.phone || '',
+                  department: r.department || (departments[0] || ''),
+                  roles: roles.length ? roles : ['User'],
+                };
+              }}
+              endpoint="/api/users"
+              onDone={() => router.refresh()}
+            />
+            <button onClick={openAdd} className="btn-primary">
+              <PlusIcon /> Add User
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -110,7 +117,7 @@ export default function UsersClient({ users, departments }) {
                 <th className="table-th">Phone</th>
                 <th className="table-th">Department</th>
                 <th className="table-th">Roles</th>
-                <th className="table-th w-32">Action</th>
+                {isAdmin && <th className="table-th w-48">Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -140,13 +147,15 @@ export default function UsersClient({ users, departments }) {
                       })}
                     </div>
                   </td>
-                  <td className="table-td">
-                    <div className="flex gap-1.5">
-                      <button onClick={() => openEdit(u)}   className="pill bg-primary-50 text-primary-700 hover:bg-primary-100 cursor-pointer">Edit</button>
-                      <button onClick={() => openSetPassword(u)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Set Password</button>
-                      <button onClick={() => deleteUser(u.id)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Delete</button>
-                    </div>
-                  </td>
+                  {isAdmin && (
+                    <td className="table-td">
+                      <div className="flex gap-1.5">
+                        <button onClick={() => openEdit(u)} className="pill bg-primary-50 text-primary-700 hover:bg-primary-100 cursor-pointer">Edit</button>
+                        <button onClick={() => openSetPassword(u)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Set Password</button>
+                        <button onClick={() => deleteUser(u.id)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Delete</button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -154,47 +163,66 @@ export default function UsersClient({ users, departments }) {
         </div>
       </div>
 
-      <UserModal open={modalOpen} onClose={() => setModalOpen(false)} user={editing} departments={departments} />
-      <SetPasswordModal open={pwdModal} onClose={() => setPwdModal(false)} user={pwdUser} />  {/* ← YAHAN */}
- 
+      <UserModal open={modalOpen} onClose={() => setModalOpen(false)} user={editing} departments={departments} onSaved={() => router.refresh()} />
+      <SetPasswordModal open={pwdModal} onClose={() => setPwdModal(false)} user={pwdUser} />
     </div>
   );
 }
 
-function UserModal({ open, onClose, user, departments }) {
-  const router = useRouter();
+function UserModal({ open, onClose, user, departments, onSaved }) {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (open) {
-      setForm(user
-        ? { ...user }
-        : { name: '', email: '', phone: '', department: departments[0], roles: ['User'] }
-      );
+      setError('');
+      if (user) {
+        setForm({
+          id: user.id,
+          name: user.name || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          department: user.department || departments[0],
+          roles: user.roles || ['User'],
+          active: user.active !== false,
+        });
+      } else {
+        setForm({ name: '', email: '', phone: '', department: departments[0], roles: ['User'] });
+      }
     }
   }, [user, open]);
 
   if (!open) return null;
 
   function toggleRole(r) {
-    const roles = form.roles.includes(r) ? form.roles.filter((x) => x !== r) : [...form.roles, r];
+    const roles = (form.roles || []).includes(r)
+      ? form.roles.filter((x) => x !== r)
+      : [...(form.roles || []), r];
     setForm({ ...form, roles });
   }
 
   async function save() {
-    if (!form.name.trim() || !form.email.trim()) {
-      alert('Name and email are required');
+    setError('');
+    if (!form.name?.trim() || !form.email?.trim()) {
+      setError('Name and email are required');
       return;
     }
     setSaving(true);
     const method = user ? 'PATCH' : 'POST';
     const res = await fetch('/api/users', {
-      method, headers: { 'Content-Type': 'application/json' },
+      method,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     });
     setSaving(false);
-    if (res.ok) { onClose(); router.refresh(); }
+    if (res.ok) {
+      onClose();
+      onSaved();
+    } else {
+      const d = await res.json();
+      setError(d.error || 'Something went wrong');
+    }
   }
 
   return (
@@ -210,12 +238,12 @@ function UserModal({ open, onClose, user, departments }) {
           </button>
         </div>
         <div className="p-6 space-y-4">
-          <Field label="Full Name *" value={form.name}  onChange={(v) => setForm({ ...form, name: v })} />
-          <Field label="Email *"     value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
-          <Field label="Phone"       value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
+          <Field label="Full Name *" value={form.name || ''}  onChange={(v) => setForm({ ...form, name: v })} />
+          <Field label="Email *"     value={form.email || ''} onChange={(v) => setForm({ ...form, email: v })} />
+          <Field label="Phone"       value={form.phone || ''} onChange={(v) => setForm({ ...form, phone: v })} />
           <div>
             <label className="label">Department</label>
-            <select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="input">
+            <select value={form.department || departments[0]} onChange={(e) => setForm({ ...form, department: e.target.value })} className="input">
               {departments.map((d) => <option key={d}>{d}</option>)}
             </select>
           </div>
@@ -223,7 +251,7 @@ function UserModal({ open, onClose, user, departments }) {
             <label className="label">Roles</label>
             <div className="flex gap-2 flex-wrap">
               {ROLES.map((r) => {
-                const active = form.roles.includes(r);
+                const active = (form.roles || []).includes(r);
                 return (
                   <button key={r} onClick={() => toggleRole(r)} className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition ${active ? ROLE_STYLE[r] : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
                     {r}
@@ -232,6 +260,7 @@ function UserModal({ open, onClose, user, departments }) {
               })}
             </div>
           </div>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
         </div>
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
@@ -248,6 +277,7 @@ const KPI_TONES = {
   emerald: { ring: 'ring-emerald-100', text: 'text-emerald-700', bg: 'bg-emerald-50' },
   violet:  { ring: 'ring-violet-100',  text: 'text-violet-700',  bg: 'bg-violet-50' },
 };
+
 function KPI({ label, value, tone }) {
   const t = KPI_TONES[tone];
   return (
@@ -289,18 +319,16 @@ function SetPasswordModal({ open, onClose, user }) {
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (open) { setPassword(''); setConfirm(''); setError(''); setDone(false); }
+  }, [open]);
+
   if (!open) return null;
 
   async function save() {
     setError('');
-    if (password.length < 6) {
-      setError('Password kam se kam 6 characters ka hona chahiye');
-      return;
-    }
-    if (password !== confirm) {
-      setError('Passwords match nahi kar rahe!');
-      return;
-    }
+    if (password.length < 6) { setError('Password kam se kam 6 characters ka hona chahiye'); return; }
+    if (password !== confirm) { setError('Passwords match nahi kar rahe!'); return; }
     setSaving(true);
     const res = await fetch('/api/users/set-password', {
       method: 'POST',
@@ -310,8 +338,6 @@ function SetPasswordModal({ open, onClose, user }) {
     setSaving(false);
     if (res.ok) {
       setDone(true);
-      setPassword('');
-      setConfirm('');
       setTimeout(() => { setDone(false); onClose(); }, 1500);
     } else {
       const d = await res.json();
@@ -342,7 +368,7 @@ function SetPasswordModal({ open, onClose, user }) {
           ) : (
             <>
               <Field label="New Password" value={password} onChange={setPassword} type="password" placeholder="Min 6 characters" />
-              <Field label="Confirm Password" value={confirm} onChange={setConfirm} type="password" placeholder="Write Again" />
+              <Field label="Confirm Password" value={confirm} onChange={setConfirm} type="password" placeholder="Dobara likho" />
               {error && <p className="text-red-500 text-sm">{error}</p>}
             </>
           )}
@@ -350,9 +376,7 @@ function SetPasswordModal({ open, onClose, user }) {
         {!done && (
           <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
             <button onClick={onClose} className="btn-secondary">Cancel</button>
-            <button onClick={save} disabled={saving} className="btn-primary">
-              {saving ? 'Setting...' : 'Set Password'}
-            </button>
+            <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Setting...' : 'Set Password'}</button>
           </div>
         )}
       </div>
