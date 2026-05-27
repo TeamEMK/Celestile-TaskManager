@@ -198,6 +198,7 @@ export default function UsersClient({ users = [], departments = [] }) {
               <tr>
                 <th className="table-th">User</th>
                 <th className="table-th">Email</th>
+                <th className="table-th">Phone</th>
                 <th className="table-th">Department</th>
                 <th className="table-th">Roles</th>
 
@@ -230,6 +231,10 @@ export default function UsersClient({ users = [], departments = [] }) {
 
                   <td className="table-td text-slate-600">
                     {u?.email || '—'}
+                  </td>
+
+                  <td className="table-td text-slate-600">
+                    {u?.phone || '—'}
                   </td>
 
                   <td className="table-td text-slate-600">
@@ -327,6 +332,7 @@ function UserModal({
           id: user.id,
           name: user.name || '',
           email: user.email || '',
+          phone: user.phone || '',
           department:
             user.department || departments[0] || '',
           roles: normalizeRoles(user.roles),
@@ -335,6 +341,7 @@ function UserModal({
         setForm({
           name: '',
           email: '',
+          phone: '',
           department: departments[0] || '',
           roles: ['User'],
         });
@@ -408,6 +415,17 @@ function UserModal({
               setForm({
                 ...form,
                 email: v,
+              })
+            }
+          />
+
+          <Field
+            label="Phone"
+            value={form.phone || ''}
+            onChange={(v) =>
+              setForm({
+                ...form,
+                phone: v,
               })
             }
           />
