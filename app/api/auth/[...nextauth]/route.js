@@ -47,6 +47,8 @@ export const authOptions = {
           return null;
         }
 
+        console.log('RAW USER FROM DB:', JSON.stringify(user));
+        
         return {
           id: user.id,
           name: user.name,
