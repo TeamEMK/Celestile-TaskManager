@@ -70,11 +70,13 @@ export default function DashboardClient({ data, performance, holidays, users = [
   async function markDone(task) {
     if (task.type === 'Delegation') {
       await fetch('/api/delegations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: task.id, status: 'done' }) });
+    } else if (task.type === 'Checklist') {
+      await fetch('/api/checklist-completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ masterId: task.id }) });
     } else if (task.type === 'FMS') {
       const parts = task.id.split('-'); const stepIndex = parseInt(parts.pop()); const fmsId = parts.join('-');
       await fetch('/api/fms/step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fmsId, stepIndex }) });
     }
-    router.refresh();
+    window.location.reload();
   }
 
   function requestRevise(task) { setReviseNote(''); setReviseDate(''); setReviseTask({ ...task, _mode: 'request' }); }

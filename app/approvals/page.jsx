@@ -1,8 +1,8 @@
 import { neon } from '@neondatabase/serverless';
 import ApprovalsClient from './ApprovalsClient';
+import UserApprovalsClient from './UserApprovalsClient';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +12,25 @@ export default async function ApprovalsPage() {
   const session = await getServerSession(authOptions);
   const roles   = session?.user?.roles || [];
   const isAdmin = Array.isArray(roles) ? roles.includes('Admin') : String(roles).includes('Admin');
-  if (!isAdmin) redirect('/');
 
+  // ── User view: apne revise requests ka status ────────────────────────────────
+  if (!isAdmin) {
+    const userId = session?.user?.id;
+    const myRequests = userId ? await sql`
+      SELECT id, description, client,
+             due_date    AS "dueDate",
+             created_at  AS "createdAt",
+             remarks,
+             revise_action AS "reviseAction"
+      FROM delegations
+      WHERE doer_id = ${userId}
+        AND revise_action IS NOT NULL
+      ORDER BY created_at DESC` : [];
+
+    return <UserApprovalsClient myRequests={myRequests} />;
+  }
+
+  // ── Admin view ───────────────────────────────────────────────────────────────
   const [reviseRequests, taskApprovals, leaves] = await Promise.all([
     sql`
       SELECT id, description, doer, remarks, created_at AS "createdAt"

@@ -22,28 +22,28 @@ const Icon = {
 };
 
 const SECTIONS = [
-  { title: 'Workspace',      items: [
-    { href: '/',          label: 'Dashboard',  icon: 'dashboard' },
-    { href: '/all-tasks', label: 'All Tasks',  icon: 'tasks' },
-    { href: '/approvals', label: 'Approvals',  icon: 'approve', adminOnly: true },
+  { title: 'Workspace', items: [
+    { href: '/',          label: 'Dashboard', icon: 'dashboard' },
+    { href: '/all-tasks', label: 'All Tasks', icon: 'tasks' },
+    { href: '/approvals', label: 'Approvals', icon: 'approve' },
   ]},
-  { title: 'Operations',     items: [
-    { href: '/fms',           label: 'FMS Master',    icon: 'fms', flag: 'fms', adminOnly: true },
-    { href: '/masters',       label: 'Checklists',    icon: 'masters', adminOnly: true },
-    { href: '/client-master', label: 'Client Master', icon: 'clientmaster', adminOnly: true },
-    { href: '/mis',           label: 'MIS Report',    icon: 'mis', adminOnly: true },
-    { href: '/race-tracker',  label: 'Race Tracker',  icon: 'race', flag: 'race', adminOnly: true },
-    { href: '/compliance',    label: 'Compliance',    icon: 'compliance', adminOnly: true },
+  { title: 'Operations', items: [
+    { href: '/fms',           label: 'FMS Master',    icon: 'fms',          flag: 'fms',  adminOnly: true },
+    { href: '/masters',       label: 'Checklists',    icon: 'masters',      adminOnly: true, disabled: true },
+    { href: '/client-master', label: 'Client Master', icon: 'clientmaster', adminOnly: true, disabled: true },
+    { href: '/mis',           label: 'MIS Report',    icon: 'mis',          adminOnly: true },
+    { href: '/race-tracker',  label: 'Race Tracker',  icon: 'race',         flag: 'race', adminOnly: true },
+    { href: '/compliance',    label: 'Compliance',    icon: 'compliance',   adminOnly: true, disabled: true },
   ]},
-  { title: 'Daily',          items: [
-    { href: '/daily-task',    label: 'Daily Task',    icon: 'dailytask' },
-    { href: '/leave-tracker', label: 'Leave Tracker', icon: 'leave' },
-    { href: '/meetings',      label: 'Meetings',      icon: 'meetings' },
-    { href: '/daily-reports', label: 'Daily Reports', icon: 'reports' },
+  { title: 'Daily', items: [
+    { href: '/daily-task',    label: 'Daily Task',    icon: 'dailytask', disabled: true },
+    { href: '/leave-tracker', label: 'Leave Tracker', icon: 'leave',     disabled: true },
+    { href: '/meetings',      label: 'Meetings',      icon: 'meetings',  disabled: true },
+    { href: '/daily-reports', label: 'Daily Reports', icon: 'reports',   disabled: true },
   ]},
   { title: 'Administration', items: [
-    { href: '/users',     label: 'Users',      icon: 'users', adminOnly: true },
-    { href: '/profile',   label: 'Profile',    icon: 'profile' },
+    { href: '/users',   label: 'Users',   icon: 'users',   adminOnly: true },
+    { href: '/profile', label: 'Profile', icon: 'profile' },
   ]},
 ];
 
@@ -52,16 +52,13 @@ export default function Sidebar() {
   const { data: session } = useSession();
   const isAdmin = (session?.user?.roles || []).includes('Admin');
 
-  // visibility rule for a nav item
   const visible = (n) =>
-    (n.flag !== 'fms' || FMS_ENABLED) &&
+    (n.flag !== 'fms'  || FMS_ENABLED) &&
     (n.flag !== 'race' || RACE_TRACKER_ENABLED) &&
     (!n.adminOnly || isAdmin);
 
   return (
-    <aside
-      className="group/sb fixed left-0 top-0 h-screen w-16 hover:w-[230px] transition-[width] duration-200 ease-out bg-slate-950 text-slate-200 flex flex-col z-40 border-r border-slate-800 overflow-hidden hover:shadow-2xl"
-    >
+    <aside className="group/sb fixed left-0 top-0 h-screen w-16 hover:w-[230px] transition-[width] duration-200 ease-out bg-slate-950 text-slate-200 flex flex-col z-40 border-r border-slate-800 overflow-hidden hover:shadow-2xl">
       {/* Brand */}
       <div className="h-14 px-3 flex items-center gap-2.5 border-b border-slate-800/80 shrink-0">
         <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 grid place-items-center text-white font-extrabold shrink-0 shadow-lg shadow-primary-900/30">
@@ -78,37 +75,43 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
         {SECTIONS.map((sec) => {
           const items = sec.items.filter(visible);
-          if (items.length === 0) return null;   // hide empty section (e.g. Operations for non-admins)
+          if (items.length === 0) return null;
           return (
-          <div key={sec.title} className="mb-2">
-            <div className="h-5 px-3 mb-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-              {sec.title}
+            <div key={sec.title} className="mb-2">
+              <div className="h-5 px-3 mb-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+                {sec.title}
+              </div>
+              <div className="px-2 space-y-0.5">
+                {items.map((n) => {
+                  const active   = pathname === n.href;
+                  const IconComp = Icon[n.icon];
+
+                  if (n.disabled) {
+                    return (
+                      <div key={n.href} title={`${n.label} (Coming Soon)`}
+                        className="flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] font-medium opacity-35 cursor-not-allowed select-none">
+                        <IconComp className="w-[17px] h-[17px] shrink-0 text-slate-500" />
+                        <span className="whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 flex items-center gap-1.5">
+                          {n.label}
+                          <span className="text-[9px] bg-slate-700 text-slate-400 px-1 rounded">Soon</span>
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Link key={n.href} href={n.href} title={n.label}
+                      className={`group/item flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] font-medium relative transition-colors duration-150 ${
+                        active ? 'bg-primary-600/15 text-white' : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+                      }`}>
+                      {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary-400" />}
+                      <IconComp className={`w-[17px] h-[17px] shrink-0 ${active ? 'text-primary-300' : 'text-slate-500 group-hover/item:text-slate-200'}`} />
+                      <span className="whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200">{n.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-            <div className="px-2 space-y-0.5">
-              {items.map((n) => {
-                const active = pathname === n.href;
-                const IconComp = Icon[n.icon];
-                return (
-                  <Link
-                    key={n.href}
-                    href={n.href}
-                    title={n.label}
-                    className={`group/item flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] font-medium relative transition-colors duration-150 ${
-                      active
-                        ? 'bg-primary-600/15 text-white'
-                        : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
-                    }`}
-                  >
-                    {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary-400" />}
-                    <IconComp className={`w-[17px] h-[17px] shrink-0 ${active ? 'text-primary-300' : 'text-slate-500 group-hover/item:text-slate-200'}`} />
-                    <span className="whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200">
-                      {n.label}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
           );
         })}
       </nav>
@@ -123,7 +126,7 @@ export default function Sidebar() {
             <div className="text-[12px] font-medium text-white truncate whitespace-nowrap">{session?.user?.name || 'User'}</div>
             <div className="text-[10px] text-slate-400 truncate whitespace-nowrap">{session?.user?.roles?.join(' · ') || 'User'}</div>
           </div>
-            <button onClick={() => signOut({ callbackUrl: '/login' })} className="text-slate-500 hover:text-white p-1 rounded-md hover:bg-slate-700/60 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200" title="Sign out">
+          <button onClick={() => signOut({ callbackUrl: '/login' })} className="text-slate-500 hover:text-white p-1 rounded-md hover:bg-slate-700/60 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200" title="Sign out">
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>
             </svg>

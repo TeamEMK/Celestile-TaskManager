@@ -10,10 +10,6 @@ const fmt = (iso) => {
 export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [], leaves = [] }) {
   const router = useRouter();
   const [tab, setTab] = useState('Revise Requests');
-  const [saving, setSaving] = useState(false);
-
-  // Local status tracking — { [id]: 'approved' | 'rejected' | 'pending' }
-  const [statuses, setStatuses] = useState({});
 
   const TABS = [
     { key: 'Revise Requests',   count: reviseRequests.length, icon: ReviseIcon   },
@@ -22,92 +18,46 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
     { key: 'Leave Approvals',   count: leaves.length,         icon: LeaveIcon    },
   ];
 
-  // ── Revise actions ───────────────────────────────────────────────────────────
-
-  async function approveRevise(task) {
-    setSaving(true);
-    setStatuses((s) => ({ ...s, [task.id]: 'approved' }));
+  async function grantRevise(task) {
     await fetch('/api/delegations', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: task.id, status: 'revise' }),
     });
-    setSaving(false);
+    router.refresh();
   }
 
-  async function rejectRevise(task) {
-    setSaving(true);
-    setStatuses((s) => ({ ...s, [task.id]: 'rejected' }));
+  async function denyRevise(task) {
+    if (!confirm('Deny karna chahte ho?')) return;
     await fetch('/api/delegations', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: task.id, status: 'pending' }),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: task.id, status: 'pending', _denyRevise: true }),
     });
-    setSaving(false);
+    router.refresh();
   }
-
-  // ── Task approval actions ────────────────────────────────────────────────────
 
   async function approveTask(task) {
-    setStatuses((s) => ({ ...s, [task.id]: 'approved' }));
     await fetch('/api/delegations', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: task.id, approval: 'Approved' }),
     });
+    router.refresh();
   }
 
   async function rejectTask(task) {
-    setStatuses((s) => ({ ...s, [task.id]: 'rejected' }));
+    if (!confirm('Reject karna chahte ho?')) return;
     await fetch('/api/delegations', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: task.id, status: 'revise' }),
     });
+    router.refresh();
   }
 
-  // ── Leave actions ────────────────────────────────────────────────────────────
-
-  async function actionLeave(id, action) {
-    setStatuses((s) => ({ ...s, [id]: action }));
+  async function actionLeave(id, status) {
     await fetch('/api/leaves', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status: action }),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
     });
-  }
-
-  // ── Status badge ─────────────────────────────────────────────────────────────
-
-  function StatusBadge({ id }) {
-    const s = statuses[id] || 'pending';
-    if (s === 'approved') return <span className="pill bg-emerald-50 text-emerald-700 font-semibold">✓ Approved</span>;
-    if (s === 'rejected') return <span className="pill bg-red-50 text-red-700 font-semibold">✕ Rejected</span>;
-    return <span className="pill bg-amber-50 text-amber-700">⏳ Pending</span>;
-  }
-
-  function ActionButtons({ item, onApprove, onReject }) {
-    const s = statuses[item.id] || 'pending';
-    if (s !== 'pending') return <StatusBadge id={item.id} />;
-    return (
-      <div className="flex items-center gap-2">
-        <StatusBadge id={item.id} />
-        <button
-          onClick={() => onApprove(item)}
-          disabled={saving}
-          className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer font-medium"
-        >
-          Approve
-        </button>
-        <button
-          onClick={() => onReject(item)}
-          disabled={saving}
-          className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer font-medium"
-        >
-          Reject
-        </button>
-      </div>
-    );
+    router.refresh();
   }
 
   function EmptyState({ icon: Icon, label }) {
@@ -129,154 +79,138 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
         <p className="page-sub">Review and action pending requests across the org</p>
       </div>
 
-      {/* Tab bar */}
       <div className="flex gap-2 flex-wrap">
         {TABS.map(({ key, count, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition border ${
-              tab === key
-                ? 'bg-white border-slate-200 text-slate-900 shadow-card'
-                : 'bg-transparent border-transparent text-slate-600 hover:bg-white/60 hover:border-slate-200'
-            }`}
-          >
+          <button key={key} onClick={() => setTab(key)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition border ${tab === key ? 'bg-white border-slate-200 text-slate-900 shadow-card' : 'bg-transparent border-transparent text-slate-600 hover:bg-white/60 hover:border-slate-200'}`}>
             <Icon className={`w-4 h-4 ${tab === key ? 'text-primary-600' : 'text-slate-400'}`} />
             {key}
-            <span className={`pill ${count > 0 ? 'bg-red-50 text-red-600' : tab === key ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-500'}`}>
-              {count}
-            </span>
+            <span className={`pill ${count > 0 ? 'bg-red-50 text-red-600' : tab === key ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
           </button>
         ))}
       </div>
 
-      {/* ── Revise Requests ─────────────────────────────────────────────── */}
+      {/* Revise Requests */}
       {tab === 'Revise Requests' && (
-        reviseRequests.length === 0
-          ? <EmptyState icon={ReviseIcon} label="Revise Requests" />
-          : (
-            <div className="card overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50/80">
-                  <tr>
-                    <th className="table-th">#</th>
-                    <th className="table-th">Task</th>
-                    <th className="table-th">Doer</th>
-                    <th className="table-th">Requested On</th>
-                    <th className="table-th">Remarks</th>
-                    <th className="table-th">Action</th>
+        reviseRequests.length === 0 ? <EmptyState icon={ReviseIcon} label="Revise Requests" /> : (
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50/80">
+                <tr>
+                  <th className="table-th">#</th>
+                  <th className="table-th">Task</th>
+                  <th className="table-th">Doer</th>
+                  <th className="table-th">Requested On</th>
+                  <th className="table-th">Remarks</th>
+                  <th className="table-th">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reviseRequests.map((t, i) => (
+                  <tr key={t.id} className="table-row">
+                    <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
+                    <td className="table-td font-medium text-slate-800 max-w-[240px] truncate">{t.description}</td>
+                    <td className="table-td text-slate-600">{t.doer}</td>
+                    <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.createdAt)}</td>
+                    <td className="table-td text-slate-500">{t.remarks || '—'}</td>
+                    <td className="table-td">
+                      <div className="flex gap-1.5">
+                        <button onClick={() => grantRevise(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Grant</button>
+                        <button onClick={() => denyRevise(t)}  className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Deny</button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {reviseRequests.map((t, i) => (
-                    <tr key={t.id} className="table-row">
-                      <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
-                      <td className="table-td font-medium text-slate-800 max-w-[240px] truncate">{t.description}</td>
-                      <td className="table-td text-slate-600">{t.doer}</td>
-                      <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.createdAt)}</td>
-                      <td className="table-td text-slate-500">{t.remarks || '—'}</td>
-                      <td className="table-td">
-                        <ActionButtons item={t} onApprove={approveRevise} onReject={rejectRevise} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
 
-      {/* ── Task Approvals ───────────────────────────────────────────────── */}
+      {/* Task Approvals */}
       {tab === 'Task Approvals' && (
-        taskApprovals.length === 0
-          ? <EmptyState icon={TaskIcon} label="Task Approvals" />
-          : (
-            <div className="card overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50/80">
-                  <tr>
-                    <th className="table-th">#</th>
-                    <th className="table-th">Task</th>
-                    <th className="table-th">Assigned To</th>
-                    <th className="table-th">Client</th>
-                    <th className="table-th">Due Date</th>
-                    <th className="table-th">Priority</th>
-                    <th className="table-th">Action</th>
+        taskApprovals.length === 0 ? <EmptyState icon={TaskIcon} label="Task Approvals" /> : (
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50/80">
+                <tr>
+                  <th className="table-th">#</th>
+                  <th className="table-th">Task</th>
+                  <th className="table-th">Assigned To</th>
+                  <th className="table-th">Client</th>
+                  <th className="table-th">Due Date</th>
+                  <th className="table-th">Priority</th>
+                  <th className="table-th">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {taskApprovals.map((t, i) => (
+                  <tr key={t.id} className="table-row">
+                    <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
+                    <td className="table-td font-medium text-slate-800 max-w-[220px] truncate">{t.description}</td>
+                    <td className="table-td text-slate-600">{t.doer}</td>
+                    <td className="table-td text-slate-500">{t.client || '—'}</td>
+                    <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.dueDate)}</td>
+                    <td className="table-td">
+                      <span className={`pill ${t.priority === 'High' ? 'bg-red-50 text-red-700' : t.priority === 'Medium' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{t.priority || 'Low'}</span>
+                    </td>
+                    <td className="table-td">
+                      <div className="flex gap-1.5">
+                        <button onClick={() => approveTask(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Approve</button>
+                        <button onClick={() => rejectTask(t)}  className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Reject</button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {taskApprovals.map((t, i) => (
-                    <tr key={t.id} className="table-row">
-                      <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
-                      <td className="table-td font-medium text-slate-800 max-w-[220px] truncate">{t.description}</td>
-                      <td className="table-td text-slate-600">{t.doer}</td>
-                      <td className="table-td text-slate-500">{t.client || '—'}</td>
-                      <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.dueDate)}</td>
-                      <td className="table-td">
-                        <span className={`pill ${t.priority === 'High' ? 'bg-red-50 text-red-700' : t.priority === 'Medium' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
-                          {t.priority || 'Low'}
-                        </span>
-                      </td>
-                      <td className="table-td">
-                        <ActionButtons item={t} onApprove={approveTask} onReject={rejectTask} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
 
-      {/* ── Transfer Requests ────────────────────────────────────────────── */}
       {tab === 'Transfer Requests' && <EmptyState icon={TransferIcon} label="Transfer Requests" />}
 
-      {/* ── Leave Approvals ──────────────────────────────────────────────── */}
+      {/* Leave Approvals */}
       {tab === 'Leave Approvals' && (
-        leaves.length === 0
-          ? <EmptyState icon={LeaveIcon} label="Leave Approvals" />
-          : (
-            <div className="card overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50/80">
-                  <tr>
-                    <th className="table-th">#</th>
-                    <th className="table-th">Employee</th>
-                    <th className="table-th">Type</th>
-                    <th className="table-th">From</th>
-                    <th className="table-th">To</th>
-                    <th className="table-th">Reason</th>
-                    <th className="table-th">Applied On</th>
-                    <th className="table-th">Action</th>
+        leaves.length === 0 ? <EmptyState icon={LeaveIcon} label="Leave Approvals" /> : (
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50/80">
+                <tr>
+                  <th className="table-th">#</th>
+                  <th className="table-th">Employee</th>
+                  <th className="table-th">Type</th>
+                  <th className="table-th">From</th>
+                  <th className="table-th">To</th>
+                  <th className="table-th">Reason</th>
+                  <th className="table-th">Applied On</th>
+                  <th className="table-th">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaves.map((l, i) => (
+                  <tr key={l.id} className="table-row">
+                    <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
+                    <td className="table-td font-medium text-slate-800">{l.userName}</td>
+                    <td className="table-td">
+                      <span className={`pill ${l.type === 'Leave' ? 'bg-red-50 text-red-700' : l.type === 'WFH' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>{l.type}</span>
+                    </td>
+                    <td className="table-td text-slate-600 whitespace-nowrap">{fmt(l.fromDate)}</td>
+                    <td className="table-td text-slate-600 whitespace-nowrap">{fmt(l.toDate)}</td>
+                    <td className="table-td text-slate-500 max-w-[180px] truncate">{l.reason || '—'}</td>
+                    <td className="table-td text-slate-400 whitespace-nowrap">{fmt(l.createdAt)}</td>
+                    <td className="table-td">
+                      <div className="flex gap-1.5">
+                        <button onClick={() => actionLeave(l.id, 'approved')} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Approve</button>
+                        <button onClick={() => actionLeave(l.id, 'rejected')} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Reject</button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {leaves.map((l, i) => (
-                    <tr key={l.id} className="table-row">
-                      <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
-                      <td className="table-td font-medium text-slate-800">{l.userName}</td>
-                      <td className="table-td">
-                        <span className={`pill ${l.type === 'Leave' ? 'bg-red-50 text-red-700' : l.type === 'WFH' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                          {l.type}
-                        </span>
-                      </td>
-                      <td className="table-td text-slate-600 whitespace-nowrap">{fmt(l.fromDate)}</td>
-                      <td className="table-td text-slate-600 whitespace-nowrap">{fmt(l.toDate)}</td>
-                      <td className="table-td text-slate-500 max-w-[180px] truncate">{l.reason || '—'}</td>
-                      <td className="table-td text-slate-400 whitespace-nowrap">{fmt(l.createdAt)}</td>
-                      <td className="table-td">
-                        <ActionButtons
-                          item={l}
-                          onApprove={(item) => actionLeave(item.id, 'approved')}
-                          onReject={(item) => actionLeave(item.id, 'rejected')}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
     </div>
   );

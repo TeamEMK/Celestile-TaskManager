@@ -116,10 +116,19 @@ export async function PATCH(req) {
     // Approval gate: a non-admin can NEVER directly revise — it becomes a
     // pending request that an admin must grant.
     let status = body.status;
+    let reviseAction = null;
+
     if (status === 'revise') {
       const session = await getServerSession(authOptions);
       const isAdmin = (session?.user?.roles || []).includes('Admin');
-      if (!isAdmin) status = 'revise_requested';
+      if (!isAdmin) {
+        status = 'revise_requested';
+        reviseAction = 'pending'; // user ne request ki
+      } else {
+        reviseAction = 'granted'; // admin ne grant kiya
+      }
+    } else if (status === 'pending' && body._denyRevise) {
+      reviseAction = 'denied'; // admin ne deny kiya
     }
 
     const result = await sql`
@@ -132,6 +141,7 @@ export async function PATCH(req) {
         approval = COALESCE(${body.approval}, approval),
         url = COALESCE(${body.url}, url),
         remarks = COALESCE(${body.remarks}, remarks),
+        revise_action = COALESCE(${reviseAction}, revise_action),
         completed_at = CASE WHEN ${status} = 'done' THEN NOW() ELSE completed_at END
       WHERE id = ${body.id}
       RETURNING *`;
