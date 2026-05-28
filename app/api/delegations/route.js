@@ -120,15 +120,23 @@ export async function PATCH(req) {
 
     if (status === 'revise') {
       const session = await getServerSession(authOptions);
-      const isAdmin = (session?.user?.roles || []).includes('Admin');
-      if (!isAdmin) {
+      const currentUserId = session?.user?.id;
+
+      // Task ka doer kaun hai check karo
+      const taskRows = await sql`SELECT doer_id FROM delegations WHERE id = ${body.id}`;
+      const taskDoerId = taskRows[0]?.doer_id;
+
+      // Agar current user khud is task ka doer hai (chahe admin ho ya user)
+      // toh approval leni hogi — revise_requested banana padega
+      if (taskDoerId && taskDoerId === currentUserId) {
         status = 'revise_requested';
-        reviseAction = 'pending'; // user ne request ki
+        reviseAction = 'pending';
       } else {
-        reviseAction = 'granted'; // admin ne grant kiya
+        // Admin kisi aur ka task revise kar raha hai — seedha grant
+        reviseAction = 'granted';
       }
     } else if (status === 'pending' && body._denyRevise) {
-      reviseAction = 'denied'; // admin ne deny kiya
+      reviseAction = 'denied';
     }
 
     const result = await sql`
