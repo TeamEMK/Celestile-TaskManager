@@ -10,73 +10,106 @@ const fmt = (iso) => {
 export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [], leaves = [] }) {
   const router = useRouter();
   const [tab, setTab] = useState('Revise Requests');
-  const [reviseDate, setReviseDate] = useState('');
-  const [activeTask, setActiveTask] = useState(null);
   const [saving, setSaving] = useState(false);
-  const todayISO = new Date().toISOString().split('T')[0];
+
+  // Local status tracking — { [id]: 'approved' | 'rejected' | 'pending' }
+  const [statuses, setStatuses] = useState({});
 
   const TABS = [
-    { key: 'Revise Requests',   count: reviseRequests.length,  icon: ReviseIcon  },
-    { key: 'Task Approvals',    count: taskApprovals.length,   icon: TaskIcon    },
-    { key: 'Transfer Requests', count: 0,                      icon: TransferIcon },
-    { key: 'Leave Approvals',   count: leaves.length,          icon: LeaveIcon   },
+    { key: 'Revise Requests',   count: reviseRequests.length, icon: ReviseIcon   },
+    { key: 'Task Approvals',    count: taskApprovals.length,  icon: TaskIcon     },
+    { key: 'Transfer Requests', count: 0,                     icon: TransferIcon },
+    { key: 'Leave Approvals',   count: leaves.length,         icon: LeaveIcon    },
   ];
 
-  // ── Actions ──────────────────────────────────────────────────────────────────
+  // ── Revise actions ───────────────────────────────────────────────────────────
 
-  async function grantRevise() {
+  async function approveRevise(task) {
     setSaving(true);
-    await fetch('/api/delegations', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      // dueDate nahi bhejte — user ki set ki hui date already saved hai
-      body: JSON.stringify({ id: activeTask.id, status: 'revise' }),
-    });
-    setSaving(false);
-    setActiveTask(null);
-    setReviseDate('');
-    router.refresh();
-  }
-
-  async function denyRevise(task) {
-    if (!confirm('Deny karna chahte ho?')) return;
-    await fetch('/api/delegations', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: task.id, status: 'pending' }),
-    });
-    router.refresh();
-  }
-
-  async function approveTask(task) {
-    await fetch('/api/delegations', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: task.id, approval: 'Approved' }),
-    });
-    router.refresh();
-  }
-
-  async function rejectTask(task) {
-    if (!confirm('Task reject karna chahte ho?')) return;
+    setStatuses((s) => ({ ...s, [task.id]: 'approved' }));
     await fetch('/api/delegations', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: task.id, status: 'revise' }),
     });
-    router.refresh();
+    setSaving(false);
   }
 
-  async function actionLeave(id, status) {
+  async function rejectRevise(task) {
+    setSaving(true);
+    setStatuses((s) => ({ ...s, [task.id]: 'rejected' }));
+    await fetch('/api/delegations', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: task.id, status: 'pending' }),
+    });
+    setSaving(false);
+  }
+
+  // ── Task approval actions ────────────────────────────────────────────────────
+
+  async function approveTask(task) {
+    setStatuses((s) => ({ ...s, [task.id]: 'approved' }));
+    await fetch('/api/delegations', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: task.id, approval: 'Approved' }),
+    });
+  }
+
+  async function rejectTask(task) {
+    setStatuses((s) => ({ ...s, [task.id]: 'rejected' }));
+    await fetch('/api/delegations', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: task.id, status: 'revise' }),
+    });
+  }
+
+  // ── Leave actions ────────────────────────────────────────────────────────────
+
+  async function actionLeave(id, action) {
+    setStatuses((s) => ({ ...s, [id]: action }));
     await fetch('/api/leaves', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id, status: action }),
     });
-    router.refresh();
   }
 
-  // ── Empty state ───────────────────────────────────────────────────────────────
+  // ── Status badge ─────────────────────────────────────────────────────────────
+
+  function StatusBadge({ id }) {
+    const s = statuses[id] || 'pending';
+    if (s === 'approved') return <span className="pill bg-emerald-50 text-emerald-700 font-semibold">✓ Approved</span>;
+    if (s === 'rejected') return <span className="pill bg-red-50 text-red-700 font-semibold">✕ Rejected</span>;
+    return <span className="pill bg-amber-50 text-amber-700">⏳ Pending</span>;
+  }
+
+  function ActionButtons({ item, onApprove, onReject }) {
+    const s = statuses[item.id] || 'pending';
+    if (s !== 'pending') return <StatusBadge id={item.id} />;
+    return (
+      <div className="flex items-center gap-2">
+        <StatusBadge id={item.id} />
+        <button
+          onClick={() => onApprove(item)}
+          disabled={saving}
+          className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer font-medium"
+        >
+          Approve
+        </button>
+        <button
+          onClick={() => onReject(item)}
+          disabled={saving}
+          className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer font-medium"
+        >
+          Reject
+        </button>
+      </div>
+    );
+  }
+
   function EmptyState({ icon: Icon, label }) {
     return (
       <div className="card p-14 text-center">
@@ -88,8 +121,6 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
       </div>
     );
   }
-
-  const activeTab = TABS.find((t) => t.key === tab);
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -140,15 +171,12 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                   {reviseRequests.map((t, i) => (
                     <tr key={t.id} className="table-row">
                       <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
-                      <td className="table-td font-medium text-slate-800 max-w-[260px] truncate">{t.description}</td>
+                      <td className="table-td font-medium text-slate-800 max-w-[240px] truncate">{t.description}</td>
                       <td className="table-td text-slate-600">{t.doer}</td>
                       <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.createdAt)}</td>
                       <td className="table-td text-slate-500">{t.remarks || '—'}</td>
                       <td className="table-td">
-                        <div className="flex gap-1.5">
-                          <button onClick={() => { setActiveTask(t); setReviseDate(''); }} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Grant</button>
-                          <button onClick={() => denyRevise(t)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Deny</button>
-                        </div>
+                        <ActionButtons item={t} onApprove={approveRevise} onReject={rejectRevise} />
                       </td>
                     </tr>
                   ))}
@@ -180,7 +208,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                   {taskApprovals.map((t, i) => (
                     <tr key={t.id} className="table-row">
                       <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
-                      <td className="table-td font-medium text-slate-800 max-w-[240px] truncate">{t.description}</td>
+                      <td className="table-td font-medium text-slate-800 max-w-[220px] truncate">{t.description}</td>
                       <td className="table-td text-slate-600">{t.doer}</td>
                       <td className="table-td text-slate-500">{t.client || '—'}</td>
                       <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.dueDate)}</td>
@@ -190,10 +218,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                         </span>
                       </td>
                       <td className="table-td">
-                        <div className="flex gap-1.5">
-                          <button onClick={() => approveTask(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Approve</button>
-                          <button onClick={() => rejectTask(t)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Reject</button>
-                        </div>
+                        <ActionButtons item={t} onApprove={approveTask} onReject={rejectTask} />
                       </td>
                     </tr>
                   ))}
@@ -204,9 +229,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
       )}
 
       {/* ── Transfer Requests ────────────────────────────────────────────── */}
-      {tab === 'Transfer Requests' && (
-        <EmptyState icon={TransferIcon} label="Transfer Requests" />
-      )}
+      {tab === 'Transfer Requests' && <EmptyState icon={TransferIcon} label="Transfer Requests" />}
 
       {/* ── Leave Approvals ──────────────────────────────────────────────── */}
       {tab === 'Leave Approvals' && (
@@ -239,13 +262,14 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                       </td>
                       <td className="table-td text-slate-600 whitespace-nowrap">{fmt(l.fromDate)}</td>
                       <td className="table-td text-slate-600 whitespace-nowrap">{fmt(l.toDate)}</td>
-                      <td className="table-td text-slate-500 max-w-[200px] truncate">{l.reason || '—'}</td>
+                      <td className="table-td text-slate-500 max-w-[180px] truncate">{l.reason || '—'}</td>
                       <td className="table-td text-slate-400 whitespace-nowrap">{fmt(l.createdAt)}</td>
                       <td className="table-td">
-                        <div className="flex gap-1.5">
-                          <button onClick={() => actionLeave(l.id, 'approved')} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Approve</button>
-                          <button onClick={() => actionLeave(l.id, 'rejected')} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Reject</button>
-                        </div>
+                        <ActionButtons
+                          item={l}
+                          onApprove={(item) => actionLeave(item.id, 'approved')}
+                          onReject={(item) => actionLeave(item.id, 'rejected')}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -253,26 +277,6 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
               </table>
             </div>
           )
-      )}
-
-      {/* ── Grant Revise Modal ───────────────────────────────────────────── */}
-      {activeTask && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !saving && setActiveTask(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-base font-semibold text-slate-900 mb-1">Grant Revise Request</h2>
-            <p className="text-[12px] text-slate-500 mb-4">Approve this revision request and send the task back?</p>
-            <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 mb-4">
-              <div className="font-medium text-slate-800 text-sm">{activeTask.description}</div>
-              <div className="text-[12px] text-slate-500 mt-0.5">Doer: <b>{activeTask.doer}</b></div>
-              {activeTask.remarks && <div className="text-[12px] text-slate-600 mt-2 pt-2 border-t border-slate-200">Note: {activeTask.remarks}</div>}
-            </div>
-            <p className="text-xs text-slate-500 mb-4">User ki requested date pe task revise ke liye bheja jaayega.</p>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setActiveTask(null)} disabled={saving} className="btn-secondary">Cancel</button>
-              <button onClick={grantRevise} disabled={saving} className="btn-success">{saving ? 'Saving…' : 'Grant Revise'}</button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
