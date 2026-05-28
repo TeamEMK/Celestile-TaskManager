@@ -41,11 +41,11 @@ async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, 
   const res = await sql`
     INSERT INTO delegations (
       id, description, doer_id, doer, delegated_by, due_date,
-      client, status, type, priority, approval, url, remarks
+      client, status, type, priority, approval, url, remarks, created_at
     ) VALUES (
       ${id}, ${description}, ${doerId}, ${doerName || ''}, ${delegatedBy || null},
       ${dueDate}, ${client || ''}, 'pending', 'delegation',
-      ${priority || 'Low'}, ${approval || 'No Approval'}, ${url || ''}, ${remarks || ''}
+      ${priority || 'Low'}, ${approval || 'No Approval'}, ${url || ''}, ${remarks || ''}, NOW()
     ) RETURNING *`;
   return res[0];
 }

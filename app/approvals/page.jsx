@@ -31,7 +31,7 @@ export default async function ApprovalsPage() {
   }
 
   // ── Admin view ───────────────────────────────────────────────────────────────
-  const [reviseRequests, taskApprovals, leaves] = await Promise.all([
+  const [reviseRequests, taskApprovals] = await Promise.all([
     sql`
       SELECT id, description, doer, remarks, created_at AS "createdAt"
       FROM delegations WHERE status = 'revise_requested'
@@ -44,21 +44,12 @@ export default async function ApprovalsPage() {
       FROM delegations
       WHERE approval = 'Approval Required' AND status = 'pending'
       ORDER BY created_at DESC`,
-
-    sql`
-      SELECT id, user_id AS "userId", user_name AS "userName",
-             type, from_date AS "fromDate", to_date AS "toDate",
-             reason, status, approver, created_at AS "createdAt"
-      FROM leaves WHERE status = 'pending'
-      ORDER BY created_at DESC`
-      .catch(() => []),
   ]);
 
   return (
     <ApprovalsClient
       reviseRequests={reviseRequests}
       taskApprovals={taskApprovals}
-      leaves={leaves}
     />
   );
 }
