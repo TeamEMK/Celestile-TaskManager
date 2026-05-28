@@ -64,8 +64,8 @@ export default function DashboardClient({ data, performance, holidays, users = [
     (userFilter === 'All' || t.doer === userFilter)
   );
 
-  const visibleCompleted = isAdmin ? data.completed : 0;
-  const visibleRevised   = isAdmin ? data.revised   : 0;
+  const visibleCompleted = data.completed;
+  const visibleRevised   = data.revised;
 
   async function markDone(task) {
     if (task.type === 'Delegation') {
@@ -143,7 +143,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
         </div>
         <div className="card p-5">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Completed</div>
-          <div className="text-4xl font-bold text-emerald-500">{isAdmin ? data.completed : 0}</div>
+          <div className="text-4xl font-bold text-emerald-500">{data.completed}</div>
         </div>
         <div className="card p-5">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Pending</div>

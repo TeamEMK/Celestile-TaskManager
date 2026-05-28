@@ -30,7 +30,7 @@ export default async function DashboardPage() {
 
   const filteredStore = isAdmin ? storeWithCompletions : {
     ...storeWithCompletions,
-    delegations: storeWithCompletions.delegations.filter((d) => d.doerId === currentUserId),
+    delegations: storeWithCompletions.delegations.filter((d) => d.doerId === currentUserId || d.doer === currentName),
     masters:     storeWithCompletions.masters.filter((m) => m.assignedTo === currentName),
     fms:         (storeWithCompletions.fms || []).filter((f) => f.doer === currentName),
   };
