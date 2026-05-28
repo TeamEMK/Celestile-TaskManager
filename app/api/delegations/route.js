@@ -102,6 +102,15 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
     const body = await req.json();
+
+    // Bulk transfer: fromDoer ke saare tasks toDoer ko assign karo
+    if (body.action === 'transfer') {
+      const { fromDoer, toDoer, toDoerId } = body;
+      if (!fromDoer || !toDoer) return NextResponse.json({ error: 'fromDoer and toDoer required' }, { status: 400 });
+      await sql`UPDATE delegations SET doer = ${toDoer}, doer_id = ${toDoerId || null} WHERE doer = ${fromDoer} AND status != 'done'`;
+      return NextResponse.json({ success: true });
+    }
+
     if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
     // Approval gate: a non-admin can NEVER directly revise — it becomes a

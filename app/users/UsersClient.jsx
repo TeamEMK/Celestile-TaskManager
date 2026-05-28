@@ -84,6 +84,24 @@ export default function UsersClient({
   const roles = normalizeRoles(session?.user?.roles);
 
   const isAdmin = roles.includes('Admin');
+
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
+
+  async function syncSheets() {
+    setSyncing(true);
+    setSyncMsg('');
+    try {
+      const res = await fetch('/api/sync-sheets', { method: 'POST' });
+      const data = await res.json();
+      setSyncMsg(res.ok ? '✓ Synced to Google Sheets' : (data.error || 'Sync failed'));
+    } catch {
+      setSyncMsg('Sync failed');
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMsg(''), 4000);
+    }
+  }
   console.log('DEBUG roles:', session?.user?.roles, '| isAdmin:', isAdmin); 
 
   const [search, setSearch] = useState('');
@@ -164,6 +182,15 @@ export default function UsersClient({
 
         {isAdmin && (
           <div className="flex items-center gap-2 flex-wrap">
+            {syncMsg && (
+              <span className={`text-xs font-medium px-2 py-1 rounded ${syncMsg.startsWith('✓') ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'}`}>
+                {syncMsg}
+              </span>
+            )}
+            <button onClick={syncSheets} disabled={syncing} className="btn-secondary flex items-center gap-1.5">
+              <SheetsIcon />
+              {syncing ? 'Syncing…' : 'Sync to Sheets'}
+            </button>
             <CsvImport
               templateName="users_template.csv"
               columns={[
@@ -758,6 +785,15 @@ function PlusIcon() {
       strokeLinejoin="round"
     >
       <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+function SheetsIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18M3 15h18M9 3v18" />
     </svg>
   );
 }

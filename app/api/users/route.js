@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
+import { syncUsers } from '@/lib/google-sheets';
 
 const sql = neon(process.env.DATABASE_URL);
 
@@ -13,7 +14,6 @@ export async function POST(req) {
   if (!body.name || !body.email)
     return NextResponse.json({ error: 'Name and email required' }, { status: 400 });
 
-  // Auto ID generate karo
   const last = await sql`SELECT id FROM users ORDER BY id DESC LIMIT 1`;
   const lastNum = last.length ? parseInt(last[0].id.replace('U', '')) : 0;
   const id = 'U' + (lastNum + 1).toString().padStart(3, '0');
@@ -29,6 +29,10 @@ export async function POST(req) {
     )
     RETURNING *
   `;
+
+  // Google Sheets mein sync karo (background)
+  syncUsers(sql).catch(() => {});
+
   return NextResponse.json(result[0], { status: 201 });
 }
 
@@ -39,17 +43,20 @@ export async function PATCH(req) {
 
   const result = await sql`
     UPDATE users SET
-      name = COALESCE(${body.name}, name),
-      email = COALESCE(${body.email}, email),
-      phone = COALESCE(${body.phone}, phone),
+      name       = COALESCE(${body.name},       name),
+      email      = COALESCE(${body.email},      email),
+      phone      = COALESCE(${body.phone},      phone),
       department = COALESCE(${body.department}, department),
-      roles = COALESCE(${body.roles}, roles),
-      active = COALESCE(${body.active}, active)
+      roles      = COALESCE(${body.roles},      roles),
+      active     = COALESCE(${body.active},     active)
     WHERE id = ${body.id}
     RETURNING *
   `;
   if (!result.length)
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Google Sheets mein sync karo (background)
+  syncUsers(sql).catch(() => {});
 
   return NextResponse.json(result[0]);
 }
@@ -61,5 +68,9 @@ export async function DELETE(req) {
     return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   await sql`DELETE FROM users WHERE id = ${id}`;
+
+  // Google Sheets mein sync karo (background)
+  syncUsers(sql).catch(() => {});
+
   return NextResponse.json({ success: true });
 }

@@ -12,6 +12,7 @@ export default function AllTasksClient({ grouped, users }) {
   const [expanded, setExpanded] = useState({});
   const [search, setSearch] = useState('');
   const [delegateOpen, setDelegateOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [employeeFilter, setEmployeeFilter] = useState('All');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -24,20 +25,35 @@ export default function AllTasksClient({ grouped, users }) {
     return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  // DB mein type lowercase hai ('delegation'), Checklist explicitly 'Checklist' set hai
   const tabType = {
-    'Delegation':     'Delegation',
+    'Delegation':     'delegation',
     'Checklist':      'Checklist',
-    'Delegate by Me': 'Delegation',
+    'Delegate by Me': 'delegation',
+  };
+
+  const baseGroups = isAdmin
+    ? grouped
+    : grouped.filter((g) => g.doer === currentUserName);
+
+  // Count tasks per tab (only tab filter, no status/date/search) for badge display
+  const tabCount = (tabName) => {
+    const allTasks = baseGroups.flatMap((g) => g.tasks);
+    if (tabName === 'Delegate by Me') {
+      return allTasks.filter((t) => (t.type || 'delegation').toLowerCase() === 'delegation' && t.delegatedBy === session?.user?.id).length;
+    }
+    const wantType = tabType[tabName];
+    return wantType ? allTasks.filter((t) => (t.type || 'delegation').toLowerCase() === wantType.toLowerCase()).length : allTasks.length;
   };
 
   const filterTasks = (tasks) => {
     let arr = tasks;
 
     if (tab === 'Delegate by Me') {
-      arr = arr.filter((t) => t.type === 'Delegation' && t.delegatedBy === session?.user?.id);
+      arr = arr.filter((t) => (t.type || 'delegation').toLowerCase() === 'delegation' && t.delegatedBy === session?.user?.id);
     } else {
       const wantType = tabType[tab];
-      if (wantType) arr = arr.filter((t) => (t.type || 'Delegation') === wantType);
+      if (wantType) arr = arr.filter((t) => (t.type || 'delegation').toLowerCase() === wantType.toLowerCase());
     }
 
     if (statusTab === 'Pending')   arr = arr.filter((t) => t.status === 'pending' || t.status === 'revise');
@@ -57,10 +73,6 @@ export default function AllTasksClient({ grouped, users }) {
     return arr;
   };
 
-  const baseGroups = isAdmin
-    ? grouped
-    : grouped.filter((g) => g.doer === currentUserName);
-
   const visibleGroups = baseGroups
     .filter((g) => employeeFilter === 'All' || g.doer === employeeFilter)
     .map((g) => ({ ...g, tasks: filterTasks(g.tasks) }))
@@ -68,7 +80,7 @@ export default function AllTasksClient({ grouped, users }) {
 
   const totalTasks = visibleGroups.reduce((s, g) => s + g.tasks.length, 0);
 
-  function expandAll()   { const o = {}; visibleGroups.forEach((g) => o[g.doer] = true); setExpanded(o); }
+  function expandAll()   { const o = {}; visibleGroups.forEach((g) => (o[g.doer] = true)); setExpanded(o); }
   function collapseAll() { setExpanded({}); }
 
   async function updateStatus(id, status, type) {
@@ -90,6 +102,9 @@ export default function AllTasksClient({ grouped, users }) {
     window.location.reload();
   }
 
+  // Global serial index counter across all groups
+  let globalSerial = 0;
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -99,7 +114,7 @@ export default function AllTasksClient({ grouped, users }) {
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2 flex-wrap">
-            <button className="btn-secondary">
+            <button onClick={() => setTransferOpen(true)} className="btn-secondary">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
               Transfer
             </button>
@@ -110,11 +125,27 @@ export default function AllTasksClient({ grouped, users }) {
         )}
       </div>
 
+      {/* Filter bar */}
       <div className="card p-3 flex items-center gap-2 flex-wrap">
+        {/* Tab buttons with count badges */}
         <div className="seg">
-          {['Delegation', 'Checklist', 'Delegate by Me'].map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`seg-btn ${tab === t ? 'seg-btn-active' : ''}`}>{t}</button>
-          ))}
+          {['Delegation', 'Checklist', 'Delegate by Me'].map((t) => {
+            const count = tabCount(t);
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`seg-btn flex items-center gap-1.5 ${tab === t ? 'seg-btn-active' : ''}`}
+              >
+                {t}
+                <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] font-bold px-1 ${
+                  tab === t ? 'bg-white/30 text-current' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <div className="w-px h-6 bg-slate-200 mx-1" />
         {isAdmin && (
@@ -133,6 +164,7 @@ export default function AllTasksClient({ grouped, users }) {
         </div>
       </div>
 
+      {/* Status tabs + summary + expand controls */}
       <div className="flex justify-between items-center flex-wrap gap-2">
         <div className="seg">
           {['All', 'Pending', 'Completed'].map((t) => (
@@ -144,11 +176,12 @@ export default function AllTasksClient({ grouped, users }) {
           <span className="font-semibold text-slate-800">{totalTasks}</span> task{totalTasks === 1 ? '' : 's'}
         </div>
         <div className="flex gap-1 text-xs">
-          <button onClick={expandAll} className="btn-ghost !py-1 !px-2">Expand all</button>
+          <button onClick={expandAll}   className="btn-ghost !py-1 !px-2">Expand all</button>
           <button onClick={collapseAll} className="btn-ghost !py-1 !px-2">Collapse all</button>
         </div>
       </div>
 
+      {/* Task groups */}
       <div className="card overflow-hidden">
         {visibleGroups.length === 0 ? (
           <div className="p-14 text-center">
@@ -160,11 +193,14 @@ export default function AllTasksClient({ grouped, users }) {
           </div>
         ) : (
           <ul>
-            {visibleGroups.map((g) => {
+            {visibleGroups.map((g, groupIdx) => {
               const pendingCount   = g.tasks.filter((t) => t.status === 'pending').length;
               const completedCount = g.tasks.filter((t) => t.status === 'done').length;
               const revisedCount   = g.tasks.filter((t) => t.status === 'revise').length;
               const isOpen = expanded[g.doer];
+
+              // Track start index for this group before rendering
+              const groupStartSerial = globalSerial + 1;
 
               return (
                 <li key={g.doer} className="border-b border-slate-100 last:border-0">
@@ -176,8 +212,11 @@ export default function AllTasksClient({ grouped, users }) {
                       <span className={`text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`}>
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                       </span>
+                      {/* Group index */}
+                      <span className="text-xs font-mono text-slate-400 w-5 text-right shrink-0">{groupIdx + 1}.</span>
                       <Avatar name={g.doer} />
                       <span className="font-medium text-slate-800 text-sm">{g.doer}</span>
+                      <span className="text-xs text-slate-400">({g.tasks.length} task{g.tasks.length === 1 ? '' : 's'} · #{groupStartSerial}–#{groupStartSerial + g.tasks.length - 1})</span>
                     </span>
                     <div className="flex gap-1.5 items-center">
                       {completedCount > 0 && <span className="pill bg-emerald-50 text-emerald-700">{completedCount} done</span>}
@@ -185,11 +224,13 @@ export default function AllTasksClient({ grouped, users }) {
                       {revisedCount   > 0 && <span className="pill bg-amber-50 text-amber-700">{revisedCount} revised</span>}
                     </div>
                   </button>
+
                   {isOpen && (
                     <div className="bg-slate-50/40 px-5 py-3 border-t border-slate-100">
                       <table className="w-full text-sm">
                         <thead>
                           <tr>
+                            <th className="text-left px-2 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-400 w-8">#</th>
                             <th className="text-left px-2 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500">Description</th>
                             <th className="text-left px-2 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500 w-32">Due / Freq</th>
                             <th className="text-left px-2 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500 w-32">Client</th>
@@ -197,36 +238,41 @@ export default function AllTasksClient({ grouped, users }) {
                           </tr>
                         </thead>
                         <tbody>
-                          {g.tasks.map((t) => (
-                            <tr key={t.id} className="border-t border-slate-200/60">
-                              <td className="px-2 py-2.5 text-slate-700">{t.description}</td>
-                              <td className="px-2 py-2.5 text-slate-600 whitespace-nowrap">
-                                {t.type === 'Checklist' ? (t.frequency || 'Recurring') : fmt(t.dueDate)}
-                              </td>
-                              <td className="px-2 py-2.5 text-slate-600">{t.client || '—'}</td>
-                              <td className="px-2 py-2.5">
-                                {t.type === 'Checklist' ? (
-                                  t.status === 'done' ? (
-                                    <span className="pill bg-emerald-50 text-emerald-700">✓ Done Today</span>
+                          {g.tasks.map((t) => {
+                            globalSerial += 1;
+                            const serial = globalSerial;
+                            return (
+                              <tr key={t.id} className="border-t border-slate-200/60">
+                                <td className="px-2 py-2.5 text-[11px] font-mono text-slate-400 tabular-nums">{serial}</td>
+                                <td className="px-2 py-2.5 text-slate-700">{t.description}</td>
+                                <td className="px-2 py-2.5 text-slate-600 whitespace-nowrap">
+                                  {t.type === 'Checklist' ? (t.frequency || 'Recurring') : fmt(t.dueDate)}
+                                </td>
+                                <td className="px-2 py-2.5 text-slate-600">{t.client || '—'}</td>
+                                <td className="px-2 py-2.5">
+                                  {t.type === 'Checklist' ? (
+                                    t.status === 'done' ? (
+                                      <span className="pill bg-emerald-50 text-emerald-700">✓ Done Today</span>
+                                    ) : (
+                                      <button onClick={() => markChecklistDone(t.id)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Done</button>
+                                    )
+                                  ) : t.status === 'done' ? (
+                                    <span className="pill bg-emerald-50 text-emerald-700">✓ Done</span>
+                                  ) : t.status === 'revise' ? (
+                                    <div className="flex gap-1.5">
+                                      <span className="pill bg-amber-50 text-amber-700">Revise</span>
+                                      <button onClick={() => updateStatus(t.id, 'done', t.type)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Mark done</button>
+                                    </div>
                                   ) : (
-                                    <button onClick={() => markChecklistDone(t.id)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Done</button>
-                                  )
-                                ) : t.status === 'done' ? (
-                                  <span className="pill bg-emerald-50 text-emerald-700">✓ Done</span>
-                                ) : t.status === 'revise' ? (
-                                  <div className="flex gap-1.5">
-                                    <span className="pill bg-amber-50 text-amber-700">Revise</span>
-                                    <button onClick={() => updateStatus(t.id, 'done', t.type)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Mark done</button>
-                                  </div>
-                                ) : (
-                                  <div className="flex gap-1.5">
-                                    <button onClick={() => updateStatus(t.id, 'done', t.type)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Done</button>
-                                    <button onClick={() => updateStatus(t.id, 'revise', t.type)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Revise</button>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                                    <div className="flex gap-1.5">
+                                      <button onClick={() => updateStatus(t.id, 'done',   t.type)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Done</button>
+                                      <button onClick={() => updateStatus(t.id, 'revise', t.type)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Revise</button>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -239,6 +285,7 @@ export default function AllTasksClient({ grouped, users }) {
       </div>
 
       <AddDelegateModal open={delegateOpen} onClose={() => setDelegateOpen(false)} users={users} />
+      <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} users={users} onDone={() => { setTransferOpen(false); window.location.reload(); }} />
     </div>
   );
 }
@@ -252,3 +299,87 @@ function Avatar({ name = '' }) {
 }
 
 function PlusIcon() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
+
+function TransferModal({ open, onClose, users, onDone }) {
+  const [fromUser, setFromUser] = useState('');
+  const [toUser, setToUser]     = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [msg, setMsg]           = useState('');
+
+  if (!open) return null;
+
+  async function handleTransfer() {
+    if (!fromUser || !toUser) return setMsg('Dono users select karo');
+    if (fromUser === toUser)  return setMsg('From aur To same user nahi ho sakta');
+    setLoading(true);
+    setMsg('');
+    const to = users.find((u) => u.id === toUser);
+    const from = users.find((u) => u.id === fromUser);
+    const res = await fetch('/api/delegations', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'transfer', fromDoer: from?.name, toDoer: to?.name, toDoerId: to?.id }),
+    });
+    const data = await res.json();
+    setLoading(false);
+    if (res.ok) { onDone(); }
+    else        { setMsg(data.error || 'Transfer failed'); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <svg className="w-5 h-5 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
+            Transfer Tasks
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 grid place-items-center text-slate-400">✕</button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              Select Doer (Whose tasks to transfer)
+            </label>
+            <select
+              value={fromUser}
+              onChange={(e) => setFromUser(e.target.value)}
+              className="input w-full"
+            >
+              <option value="">-- Select user --</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              Transfer To
+            </label>
+            <select
+              value={toUser}
+              onChange={(e) => setToUser(e.target.value)}
+              className="input w-full"
+            >
+              <option value="">-- Select user --</option>
+              {users.filter((u) => u.id !== fromUser).map((u) => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {msg && <p className="text-sm text-red-600">{msg}</p>}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={handleTransfer} disabled={loading || !fromUser || !toUser} className="btn-primary">
+            {loading ? 'Transferring…' : 'Transfer Tasks'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
