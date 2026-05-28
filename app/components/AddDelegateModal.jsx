@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 const blank = () => ({
   description: '', doerId: '', dueDate: '',
@@ -26,6 +27,7 @@ function parseCSV(text) {
 
 export default function AddDelegateModal({ open, onClose, users = [] }) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [form, setForm] = useState(blank());
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -43,7 +45,7 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
     try {
       const res = await fetch('/api/delegations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, delegatedBy: session?.user?.id }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
       setForm(blank());
@@ -62,7 +64,7 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
       if (!rows.length) { setMsg('CSV me koi valid row nahi.'); setSaving(false); return; }
       const res = await fetch('/api/delegations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bulk: rows }),
+        body: JSON.stringify({ bulk: rows, delegatedBy: session?.user?.id }),
       });
       const out = await res.json();
       if (!res.ok) throw new Error(out.error || 'Upload failed');

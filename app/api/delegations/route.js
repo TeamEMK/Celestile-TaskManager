@@ -43,7 +43,7 @@ async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, 
       id, description, doer_id, doer, delegated_by, due_date,
       client, status, type, priority, approval, url, remarks
     ) VALUES (
-      ${id}, ${description}, ${doerId}, ${doerName || ''}, ${delegatedBy || 'U001'},
+      ${id}, ${description}, ${doerId}, ${doerName || ''}, ${delegatedBy || null},
       ${dueDate}, ${client || ''}, 'pending', 'delegation',
       ${priority || 'Low'}, ${approval || 'No Approval'}, ${url || ''}, ${remarks || ''}
     ) RETURNING *`;
