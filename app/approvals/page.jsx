@@ -42,7 +42,7 @@ export default async function ApprovalsPage() {
              due_date AS "dueDate", priority, approval,
              created_at AS "createdAt"
       FROM delegations
-      WHERE approval = 'Approval Required' AND status = 'pending'
+      WHERE approval = 'Approval Required' AND status = 'approval_pending'
       ORDER BY created_at DESC`,
   ]);
 

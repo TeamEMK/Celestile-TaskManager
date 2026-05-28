@@ -115,7 +115,6 @@ export default function DashboardClient({ data, performance, holidays, users = [
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="page-title">Dashboard</h1>
         <div className="flex items-center gap-2 flex-wrap">
           {isAdmin && (
             <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="input !w-auto !py-1.5 !text-sm">

@@ -38,13 +38,16 @@ async function nextId() {
 
 async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, client, priority, approval, url, remarks }) {
   const id = await nextId();
+  // Approval Required hone par task approval_pending se shuru hoga
+  const initialStatus = (approval === 'Approval Required') ? 'approval_pending' : 'pending';
+
   const res = await sql`
     INSERT INTO delegations (
       id, description, doer_id, doer, delegated_by, due_date,
       client, status, type, priority, approval, url, remarks, created_at
     ) VALUES (
       ${id}, ${description}, ${doerId}, ${doerName || ''}, ${delegatedBy || null},
-      ${dueDate}, ${client || ''}, 'pending', 'delegation',
+      ${dueDate}, ${client || ''}, ${initialStatus}, 'delegation',
       ${priority || 'Low'}, ${approval || 'No Approval'}, ${url || ''}, ${remarks || ''}, NOW()
     ) RETURNING *`;
   return res[0];
