@@ -143,7 +143,7 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button className="btn-secondary" onClick={downloadSample}>⬇ Sample</button>
               <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="text-[12px] file:btn-secondary file:cursor-pointer file:mr-2" />
+                className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
               <button className="btn-success ml-auto" disabled={saving || !file} onClick={uploadCsv}>📤 Upload CSV</button>
             </div>
           </div>
