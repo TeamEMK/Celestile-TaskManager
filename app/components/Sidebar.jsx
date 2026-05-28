@@ -29,17 +29,17 @@ const SECTIONS = [
   ]},
   { title: 'Operations', items: [
     { href: '/fms',           label: 'FMS Master',    icon: 'fms',          flag: 'fms',  adminOnly: true },
-    { href: '/masters',       label: 'Checklists',    icon: 'masters',      adminOnly: true, disabled: true },
-    { href: '/client-master', label: 'Client Master', icon: 'clientmaster', adminOnly: true, disabled: true },
+    { href: '/masters',       label: 'Checklists',    icon: 'masters',      adminOnly: true, hidden: true },
+    { href: '/client-master', label: 'Client Master', icon: 'clientmaster', adminOnly: true, hidden: true },
     { href: '/mis',           label: 'MIS Report',    icon: 'mis',          adminOnly: true },
     { href: '/race-tracker',  label: 'Race Tracker',  icon: 'race',         flag: 'race', adminOnly: true },
-    { href: '/compliance',    label: 'Compliance',    icon: 'compliance',   adminOnly: true, disabled: true },
+    { href: '/compliance',    label: 'Compliance',    icon: 'compliance',   adminOnly: true, hidden: true },
   ]},
   { title: 'Daily', items: [
-    { href: '/daily-task',    label: 'Daily Task',    icon: 'dailytask', disabled: true },
-    { href: '/leave-tracker', label: 'Leave Tracker', icon: 'leave',     disabled: true },
-    { href: '/meetings',      label: 'Meetings',      icon: 'meetings',  disabled: true },
-    { href: '/daily-reports', label: 'Daily Reports', icon: 'reports',   disabled: true },
+    { href: '/daily-task',    label: 'Daily Task',    icon: 'dailytask', hidden: true },
+    { href: '/leave-tracker', label: 'Leave Tracker', icon: 'leave',     hidden: true },
+    { href: '/meetings',      label: 'Meetings',      icon: 'meetings',  hidden: true },
+    { href: '/daily-reports', label: 'Daily Reports', icon: 'reports',   hidden: true },
   ]},
   { title: 'Administration', items: [
     { href: '/users',   label: 'Users',   icon: 'users',   adminOnly: true },
@@ -53,6 +53,7 @@ export default function Sidebar() {
   const isAdmin = (session?.user?.roles || []).includes('Admin');
 
   const visible = (n) =>
+    !n.hidden &&
     (n.flag !== 'fms'  || FMS_ENABLED) &&
     (n.flag !== 'race' || RACE_TRACKER_ENABLED) &&
     (!n.adminOnly || isAdmin);
@@ -85,19 +86,6 @@ export default function Sidebar() {
                 {items.map((n) => {
                   const active   = pathname === n.href;
                   const IconComp = Icon[n.icon];
-
-                  if (n.disabled) {
-                    return (
-                      <div key={n.href} title={`${n.label} (Coming Soon)`}
-                        className="flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] font-medium opacity-35 cursor-not-allowed select-none">
-                        <IconComp className="w-[17px] h-[17px] shrink-0 text-slate-500" />
-                        <span className="whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 flex items-center gap-1.5">
-                          {n.label}
-                          <span className="text-[9px] bg-slate-700 text-slate-400 px-1 rounded">Soon</span>
-                        </span>
-                      </div>
-                    );
-                  }
 
                   return (
                     <Link key={n.href} href={n.href} title={n.label}
