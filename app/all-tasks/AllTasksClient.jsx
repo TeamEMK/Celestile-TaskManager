@@ -30,10 +30,9 @@ export default function AllTasksClient({ grouped, users }) {
     'Delegate by Me': 'Delegation',
   };
 
-  const filterTasks = (tasks, doer) => {
+  const filterTasks = (tasks) => {
     let arr = tasks;
 
-    // Tab filter
     if (tab === 'Delegate by Me') {
       arr = arr.filter((t) => t.type === 'Delegation' && t.delegatedBy === session?.user?.id);
     } else {
@@ -41,15 +40,12 @@ export default function AllTasksClient({ grouped, users }) {
       if (wantType) arr = arr.filter((t) => (t.type || 'Delegation') === wantType);
     }
 
-    // Status filter
     if (statusTab === 'Pending')   arr = arr.filter((t) => t.status === 'pending' || t.status === 'revise');
     if (statusTab === 'Completed') arr = arr.filter((t) => t.status === 'done');
 
-    // Date filter
     if (fromDate) arr = arr.filter((t) => t.dueDate && new Date(t.dueDate) >= new Date(fromDate));
     if (toDate)   arr = arr.filter((t) => t.dueDate && new Date(t.dueDate) <= new Date(toDate));
 
-    // Search filter
     if (search) {
       const s = search.toLowerCase();
       arr = arr.filter((t) =>
@@ -61,40 +57,35 @@ export default function AllTasksClient({ grouped, users }) {
     return arr;
   };
 
-  // Non-admin sirf apne tasks dekhega
   const baseGroups = isAdmin
     ? grouped
     : grouped.filter((g) => g.doer === currentUserName);
 
   const visibleGroups = baseGroups
     .filter((g) => employeeFilter === 'All' || g.doer === employeeFilter)
-    .map((g) => ({ ...g, tasks: filterTasks(g.tasks, g.doer) }))
+    .map((g) => ({ ...g, tasks: filterTasks(g.tasks) }))
     .filter((g) => g.tasks.length > 0);
 
   const totalTasks = visibleGroups.reduce((s, g) => s + g.tasks.length, 0);
 
-  // Tab-wise task counts for all base groups
-  const tabCount = (tabName) => {
-    const allTasks = baseGroups.flatMap((g) => g.tasks);
-    let arr = allTasks;
-    if (tabName === 'Delegate by Me') {
-      arr = arr.filter((t) => t.type === 'Delegation' && t.delegatedBy === session?.user?.id);
-    } else {
-      const wantType = tabType[tabName];
-      if (wantType) arr = arr.filter((t) => (t.type || 'Delegation') === wantType);
-    }
-    return arr.length;
-  };
-
   function expandAll()   { const o = {}; visibleGroups.forEach((g) => o[g.doer] = true); setExpanded(o); }
   function collapseAll() { setExpanded({}); }
 
-  async function updateStatus(id, status) {
+  async function updateStatus(id, status, type) {
     if (type === 'Checklist') return;
     await fetch('/api/delegations', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
+    });
+    window.location.reload();
+  }
+
+  async function markChecklistDone(taskId) {
+    await fetch('/api/checklist-completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ masterId: taskId }),
     });
     window.location.reload();
   }
@@ -119,67 +110,33 @@ export default function AllTasksClient({ grouped, users }) {
         )}
       </div>
 
-      {/* Filter bar */}
       <div className="card p-3 flex items-center gap-2 flex-wrap">
         <div className="seg">
           {['Delegation', 'Checklist', 'Delegate by Me'].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`seg-btn ${tab === t ? 'seg-btn-active' : ''}`}
-            >
-              {t}
-            </button>
+            <button key={t} onClick={() => setTab(t)} className={`seg-btn ${tab === t ? 'seg-btn-active' : ''}`}>{t}</button>
           ))}
         </div>
         <div className="w-px h-6 bg-slate-200 mx-1" />
         {isAdmin && (
-          <select
-            value={employeeFilter}
-            onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="input !w-auto !py-1.5"
-          >
+          <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)} className="input !w-auto !py-1.5">
             <option value="All">All Employees</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.name}>{u.name}</option>
-            ))}
+            {users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
           </select>
         )}
-        <input
-          type="date"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          className="input !w-auto !py-1.5"
-        />
+        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="input !w-auto !py-1.5" />
         <span className="text-xs text-slate-400">to</span>
-        <input
-          type="date"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          className="input !w-auto !py-1.5"
-        />
+        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="input !w-auto !py-1.5" />
         <div className="flex-1" />
         <div className="relative">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search description, client…"
-            className="input pl-9 w-72"
-          />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search description, client…" className="input pl-9 w-72" />
         </div>
       </div>
 
       <div className="flex justify-between items-center flex-wrap gap-2">
         <div className="seg">
           {['All', 'Pending', 'Completed'].map((t) => (
-            <button
-              key={t}
-              onClick={() => setStatusTab(t)}
-              className={`seg-btn ${statusTab === t ? 'seg-btn-active' : ''}`}
-            >
-              {t}
-            </button>
+            <button key={t} onClick={() => setStatusTab(t)} className={`seg-btn ${statusTab === t ? 'seg-btn-active' : ''}`}>{t}</button>
           ))}
         </div>
         <div className="text-sm text-slate-600">
@@ -187,7 +144,7 @@ export default function AllTasksClient({ grouped, users }) {
           <span className="font-semibold text-slate-800">{totalTasks}</span> task{totalTasks === 1 ? '' : 's'}
         </div>
         <div className="flex gap-1 text-xs">
-          <button onClick={expandAll}   className="btn-ghost !py-1 !px-2">Expand all</button>
+          <button onClick={expandAll} className="btn-ghost !py-1 !px-2">Expand all</button>
           <button onClick={collapseAll} className="btn-ghost !py-1 !px-2">Collapse all</button>
         </div>
       </div>
@@ -234,9 +191,9 @@ export default function AllTasksClient({ grouped, users }) {
                         <thead>
                           <tr>
                             <th className="text-left px-2 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500">Description</th>
-                            <th className="text-left px-2 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500 w-32">Due</th>
+                            <th className="text-left px-2 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500 w-32">Due / Freq</th>
                             <th className="text-left px-2 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500 w-32">Client</th>
-                            <th className="text-left px-2 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500 w-40">Action</th>
+                            <th className="text-left px-2 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500 w-44">Action</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -249,17 +206,21 @@ export default function AllTasksClient({ grouped, users }) {
                               <td className="px-2 py-2.5 text-slate-600">{t.client || '—'}</td>
                               <td className="px-2 py-2.5">
                                 {t.type === 'Checklist' ? (
-                                  <span className="pill bg-emerald-50 text-emerald-700">Recurring</span>
+                                  t.status === 'done' ? (
+                                    <span className="pill bg-emerald-50 text-emerald-700">✓ Done Today</span>
+                                  ) : (
+                                    <button onClick={() => markChecklistDone(t.id)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Done</button>
+                                  )
                                 ) : t.status === 'done' ? (
                                   <span className="pill bg-emerald-50 text-emerald-700">✓ Done</span>
                                 ) : t.status === 'revise' ? (
                                   <div className="flex gap-1.5">
                                     <span className="pill bg-amber-50 text-amber-700">Revise</span>
-                                    <button onClick={() => updateStatus(t.id, 'done')} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Mark done</button>
+                                    <button onClick={() => updateStatus(t.id, 'done', t.type)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Mark done</button>
                                   </div>
                                 ) : (
                                   <div className="flex gap-1.5">
-                                    <button onClick={() => updateStatus(t.id, 'done', t.type)}   className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Done</button>
+                                    <button onClick={() => updateStatus(t.id, 'done', t.type)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Done</button>
                                     <button onClick={() => updateStatus(t.id, 'revise', t.type)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Revise</button>
                                   </div>
                                 )}

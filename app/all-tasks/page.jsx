@@ -6,13 +6,15 @@ export const dynamic = 'force-dynamic';
 const sql = neon(process.env.DATABASE_URL);
 
 export default async function AllTasksPage() {
-  const [delegations, users, masters] = await Promise.all([
+  const [delegations, users, masters, completions] = await Promise.all([
     sql`SELECT id, description, doer_id as "doerId", doer, delegated_by as "delegatedBy", due_date as "dueDate", client, status, type, created_at as "createdAt" FROM delegations ORDER BY created_at DESC`,
     sql`SELECT id, name, email, department, roles FROM users ORDER BY id`,
     sql`SELECT id, task, assigned_to as "assignedTo", frequency FROM masters ORDER BY created_at DESC`,
+    sql`SELECT master_id, date FROM checklist_completions WHERE date = CURRENT_DATE`,
   ]);
 
-  // Checklist tasks bhi add karo
+  const completedToday = new Set(completions.map((c) => c.master_id));
+
   const allTasks = [
     ...delegations,
     ...masters.map((m) => ({
@@ -22,13 +24,12 @@ export default async function AllTasksPage() {
       doerId: null,
       dueDate: null,
       client: '',
-      status: 'pending',
+      status: completedToday.has(m.id) ? 'done' : 'pending',
       type: 'Checklist',
       frequency: m.frequency,
     })),
   ];
 
-  // Group by doer
   const byDoer = {};
   users.forEach((u) => {
     byDoer[u.name] = { doer: u.name, doerId: u.id, tasks: [] };
