@@ -61,30 +61,46 @@ export default function DashboardClient({ data, performance, holidays, users = [
     router.refresh();
   }
 
-  // Revise now requires explicit confirmation (permission) for everyone, incl. admin.
+  // ----- Revise approval workflow -----
+  // mode: 'request' (non-admin asks), 'revise' (admin direct), 'grant' (admin approves a request)
   function requestRevise(task) {
     setReviseNote('');
-    setReviseTask(task);
+    setReviseTask({ ...task, _mode: isAdmin ? 'revise' : 'request' });
+  }
+  function requestGrant(task) {
+    // show the requester's note (saved in remarks) so admin can review before granting
+    setReviseNote('');
+    setReviseTask({ ...task, _mode: 'grant' });
   }
 
   async function confirmRevise() {
     const task = reviseTask;
-    if (!task) return;
+    if (!task || task.type !== 'Delegation') { setReviseTask(null); return; }
     setReviseSaving(true);
     try {
-      if (task.type === 'Delegation') {
-        await fetch('/api/delegations', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: task.id, status: 'revise', remarks: reviseNote || undefined }),
-        });
-      }
+      // Non-admin -> server downgrades 'revise' to 'revise_requested' automatically.
+      // Admin (direct or grant) -> becomes 'revise'.
+      await fetch('/api/delegations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: task.id, status: 'revise', remarks: reviseNote || undefined }),
+      });
       setReviseTask(null);
       setReviseNote('');
       router.refresh();
     } finally {
       setReviseSaving(false);
     }
+  }
+
+  async function denyRevise(task) {
+    if (!confirm('Deny this revise request? Task will go back to pending.')) return;
+    await fetch('/api/delegations', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: task.id, status: 'pending' }),
+    });
+    router.refresh();
   }
 
   return (
@@ -204,9 +220,22 @@ export default function DashboardClient({ data, performance, holidays, users = [
                       <td className="table-td text-slate-600">{t.client || '—'}</td>
                       <td className="table-td">
                         <div className="flex gap-1 justify-end">
-                          <button onClick={() => markDone(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer transition">Done</button>
-                          {t.type === 'Delegation' && (
-                            <button onClick={() => requestRevise(t)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer transition">Revise</button>
+                          {t.type === 'Delegation' && t.status === 'revise_requested' ? (
+                            isAdmin ? (
+                              <>
+                                <button onClick={() => requestGrant(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer transition">Grant</button>
+                                <button onClick={() => denyRevise(t)} className="pill bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer transition">Deny</button>
+                              </>
+                            ) : (
+                              <span className="pill bg-amber-50 text-amber-700">⏳ Revise requested</span>
+                            )
+                          ) : (
+                            <>
+                              <button onClick={() => markDone(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer transition">Done</button>
+                              {t.type === 'Delegation' && (
+                                <button onClick={() => requestRevise(t)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer transition">Revise</button>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
@@ -263,39 +292,54 @@ export default function DashboardClient({ data, performance, holidays, users = [
       <AddDelegateModal open={delegateOpen} onClose={() => setDelegateOpen(false)} users={users} />
       <HolidaysModal    open={holidayOpen}  onClose={() => setHolidayOpen(false)} holidays={holidays} />
 
-      {/* Revise confirmation / permission popup */}
-      {reviseTask && (
+      {/* Revise approval popup (request / direct revise / grant) */}
+      {reviseTask && (() => {
+        const mode = reviseTask._mode || 'revise';
+        const copy = {
+          request: { title: 'Request Revision', desc: 'This will be sent to the admin for approval.', btn: 'Send Request' },
+          revise:  { title: 'Confirm Revise',   desc: 'Send this task back to the doer for revision?', btn: 'Confirm Revise' },
+          grant:   { title: 'Grant Revise Request', desc: 'Approve this revision request and send the task back?', btn: 'Grant Revise' },
+        }[mode];
+        return (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => !reviseSaving && setReviseTask(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 grid place-items-center">
+              <div className={`w-10 h-10 rounded-xl grid place-items-center ${mode === 'grant' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>
               </div>
               <div className="flex-1">
-                <h2 className="text-base font-semibold text-slate-900">Confirm Revise</h2>
-                <p className="text-[12px] text-slate-500 mt-0.5">Give permission to send this task back for revision?</p>
+                <h2 className="text-base font-semibold text-slate-900">{copy.title}</h2>
+                <p className="text-[12px] text-slate-500 mt-0.5">{copy.desc}</p>
               </div>
             </div>
             <div className="p-6 space-y-3">
               <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-[13px]">
                 <div className="font-medium text-slate-800">{reviseTask.description}</div>
                 <div className="text-[12px] text-slate-500 mt-0.5">Doer: <b>{reviseTask.doer}</b></div>
+                {mode === 'grant' && reviseTask.remarks && (
+                  <div className="text-[12px] text-slate-600 mt-2 pt-2 border-t border-slate-200">
+                    <span className="text-slate-400">Requested note:</span> {reviseTask.remarks}
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="label">Revise note <span className="text-slate-400 font-normal">(optional — reason for the doer)</span></label>
-                <textarea rows={3} className="input resize-none" placeholder="What needs to be corrected?"
-                  value={reviseNote} onChange={(e) => setReviseNote(e.target.value)} />
-              </div>
+              {mode !== 'grant' && (
+                <div>
+                  <label className="label">Revise note <span className="text-slate-400 font-normal">(optional — reason for the doer)</span></label>
+                  <textarea rows={3} className="input resize-none" placeholder="What needs to be corrected?"
+                    value={reviseNote} onChange={(e) => setReviseNote(e.target.value)} />
+                </div>
+              )}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
               <button onClick={() => setReviseTask(null)} disabled={reviseSaving} className="btn-secondary">Cancel</button>
-              <button onClick={confirmRevise} disabled={reviseSaving} className="btn-danger">
-                {reviseSaving ? 'Sending…' : 'Confirm Revise'}
+              <button onClick={confirmRevise} disabled={reviseSaving} className={mode === 'grant' ? 'btn-success' : 'btn-danger'}>
+                {reviseSaving ? 'Saving…' : copy.btn}
               </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

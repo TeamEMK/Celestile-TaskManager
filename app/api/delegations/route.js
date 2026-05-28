@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 const sql = neon(process.env.DATABASE_URL);
 
@@ -101,9 +103,19 @@ export async function PATCH(req) {
   try {
     const body = await req.json();
     if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    // Approval gate: a non-admin can NEVER directly revise — it becomes a
+    // pending request that an admin must grant.
+    let status = body.status;
+    if (status === 'revise') {
+      const session = await getServerSession(authOptions);
+      const isAdmin = (session?.user?.roles || []).includes('Admin');
+      if (!isAdmin) status = 'revise_requested';
+    }
+
     const result = await sql`
       UPDATE delegations SET
-        status = COALESCE(${body.status}, status),
+        status = COALESCE(${status}, status),
         description = COALESCE(${body.description}, description),
         due_date = COALESCE(${body.dueDate}, due_date),
         client = COALESCE(${body.client}, client),
@@ -111,7 +123,7 @@ export async function PATCH(req) {
         approval = COALESCE(${body.approval}, approval),
         url = COALESCE(${body.url}, url),
         remarks = COALESCE(${body.remarks}, remarks),
-        completed_at = CASE WHEN ${body.status} = 'done' THEN NOW() ELSE completed_at END
+        completed_at = CASE WHEN ${status} = 'done' THEN NOW() ELSE completed_at END
       WHERE id = ${body.id}
       RETURNING *`;
     if (!result.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
