@@ -90,6 +90,7 @@ export default function AllTasksClient({ grouped, users }) {
   function collapseAll() { setExpanded({}); }
 
   async function updateStatus(id, status) {
+    if (type === 'Checklist') return;
     await fetch('/api/delegations', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -258,8 +259,8 @@ export default function AllTasksClient({ grouped, users }) {
                                   </div>
                                 ) : (
                                   <div className="flex gap-1.5">
-                                    <button onClick={() => updateStatus(t.id, 'done')}   className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Done</button>
-                                    <button onClick={() => updateStatus(t.id, 'revise')} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Revise</button>
+                                    <button onClick={() => updateStatus(t.id, 'done', t.type)}   className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Done</button>
+                                    <button onClick={() => updateStatus(t.id, 'revise', t.type)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Revise</button>
                                   </div>
                                 )}
                               </td>
