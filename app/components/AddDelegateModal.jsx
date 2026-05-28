@@ -114,7 +114,7 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
             </div>
             <div>
               <label className="label">Due Date *</label>
-              <input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} className="input" />
+              <input type="date" value={form.dueDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => set('dueDate', e.target.value)} className="input" />
             </div>
           </div>
 

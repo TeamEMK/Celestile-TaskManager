@@ -103,12 +103,8 @@ export default function AddMasterModal({ open, onClose, users = [] }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Start Date</label>
-              <input
-                type="date"
-                value={form.startDate}
-                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                className="input"
-              />
+              <input type="date" value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="input" />
+
             </div>
             <div>
               <label className="label">End Date <span className="text-slate-400">(Optional)</span></label>
