@@ -17,6 +17,9 @@ export default function DashboardClient({ data, performance, holidays, users = [
   const [masterOpen, setMasterOpen]     = useState(false);
   const [delegateOpen, setDelegateOpen] = useState(false);
   const [holidayOpen, setHolidayOpen]   = useState(false);
+  const [reviseTask, setReviseTask]     = useState(null);   // task pending revise confirmation
+  const [reviseNote, setReviseNote]     = useState('');
+  const [reviseSaving, setReviseSaving] = useState(false);
   const [subTab, setSubTab]             = useState('All');
   const [userFilter, setUserFilter]     = useState('All');
 
@@ -58,10 +61,29 @@ export default function DashboardClient({ data, performance, holidays, users = [
     router.refresh();
   }
 
-  async function markRevise(task) {
-    if (task.type === 'Delegation') {
-      await fetch('/api/delegations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: task.id, status: 'revise' }) });
+  // Revise now requires explicit confirmation (permission) for everyone, incl. admin.
+  function requestRevise(task) {
+    setReviseNote('');
+    setReviseTask(task);
+  }
+
+  async function confirmRevise() {
+    const task = reviseTask;
+    if (!task) return;
+    setReviseSaving(true);
+    try {
+      if (task.type === 'Delegation') {
+        await fetch('/api/delegations', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: task.id, status: 'revise', remarks: reviseNote || undefined }),
+        });
+      }
+      setReviseTask(null);
+      setReviseNote('');
       router.refresh();
+    } finally {
+      setReviseSaving(false);
     }
   }
 
@@ -184,7 +206,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
                         <div className="flex gap-1 justify-end">
                           <button onClick={() => markDone(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer transition">Done</button>
                           {t.type === 'Delegation' && (
-                            <button onClick={() => markRevise(t)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer transition">Revise</button>
+                            <button onClick={() => requestRevise(t)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer transition">Revise</button>
                           )}
                         </div>
                       </td>
@@ -240,6 +262,40 @@ export default function DashboardClient({ data, performance, holidays, users = [
       <AddMasterModal open={masterOpen} onClose={() => setMasterOpen(false)} users={users} />
       <AddDelegateModal open={delegateOpen} onClose={() => setDelegateOpen(false)} users={users} />
       <HolidaysModal    open={holidayOpen}  onClose={() => setHolidayOpen(false)} holidays={holidays} />
+
+      {/* Revise confirmation / permission popup */}
+      {reviseTask && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => !reviseSaving && setReviseTask(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-pop-in" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 grid place-items-center">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-base font-semibold text-slate-900">Confirm Revise</h2>
+                <p className="text-[12px] text-slate-500 mt-0.5">Give permission to send this task back for revision?</p>
+              </div>
+            </div>
+            <div className="p-6 space-y-3">
+              <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-[13px]">
+                <div className="font-medium text-slate-800">{reviseTask.description}</div>
+                <div className="text-[12px] text-slate-500 mt-0.5">Doer: <b>{reviseTask.doer}</b></div>
+              </div>
+              <div>
+                <label className="label">Revise note <span className="text-slate-400 font-normal">(optional — reason for the doer)</span></label>
+                <textarea rows={3} className="input resize-none" placeholder="What needs to be corrected?"
+                  value={reviseNote} onChange={(e) => setReviseNote(e.target.value)} />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+              <button onClick={() => setReviseTask(null)} disabled={reviseSaving} className="btn-secondary">Cancel</button>
+              <button onClick={confirmRevise} disabled={reviseSaving} className="btn-danger">
+                {reviseSaving ? 'Sending…' : 'Confirm Revise'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
