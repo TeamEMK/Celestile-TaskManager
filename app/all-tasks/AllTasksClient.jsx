@@ -32,13 +32,14 @@ export default function AllTasksClient({ grouped, users }) {
     'Delegate by Me': 'delegation',
   };
 
-  const baseGroups = isAdmin
-    ? grouped
-    : grouped.filter((g) => g.doer === currentUserName);
+  const getBaseGroups = (currentTab) =>
+    (isAdmin || currentTab === 'Delegate by Me')
+      ? grouped
+      : grouped.filter((g) => g.doer === currentUserName);
 
   // Count tasks per tab (only tab filter, no status/date/search) for badge display
   const tabCount = (tabName) => {
-    const allTasks = baseGroups.flatMap((g) => g.tasks);
+    const allTasks = getBaseGroups(tabName).flatMap((g) => g.tasks);
     if (tabName === 'Delegate by Me') {
       return allTasks.filter((t) => (t.type || 'delegation').toLowerCase() === 'delegation' && t.delegatedBy === session?.user?.id).length;
     }
@@ -73,7 +74,7 @@ export default function AllTasksClient({ grouped, users }) {
     return arr;
   };
 
-  const visibleGroups = baseGroups
+  const visibleGroups = getBaseGroups(tab)
     .filter((g) => employeeFilter === 'All' || g.doer === employeeFilter)
     .map((g) => ({ ...g, tasks: filterTasks(g.tasks) }))
     .filter((g) => g.tasks.length > 0);

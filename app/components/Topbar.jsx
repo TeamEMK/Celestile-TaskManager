@@ -23,12 +23,10 @@ export default function Topbar() {
   const initials = userName.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase() || 'U';
 
   return (
-    <header className="sticky top-0 z-20 backdrop-blur" style={{background:'rgba(7,15,28,0.92)',borderBottom:'1px solid rgba(0,245,255,0.1)'}}>
+    <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
       <div className="px-6 lg:px-8 h-16 flex items-center gap-4">
         {/* Title */}
-        <h1 className="text-[18px] font-semibold tracking-tight truncate whitespace-nowrap" style={{color:'#00f5ff',textShadow:'0 0 12px rgba(0,245,255,0.4)'}}>
-          {title}
-        </h1>
+        <h1 className="text-[17px] font-semibold tracking-tight text-slate-900 truncate whitespace-nowrap">{title}</h1>
 
         <div className="flex-1" />
 

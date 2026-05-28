@@ -59,17 +59,18 @@ export default function Sidebar() {
     (!n.adminOnly || isAdmin);
 
   return (
-    <aside className="group/sb fixed left-0 top-0 h-screen w-16 hover:w-[230px] transition-[width] duration-200 ease-out flex flex-col z-40 overflow-hidden" style={{background:'linear-gradient(180deg,#050b14 0%,#070f1c 100%)',borderRight:'1px solid rgba(0,245,255,0.08)'}}>
+    <aside className="group/sb fixed left-0 top-0 h-screen w-16 hover:w-[230px] transition-[width] duration-200 ease-out bg-slate-900 flex flex-col z-40 border-r border-slate-800 overflow-hidden shadow-xl">
       {/* Brand */}
-      <div className="h-14 px-2.5 flex items-center gap-2.5 shrink-0" style={{borderBottom:'1px solid rgba(0,245,255,0.1)'}}>
-        <div className="relative w-10 h-10 rounded-lg shrink-0 overflow-hidden grid place-items-center" style={{background:'rgba(0,245,255,0.05)',border:'1px solid rgba(0,245,255,0.2)',boxShadow:'0 0 10px rgba(0,245,255,0.15)'}}>
-          <img src="/logo.png" alt="IA" className="w-8 h-8 object-contain" onError={(e)=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} />
-          <span className="hidden text-[13px] font-extrabold tracking-tight" style={{color:'#00f5ff'}}>IA</span>
-          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-950 animate-pulse"></span>
+      <div className="h-14 px-3 flex items-center gap-2.5 border-b border-slate-800 shrink-0">
+        <div className="relative w-9 h-9 rounded-lg bg-white/10 shrink-0 overflow-hidden grid place-items-center">
+          <img src="/logo.png" alt="IA" className="w-8 h-8 object-contain"
+            onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='grid'; }} />
+          <span className="hidden w-full h-full bg-primary-600 text-white text-[12px] font-bold place-items-center">IA</span>
+          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border-2 border-slate-900"></span>
         </div>
         <div className="leading-tight min-w-0 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-          <div className="text-[13px] font-semibold tracking-tight" style={{color:'#00f5ff',textShadow:'0 0 8px rgba(0,245,255,0.5)'}}>Indian Automotive</div>
-          <div className="text-[9.5px] uppercase tracking-[0.14em] font-medium" style={{color:'rgba(0,245,255,0.45)'}}>ERP · Operations</div>
+          <div className="text-[13px] font-semibold text-white tracking-tight">Indian Automotive</div>
+          <div className="text-[9.5px] uppercase tracking-[0.14em] text-slate-400 font-medium">ERP · Operations</div>
         </div>
       </div>
 
