@@ -364,7 +364,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
                   <label className="label">Revise until <span className="text-red-500">*</span></label>
                   <input type="date" className="input" min={todayISO}
                     value={reviseDate} onChange={(e) => setReviseDate(e.target.value)} />
-                  <div className="text-[11px] text-slate-400 mt-1">Doer ko is date tak revise karna hoga (aaj se pehle ki date allowed nahi).</div>
+                  <div className="text-[11px] text-slate-400 mt-1"></div>
                 </div>
               )}
               {mode !== 'grant' && (
