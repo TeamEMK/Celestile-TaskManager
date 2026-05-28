@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 const FREQS = [
   { label: 'Daily (365 tasks/year)',          value: 'Daily' },
@@ -12,7 +11,6 @@ const FREQS = [
 ];
 
 export default function AddMasterModal({ open, onClose, users = [] }) {
-  const router = useRouter();
   const [form, setForm] = useState({
     assignedTo: '',
     frequency: 'Daily',
@@ -45,8 +43,7 @@ export default function AddMasterModal({ open, onClose, users = [] }) {
     if (res.ok) {
       setForm({ assignedTo: '', frequency: 'Daily', startDate: new Date().toISOString().slice(0, 10), endDate: '', task: '', remarks: '' });
       onClose();
-      router.refresh();
-      router.push('/masters');
+      window.location.reload();
     } else {
       const d = await res.json();
       alert(d.error || 'Something went wrong');

@@ -6,6 +6,7 @@ import Providers from './components/Providers';
 export const metadata = {
   title: 'Indian Automotive · ERP',
   description: 'FMS & Checklist Operations Platform',
+  icons: { icon: '/logo.png', apple: '/logo.png' },
 };
 
 export default function RootLayout({ children }) {
