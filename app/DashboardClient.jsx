@@ -84,12 +84,19 @@ export default function DashboardClient({ data, performance, holidays, users = [
     const task = reviseTask;
     if (!task || task.type !== 'Delegation') { setReviseTask(null); return; }
     const mode = task._mode || 'revise';
-    if ((mode === 'grant' || mode === 'revise') && !reviseDate) { alert('Please pick a "revise until" date.'); return; }
+    // request/revise mode mein date zaroori hai, grant mein user ne pehle hi set ki hai
+    if (mode !== 'grant' && !reviseDate) { alert('Please pick a "revise until" date.'); return; }
     setReviseSaving(true);
     try {
       await fetch('/api/delegations', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: task.id, status: 'revise', remarks: reviseNote || undefined, dueDate: reviseDate || undefined }),
+        body: JSON.stringify({
+          id: task.id,
+          status: 'revise',
+          remarks: reviseNote || undefined,
+          // grant mode mein dueDate mat bhejo — user ki set ki hui date rahegi
+          ...(mode !== 'grant' && reviseDate ? { dueDate: reviseDate } : {}),
+        }),
       });
       setReviseTask(null); setReviseNote(''); setReviseDate(''); router.refresh();
     } finally { setReviseSaving(false); }
@@ -297,7 +304,8 @@ export default function DashboardClient({ data, performance, holidays, users = [
                     <div className="text-xs text-slate-600 mt-2 pt-2 border-t border-slate-200"><span className="text-slate-400">Note:</span> {reviseTask.remarks}</div>
                   )}
                 </div>
-                {(mode === 'grant' || mode === 'revise') && (
+                {/* Date picker: user request mein dikhao, admin grant mein nahi */}
+                {(mode === 'request' || mode === 'revise') && (
                   <div>
                     <label className="label">Revise until <span className="text-red-500">*</span></label>
                     <input type="date" className="input" min={todayISO} value={reviseDate} onChange={(e) => setReviseDate(e.target.value)} />

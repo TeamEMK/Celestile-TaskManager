@@ -25,12 +25,12 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
   // ── Actions ──────────────────────────────────────────────────────────────────
 
   async function grantRevise() {
-    if (!reviseDate) { alert('Revise until date zaroori hai'); return; }
     setSaving(true);
     await fetch('/api/delegations', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: activeTask.id, status: 'revise', dueDate: reviseDate }),
+      // dueDate nahi bhejte — user ki set ki hui date already saved hai
+      body: JSON.stringify({ id: activeTask.id, status: 'revise' }),
     });
     setSaving(false);
     setActiveTask(null);
@@ -266,8 +266,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
               <div className="text-[12px] text-slate-500 mt-0.5">Doer: <b>{activeTask.doer}</b></div>
               {activeTask.remarks && <div className="text-[12px] text-slate-600 mt-2 pt-2 border-t border-slate-200">Note: {activeTask.remarks}</div>}
             </div>
-            <label className="label">Revise Until <span className="text-red-500">*</span></label>
-            <input type="date" className="input mb-4" min={todayISO} value={reviseDate} onChange={(e) => setReviseDate(e.target.value)} />
+            <p className="text-xs text-slate-500 mb-4">User ki requested date pe task revise ke liye bheja jaayega.</p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setActiveTask(null)} disabled={saving} className="btn-secondary">Cancel</button>
               <button onClick={grantRevise} disabled={saving} className="btn-success">{saving ? 'Saving…' : 'Grant Revise'}</button>
