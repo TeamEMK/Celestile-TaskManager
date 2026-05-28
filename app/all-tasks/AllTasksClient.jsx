@@ -96,7 +96,7 @@ export default function AllTasksClient({ grouped, users }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
     });
-    router.refresh();
+    window.location.reload();
   }
 
   return (
