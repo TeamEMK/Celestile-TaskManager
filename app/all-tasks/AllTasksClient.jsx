@@ -73,6 +73,19 @@ export default function AllTasksClient({ grouped, users }) {
 
   const totalTasks = visibleGroups.reduce((s, g) => s + g.tasks.length, 0);
 
+  // Tab-wise task counts for all base groups
+  const tabCount = (tabName) => {
+    const allTasks = baseGroups.flatMap((g) => g.tasks);
+    let arr = allTasks;
+    if (tabName === 'Delegate by Me') {
+      arr = arr.filter((t) => t.type === 'Delegation' && t.delegatedBy === session?.user?.id);
+    } else {
+      const wantType = tabType[tabName];
+      if (wantType) arr = arr.filter((t) => (t.type || 'Delegation') === wantType);
+    }
+    return arr.length;
+  };
+
   function expandAll()   { const o = {}; visibleGroups.forEach((g) => o[g.doer] = true); setExpanded(o); }
   function collapseAll() { setExpanded({}); }
 
