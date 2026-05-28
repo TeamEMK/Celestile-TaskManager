@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { FMS_ENABLED } from '@/lib/config';
 
 const TABS = [
@@ -10,6 +12,15 @@ const TABS = [
 ].filter((t) => t.key !== 'FMS MIS' || FMS_ENABLED);
 
 export default function MISPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const isAdmin = (session?.user?.roles || []).includes('Admin');
+
+  // client-side admin guard: bounce non-admins to dashboard
+  useEffect(() => {
+    if (status === 'authenticated' && !isAdmin) router.replace('/');
+  }, [status, isAdmin, router]);
+
   const today = new Date().toISOString().split('T')[0];
   const lastWeek = new Date(); lastWeek.setDate(lastWeek.getDate() - 7);
   const [start, setStart] = useState(lastWeek.toISOString().split('T')[0]);
@@ -44,6 +55,9 @@ export default function MISPage() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  // while checking / for non-admins, render nothing (redirect handles it)
+  if (status === 'loading' || !isAdmin) return null;
 
   return (
     <div className="space-y-5 animate-fade-in">

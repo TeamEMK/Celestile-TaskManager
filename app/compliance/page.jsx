@@ -1,6 +1,9 @@
+import { requireAdmin } from '@/lib/guards';
+
 export const dynamic = 'force-dynamic';
 
-export default function CompliancePage() {
+export default async function CompliancePage() {
+  await requireAdmin();
   return (
     <div className="space-y-4">
       <h1 className="page-title">Compliance</h1>
