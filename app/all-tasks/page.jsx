@@ -1,20 +1,45 @@
-import { readStore } from '@/lib/store';
+import { neon } from '@neondatabase/serverless';
 import AllTasksClient from './AllTasksClient';
 
 export const dynamic = 'force-dynamic';
 
+const sql = neon(process.env.DATABASE_URL);
+
 export default async function AllTasksPage() {
-  const store = await readStore();
-  // Group delegations by doer
+  const [delegations, users, masters] = await Promise.all([
+    sql`SELECT id, description, doer_id as "doerId", doer, delegated_by as "delegatedBy", due_date as "dueDate", client, status, type, created_at as "createdAt" FROM delegations ORDER BY created_at DESC`,
+    sql`SELECT id, name, email, department, roles FROM users ORDER BY id`,
+    sql`SELECT id, task, assigned_to as "assignedTo", frequency FROM masters ORDER BY created_at DESC`,
+  ]);
+
+  // Checklist tasks bhi add karo
+  const allTasks = [
+    ...delegations,
+    ...masters.map((m) => ({
+      id: m.id,
+      description: m.task,
+      doer: m.assignedTo,
+      doerId: null,
+      dueDate: null,
+      client: '',
+      status: 'pending',
+      type: 'Checklist',
+      frequency: m.frequency,
+    })),
+  ];
+
+  // Group by doer
   const byDoer = {};
-  (store.users || []).forEach((u) => {
+  users.forEach((u) => {
     byDoer[u.name] = { doer: u.name, doerId: u.id, tasks: [] };
   });
-  (store.delegations || []).forEach((d) => {
-    if (!byDoer[d.doer]) byDoer[d.doer] = { doer: d.doer, doerId: d.doerId, tasks: [] };
-    byDoer[d.doer].tasks.push(d);
+  allTasks.forEach((t) => {
+    if (!t.doer) return;
+    if (!byDoer[t.doer]) byDoer[t.doer] = { doer: t.doer, doerId: t.doerId, tasks: [] };
+    byDoer[t.doer].tasks.push(t);
   });
-  // Only doers who have at least one task
+
   const grouped = Object.values(byDoer).filter((g) => g.tasks.length > 0);
-  return <AllTasksClient grouped={grouped} users={store.users || []} />;
+
+  return <AllTasksClient grouped={grouped} users={users} />;
 }
