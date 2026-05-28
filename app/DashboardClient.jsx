@@ -26,8 +26,9 @@ export default function DashboardClient({ data, performance, holidays, users = [
 
   const isAdmin = (session?.user?.roles || []).includes('Admin');
   const todayISO = new Date().toISOString().split('T')[0];
-  const seenRequests = useRef(new Set());
-
+  const seenRequests = useRef(
+    new Set(JSON.parse(localStorage.getItem('seenReviseRequests') || '[]'))
+);
   // Admin: poll every 15s so new revise requests appear without manual reload.
   useEffect(() => {
     if (!isAdmin) return;
@@ -43,11 +44,12 @@ export default function DashboardClient({ data, performance, holidays, users = [
     );
     const fresh = pending.find((t) => !seenRequests.current.has(t.id));
     if (fresh) {
-      seenRequests.current.add(fresh.id);
-      setReviseNote('');
-      setReviseDate('');
-      setReviseTask({ ...fresh, _mode: 'grant' });
-    }
+  seenRequests.current.add(fresh.id);
+  localStorage.setItem('seenReviseRequests', JSON.stringify([...seenRequests.current])); // 👈 add
+  setReviseNote('');
+  setReviseDate('');
+  setReviseTask({ ...fresh, _mode: 'grant' });
+}
   }, [data.pendingTasks, isAdmin, reviseTask]);
 
   const fmt = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -90,10 +92,10 @@ export default function DashboardClient({ data, performance, holidays, users = [
   // ----- Revise approval workflow -----
   // mode: 'request' (non-admin asks), 'revise' (admin direct), 'grant' (admin approves a request)
   function requestRevise(task) {
-    setReviseNote('');
-    setReviseDate('');
-    setReviseTask({ ...task, _mode: isAdmin ? 'revise' : 'request' });
-  }
+  setReviseNote('');
+  setReviseDate('');
+  setReviseTask({ ...task, _mode: 'request' });
+}
   function requestGrant(task) {
     setReviseNote('');
     setReviseDate('');
