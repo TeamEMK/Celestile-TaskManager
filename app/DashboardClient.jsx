@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AddMasterModal from './components/AddMasterModal';
@@ -19,16 +19,42 @@ export default function DashboardClient({ data, performance, holidays, users = [
   const [holidayOpen, setHolidayOpen]   = useState(false);
   const [reviseTask, setReviseTask]     = useState(null);   // task pending revise confirmation
   const [reviseNote, setReviseNote]     = useState('');
+  const [reviseDate, setReviseDate]     = useState('');     // "revise until" date (admin sets)
   const [reviseSaving, setReviseSaving] = useState(false);
   const [subTab, setSubTab]             = useState('All');
   const [userFilter, setUserFilter]     = useState('All');
+
+  const isAdmin = (session?.user?.roles || []).includes('Admin');
+  const todayISO = new Date().toISOString().split('T')[0];
+  const seenRequests = useRef(new Set());
+
+  // Admin: poll every 15s so new revise requests appear without manual reload.
+  useEffect(() => {
+    if (!isAdmin) return;
+    const t = setInterval(() => router.refresh(), 15000);
+    return () => clearInterval(t);
+  }, [isAdmin, router]);
+
+  // Admin: when a NEW revise request arrives, auto-open the grant popup.
+  useEffect(() => {
+    if (!isAdmin || reviseTask) return;
+    const pending = (data.pendingTasks || []).filter(
+      (t) => t.type === 'Delegation' && t.status === 'revise_requested'
+    );
+    const fresh = pending.find((t) => !seenRequests.current.has(t.id));
+    if (fresh) {
+      seenRequests.current.add(fresh.id);
+      setReviseNote('');
+      setReviseDate('');
+      setReviseTask({ ...fresh, _mode: 'grant' });
+    }
+  }, [data.pendingTasks, isAdmin, reviseTask]);
 
   const fmt = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const roles = Array.isArray(session?.user?.roles)
     ? session.user.roles
     : [session?.user?.roles];
-  const isAdmin = roles.includes('Admin');
 
   // Non-admin sirf apne tasks dekhega
   const visibleTasks = isAdmin
@@ -65,28 +91,39 @@ export default function DashboardClient({ data, performance, holidays, users = [
   // mode: 'request' (non-admin asks), 'revise' (admin direct), 'grant' (admin approves a request)
   function requestRevise(task) {
     setReviseNote('');
+    setReviseDate('');
     setReviseTask({ ...task, _mode: isAdmin ? 'revise' : 'request' });
   }
   function requestGrant(task) {
-    // show the requester's note (saved in remarks) so admin can review before granting
     setReviseNote('');
+    setReviseDate('');
     setReviseTask({ ...task, _mode: 'grant' });
   }
 
   async function confirmRevise() {
     const task = reviseTask;
     if (!task || task.type !== 'Delegation') { setReviseTask(null); return; }
+    const mode = task._mode || 'revise';
+    // Admin must set a "revise until" date when granting / revising directly.
+    if ((mode === 'grant' || mode === 'revise') && !reviseDate) {
+      alert('Please pick a "revise until" date.');
+      return;
+    }
     setReviseSaving(true);
     try {
-      // Non-admin -> server downgrades 'revise' to 'revise_requested' automatically.
-      // Admin (direct or grant) -> becomes 'revise'.
       await fetch('/api/delegations', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: task.id, status: 'revise', remarks: reviseNote || undefined }),
+        body: JSON.stringify({
+          id: task.id,
+          status: 'revise',
+          remarks: reviseNote || undefined,
+          dueDate: reviseDate || undefined,
+        }),
       });
       setReviseTask(null);
       setReviseNote('');
+      setReviseDate('');
       router.refresh();
     } finally {
       setReviseSaving(false);
@@ -322,6 +359,14 @@ export default function DashboardClient({ data, performance, holidays, users = [
                   </div>
                 )}
               </div>
+              {(mode === 'grant' || mode === 'revise') && (
+                <div>
+                  <label className="label">Revise until <span className="text-red-500">*</span></label>
+                  <input type="date" className="input" min={todayISO}
+                    value={reviseDate} onChange={(e) => setReviseDate(e.target.value)} />
+                  <div className="text-[11px] text-slate-400 mt-1">Doer ko is date tak revise karna hoga (aaj se pehle ki date allowed nahi).</div>
+                </div>
+              )}
               {mode !== 'grant' && (
                 <div>
                   <label className="label">Revise note <span className="text-slate-400 font-normal">(optional — reason for the doer)</span></label>
