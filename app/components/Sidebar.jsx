@@ -28,12 +28,12 @@ const SECTIONS = [
     { href: '/approvals', label: 'Approvals',  icon: 'approve' },
   ]},
   { title: 'Operations',     items: [
-    { href: '/fms',           label: 'FMS Master',    icon: 'fms', flag: 'fms' },
-    { href: '/masters',       label: 'Checklists',    icon: 'masters' },
-    { href: '/client-master', label: 'Client Master', icon: 'clientmaster' },
-    { href: '/mis',           label: 'MIS Report',    icon: 'mis' },
-    { href: '/race-tracker',  label: 'Race Tracker',  icon: 'race', flag: 'race' },
-    { href: '/compliance',    label: 'Compliance',    icon: 'compliance' },
+    { href: '/fms',           label: 'FMS Master',    icon: 'fms', flag: 'fms', adminOnly: true },
+    { href: '/masters',       label: 'Checklists',    icon: 'masters', adminOnly: true },
+    { href: '/client-master', label: 'Client Master', icon: 'clientmaster', adminOnly: true },
+    { href: '/mis',           label: 'MIS Report',    icon: 'mis', adminOnly: true },
+    { href: '/race-tracker',  label: 'Race Tracker',  icon: 'race', flag: 'race', adminOnly: true },
+    { href: '/compliance',    label: 'Compliance',    icon: 'compliance', adminOnly: true },
   ]},
   { title: 'Daily',          items: [
     { href: '/daily-task',    label: 'Daily Task',    icon: 'dailytask' },
@@ -42,7 +42,7 @@ const SECTIONS = [
     { href: '/daily-reports', label: 'Daily Reports', icon: 'reports' },
   ]},
   { title: 'Administration', items: [
-    { href: '/users',     label: 'Users',      icon: 'users' },
+    { href: '/users',     label: 'Users',      icon: 'users', adminOnly: true },
     { href: '/profile',   label: 'Profile',    icon: 'profile' },
   ]},
 ];
@@ -50,6 +50,14 @@ const SECTIONS = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const isAdmin = (session?.user?.roles || []).includes('Admin');
+
+  // visibility rule for a nav item
+  const visible = (n) =>
+    (n.flag !== 'fms' || FMS_ENABLED) &&
+    (n.flag !== 'race' || RACE_TRACKER_ENABLED) &&
+    (!n.adminOnly || isAdmin);
+
   return (
     <aside
       className="group/sb fixed left-0 top-0 h-screen w-16 hover:w-[230px] transition-[width] duration-200 ease-out bg-slate-950 text-slate-200 flex flex-col z-40 border-r border-slate-800 overflow-hidden hover:shadow-2xl"
@@ -68,16 +76,16 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
-        {SECTIONS.map((sec) => (
+        {SECTIONS.map((sec) => {
+          const items = sec.items.filter(visible);
+          if (items.length === 0) return null;   // hide empty section (e.g. Operations for non-admins)
+          return (
           <div key={sec.title} className="mb-2">
             <div className="h-5 px-3 mb-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
               {sec.title}
             </div>
             <div className="px-2 space-y-0.5">
-              {sec.items
-                .filter((n) => n.flag !== 'fms' || FMS_ENABLED)
-                .filter((n) => n.flag !== 'race' || RACE_TRACKER_ENABLED)
-                .map((n) => {
+              {items.map((n) => {
                 const active = pathname === n.href;
                 const IconComp = Icon[n.icon];
                 return (
@@ -101,7 +109,8 @@ export default function Sidebar() {
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* User card */}
