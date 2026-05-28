@@ -25,7 +25,7 @@ const SECTIONS = [
   { title: 'Workspace',      items: [
     { href: '/',          label: 'Dashboard',  icon: 'dashboard' },
     { href: '/all-tasks', label: 'All Tasks',  icon: 'tasks' },
-    { href: '/approvals', label: 'Approvals',  icon: 'approve' },
+    { href: '/approvals', label: 'Approvals',  icon: 'approve', adminOnly: true },
   ]},
   { title: 'Operations',     items: [
     { href: '/fms',           label: 'FMS Master',    icon: 'fms', flag: 'fms', adminOnly: true },

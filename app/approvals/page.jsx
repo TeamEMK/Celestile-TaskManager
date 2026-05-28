@@ -1,11 +1,19 @@
 import { neon } from '@neondatabase/serverless';
 import ApprovalsClient from './ApprovalsClient';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 const sql = neon(process.env.DATABASE_URL);
 
 export default async function ApprovalsPage() {
+  const session = await getServerSession(authOptions);
+  const roles   = session?.user?.roles || [];
+  const isAdmin = Array.isArray(roles) ? roles.includes('Admin') : String(roles).includes('Admin');
+  if (!isAdmin) redirect('/');
+
   const [reviseRequests, taskApprovals, leaves] = await Promise.all([
     sql`
       SELECT id, description, doer, remarks, created_at AS "createdAt"
