@@ -1,31 +1,27 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL);
+import { pool, ensureSchema } from '@/lib/db';
 
 export async function POST(req) {
   try {
+    await ensureSchema();
     const { masterId, doer } = await req.json();
     if (!masterId) return NextResponse.json({ error: 'masterId required' }, { status: 400 });
 
-    const count = await sql`SELECT COUNT(*) FROM checklist_completions`;
-    const id = 'CC' + (Number(count[0].count) + 1).toString().padStart(3, '0');
+    const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM checklist_completions');
+    const id  = 'CC' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
 
-    await sql`
-      INSERT INTO checklist_completions (id, master_id, doer, completed_at, date)
-      VALUES (${id}, ${masterId}, ${doer || ''}, NOW(), CURRENT_DATE)
-    `;
-
+    await pool.query(
+      'INSERT INTO checklist_completions (id, master_id, doer, completed_at, date) VALUES (?, ?, ?, NOW(), CURDATE())',
+      [id, masterId, doer || '']
+    );
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error(err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 export async function GET() {
-  const completions = await sql`
-    SELECT * FROM checklist_completions ORDER BY completed_at DESC
-  `;
-  return NextResponse.json(completions);
+  await ensureSchema();
+  const [rows] = await pool.query('SELECT * FROM checklist_completions ORDER BY completed_at DESC');
+  return NextResponse.json(rows);
 }
