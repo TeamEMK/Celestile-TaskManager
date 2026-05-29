@@ -17,32 +17,36 @@ export const authOptions = {
       },
 
       async authorize(credentials) {
-        await ensureSchema();
+        try {
+          await ensureSchema();
 
-        const [rows] = await pool.query(
-          'SELECT * FROM users WHERE email = ? AND active = 1',
-          [credentials.email]
-        );
-        const user = rows[0];
-        if (!user) return null;
+          const [rows] = await pool.query(
+            'SELECT * FROM users WHERE email = ? AND active = 1',
+            [credentials.email]
+          );
+          const user = rows[0];
+          if (!user) return null;
 
-        // No password set yet — allow default password
-        if (!user.password_hash) {
-          if (credentials.password !== DEFAULT_PASSWORD) return null;
-        } else {
-          const valid = await bcrypt.compare(credentials.password, user.password_hash);
-          if (!valid) return null;
+          if (!user.password_hash) {
+            if (credentials.password !== DEFAULT_PASSWORD) return null;
+          } else {
+            const valid = await bcrypt.compare(credentials.password, user.password_hash);
+            if (!valid) return null;
+          }
+
+          return {
+            id:         user.id,
+            name:       user.name,
+            email:      user.email,
+            department: user.department,
+            roles: typeof user.roles === 'string'
+              ? user.roles.split(',').map(r => r.trim()).filter(Boolean)
+              : ['User'],
+          };
+        } catch (err) {
+          console.error('[auth] MySQL error:', err.message);
+          return null;
         }
-
-        return {
-          id:         user.id,
-          name:       user.name,
-          email:      user.email,
-          department: user.department,
-          roles: typeof user.roles === 'string'
-            ? user.roles.split(',').map(r => r.trim()).filter(Boolean)
-            : ['User'],
-        };
       },
     }),
   ],
@@ -60,7 +64,6 @@ export const authOptions = {
       }
       return token;
     },
-
     async session({ session, token }) {
       session.user.id         = token.id;
       session.user.name       = token.name;
