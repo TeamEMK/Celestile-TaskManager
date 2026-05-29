@@ -75,7 +75,7 @@ export default function Sidebar() {
             style={{ background: '#34d399', borderColor: '#09090b' }}></span>
         </div>
         <div className="leading-tight min-w-0 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-          <div className="text-[13px] font-semibold tracking-tight" style={{ color: '#f4f4f5' }}>Indian Automotive</div>
+          <div className="text-[13px] font-semibold tracking-tight" style={{ color: '#f4f4f5' }}>India Automotive</div>
           <div className="text-[9.5px] uppercase font-medium" style={{ letterSpacing: '0.14em', color: '#52525b' }}>ERP · Operations</div>
         </div>
       </div>

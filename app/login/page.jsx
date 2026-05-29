@@ -54,7 +54,7 @@ export default function LoginPage() {
             }}>
               <img
                 src="/logo.png"
-                alt="Indian Automotive"
+                alt="India Automotive"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={(e) => {
                   e.target.style.display = 'none';
@@ -72,7 +72,7 @@ export default function LoginPage() {
               color: '#dc2626',
               marginBottom: '6px',
             }}>
-              Indian Automotive
+              INDIA AUTOMOTIVE
             </div>
 
             <div style={{
@@ -194,7 +194,7 @@ export default function LoginPage() {
               marginBottom: '1rem',
             }} />
             <p style={{ fontSize: '11px', color: '#52525b', margin: 0 }}>
-              <span style={{ color: '#a1a1aa', fontWeight: 600, letterSpacing: '0.06em' }}>INDIAN AUTOMOTIVE</span>
+              <span style={{ color: '#a1a1aa', fontWeight: 600, letterSpacing: '0.06em' }}>INDIA AUTOMOTIVE</span>
               <span style={{ margin: '0 8px', color: '#3f3f46' }}>·</span>
               Task Management System
             </p>
