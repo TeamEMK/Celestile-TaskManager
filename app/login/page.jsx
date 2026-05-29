@@ -7,6 +7,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -132,36 +133,50 @@ export default function LoginPage() {
             {/* Password */}
             <div>
               <label style={{
-                display: 'block',
-                fontSize: '10px',
-                fontWeight: 600,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                color: '#71717a',
-                marginBottom: '6px',
+                display: 'block', fontSize: '10px', fontWeight: 600,
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                color: '#71717a', marginBottom: '6px',
               }}>Password</label>
               <div style={{ position: 'relative' }}>
-                <span style={{
-                  position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)',
-                  color: '#52525b', display: 'flex',
-                }}>
+                <span style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#52525b', display: 'flex' }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                   </svg>
                 </span>
                 <input
-                  type="password" required value={password} onChange={e => setPassword(e.target.value)}
+                  type={showPass ? 'text' : 'password'} required value={password}
+                  onChange={e => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   style={{
                     width: '100%', boxSizing: 'border-box',
-                    paddingLeft: '34px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px',
+                    paddingLeft: '34px', paddingRight: '40px', paddingTop: '10px', paddingBottom: '10px',
                     background: '#0e0e11', border: '1px solid #27272a', borderRadius: '8px',
-                    color: '#e4e4e7', fontSize: '13px',
-                    outline: 'none', transition: 'border-color 0.15s',
+                    color: '#e4e4e7', fontSize: '13px', outline: 'none', transition: 'border-color 0.15s',
                   }}
                   onFocus={e => e.target.style.borderColor = '#dc2626'}
                   onBlur={e => e.target.style.borderColor = '#27272a'}
                 />
+                <button
+                  type="button" onClick={() => setShowPass(v => !v)}
+                  style={{
+                    position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', color: '#52525b',
+                    display: 'flex', padding: '2px',
+                  }}
+                >
+                  {showPass ? (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  ) : (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
+                </button>
               </div>
             </div>
 
