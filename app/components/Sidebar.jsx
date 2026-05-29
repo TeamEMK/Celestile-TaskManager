@@ -59,18 +59,24 @@ export default function Sidebar() {
     (!n.adminOnly || isAdmin);
 
   return (
-    <aside className="group/sb fixed left-0 top-0 h-screen w-16 hover:w-[230px] transition-[width] duration-200 ease-out bg-slate-900 flex flex-col z-40 border-r border-slate-800 overflow-hidden shadow-xl">
+    <aside className="group/sb fixed left-0 top-0 h-screen w-16 hover:w-[230px] transition-[width] duration-200 ease-out flex flex-col z-40 overflow-hidden"
+      style={{ background: '#09090b', borderRight: '1px solid #1c1c1f', boxShadow: '4px 0 24px rgba(0,0,0,0.5)' }}>
+
       {/* Brand */}
-      <div className="h-14 px-3 flex items-center gap-2.5 border-b border-slate-800 shrink-0">
-        <div className="relative w-9 h-9 rounded-lg bg-white/10 shrink-0 overflow-hidden grid place-items-center">
+      <div className="h-14 px-3 flex items-center gap-2.5 shrink-0"
+        style={{ borderBottom: '1px solid #1c1c1f' }}>
+        <div className="relative w-9 h-9 rounded-lg shrink-0 overflow-hidden grid place-items-center"
+          style={{ background: '#0d0d10', border: '1px solid #27272a' }}>
           <img src="/logo.png" alt="IA" className="w-8 h-8 object-contain"
             onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='grid'; }} />
-          <span className="hidden w-full h-full bg-primary-600 text-white text-[12px] font-bold place-items-center">IA</span>
-          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border-2 border-slate-900"></span>
+          <span className="hidden w-full h-full text-white text-[12px] font-bold place-items-center"
+            style={{ background: '#dc2626' }}>IA</span>
+          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2"
+            style={{ background: '#34d399', borderColor: '#09090b' }}></span>
         </div>
         <div className="leading-tight min-w-0 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-          <div className="text-[13px] font-semibold text-white tracking-tight">Indian Automotive</div>
-          <div className="text-[9.5px] uppercase tracking-[0.14em] text-slate-400 font-medium">ERP · Operations</div>
+          <div className="text-[13px] font-semibold tracking-tight" style={{ color: '#f4f4f5' }}>Indian Automotive</div>
+          <div className="text-[9.5px] uppercase font-medium" style={{ letterSpacing: '0.14em', color: '#52525b' }}>ERP · Operations</div>
         </div>
       </div>
 
@@ -81,7 +87,8 @@ export default function Sidebar() {
           if (items.length === 0) return null;
           return (
             <div key={sec.title} className="mb-2">
-              <div className="h-5 px-3 mb-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+              <div className="h-5 px-3 mb-0.5 text-[9px] font-semibold uppercase opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap"
+                style={{ letterSpacing: '0.14em', color: '#3f3f46' }}>
                 {sec.title}
               </div>
               <div className="px-2 space-y-0.5">
@@ -91,11 +98,20 @@ export default function Sidebar() {
 
                   return (
                     <Link key={n.href} href={n.href} title={n.label}
-                      className={`group/item flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] font-medium relative transition-colors duration-150 ${
-                        active ? 'bg-primary-600/15 text-white' : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
-                      }`}>
-                      {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary-400" />}
-                      <IconComp className={`w-[17px] h-[17px] shrink-0 ${active ? 'text-primary-300' : 'text-slate-500 group-hover/item:text-slate-200'}`} />
+                      className="group/item flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] font-medium relative transition-colors duration-150"
+                      style={{
+                        background: active ? 'rgba(220,38,38,0.1)' : 'transparent',
+                        color: active ? '#f4f4f5' : '#52525b',
+                      }}
+                      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#a1a1aa'; } }}
+                      onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#52525b'; } }}
+                    >
+                      {active && (
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+                          style={{ background: '#dc2626' }} />
+                      )}
+                      <IconComp className="w-[17px] h-[17px] shrink-0"
+                        style={{ color: active ? '#dc2626' : 'inherit' }} />
                       <span className="whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200">{n.label}</span>
                     </Link>
                   );
@@ -107,16 +123,24 @@ export default function Sidebar() {
       </nav>
 
       {/* User card */}
-      <div className="px-2 pb-3 pt-2 border-t border-slate-800/80 shrink-0">
-        <div className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-lg hover:bg-slate-800/60">
+      <div className="px-2 pb-3 pt-2 shrink-0" style={{ borderTop: '1px solid #1c1c1f' }}>
+        <div className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-lg transition-colors duration-150"
+          style={{ cursor: 'default' }}>
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white font-bold text-[11px] shrink-0">
             {session?.user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
           </div>
           <div className="min-w-0 flex-1 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200">
-            <div className="text-[12px] font-medium text-white truncate whitespace-nowrap">{session?.user?.name || 'User'}</div>
-            <div className="text-[10px] text-slate-400 truncate whitespace-nowrap">{session?.user?.roles?.join(' · ') || 'User'}</div>
+            <div className="text-[12px] font-medium truncate whitespace-nowrap" style={{ color: '#e4e4e7' }}>{session?.user?.name || 'User'}</div>
+            <div className="text-[10px] truncate whitespace-nowrap" style={{ color: '#52525b' }}>{session?.user?.roles?.join(' · ') || 'User'}</div>
           </div>
-          <button onClick={() => signOut({ callbackUrl: '/login' })} className="text-slate-500 hover:text-white p-1 rounded-md hover:bg-slate-700/60 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200" title="Sign out">
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            title="Sign out"
+            className="p-1 rounded-md opacity-0 group-hover/sb:opacity-100 transition-all duration-200"
+            style={{ color: '#3f3f46' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#3f3f46'; e.currentTarget.style.background = 'transparent'; }}
+          >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>
             </svg>
