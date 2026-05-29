@@ -12,7 +12,7 @@ const { pool, ensureSchema } = await import('../lib/db.js');
 const { writeStore, readStore } = await import('../lib/store.js');
 
 async function main() {
-  console.log(`→ DB target: ${process.env.DB_USER}@${process.env.DB_HOST}:${process.env.DB_PORT || 3306}/${process.env.DB_NAME}`);
+  console.log(`→ DB target: ${process.env.DB_USER}@${process.env.DB_HOST}:${process.env.DB_PORT || 5433}/${process.env.DB_NAME}`);
 
   const file = path.join(process.cwd(), 'data', 'store.json');
   let data;
