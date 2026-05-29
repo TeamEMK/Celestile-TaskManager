@@ -1,7 +1,9 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { neon } from '@neondatabase/serverless';
+import { pool, ensureSchema } from '@/lib/db';
+
+const DEFAULT_PASSWORD = 'India@123';
 
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -16,18 +18,16 @@ export const authOptions = {
 
       async authorize(credentials) {
         try {
-          const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
-          const rows = await sql`
-            SELECT * FROM users
-            WHERE email = ${credentials.email}
-            AND active = TRUE
-          `;
+          await ensureSchema();
+          const [rows] = await pool.query(
+            'SELECT * FROM users WHERE email = ? AND active = 1',
+            [credentials.email]
+          );
           const user = rows[0];
           if (!user) return null;
 
           if (!user.password_hash) {
-            // No password set yet — allow default
-            if (credentials.password !== 'India@123') return null;
+            if (credentials.password !== DEFAULT_PASSWORD) return null;
           } else {
             const valid = await bcrypt.compare(credentials.password, user.password_hash);
             if (!valid) return null;
@@ -38,10 +38,8 @@ export const authOptions = {
             name:       user.name,
             email:      user.email,
             department: user.department,
-            roles: Array.isArray(user.roles)
-              ? user.roles
-              : typeof user.roles === 'string'
-              ? user.roles.replace(/[{}"]/g, '').split(',').map(r => r.trim()).filter(Boolean)
+            roles: typeof user.roles === 'string'
+              ? user.roles.split(',').map(r => r.trim()).filter(Boolean)
               : ['User'],
           };
         } catch (err) {
@@ -57,20 +55,16 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id         = user.id;
-        token.name       = user.name;
-        token.email      = user.email;
-        token.department = user.department;
-        token.roles      = user.roles;
+        token.id = user.id; token.name = user.name;
+        token.email = user.email; token.department = user.department;
+        token.roles = user.roles;
       }
       return token;
     },
     async session({ session, token }) {
-      session.user.id         = token.id;
-      session.user.name       = token.name;
-      session.user.email      = token.email;
-      session.user.department = token.department;
-      session.user.roles      = token.roles;
+      session.user.id = token.id; session.user.name = token.name;
+      session.user.email = token.email; session.user.department = token.department;
+      session.user.roles = token.roles;
       return session;
     },
   },
