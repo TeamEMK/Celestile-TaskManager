@@ -47,8 +47,8 @@ nano .env.local
 Set:
 
 ```
-DB_HOST=127.0.0.1
-DB_PORT=3306
+DB_HOST=87.106.200.69
+DB_PORT=5433
 DB_USER=india_auto_user
 DB_PASSWORD=StrongPass123!
 DB_NAME=india_automotive
