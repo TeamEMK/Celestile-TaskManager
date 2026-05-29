@@ -46,7 +46,7 @@ export default function LoginPage() {
               margin: '0 auto 1.25rem',
               borderRadius: '1rem',
               overflow: 'hidden',
-              background: '#0a0a0c',
+              background: '#ffffff',
               border: '1px solid #27272a',
               display: 'flex',
               alignItems: 'center',
@@ -55,10 +55,11 @@ export default function LoginPage() {
               <img
                 src="/logo.png"
                 alt="Indian Automotive"
-                style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={(e) => {
                   e.target.style.display = 'none';
-                  e.target.parentElement.innerHTML = '<span style="color:#dc2626;font-size:22px;font-weight:900;letter-spacing:-1px">IA</span>';
+                  e.target.parentElement.style.background = '#dc2626';
+                  e.target.parentElement.innerHTML = '<span style="color:white;font-size:22px;font-weight:900;letter-spacing:-1px">IA</span>';
                 }}
               />
             </div>

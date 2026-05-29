@@ -35,18 +35,20 @@ export default function DashboardClient({ data, performance, holidays, users = [
   }, [isAdmin, router]);
 
   useEffect(() => {
-    if (!isAdmin || reviseTask) return;
-    const pending = (data.pendingTasks || []).filter(
-      (t) => t.type === 'Delegation' && t.status === 'revise_requested'
-    );
-    const fresh = pending.find((t) => !seenRequests.current.has(t.id));
-    if (fresh) {
+    if (!isAdmin) return;
+    setReviseTask(prev => {
+      if (prev) return prev;
+      const pending = (data.pendingTasks || []).filter(
+        (t) => t.type === 'Delegation' && t.status === 'revise_requested'
+      );
+      const fresh = pending.find((t) => !seenRequests.current.has(t.id));
+      if (!fresh) return prev;
       seenRequests.current.add(fresh.id);
       localStorage.setItem('seenReviseRequests', JSON.stringify([...seenRequests.current]));
-      setReviseNote(''); setReviseDate('');
-      setReviseTask({ ...fresh, _mode: 'grant' });
-    }
-  }, [data.pendingTasks, isAdmin, reviseTask]);
+      return { ...fresh, _mode: 'grant' };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.pendingTasks, isAdmin]);
 
   const fmt = (iso) => {
     if (!iso) return '—';
