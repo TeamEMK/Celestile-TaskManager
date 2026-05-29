@@ -1,9 +1,7 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { pool, ensureSchema } from '@/lib/db';
-
-const DEFAULT_PASSWORD = 'India@123';
+import { neon } from '@neondatabase/serverless';
 
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -18,17 +16,18 @@ export const authOptions = {
 
       async authorize(credentials) {
         try {
-          await ensureSchema();
-
-          const [rows] = await pool.query(
-            'SELECT * FROM users WHERE email = ? AND active = 1',
-            [credentials.email]
-          );
+          const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+          const rows = await sql`
+            SELECT * FROM users
+            WHERE email = ${credentials.email}
+            AND active = TRUE
+          `;
           const user = rows[0];
           if (!user) return null;
 
           if (!user.password_hash) {
-            if (credentials.password !== DEFAULT_PASSWORD) return null;
+            // No password set yet — allow default
+            if (credentials.password !== 'India@123') return null;
           } else {
             const valid = await bcrypt.compare(credentials.password, user.password_hash);
             if (!valid) return null;
@@ -39,12 +38,14 @@ export const authOptions = {
             name:       user.name,
             email:      user.email,
             department: user.department,
-            roles: typeof user.roles === 'string'
-              ? user.roles.split(',').map(r => r.trim()).filter(Boolean)
+            roles: Array.isArray(user.roles)
+              ? user.roles
+              : typeof user.roles === 'string'
+              ? user.roles.replace(/[{}"]/g, '').split(',').map(r => r.trim()).filter(Boolean)
               : ['User'],
           };
         } catch (err) {
-          console.error('[auth] MySQL error:', err.message);
+          console.error('[auth] error:', err.message);
           return null;
         }
       },

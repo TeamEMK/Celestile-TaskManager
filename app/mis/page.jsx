@@ -2,7 +2,7 @@ import MISClient from './MISClient';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
-import { pool, ensureSchema } from '@/lib/db';
+import { pool } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +11,6 @@ export default async function MISPage({ searchParams }) {
   const roles   = session?.user?.roles || [];
   const isAdmin = Array.isArray(roles) ? roles.includes('Admin') : String(roles).includes('Admin');
   if (!isAdmin) redirect('/');
-
-  await ensureSchema();
 
   const today    = new Date().toISOString().split('T')[0];
   const lastWeek = new Date(); lastWeek.setDate(lastWeek.getDate() - 7);

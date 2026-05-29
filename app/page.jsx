@@ -7,15 +7,15 @@ import DashboardClient from './DashboardClient';
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  await ensureSchema();
   const session       = await getServerSession(authOptions);
   const isAdmin       = session?.user?.roles?.includes('Admin');
   const currentUserId = session?.user?.id;
   const currentName   = session?.user?.name;
 
-  const [store, [completions]] = await Promise.all([
+  const [store, completions] = await Promise.all([
     readStore(),
-    pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()').catch(() => [[]]),
+    pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()')
+      .then(([rows]) => rows).catch(() => []),
   ]);
 
   const completedToday = new Set(completions.map((c) => c.master_id));

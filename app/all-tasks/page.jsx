@@ -1,18 +1,20 @@
 import AllTasksClient from './AllTasksClient';
-import { pool, ensureSchema } from '@/lib/db';
+import { pool } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AllTasksPage() {
-  await ensureSchema();
-
-  const [[delegations], [users], [masters], [completions]] = await Promise.all([
+  const [delegations, users, masters, completions] = await Promise.all([
     pool.query(`SELECT id, description, doer_id AS doerId, doer, delegated_by AS delegatedBy,
                        due_date AS dueDate, client, status, type, created_at AS createdAt
-                FROM delegations WHERE status != 'approval_pending' ORDER BY created_at DESC`),
-    pool.query('SELECT id, name, email, department, roles FROM users ORDER BY id'),
-    pool.query('SELECT id, task, assigned_to AS assignedTo, frequency FROM masters ORDER BY created_at DESC'),
-    pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()'),
+                FROM delegations WHERE status != 'approval_pending' ORDER BY created_at DESC`)
+      .then(([r]) => r).catch(() => []),
+    pool.query('SELECT id, name, email, department, roles FROM users ORDER BY id')
+      .then(([r]) => r).catch(() => []),
+    pool.query('SELECT id, task, assigned_to AS assignedTo, frequency FROM masters ORDER BY created_at DESC')
+      .then(([r]) => r).catch(() => []),
+    pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()')
+      .then(([r]) => r).catch(() => []),
   ]);
 
   const completedToday = new Set(completions.map((c) => c.master_id));
