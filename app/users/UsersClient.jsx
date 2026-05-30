@@ -218,10 +218,30 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
   }
 
   async function save() {
+    if (!form.name?.trim() || !form.email?.trim()) {
+      alert('Name and email are required.');
+      return;
+    }
     setSaving(true);
     const payload = { ...form };
     if (pictureChanged) payload.picture = picture;
-    await fetch('/api/users', { method: user ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    try {
+      const res = await fetch('/api/users', {
+        method: user ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert('Failed to save: ' + (d.error || res.statusText));
+        setSaving(false);
+        return;
+      }
+    } catch (e) {
+      alert('Network error: ' + e.message);
+      setSaving(false);
+      return;
+    }
     setSaving(false);
     onClose();
     onSaved();
