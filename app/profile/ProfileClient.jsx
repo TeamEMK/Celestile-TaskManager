@@ -8,7 +8,7 @@ export default function ProfileClient({ me, notificationEmail }) {
   const [form, setForm] = useState({
     name: me?.name || '',
     email: me?.email || '',
-    notificationEmail: notificationEmail || '',
+    notificationEmail: notificationEmail || me?.email || '',
     phone: me?.phone || '',
     currentPassword: '',
     newPassword: '',
