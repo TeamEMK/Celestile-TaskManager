@@ -10,8 +10,12 @@ export default function DeveloperPage() {
   const [loading,    setLoading]    = useState(false);
   const [saving,     setSaving]     = useState(false);
   const [exporting,  setExporting]  = useState(false);
-  const [confirm,    setConfirm]    = useState(false);
-  const [error,      setError]      = useState('');
+  const [confirm,      setConfirm]      = useState(false);
+  const [resetOpen,    setResetOpen]    = useState(false);
+  const [resetInput,   setResetInput]   = useState('');
+  const [resetting,    setResetting]    = useState(false);
+  const [resetDone,    setResetDone]    = useState(false);
+  const [error,        setError]        = useState('');
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -52,6 +56,15 @@ export default function DeveloperPage() {
     const a    = document.createElement('a');
     a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function resetData() {
+    if (resetInput !== 'DELETE') return;
+    setResetting(true); setError('');
+    const res = await fetch(`/api/developer/reset?secret=${encodeURIComponent(secret)}`, { method: 'POST' });
+    setResetting(false);
+    if (res.ok) { setResetDone(true); setResetOpen(false); setResetInput(''); }
+    else { const d = await res.json(); setError(d.error || 'Reset failed'); setResetOpen(false); }
   }
 
   async function exportData() {
@@ -200,6 +213,22 @@ export default function DeveloperPage() {
               {exporting ? '⏳ Exporting…' : '📥 Export All Data (CSV)'}
             </button>
 
+            {/* Reset all tasks */}
+            <button onClick={() => { setResetOpen(true); setResetInput(''); setResetDone(false); }} style={{
+              width: '100%', padding: '12px', borderRadius: '12px',
+              border: '1.5px solid #fecaca', background: '#fff5f5',
+              cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+              color: '#ef4444', marginTop: '10px',
+            }}>
+              🗑️ Delete All Tasks
+            </button>
+
+            {resetDone && (
+              <p style={{ color: '#16a34a', fontSize: '13px', marginTop: '10px', fontWeight: '600' }}>
+                ✓ All tasks deleted successfully.
+              </p>
+            )}
+
             {error && <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '12px' }}>{error}</p>}
 
             <button onClick={() => { setAuthed(false); setPassword(''); setError(''); }} style={{
@@ -261,6 +290,64 @@ export default function DeveloperPage() {
                 color: '#fff', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
               }}>
                 {enabled ? 'Yes, Suspend' : 'Yes, Restore'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Reset modal ── */}
+      {resetOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 50, padding: '24px',
+        }} onClick={() => setResetOpen(false)}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', padding: '32px 28px',
+            maxWidth: '360px', width: '100%', textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              width: '48px', height: '48px', borderRadius: '12px', margin: '0 auto 16px',
+              background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </div>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px' }}>
+              Delete All Tasks?
+            </h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px', lineHeight: '1.5' }}>
+              This will permanently delete all delegations, checklists, and transfers. This action <strong>cannot be undone</strong>.
+            </p>
+            <p style={{ fontSize: '13px', color: '#0f172a', margin: '0 0 8px', fontWeight: '600' }}>
+              Type <span style={{ color: '#ef4444', fontFamily: 'monospace' }}>DELETE</span> to confirm
+            </p>
+            <input
+              value={resetInput}
+              onChange={(e) => setResetInput(e.target.value)}
+              placeholder="Type DELETE here"
+              autoFocus
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: '8px', boxSizing: 'border-box',
+                border: `1.5px solid ${resetInput === 'DELETE' ? '#fca5a5' : '#e2e8f0'}`,
+                fontSize: '14px', outline: 'none', marginBottom: '20px',
+                textAlign: 'center', fontWeight: '600', letterSpacing: '1px',
+              }}
+            />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setResetOpen(false)} style={{
+                flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid #e2e8f0',
+                background: '#fff', color: '#64748b', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+              }}>Cancel</button>
+              <button onClick={resetData} disabled={resetInput !== 'DELETE' || resetting} style={{
+                flex: 1, padding: '10px', borderRadius: '10px', border: 'none',
+                background: resetInput === 'DELETE' ? '#ef4444' : '#fca5a5',
+                color: '#fff', fontSize: '13px', fontWeight: '700',
+                cursor: resetInput !== 'DELETE' || resetting ? 'not-allowed' : 'pointer',
+              }}>
+                {resetting ? 'Deleting…' : 'Delete All'}
               </button>
             </div>
           </div>
