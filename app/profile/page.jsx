@@ -34,8 +34,18 @@ export default async function ProfilePage() {
     }
   }
 
-  // Session fallback — DB might have null if user was created before name was set
-  if (me) {
+  // If DB returned nothing, build from session data
+  if (!me && session?.user) {
+    me = {
+      id:         session.user.id,
+      name:       session.user.name       || '',
+      email:      session.user.email      || '',
+      department: session.user.department || '',
+      roles:      session.user.roles      || ['User'],
+      phone:      '',
+      picture:    null,
+    };
+  } else if (me) {
     me.name       = me.name       || session?.user?.name       || '';
     me.department = me.department || session?.user?.department || '';
   }
