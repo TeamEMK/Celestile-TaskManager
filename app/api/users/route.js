@@ -64,47 +64,52 @@ export async function POST(req) {
 }
 
 export async function PATCH(req) {
-  const body = await req.json();
-  if (!body.id)
-    return NextResponse.json({ error: 'id required' }, { status: 400 });
+  try {
+    const body = await req.json();
+    if (!body.id)
+      return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-  if (!hasDB) {
-    const { readStore, writeStore } = await getStore();
-    const store = await readStore();
-    const user = (store.users || []).find(u => u.id === body.id);
-    if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    if (body.name       !== undefined) user.name       = body.name;
-    if (body.email      !== undefined) user.email      = body.email;
-    if (body.phone      !== undefined) user.phone      = body.phone;
-    if (body.department !== undefined) user.department = body.department;
-    if (body.roles      !== undefined) user.roles      = Array.isArray(body.roles) ? body.roles : body.roles.split(',').map(r => r.trim());
-    if (body.active     !== undefined) user.active     = body.active;
-    await writeStore(store);
-    return NextResponse.json(user);
+    if (!hasDB) {
+      const { readStore, writeStore } = await getStore();
+      const store = await readStore();
+      const user = (store.users || []).find(u => u.id === body.id);
+      if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      if (body.name       !== undefined) user.name       = body.name;
+      if (body.email      !== undefined) user.email      = body.email;
+      if (body.phone      !== undefined) user.phone      = body.phone;
+      if (body.department !== undefined) user.department = body.department;
+      if (body.roles      !== undefined) user.roles      = Array.isArray(body.roles) ? body.roles : body.roles.split(',').map(r => r.trim());
+      if (body.active     !== undefined) user.active     = body.active;
+      await writeStore(store);
+      return NextResponse.json(user);
+    }
+
+    await ensureSchema();
+    const roles = body.roles ? (Array.isArray(body.roles) ? body.roles.join(',') : body.roles) : null;
+    const pictureChanged = body.picture !== undefined;
+    await pool.query(
+      `UPDATE users SET
+        name       = COALESCE(?, name),
+        email      = COALESCE(?, email),
+        phone      = COALESCE(?, phone),
+        department = COALESCE(?, department),
+        roles      = COALESCE(?, roles),
+        active     = COALESCE(?, active),
+        picture    = CASE WHEN ? THEN ? ELSE picture END
+       WHERE id = ?`,
+      [body.name ?? null, body.email ?? null, body.phone ?? null,
+       body.department ?? null, roles, body.active ?? null,
+       pictureChanged ? 1 : 0, body.picture ?? null, body.id]
+    );
+    const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [body.id]);
+    if (!result.length)
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    syncUsers(sql).catch(() => {});
+    return NextResponse.json(result[0]);
+  } catch (err) {
+    console.error('[PATCH /api/users]', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
-
-  await ensureSchema();
-  const roles = body.roles ? (Array.isArray(body.roles) ? body.roles.join(',') : body.roles) : null;
-  const pictureChanged = body.picture !== undefined;
-  await pool.query(
-    `UPDATE users SET
-      name       = COALESCE(?, name),
-      email      = COALESCE(?, email),
-      phone      = COALESCE(?, phone),
-      department = COALESCE(?, department),
-      roles      = COALESCE(?, roles),
-      active     = COALESCE(?, active),
-      picture    = CASE WHEN ? THEN ? ELSE picture END
-     WHERE id = ?`,
-    [body.name ?? null, body.email ?? null, body.phone ?? null,
-     body.department ?? null, roles, body.active ?? null,
-     pictureChanged ? 1 : 0, body.picture ?? null, body.id]
-  );
-  const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [body.id]);
-  if (!result.length)
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  syncUsers(sql).catch(() => {});
-  return NextResponse.json(result[0]);
 }
 
 export async function DELETE(req) {
