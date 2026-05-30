@@ -176,6 +176,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
                     <th className="table-th">Type</th>
                     <th className="table-th">Description</th>
                     <th className="table-th">Doer</th>
+                    <th className="table-th">Priority</th>
                     <th className="table-th">Date</th>
                     <th className="table-th">Client</th>
                     <th className="table-th">Action</th>
@@ -196,6 +197,15 @@ export default function DashboardClient({ data, performance, holidays, users = [
                           <Avatar name={t.doer} />
                           <span className="text-slate-700">{t.doer}</span>
                         </div>
+                      </td>
+                      <td className="table-td">
+                        {t.priority && t.priority !== 'Low' ? (
+                          <span className={`pill ${t.priority === 'High' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                            {t.priority}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">Low</span>
+                        )}
                       </td>
                       <td className={`table-td whitespace-nowrap text-xs ${t.overdue ? 'text-red-600 font-semibold' : 'text-slate-600'}`}>
                         {fmt(t.date)}
