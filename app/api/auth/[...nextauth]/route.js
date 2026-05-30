@@ -4,6 +4,17 @@ import bcrypt from 'bcryptjs';
 
 const DEFAULT_PASSWORD = 'India@123';
 
+async function isAppActive() {
+  try {
+    const hasMySQL = !!(process.env.DB_HOST);
+    if (!hasMySQL) return true;
+    const { pool } = await import('@/lib/db');
+    const [rows] = await pool.query("SELECT `value` FROM app_config WHERE `key` = 'app_active'");
+    if (rows.length === 0) return true;
+    return rows[0].value !== 'false';
+  } catch { return true; }
+}
+
 async function findUser(email) {
   const hasMySQL = !!(process.env.DB_HOST);
 
@@ -73,6 +84,8 @@ export const authOptions = {
 
       async authorize(credentials) {
         try {
+          const active = await isAppActive();
+          if (!active) return null;
           const { user } = await findUser(credentials.email);
           if (!user) return null;
 
