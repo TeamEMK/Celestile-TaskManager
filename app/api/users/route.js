@@ -85,9 +85,8 @@ export async function PATCH(req) {
     }
 
     await ensureSchema();
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS picture MEDIUMTEXT DEFAULT NULL').catch(() => {});
     const roles = body.roles ? (Array.isArray(body.roles) ? body.roles.join(',') : body.roles) : null;
-    const pictureChanged = body.picture !== undefined;
+    // Update core fields (no picture — handled separately to avoid column-missing errors)
     await pool.query(
       `UPDATE users SET
         name       = COALESCE(?, name),
@@ -95,13 +94,18 @@ export async function PATCH(req) {
         phone      = COALESCE(?, phone),
         department = COALESCE(?, department),
         roles      = COALESCE(?, roles),
-        active     = COALESCE(?, active),
-        picture    = CASE WHEN ? THEN ? ELSE picture END
+        active     = COALESCE(?, active)
        WHERE id = ?`,
       [body.name ?? null, body.email ?? null, body.phone ?? null,
-       body.department ?? null, roles, body.active ?? null,
-       pictureChanged ? 1 : 0, body.picture ?? null, body.id]
+       body.department ?? null, roles, body.active ?? null, body.id]
     );
+    // Picture update — add column first if missing, then update
+    if (body.picture !== undefined) {
+      try {
+        await pool.query('ALTER TABLE users ADD COLUMN picture MEDIUMTEXT DEFAULT NULL');
+      } catch { /* column already exists */ }
+      await pool.query('UPDATE users SET picture = ? WHERE id = ?', [body.picture, body.id]);
+    }
     const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [body.id]);
     if (!result.length)
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
