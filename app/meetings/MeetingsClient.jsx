@@ -83,9 +83,7 @@ export default function MeetingsClient({ createdBy, holidays = [], users = [] })
 
   return (
     <div className="space-y-4">
-      <h1 className="page-title">📅 Meetings</h1>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+<div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
         {/* Calendar */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">

@@ -71,10 +71,7 @@ export default function FMSClient({ rows, steps }) {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">FMS Master</h1>
-        </div>
-        <button onClick={() => setOpen(true)} className="btn-primary">
+<button onClick={() => setOpen(true)} className="btn-primary">
           <PlusIcon /> New FMS Entry
         </button>
       </div>

@@ -97,11 +97,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div>
-        <h1 className="page-title">Approvals</h1>
-      </div>
-
-      <div className="flex gap-2 flex-wrap">
+<div className="flex gap-2 flex-wrap">
         {TABS.map(({ key, count, icon: Icon }) => (
           <button key={key} onClick={() => setTab(key)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition border ${tab === key ? 'bg-white border-slate-200 text-slate-900 shadow-card' : 'bg-transparent border-transparent text-slate-600 hover:bg-white/60 hover:border-slate-200'}`}>

@@ -66,9 +66,6 @@ export default function DailyTaskClient({ doerId, doer, departments = [], client
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="page-title">Daily Task Form</h1>
-      </div>
 
       <div className="card p-5">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">

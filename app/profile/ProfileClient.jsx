@@ -70,9 +70,6 @@ export default function ProfileClient({ me, notificationEmail }) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="page-title">Profile</h1>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6">
         {/* Identity card */}

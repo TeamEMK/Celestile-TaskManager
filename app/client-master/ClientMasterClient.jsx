@@ -68,9 +68,7 @@ export default function ClientMasterClient({ canEdit }) {
 
   return (
     <div className="space-y-4">
-      <h1 className="page-title">Client Master</h1>
-
-      <div className="card p-5">
+<div className="card p-5">
         <div className="flex items-center gap-2 flex-wrap mb-4">
           <input className="input max-w-xs" placeholder="🔍 Search name / contact / email…"
             value={q} onChange={(e) => setQ(e.target.value)} />

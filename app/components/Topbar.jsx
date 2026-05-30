@@ -3,14 +3,21 @@ import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 
 const TITLES = {
-  '/':          'Dashboard',
-  '/all-tasks': 'All Tasks',
-  '/approvals': 'Approvals',
-  '/users':     'Users',
-  '/mis':       'MIS Report',
-  '/masters':   'Checklists',
-  '/fms':       'FMS Master',
-  '/profile':   'Profile',
+  '/':               'Dashboard',
+  '/all-tasks':      'All Tasks',
+  '/approvals':      'Approvals',
+  '/users':          'Users',
+  '/mis':            'MIS Report',
+  '/masters':        'Checklists',
+  '/fms':            'FMS Master',
+  '/profile':        'Profile',
+  '/leave-tracker':  'Leave Tracker',
+  '/daily-reports':  'Daily Reports',
+  '/meetings':       'Meetings',
+  '/client-master':  'Client Master',
+  '/daily-task':     'Daily Task',
+  '/race-tracker':   'Race Tracker',
+  '/compliance':     'Compliance',
 };
 
 export default function Topbar() {

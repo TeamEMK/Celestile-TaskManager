@@ -43,9 +43,6 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div>
-        <h1 className="page-title">MIS Report</h1>
-      </div>
 
       {/* Filter bar */}
       <div className="card p-5 space-y-4">

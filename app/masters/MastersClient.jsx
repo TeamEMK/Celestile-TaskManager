@@ -50,10 +50,7 @@ export default function MastersClient({ masters, users = [] }) {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Checklists Library</h1>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
+<div className="flex items-center gap-2 flex-wrap">
           <CsvImport
             templateName="checklist_template.csv"
             columns={['task', 'assignedTo', 'frequency']}

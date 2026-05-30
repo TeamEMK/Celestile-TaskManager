@@ -21,7 +21,7 @@ export default function AppShell({ children }) {
     return () => clearInterval(t);
   }, [session, update]);
 
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname.startsWith('/developer')) {
     return <>{children}</>;
   }
 

@@ -58,9 +58,7 @@ export default function RaceTrackerClient({ delegations = [], users = [] }) {
 
   return (
     <div className="space-y-4">
-      <h1 className="page-title">🏁 Race Tracker</h1>
-
-      <div className="card p-5">
+<div className="card p-5">
         <div className="flex items-end gap-3 flex-wrap">
           <div><label className="label">Start Date</label>
             <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></div>

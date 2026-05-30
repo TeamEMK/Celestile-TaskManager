@@ -61,9 +61,7 @@ export default function LeaveTrackerClient({ userId, userName, canApprove }) {
 
   return (
     <div className="space-y-4">
-      <h1 className="page-title">Leave Tracker</h1>
-
-      <div className="card p-5">
+<div className="card p-5">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <p className="text-[13px] text-slate-600">
             Apply for leave, work-from-home, or extra working. <b className="text-amber-600">Your approver: HOD</b>

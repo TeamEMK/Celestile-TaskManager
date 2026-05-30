@@ -85,9 +85,7 @@ export default function DailyReportsClient({ isAdmin }) {
 
   return (
     <div className="space-y-4">
-      <h1 className="page-title">Daily Reports</h1>
-
-      <div className="card p-5 space-y-4">
+<div className="card p-5 space-y-4">
         {/* date controls */}
         <div className="flex items-center gap-3 flex-wrap">
           <label className="label !mb-0">Month</label>

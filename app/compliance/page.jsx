@@ -6,9 +6,7 @@ export default async function CompliancePage() {
   await requireAdmin();
   return (
     <div className="space-y-4">
-      <h1 className="page-title">Compliance</h1>
-
-      <div className="card p-8 text-center">
+<div className="card p-8 text-center">
         <div className="text-5xl mb-3">🛡️</div>
         <div className="text-[16px] font-semibold text-slate-800 mb-2">
           Compliance module not configured yet

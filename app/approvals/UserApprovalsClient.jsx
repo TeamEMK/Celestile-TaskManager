@@ -14,11 +14,7 @@ const STATUS = {
 export default function UserApprovalsClient({ myRequests = [] }) {
   return (
     <div className="space-y-5 animate-fade-in">
-      <div>
-        <h1 className="page-title">My Approvals</h1>
-      </div>
-
-      {myRequests.length === 0 ? (
+{myRequests.length === 0 ? (
         <div className="card p-14 text-center">
           <div className="w-14 h-14 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
             <svg className="w-7 h-7 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>

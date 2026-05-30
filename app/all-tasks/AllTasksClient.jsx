@@ -115,10 +115,7 @@ export default function AllTasksClient({ grouped, users }) {
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">All Tasks</h1>
-        </div>
-        {isAdmin ? (
+{isAdmin ? (
           <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => setTransferOpen(true)} className="btn-secondary">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
