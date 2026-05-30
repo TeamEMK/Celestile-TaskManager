@@ -100,6 +100,7 @@ export const authOptions = {
             id:         user.id,
             name:       user.name,
             email:      user.email,
+            phone:      user.phone      || '',
             department: user.department || '',
             roles: Array.isArray(user.roles)
               ? user.roles
@@ -124,6 +125,7 @@ export const authOptions = {
         token.id         = user.id;
         token.name       = user.name;
         token.email      = user.email;
+        token.phone      = user.phone;
         token.department = user.department;
         token.roles      = user.roles;
         token.loginAt    = Date.now();
@@ -142,6 +144,7 @@ export const authOptions = {
       session.user.id         = token.id;
       session.user.name       = token.name;
       session.user.email      = token.email;
+      session.user.phone      = token.phone;
       session.user.department = token.department;
       session.user.roles      = token.roles;
       if (token.error) session.error = token.error;

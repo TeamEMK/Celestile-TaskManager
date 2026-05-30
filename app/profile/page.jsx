@@ -42,11 +42,12 @@ export default async function ProfilePage() {
       email:      session.user.email      || '',
       department: session.user.department || '',
       roles:      session.user.roles      || ['User'],
-      phone:      '',
+      phone:      session.user.phone      || '',
       picture:    null,
     };
   } else if (me) {
     me.name       = me.name       || session?.user?.name       || '';
+    me.phone      = me.phone      || session?.user?.phone      || '';
     me.department = me.department || session?.user?.department || '';
   }
 
