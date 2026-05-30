@@ -14,8 +14,10 @@ export default function AppShell({ children }) {
       signOut({ callbackUrl: '/login' });
       return;
     }
-    // Force session refresh every 20s as failsafe
-    const t = setInterval(() => update(), 20000);
+    // Force session refresh every 20s — only when tab is visible
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') update();
+    }, 20000);
     return () => clearInterval(t);
   }, [session, update]);
 
