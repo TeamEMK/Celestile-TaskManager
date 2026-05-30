@@ -313,19 +313,23 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
 }
 
 function SetPasswordModal({ open, onClose, user }) {
-  const [password, setPassword] = useState('');
-  const [confirm,  setConfirm]  = useState('');
-  const [saving,   setSaving]   = useState(false);
-  const [error,    setError]    = useState('');
+  const [password,  setPassword]  = useState('');
+  const [confirm,   setConfirm]   = useState('');
+  const [showPass,  setShowPass]  = useState(false);
+  const [showConf,  setShowConf]  = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [error,     setError]     = useState('');
 
-  useEffect(() => { if (open) { setPassword(''); setConfirm(''); setError(''); } }, [open]);
+  useEffect(() => { if (open) { setPassword(''); setConfirm(''); setError(''); setShowPass(false); setShowConf(false); } }, [open]);
 
   if (!open) return null;
+
+  const mismatch = confirm.length > 0 && password !== confirm;
 
   async function save() {
     setError('');
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
-    if (password !== confirm)  { setError('Passwords do not match.'); return; }
+    if (password !== confirm) { setError('Passwords do not match.'); return; }
     setSaving(true);
     const res = await fetch('/api/users/set-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id, password }) });
     setSaving(false);
@@ -339,16 +343,57 @@ function SetPasswordModal({ open, onClose, user }) {
         <h2 className="text-lg font-semibold mb-1">Set Password</h2>
         <p className="text-sm text-slate-500 mb-4">{user?.name}</p>
         <div className="space-y-4">
-          <Field label="New Password"     value={password} onChange={setPassword} type="password" />
-          <Field label="Confirm Password" value={confirm}  onChange={setConfirm}  type="password" />
+          {/* New Password */}
+          <div>
+            <label className="label">New Password</label>
+            <div className="relative">
+              <input type={showPass ? 'text' : 'password'} value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="input pr-10" placeholder="Min. 6 characters" />
+              <button type="button" onClick={() => setShowPass(!showPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <EyeIcon open={showPass} />
+              </button>
+            </div>
+          </div>
+          {/* Confirm Password */}
+          <div>
+            <label className="label">Confirm Password</label>
+            <div className="relative">
+              <input type={showConf ? 'text' : 'password'} value={confirm}
+                onChange={e => setConfirm(e.target.value)}
+                className={`input pr-10 ${mismatch ? 'border-red-400 bg-red-50' : ''}`}
+                placeholder="Re-enter password" />
+              <button type="button" onClick={() => setShowConf(!showConf)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <EyeIcon open={showConf} />
+              </button>
+            </div>
+            {mismatch && <p className="text-red-500 text-xs mt-1">Passwords do not match</p>}
+          </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
         </div>
         <div className="flex justify-end gap-2 mt-6">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Set Password'}</button>
+          <button onClick={save} disabled={saving || mismatch} className="btn-primary">{saving ? 'Saving...' : 'Set Password'}</button>
         </div>
       </div>
     </div>
+  );
+}
+
+function EyeIcon({ open }) {
+  return open ? (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
   );
 }
 
