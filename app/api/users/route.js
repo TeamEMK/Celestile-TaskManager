@@ -85,6 +85,7 @@ export async function PATCH(req) {
     }
 
     await ensureSchema();
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS picture MEDIUMTEXT DEFAULT NULL').catch(() => {});
     const roles = body.roles ? (Array.isArray(body.roles) ? body.roles.join(',') : body.roles) : null;
     const pictureChanged = body.picture !== undefined;
     await pool.query(
