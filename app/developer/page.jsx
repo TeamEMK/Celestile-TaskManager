@@ -8,6 +8,7 @@ export default function DeveloperPage() {
   const [enabled,  setEnabled]      = useState(null);
   const [loading,  setLoading]      = useState(false);
   const [saving,   setSaving]       = useState(false);
+  const [exporting, setExporting]   = useState(false);
   const [error,    setError]        = useState('');
 
   async function handleLogin(e) {
@@ -33,6 +34,39 @@ export default function DeveloperPage() {
     if (res.ok) setEnabled(d.enabled);
     else setError(d.error || 'Failed');
     setSaving(false);
+  }
+
+  function toCSV(rows) {
+    if (!rows?.length) return '';
+    const keys = Object.keys(rows[0]);
+    const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    return [keys.join(','), ...rows.map((r) => keys.map((k) => escape(r[k])).join(','))].join('\n');
+  }
+
+  function downloadFile(content, filename, type = 'text/csv') {
+    const blob = new Blob([content], { type });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportData() {
+    setExporting(true); setError('');
+    const res = await fetch(`/api/developer/export?secret=${encodeURIComponent(secret)}`);
+    if (!res.ok) { setError('Export failed'); setExporting(false); return; }
+    const data = await res.json();
+    const date  = new Date().toISOString().slice(0, 10);
+    const files = [
+      { key: 'delegations', name: `delegations_${date}.csv` },
+      { key: 'users',       name: `users_${date}.csv`       },
+      { key: 'masters',     name: `checklists_${date}.csv`  },
+      { key: 'holidays',    name: `holidays_${date}.csv`    },
+    ];
+    files.forEach(({ key, name }, i) => {
+      setTimeout(() => downloadFile(toCSV(data[key]), name), i * 400);
+    });
+    setExporting(false);
   }
 
   return (
@@ -147,6 +181,21 @@ export default function DeveloperPage() {
               }}
             >
               {saving ? 'Saving…' : enabled ? '🔴  Suspend Dashboard' : '🟢  Restore Dashboard'}
+            </button>
+
+            <button
+              onClick={exportData}
+              disabled={exporting}
+              style={{
+                width: '100%', padding: '12px', borderRadius: '12px', border: 'none',
+                cursor: exporting ? 'not-allowed' : 'pointer',
+                fontSize: '14px', fontWeight: '600', color: '#3b82f6',
+                background: '#eff6ff', marginTop: '12px',
+                opacity: exporting ? 0.7 : 1,
+                transition: 'all 0.2s',
+              }}
+            >
+              {exporting ? '⏳ Exporting…' : '📥 Export All Data (CSV)'}
             </button>
 
             {error && (
