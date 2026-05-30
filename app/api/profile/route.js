@@ -22,6 +22,13 @@ export async function PATCH(req) {
       [body.name ?? null, body.email ?? null, body.phone ?? null,
        pictureChanged ? 1 : 0, body.picture ?? null, id]
     );
+    if (body.notificationEmail !== undefined) {
+      await pool.query(
+        `INSERT INTO profile (user_id, notification_email) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE notification_email = ?`,
+        [id, body.notificationEmail || '', body.notificationEmail || '']
+      );
+    }
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
