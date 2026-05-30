@@ -165,12 +165,13 @@ export async function PATCH(req) {
       let newStatus = body.status;
 
       if (newStatus === 'revise') {
-        if (del.doerId && del.doerId === currentUserId) {
-          // Doer (including admin-as-doer) is requesting revision — needs approval
+        const currentRoles = session?.user?.roles || [];
+        const rolesArr = Array.isArray(currentRoles) ? currentRoles : String(currentRoles).split(',').map(r => r.trim());
+        const isAdminOrHOD = rolesArr.includes('Admin') || rolesArr.includes('HOD');
+        if (!isAdminOrHOD || (del.doerId && del.doerId === currentUserId)) {
           newStatus = 'revise_requested';
           del.reviseAction = 'pending';
         } else {
-          // Admin granting revision
           del.reviseAction = 'granted';
         }
       } else if (newStatus === 'pending' && body._denyRevise) {
@@ -220,9 +221,13 @@ export async function PATCH(req) {
     if (status === 'revise') {
       const session = await getServerSession(authOptions);
       const currentUserId = session?.user?.id;
+      const currentRoles = session?.user?.roles || [];
+      const rolesArr = Array.isArray(currentRoles) ? currentRoles : String(currentRoles).split(',').map(r => r.trim());
+      const isAdminOrHOD = rolesArr.includes('Admin') || rolesArr.includes('HOD');
       const [taskRows] = await pool.query('SELECT doer_id FROM delegations WHERE id = ?', [body.id]);
       const taskDoerId = taskRows[0]?.doer_id;
-      if (taskDoerId && taskDoerId === currentUserId) {
+      // User requesting revision: not admin/HOD OR is the task's own doer
+      if (!isAdminOrHOD || (taskDoerId && taskDoerId === currentUserId)) {
         status = 'revise_requested';
         reviseAction = 'pending';
       } else {
