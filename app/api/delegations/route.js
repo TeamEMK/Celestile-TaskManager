@@ -197,15 +197,15 @@ export async function PATCH(req) {
       if (taskIds?.length) {
         const placeholders = taskIds.map(() => '?').join(',');
         await pool.query(
-          `UPDATE delegations SET doer = ?, doer_id = ?, transferred_by = ?, transferred_from = doer
+          `UPDATE delegations SET transferred_from = doer, transferred_by = ?, doer = ?, doer_id = ?
            WHERE id IN (${placeholders}) AND status != 'done'`,
-          [toDoer, toDoerId || null, transferredBy, ...taskIds]
+          [transferredBy, toDoer, toDoerId || null, ...taskIds]
         );
       } else {
         await pool.query(
-          `UPDATE delegations SET doer = ?, doer_id = ?, transferred_by = ?, transferred_from = doer
+          `UPDATE delegations SET transferred_from = doer, transferred_by = ?, doer = ?, doer_id = ?
            WHERE doer = ? AND status != 'done'`,
-          [toDoer, toDoerId || null, transferredBy, fromDoer]
+          [transferredBy, toDoer, toDoerId || null, fromDoer]
         );
       }
       return NextResponse.json({ success: true });
