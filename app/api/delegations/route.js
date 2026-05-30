@@ -161,18 +161,16 @@ export async function PATCH(req) {
       const del = (store.delegations || []).find(d => d.id === body.id);
       if (!del) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-      const currentUserId = session?.user?.id;
       let newStatus = body.status;
 
       if (newStatus === 'revise') {
-        const currentRoles = session?.user?.roles || [];
-        const rolesArr = Array.isArray(currentRoles) ? currentRoles : String(currentRoles).split(',').map(r => r.trim());
-        const isAdminOrHOD = rolesArr.includes('Admin') || rolesArr.includes('HOD');
-        if (!isAdminOrHOD || (del.doerId && del.doerId === currentUserId)) {
+        if (body._grantRevise) {
+          // Admin explicitly granting someone's revise request
+          del.reviseAction = 'granted';
+        } else {
+          // Everyone (including admin) must request approval
           newStatus = 'revise_requested';
           del.reviseAction = 'pending';
-        } else {
-          del.reviseAction = 'granted';
         }
       } else if (newStatus === 'pending' && body._denyRevise) {
         del.reviseAction = 'denied';
@@ -219,19 +217,13 @@ export async function PATCH(req) {
     let reviseAction = null;
 
     if (status === 'revise') {
-      const session = await getServerSession(authOptions);
-      const currentUserId = session?.user?.id;
-      const currentRoles = session?.user?.roles || [];
-      const rolesArr = Array.isArray(currentRoles) ? currentRoles : String(currentRoles).split(',').map(r => r.trim());
-      const isAdminOrHOD = rolesArr.includes('Admin') || rolesArr.includes('HOD');
-      const [taskRows] = await pool.query('SELECT doer_id FROM delegations WHERE id = ?', [body.id]);
-      const taskDoerId = taskRows[0]?.doer_id;
-      // User requesting revision: not admin/HOD OR is the task's own doer
-      if (!isAdminOrHOD || (taskDoerId && taskDoerId === currentUserId)) {
+      if (body._grantRevise) {
+        // Admin explicitly granting someone's revise request
+        reviseAction = 'granted';
+      } else {
+        // Everyone (including admin) must request approval
         status = 'revise_requested';
         reviseAction = 'pending';
-      } else {
-        reviseAction = 'granted';
       }
     } else if (status === 'pending' && body._denyRevise) {
       reviseAction = 'denied';

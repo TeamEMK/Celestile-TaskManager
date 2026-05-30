@@ -82,8 +82,8 @@ export default function DashboardClient({ data, performance, holidays, users = [
         body: JSON.stringify({
           id: task.id,
           status: 'revise',
+          _grantRevise: mode === 'grant',
           remarks: reviseNote || undefined,
-          // grant mode mein dueDate mat bhejo — user ki set ki hui date rahegi
           ...(mode !== 'grant' && reviseDate ? { dueDate: reviseDate } : {}),
         }),
       });
