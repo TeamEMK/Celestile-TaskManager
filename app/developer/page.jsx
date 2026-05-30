@@ -247,8 +247,8 @@ export default function DeveloperPage() {
             </h2>
             <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 24px', lineHeight: '1.5' }}>
               {enabled
-                ? 'Client ka dashboard turant band ho jayega. Koi bhi login nahi kar payega.'
-                : 'Dashboard wapas chalu ho jayega. Client phir se access kar sakta hai.'}
+                ? 'The client dashboard will be suspended immediately. No one will be able to log in.'
+                : 'The dashboard will be restored immediately. The client will regain access.'}
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => setConfirm(false)} style={{
@@ -260,7 +260,7 @@ export default function DeveloperPage() {
                 background: enabled ? '#ef4444' : '#22c55e',
                 color: '#fff', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
               }}>
-                {enabled ? 'Haan, Suspend Karo' : 'Haan, Restore Karo'}
+                {enabled ? 'Yes, Suspend' : 'Yes, Restore'}
               </button>
             </div>
           </div>
