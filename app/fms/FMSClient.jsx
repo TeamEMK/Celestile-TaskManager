@@ -73,7 +73,6 @@ export default function FMSClient({ rows, steps }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">FMS Master</h1>
-          <p className="page-sub">Campaign workflow tracking across {steps.length} steps</p>
         </div>
         <button onClick={() => setOpen(true)} className="btn-primary">
           <PlusIcon /> New FMS Entry

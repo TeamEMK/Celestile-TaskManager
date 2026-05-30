@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AddMasterModal from './components/AddMasterModal';
@@ -24,31 +24,11 @@ export default function DashboardClient({ data, performance, holidays, users = [
   const [userFilter,   setUserFilter]   = useState('All');
 
   const todayISO = new Date().toISOString().split('T')[0];
-  const seenRequests = useRef(
-    new Set(JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('seenReviseRequests') || '[]' : '[]'))
-  );
-
   useEffect(() => {
     if (!isAdmin) return;
     const t = setInterval(() => router.refresh(), 15000);
     return () => clearInterval(t);
   }, [isAdmin, router]);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    setReviseTask(prev => {
-      if (prev) return prev;
-      const pending = (data.pendingTasks || []).filter(
-        (t) => t.type === 'Delegation' && t.status === 'revise_requested'
-      );
-      const fresh = pending.find((t) => !seenRequests.current.has(t.id));
-      if (!fresh) return prev;
-      seenRequests.current.add(fresh.id);
-      localStorage.setItem('seenReviseRequests', JSON.stringify([...seenRequests.current]));
-      return { ...fresh, _mode: 'grant' };
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.pendingTasks, isAdmin]);
 
   const fmt = (iso) => {
     if (!iso) return '—';
@@ -61,10 +41,15 @@ export default function DashboardClient({ data, performance, holidays, users = [
 
   const allDoers = useMemo(() => users.map((u) => u.name).sort(), [users]);
 
-  const filtered = visibleTasks.filter((t) =>
-    (subTab === 'All' || t.type === subTab) &&
-    (userFilter === 'All' || t.doer === userFilter)
-  );
+  const STATUS_RANK = { revise: 0, revise_requested: 1, pending: 2, done: 3 };
+
+  const filtered = visibleTasks
+    .filter((t) =>
+      (subTab === 'All' || t.type === subTab) &&
+      (userFilter === 'All' || t.doer === userFilter)
+    )
+    .slice()
+    .sort((a, b) => (STATUS_RANK[a.status] ?? 2) - (STATUS_RANK[b.status] ?? 2));
 
   const visibleCompleted = data.completed;
   const visibleRevised   = data.revised;
@@ -88,8 +73,8 @@ export default function DashboardClient({ data, performance, holidays, users = [
     const task = reviseTask;
     if (!task || task.type !== 'Delegation') { setReviseTask(null); return; }
     const mode = task._mode || 'revise';
-    // request/revise mode mein date zaroori hai, grant mein user ne pehle hi set ki hai
     if (mode !== 'grant' && !reviseDate) { alert('Please pick a "revise until" date.'); return; }
+    if (mode === 'request' && !reviseNote.trim()) { alert('Revise note is required — please explain what needs to be revised.'); return; }
     setReviseSaving(true);
     try {
       await fetch('/api/delegations', {
@@ -124,9 +109,11 @@ export default function DashboardClient({ data, performance, holidays, users = [
               {allDoers.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           )}
-          <button onClick={() => setHolidayOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-600 text-white transition shadow-sm">
-            <CalIcon /> Holidays
-          </button>
+          {isAdmin && (
+            <button onClick={() => setHolidayOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-600 text-white transition shadow-sm">
+              <CalIcon /> Holidays
+            </button>
+          )}
           <button onClick={() => setMasterOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition shadow-sm">
             <PlusIcon /> Checklist
           </button>
@@ -198,7 +185,12 @@ export default function DashboardClient({ data, performance, holidays, users = [
                   {filtered.map((t) => (
                     <tr key={t.id} className="table-row">
                       <td className="table-td"><TypePill type={t.type} /></td>
-                      <td className="table-td max-w-[260px] truncate font-medium text-slate-800" title={t.description}>{t.description}</td>
+                      <td className="table-td max-w-[260px] font-medium text-slate-800" title={t.description}>
+                        <span className="truncate block">{t.description}</span>
+                        {t.transferredFrom && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium border border-amber-100" title={t.transferredBy ? `Transferred by ${t.transferredBy}` : ''}>🔄 from {t.transferredFrom}</span>
+                        )}
+                      </td>
                       <td className="table-td">
                         <div className="flex items-center gap-1.5">
                           <Avatar name={t.doer} />
@@ -319,8 +311,13 @@ export default function DashboardClient({ data, performance, holidays, users = [
                 )}
                 {mode !== 'grant' && (
                   <div>
-                    <label className="label">Revise note <span className="text-slate-400 font-normal">(optional)</span></label>
-                    <textarea rows={3} className="input resize-none" placeholder="What needs to be corrected?" value={reviseNote} onChange={(e) => setReviseNote(e.target.value)} />
+                    <label className="label">
+                      Revise note
+                      {mode === 'request'
+                        ? <span className="text-red-500 ml-1">*</span>
+                        : <span className="text-slate-400 font-normal ml-1">(optional)</span>}
+                    </label>
+                    <textarea rows={3} className="input resize-none" placeholder={mode === 'request' ? 'Explain what needs to be revised (required)' : 'What needs to be corrected?'} value={reviseNote} onChange={(e) => setReviseNote(e.target.value)} />
                   </div>
                 )}
               </div>

@@ -1,14 +1,14 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { readStore, computeDashboard, computePerformance } from '@/lib/store';
-import { pool, ensureSchema } from '@/lib/db';
+import { pool } from '@/lib/db';
 import DashboardClient from './DashboardClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const session       = await getServerSession(authOptions);
-  const isAdmin       = session?.user?.roles?.includes('Admin');
+  const isAdmin       = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
   const currentUserId = session?.user?.id;
   const currentName   = session?.user?.name;
 

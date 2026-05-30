@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { FMS_ENABLED, RACE_TRACKER_ENABLED } from '@/lib/config';
+import { useEffect, useState } from 'react';
 const Icon = {
   dashboard: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>,
   tasks:     (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>,
@@ -50,7 +51,24 @@ const SECTIONS = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isAdmin = (session?.user?.roles || []).includes('Admin');
+  const isAdmin = (session?.user?.roles || []).includes('Admin') || (session?.user?.roles || []).includes('HOD');
+
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchCount = async () => {
+      try {
+        const res = await fetch('/api/approvals/pending-count');
+        if (!res.ok) return;
+        const { count } = await res.json();
+        setPendingCount(count);
+      } catch {}
+    };
+    fetchCount();
+    const t = setInterval(fetchCount, 15000);
+    return () => clearInterval(t);
+  }, [isAdmin]);
 
   const visible = (n) =>
     !n.hidden &&
@@ -65,18 +83,15 @@ export default function Sidebar() {
       {/* Brand */}
       <div className="h-14 px-3 flex items-center gap-2.5 shrink-0"
         style={{ borderBottom: '1px solid #1c1c1f' }}>
-        <div className="relative w-9 h-9 rounded-lg shrink-0 overflow-hidden grid place-items-center"
-          style={{ background: '#0d0d10', border: '1px solid #27272a' }}>
-          <img src="/logo.png" alt="IA" className="w-8 h-8 object-contain"
-            onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='grid'; }} />
-          <span className="hidden w-full h-full text-white text-[12px] font-bold place-items-center"
-            style={{ background: '#dc2626' }}>IA</span>
+        {/* Single logo icon — always visible */}
+        <div className="relative w-9 h-9 rounded-lg shrink-0 overflow-hidden grid place-items-center bg-white">
+          <img src="/logo.png" alt="IA" className="w-9 h-9 object-contain" />
           <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2"
             style={{ background: '#34d399', borderColor: '#09090b' }}></span>
         </div>
+        {/* Brand name — fades in when sidebar expands */}
         <div className="leading-tight min-w-0 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
           <div className="text-[13px] font-semibold tracking-tight" style={{ color: '#f4f4f5' }}>India Automotive</div>
-          <div className="text-[9.5px] uppercase font-medium" style={{ letterSpacing: '0.14em', color: '#52525b' }}>ERP · Operations</div>
         </div>
       </div>
 
@@ -100,7 +115,7 @@ export default function Sidebar() {
                     <Link key={n.href} href={n.href} title={n.label}
                       className="group/item flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] font-medium relative transition-colors duration-150"
                       style={{
-                        background: active ? 'rgba(220,38,38,0.1)' : 'transparent',
+                        background: active ? 'rgba(46,114,181,0.14)' : 'transparent',
                         color: active ? '#f4f4f5' : '#52525b',
                       }}
                       onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#a1a1aa'; } }}
@@ -108,11 +123,23 @@ export default function Sidebar() {
                     >
                       {active && (
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
-                          style={{ background: '#dc2626' }} />
+                          style={{ background: '#2E72B5' }} />
                       )}
-                      <IconComp className="w-[17px] h-[17px] shrink-0"
-                        style={{ color: active ? '#dc2626' : 'inherit' }} />
-                      <span className="whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200">{n.label}</span>
+                      <span className="relative shrink-0">
+                        <IconComp className="w-[17px] h-[17px]"
+                          style={{ color: active ? '#5B9ED7' : 'inherit' }} />
+                        {n.href === '/approvals' && isAdmin && pendingCount > 0 && (
+                          <span
+                            className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] rounded-full text-[9px] font-bold text-white flex items-center justify-center"
+                            style={{ background: '#C4714A', boxShadow: '0 0 0 2px #09090b' }}
+                          >
+                            {pendingCount}
+                          </span>
+                        )}
+                      </span>
+                      <span className="whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200">
+                        {n.label}
+                      </span>
                     </Link>
                   );
                 })}

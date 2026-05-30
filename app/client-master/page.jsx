@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 export default async function ClientMasterPage() {
   await requireAdmin();
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.roles?.includes('Admin');
+  const roles   = session?.user?.roles || [];
+  const isAdmin = roles.includes('Admin') || roles.includes('HOD');
   return <ClientMasterClient canEdit={!!isAdmin} />;
 }

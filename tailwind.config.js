@@ -5,17 +5,22 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          50:  '#fef2f2',
-          100: '#fee2e2',
-          200: '#fecaca',
-          300: '#fca5a5',
-          400: '#f87171',
-          500: '#ef4444',
-          600: '#dc2626',
-          700: '#b91c1c',
-          800: '#991b1b',
-          900: '#7f1d1d',
-          950: '#450a0a',
+          50:  '#EEF4FB',
+          100: '#D6E7F5',
+          200: '#ADCFEB',
+          300: '#84B6E1',
+          400: '#5B9ED7',
+          500: '#3A87CC',
+          600: '#2E72B5',
+          700: '#235A91',
+          800: '#1A446E',
+          900: '#112E4B',
+          950: '#081828',
+        },
+        coral: {
+          400: '#D98A6A',
+          500: '#C4714A',
+          600: '#A85C38',
         },
       },
       fontFamily: {
@@ -24,7 +29,7 @@ module.exports = {
       boxShadow: {
         card:     '0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3)',
         elevated: '0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
-        ring:     '0 0 0 3px rgba(220,38,38,0.2)',
+        ring:     '0 0 0 3px rgba(46,114,181,0.25)',
       },
       keyframes: {
         'fade-in': { '0%': { opacity: 0 }, '100%': { opacity: 1 } },

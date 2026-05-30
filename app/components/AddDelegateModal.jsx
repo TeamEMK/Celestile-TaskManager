@@ -38,7 +38,7 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
 
   async function save() {
     if (!form.description.trim() || !form.doerId || !form.dueDate) {
-      setMsg('Description, Doer aur Due Date zaroori hain.');
+      setMsg('Description, Doer and Due Date are required.');
       return;
     }
     setSaving(true); setMsg('');
@@ -57,11 +57,11 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
   }
 
   async function uploadCsv() {
-    if (!file) { setMsg('Pehle CSV file choose karo.'); return; }
+    if (!file) { setMsg('Please choose a CSV file first.'); return; }
     setSaving(true); setMsg('');
     try {
       const rows = parseCSV(await file.text());
-      if (!rows.length) { setMsg('CSV me koi valid row nahi.'); setSaving(false); return; }
+      if (!rows.length) { setMsg('No valid rows found in CSV.'); setSaving(false); return; }
       const res = await fetch('/api/delegations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bulk: rows, delegatedBy: session?.user?.id }),

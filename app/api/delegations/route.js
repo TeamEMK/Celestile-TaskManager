@@ -35,7 +35,7 @@ async function nextDelId() {
 
 async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, client, priority, approval, url, remarks }) {
   const id = await nextDelId();
-  const initialStatus = (approval === 'Approval Required') ? 'approval_pending' : 'pending';
+  const initialStatus = 'pending';
   await pool.query(
     `INSERT INTO delegations
       (id, description, doer_id, doer, delegated_by, due_date, client, status, type,
@@ -51,8 +51,48 @@ async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, 
 
 export async function POST(req) {
   try {
-    await ensureSchema();
     const body = await req.json();
+
+    // Check if delegator is admin — admin ka delegate auto-approved hota hai
+    const session = await getServerSession(authOptions);
+    const delegatorRoles = session?.user?.roles || [];
+    const delegatorIsAdmin = Array.isArray(delegatorRoles)
+      ? delegatorRoles.includes('Admin')
+      : String(delegatorRoles).includes('Admin');
+
+    // Admin delegate kare toh "Approval Required" auto "Approved" ho jaata hai
+    const resolvedApproval = (delegatorIsAdmin && body.approval === 'Approval Required')
+      ? 'Approved'
+      : (body.approval || 'No Approval');
+
+    // JSON store fallback when no MySQL
+    if (!process.env.DB_HOST) {
+      const { readStore, writeStore } = await import('@/lib/store');
+      const store = await readStore();
+      const delegations = store.delegations || [];
+
+      const doerUser = (store.users || []).find(u => u.id === body.doerId);
+      const doerName = doerUser?.name || body.doerName || body.doer || '';
+
+      const id = 'DEL' + String(delegations.length + 1).padStart(3, '0');
+
+      const newDel = {
+        id, description: body.description,
+        doerId: body.doerId, doer: doerName,
+        delegatedBy: body.delegatedBy,
+        dueDate: normDate(body.dueDate) || body.dueDate,
+        client: body.client || '', status: 'pending', type: 'delegation',
+        priority: body.priority || 'Low', approval: resolvedApproval,
+        url: body.url || '', remarks: body.remarks || '',
+        createdAt: new Date().toISOString(),
+      };
+      delegations.push(newDel);
+      store.delegations = delegations;
+      await writeStore(store);
+      return NextResponse.json(newDel, { status: 201 });
+    }
+
+    await ensureSchema();
 
     // Bulk CSV
     if (Array.isArray(body.bulk)) {
@@ -67,7 +107,7 @@ export async function POST(req) {
         await insertOne({
           description: desc, doerId: users[0].id, doerName: users[0].name,
           delegatedBy: body.delegatedBy, dueDate,
-          priority: row.priority, approval: row.approval, url: row.url, remarks: row.remarks,
+          priority: row.priority, approval: resolvedApproval, url: row.url, remarks: row.remarks,
         });
         inserted++;
       }
@@ -81,7 +121,7 @@ export async function POST(req) {
     const row = await insertOne({
       description: body.description, doerId: body.doerId, doerName: users[0]?.name,
       delegatedBy: body.delegatedBy, dueDate: normDate(body.dueDate) || body.dueDate,
-      client: body.client, priority: body.priority, approval: body.approval,
+      client: body.client, priority: body.priority, approval: resolvedApproval,
       url: body.url, remarks: body.remarks,
     });
     return NextResponse.json(row, { status: 201 });
@@ -93,18 +133,82 @@ export async function POST(req) {
 
 export async function PATCH(req) {
   try {
-    await ensureSchema();
     const body = await req.json();
 
-    // Bulk transfer
+    // JSON store fallback when no MySQL
+    if (!process.env.DB_HOST) {
+      const session = await getServerSession(authOptions);
+      const { readStore, writeStore } = await import('@/lib/store');
+      const store = await readStore();
+
+      // Transfer action
+      if (body.action === 'transfer') {
+        const { fromDoer, toDoer, toDoerId, taskIds } = body;
+        if (!fromDoer || !toDoer)
+          return NextResponse.json({ error: 'fromDoer and toDoer required' }, { status: 400 });
+        const transferredBy = session?.user?.name || null;
+        const idSet = taskIds?.length ? new Set(taskIds) : null;
+        store.delegations = (store.delegations || []).map(d => {
+          const match = idSet ? idSet.has(d.id) : (d.doer === fromDoer && d.status !== 'done');
+          return match && d.status !== 'done'
+            ? { ...d, doer: toDoer, doerId: toDoerId || d.doerId, transferredBy, transferredFrom: d.doer }
+            : d;
+        });
+        await writeStore(store);
+        return NextResponse.json({ success: true });
+      }
+
+      const del = (store.delegations || []).find(d => d.id === body.id);
+      if (!del) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+      const currentUserId = session?.user?.id;
+      let newStatus = body.status;
+
+      if (newStatus === 'revise') {
+        if (del.doerId && del.doerId === currentUserId) {
+          // Doer (including admin-as-doer) is requesting revision — needs approval
+          newStatus = 'revise_requested';
+          del.reviseAction = 'pending';
+        } else {
+          // Admin granting revision
+          del.reviseAction = 'granted';
+        }
+      } else if (newStatus === 'pending' && body._denyRevise) {
+        del.reviseAction = 'denied';
+      }
+
+      if (newStatus) del.status = newStatus;
+      if (body.dueDate) del.dueDate = body.dueDate;
+      if (body.remarks !== undefined) del.remarks = body.remarks;
+      if (body.approval !== undefined) del.approval = body.approval;
+      if (newStatus === 'done') del.completedAt = new Date().toISOString();
+      await writeStore(store);
+      return NextResponse.json(del);
+    }
+
+    await ensureSchema();
+
+    // Transfer (all or selective by taskIds)
     if (body.action === 'transfer') {
-      const { fromDoer, toDoer, toDoerId } = body;
+      const { fromDoer, toDoer, toDoerId, taskIds } = body;
       if (!fromDoer || !toDoer)
         return NextResponse.json({ error: 'fromDoer and toDoer required' }, { status: 400 });
-      await pool.query(
-        "UPDATE delegations SET doer = ?, doer_id = ? WHERE doer = ? AND status != 'done'",
-        [toDoer, toDoerId || null, fromDoer]
-      );
+      const tSession = await getServerSession(authOptions);
+      const transferredBy = tSession?.user?.name || null;
+      if (taskIds?.length) {
+        const placeholders = taskIds.map(() => '?').join(',');
+        await pool.query(
+          `UPDATE delegations SET doer = ?, doer_id = ?, transferred_by = ?, transferred_from = doer
+           WHERE id IN (${placeholders}) AND status != 'done'`,
+          [toDoer, toDoerId || null, transferredBy, ...taskIds]
+        );
+      } else {
+        await pool.query(
+          `UPDATE delegations SET doer = ?, doer_id = ?, transferred_by = ?, transferred_from = doer
+           WHERE doer = ? AND status != 'done'`,
+          [toDoer, toDoerId || null, transferredBy, fromDoer]
+        );
+      }
       return NextResponse.json({ success: true });
     }
 

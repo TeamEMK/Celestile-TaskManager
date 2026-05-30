@@ -3,7 +3,7 @@ import Providers from './components/Providers';
 import AppShell from './components/AppShell';
 
 export const metadata = {
-  title: 'India Automotive · ERP',
+  title: 'India Automotive',
   description: 'FMS & Checklist Operations Platform',
   icons: { icon: '/logo.png', apple: '/logo.png' },
 };

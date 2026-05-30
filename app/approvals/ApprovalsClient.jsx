@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 const fmt = (iso) => {
@@ -7,9 +7,42 @@ const fmt = (iso) => {
   return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
+function loadSeen(key) {
+  try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); } catch { return new Set(); }
+}
+function saveSeen(key, set) {
+  try { localStorage.setItem(key, JSON.stringify([...set])); } catch {}
+}
+
 export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [] }) {
   const router = useRouter();
   const [tab, setTab] = useState('Revise Requests');
+
+  const [seenRevise,    setSeenRevise]    = useState(() => new Set());
+  const [seenApprovals, setSeenApprovals] = useState(() => new Set());
+  const timer = useRef(null);
+
+  // Load from localStorage only on client to avoid SSR hydration mismatch
+  useEffect(() => {
+    setSeenRevise(loadSeen('seen_revise_ids'));
+    setSeenApprovals(loadSeen('seen_approval_ids'));
+  }, []);
+
+  // Auto-mark as seen after 6 seconds of viewing
+  useEffect(() => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      if (tab === 'Revise Requests') {
+        const updated = new Set([...seenRevise, ...reviseRequests.map(r => r.id)]);
+        setSeenRevise(updated); saveSeen('seen_revise_ids', updated);
+      } else if (tab === 'Task Approvals') {
+        const updated = new Set([...seenApprovals, ...taskApprovals.map(r => r.id)]);
+        setSeenApprovals(updated); saveSeen('seen_approval_ids', updated);
+      }
+    }, 6000);
+    return () => clearTimeout(timer.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, reviseRequests, taskApprovals]);
 
   const TABS = [
     { key: 'Revise Requests', count: reviseRequests.length, icon: ReviseIcon },
@@ -25,7 +58,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
   }
 
   async function denyRevise(task) {
-    if (!confirm('Deny karna chahte ho?')) return;
+    if (!confirm('Are you sure you want to deny this request?')) return;
     await fetch('/api/delegations', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: task.id, status: 'pending', _denyRevise: true }),
@@ -42,7 +75,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
   }
 
   async function rejectTask(task) {
-    if (!confirm('Reject karna chahte ho?')) return;
+    if (!confirm('Are you sure you want to reject this task?')) return;
     await fetch('/api/delegations', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: task.id, status: 'revise' }),
@@ -57,7 +90,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
           <Icon className="w-8 h-8 text-primary-400" />
         </div>
         <div className="text-base font-semibold text-slate-800">No pending {label.toLowerCase()}</div>
-        <div className="text-sm text-slate-500 mt-1.5">Jab koi request aayegi, yahan dikhegi.</div>
+        <div className="text-sm text-slate-500 mt-1.5">Requests will appear here when submitted.</div>
       </div>
     );
   }
@@ -66,7 +99,6 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
     <div className="space-y-5 animate-fade-in">
       <div>
         <h1 className="page-title">Approvals</h1>
-        <p className="page-sub">Review and action pending requests across the org</p>
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -96,21 +128,27 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                 </tr>
               </thead>
               <tbody>
-                {reviseRequests.map((t, i) => (
-                  <tr key={t.id} className="table-row">
-                    <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
-                    <td className="table-td font-medium text-slate-800 max-w-[240px] truncate">{t.description}</td>
-                    <td className="table-td text-slate-600">{t.doer}</td>
-                    <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.createdAt)}</td>
-                    <td className="table-td text-slate-500">{t.remarks || '—'}</td>
-                    <td className="table-td">
-                      <div className="flex gap-1.5">
-                        <button onClick={() => grantRevise(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Grant</button>
-                        <button onClick={() => denyRevise(t)}  className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Deny</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {reviseRequests.map((t, i) => {
+                  const unseen = !seenRevise.has(t.id);
+                  return (
+                    <tr key={t.id} className="table-row" style={unseen ? { background: 'rgba(245,158,11,0.1)', borderLeft: '3px solid #f59e0b' } : {}}>
+                      <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
+                      <td className="table-td max-w-[240px] truncate">
+                        <span className={unseen ? 'font-semibold text-amber-300' : 'font-medium text-slate-800'}>{t.description}</span>
+                        {unseen && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400 text-black">NEW</span>}
+                      </td>
+                      <td className="table-td text-slate-600">{t.doer}</td>
+                      <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.createdAt)}</td>
+                      <td className="table-td text-slate-500">{t.remarks || '—'}</td>
+                      <td className="table-td">
+                        <div className="flex gap-1.5">
+                          <button onClick={() => grantRevise(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Grant</button>
+                          <button onClick={() => denyRevise(t)}  className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Deny</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -134,10 +172,15 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                 </tr>
               </thead>
               <tbody>
-                {taskApprovals.map((t, i) => (
-                  <tr key={t.id} className="table-row">
+                {taskApprovals.map((t, i) => {
+                  const unseen = !seenApprovals.has(t.id);
+                  return (
+                  <tr key={t.id} className="table-row" style={unseen ? { background: 'rgba(245,158,11,0.1)', borderLeft: '3px solid #f59e0b' } : {}}>
                     <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
-                    <td className="table-td font-medium text-slate-800 max-w-[220px] truncate">{t.description}</td>
+                    <td className="table-td max-w-[220px] truncate">
+                      <span className={unseen ? 'font-semibold text-amber-300' : 'font-medium text-slate-800'}>{t.description}</span>
+                      {unseen && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400 text-black">NEW</span>}
+                    </td>
                     <td className="table-td text-slate-600">{t.doer}</td>
                     <td className="table-td text-slate-500">{t.client || '—'}</td>
                     <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.dueDate)}</td>
@@ -151,7 +194,8 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

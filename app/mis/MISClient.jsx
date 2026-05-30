@@ -15,6 +15,7 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
   const TABS = ['Delegation MIS', 'Checklist MIS', 'All MIS'];
 
   async function generate() {
+    if (!start || !end) { alert('Please select Start Date and End Date first.'); return; }
     setLoading(true);
     setDetail(null);
     try {
@@ -44,7 +45,6 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
     <div className="space-y-5 animate-fade-in">
       <div>
         <h1 className="page-title">MIS Report</h1>
-        <p className="page-sub">Generate management information reports across operations</p>
       </div>
 
       {/* Filter bar */}

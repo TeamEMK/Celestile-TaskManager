@@ -52,7 +52,6 @@ export default function MastersClient({ masters, users = [] }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">Checklists Library</h1>
-          <p className="page-sub">All recurring tasks across the organisation</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <CsvImport

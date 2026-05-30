@@ -23,40 +23,35 @@ export default function Topbar() {
   const initials = userName.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase() || 'U';
 
   return (
-    <header className="sticky top-0 z-20 backdrop-blur"
-      style={{ background: 'rgba(9,9,11,0.92)', borderBottom: '1px solid #1c1c1f' }}>
+    <header className="sticky top-0 z-20 backdrop-blur-sm"
+      style={{ background: 'rgba(255,255,255,0.92)', borderBottom: '1px solid #e2e8f0' }}>
       <div className="px-6 lg:px-8 h-14 flex items-center gap-4">
 
-        {/* Title */}
-        <h1 className="text-[15px] font-semibold tracking-tight truncate whitespace-nowrap"
-          style={{ color: '#f4f4f5' }}>{title}</h1>
+        <h1 className="text-[15px] font-semibold tracking-tight truncate whitespace-nowrap text-slate-800">
+          {title}
+        </h1>
 
         <div className="flex-1" />
 
-        {/* Date */}
-        <div className="hidden xl:flex items-center text-[12px] whitespace-nowrap" style={{ color: '#52525b' }}>
-          <svg className="w-3.5 h-3.5 mr-1.5" style={{ color: '#3f3f46' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="hidden xl:flex items-center text-[12px] whitespace-nowrap text-slate-400">
+          <svg className="w-3.5 h-3.5 mr-1.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
           </svg>
           {today}
         </div>
 
-        {/* Avatar + Logout */}
-        <div className="flex items-center gap-2 pl-3 ml-1 shrink-0" style={{ borderLeft: '1px solid #1c1c1f' }}>
+        <div className="flex items-center gap-2 pl-3 ml-1 shrink-0" style={{ borderLeft: '1px solid #e2e8f0' }}>
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white font-semibold text-sm shrink-0">
             {initials}
           </div>
           <div className="hidden lg:block leading-tight">
-            <div className="text-[13px] font-semibold" style={{ color: '#e4e4e7' }}>{userName}</div>
-            <div className="text-[11px]" style={{ color: '#52525b' }}>{userRole}</div>
+            <div className="text-[13px] font-semibold text-slate-700">{userName}</div>
+            <div className="text-[11px] text-slate-400">{userRole}</div>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
             title="Logout"
-            className="w-8 h-8 grid place-items-center rounded-lg ml-1 transition-all duration-150"
-            style={{ color: '#3f3f46' }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#3f3f46'; e.currentTarget.style.background = 'transparent'; }}
+            className="w-8 h-8 grid place-items-center rounded-lg ml-1 transition-all duration-150 text-slate-400 hover:text-red-500 hover:bg-red-50"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>

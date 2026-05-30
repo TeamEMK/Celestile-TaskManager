@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 const fmt = (d) =>
   new Date(d).toLocaleDateString('en-IN', {
@@ -25,6 +26,8 @@ function parseCSV(text) {
 
 export default function HolidaysModal({ open, onClose, holidays: initial = [] }) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = (session?.user?.roles || []).includes('Admin') || (session?.user?.roles || []).includes('HOD');
   const [list, setList] = useState(initial);
   const [date, setDate] = useState('');
   const [name, setName] = useState('');
@@ -44,7 +47,7 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
   if (!open) return null;
 
   async function addOne() {
-    if (!date || !name.trim()) { setMsg('Date aur Holiday Name dono chahiye.'); return; }
+    if (!date || !name.trim()) { setMsg('Date and Holiday Name are required.'); return; }
     setSaving(true); setMsg('');
     try {
       const res = await fetch('/api/holidays', {
@@ -71,12 +74,12 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
   }
 
   async function uploadCsv() {
-    if (!file) { setMsg('Pehle file choose karo.'); return; }
+    if (!file) { setMsg('Please choose a file first.'); return; }
     setSaving(true); setMsg('');
     try {
       const text = await file.text();
       const rows = parseCSV(text);
-      if (rows.length === 0) { setMsg('CSV me koi valid row nahi mili.'); setSaving(false); return; }
+      if (rows.length === 0) { setMsg('No valid rows found in CSV.'); setSaving(false); return; }
       const res = await fetch('/api/holidays', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,38 +122,42 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
 
         {/* body */}
         <div className="p-5 space-y-4 overflow-y-auto">
-          {/* add holiday */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Date</label>
-              <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Holiday Name</label>
-              <input className="input" placeholder="e.g. Diwali" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-          </div>
-          <button className="btn-primary w-full" disabled={saving} onClick={addOne}>
-            {saving ? 'Saving…' : '+ Add Holiday'}
-          </button>
 
-          {/* bulk CSV */}
-          <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
-            <div className="flex items-center gap-2 text-amber-700 font-semibold text-[13px]">📁 Bulk Upload (CSV)</div>
-            <div className="text-[11.5px] text-amber-700/80 mt-0.5">
-              Format: <code>date,name</code> per line — date as YYYY-MM-DD or DD-MM-YYYY
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <button className="btn-secondary" onClick={downloadSample}>⬇ Sample</button>
-              <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
-              <button className="btn-success ml-auto" disabled={saving || !file} onClick={uploadCsv}>📤 Upload CSV</button>
-            </div>
-          </div>
+          {/* Admin-only: add holiday + bulk upload */}
+          {isAdmin && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Date</label>
+                  <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label">Holiday Name</label>
+                  <input className="input" placeholder="e.g. Diwali" value={name} onChange={(e) => setName(e.target.value)} />
+                </div>
+              </div>
+              <button className="btn-primary w-full" disabled={saving} onClick={addOne}>
+                {saving ? 'Saving…' : '+ Add Holiday'}
+              </button>
 
-          {msg && <div className="text-[12px] text-slate-600">{msg}</div>}
+              <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+                <div className="flex items-center gap-2 text-amber-700 font-semibold text-[13px]">📁 Bulk Upload (CSV)</div>
+                <div className="text-[11.5px] text-amber-700/80 mt-0.5">
+                  Format: <code>date,name</code> per line — date as YYYY-MM-DD or DD-MM-YYYY
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button className="btn-secondary" onClick={downloadSample}>⬇ Sample</button>
+                  <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
+                  <button className="btn-success ml-auto" disabled={saving || !file} onClick={uploadCsv}>📤 Upload CSV</button>
+                </div>
+              </div>
 
-          {/* list */}
+              {msg && <div className="text-[12px] text-slate-600">{msg}</div>}
+            </>
+          )}
+
+          {/* Holiday list — visible to all */}
           <div>
             <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-2">
               Holiday List ({list.length})
@@ -165,7 +172,9 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
                       <span className="font-semibold text-slate-800">{fmt(h.date)}</span>
                       <span className="text-slate-500"> — {h.name}</span>
                     </div>
-                    <button className="btn-danger" onClick={() => remove(h.id)}>Remove</button>
+                    {isAdmin && (
+                      <button className="btn-danger" onClick={() => remove(h.id)}>Remove</button>
+                    )}
                   </li>
                 ))}
               </ul>

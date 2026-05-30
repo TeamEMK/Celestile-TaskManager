@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import AddDelegateModal from '../components/AddDelegateModal';
@@ -11,13 +11,14 @@ export default function AllTasksClient({ grouped, users }) {
   const [statusTab, setStatusTab] = useState('All');
   const [expanded, setExpanded] = useState({});
   const [search, setSearch] = useState('');
-  const [delegateOpen, setDelegateOpen] = useState(false);
-  const [transferOpen, setTransferOpen] = useState(false);
+  const [delegateOpen,     setDelegateOpen]     = useState(false);
+  const [transferOpen,     setTransferOpen]     = useState(false);
+  const [myTransferOpen,   setMyTransferOpen]   = useState(false);
   const [employeeFilter, setEmployeeFilter] = useState('All');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
-  const isAdmin = session?.user?.roles?.includes('Admin');
+  const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
   const currentUserName = session?.user?.name;
 
   const fmt = (iso) => {
@@ -47,6 +48,8 @@ export default function AllTasksClient({ grouped, users }) {
     return wantType ? allTasks.filter((t) => (t.type || 'delegation').toLowerCase() === wantType.toLowerCase()).length : allTasks.length;
   };
 
+  const STATUS_RANK = { revise: 0, revise_requested: 1, pending: 2, done: 3 };
+
   const filterTasks = (tasks) => {
     let arr = tasks;
 
@@ -70,6 +73,9 @@ export default function AllTasksClient({ grouped, users }) {
         (t.client || '').toLowerCase().includes(s)
       );
     }
+
+    // revise → revise_requested → pending → done
+    arr = arr.slice().sort((a, b) => (STATUS_RANK[a.status] ?? 2) - (STATUS_RANK[b.status] ?? 2));
 
     return arr;
   };
@@ -111,9 +117,8 @@ export default function AllTasksClient({ grouped, users }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">All Tasks</h1>
-          <p className="page-sub">Browse and manage every assignment across the team</p>
         </div>
-        {isAdmin && (
+        {isAdmin ? (
           <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => setTransferOpen(true)} className="btn-secondary">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
@@ -123,6 +128,11 @@ export default function AllTasksClient({ grouped, users }) {
               <PlusIcon /> Delegate Task
             </button>
           </div>
+        ) : (
+          <button onClick={() => setMyTransferOpen(true)} className="btn-secondary">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
+            Transfer My Tasks
+          </button>
         )}
       </div>
 
@@ -161,7 +171,7 @@ export default function AllTasksClient({ grouped, users }) {
         <div className="flex-1" />
         <div className="relative">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search description, client…" className="input pl-9 w-72" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search description, client…" className="input pl-9 w-64" />
         </div>
       </div>
 
@@ -245,7 +255,14 @@ export default function AllTasksClient({ grouped, users }) {
                             return (
                               <tr key={t.id} className="border-t border-slate-200/60">
                                 <td className="px-2 py-2.5 text-[11px] font-mono text-slate-400 tabular-nums">{serial}</td>
-                                <td className="px-2 py-2.5 text-slate-700">{t.description}</td>
+                                <td className="px-2 py-2.5 text-slate-700">
+                                  <span>{t.description}</span>
+                                  {t.transferredFrom && (
+                                    <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium whitespace-nowrap border border-amber-100" title={t.transferredBy ? `Transferred by ${t.transferredBy}` : ''}>
+                                      🔄 from {t.transferredFrom}
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="px-2 py-2.5 text-slate-600 whitespace-nowrap">
                                   {t.type === 'Checklist' ? (t.frequency || 'Recurring') : fmt(t.dueDate)}
                                 </td>
@@ -286,7 +303,8 @@ export default function AllTasksClient({ grouped, users }) {
       </div>
 
       <AddDelegateModal open={delegateOpen} onClose={() => setDelegateOpen(false)} users={users} />
-      <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} users={users} onDone={() => { setTransferOpen(false); window.location.reload(); }} />
+      <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} users={users} grouped={grouped} onDone={() => { setTransferOpen(false); window.location.reload(); }} />
+      <MyTransferModal open={myTransferOpen} onClose={() => setMyTransferOpen(false)} users={users} grouped={grouped} fromName={currentUserName} onDone={() => { setMyTransferOpen(false); window.location.reload(); }} />
     </div>
   );
 }
@@ -301,84 +319,270 @@ function Avatar({ name = '' }) {
 
 function PlusIcon() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
 
-function TransferModal({ open, onClose, users, onDone }) {
-  const [fromUser, setFromUser] = useState('');
-  const [toUser, setToUser]     = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [msg, setMsg]           = useState('');
+function TransferModal({ open, onClose, users, grouped, onDone }) {
+  const [fromUser,     setFromUser]     = useState('');
+  const [toUser,       setToUser]       = useState('');
+  const [selectedIds,  setSelectedIds]  = useState(new Set());
+  const [loading,      setLoading]      = useState(false);
+  const [msg,          setMsg]          = useState('');
+
+  const fromTasks = useMemo(() => {
+    if (!fromUser) return [];
+    const from = users.find((u) => u.id === fromUser);
+    if (!from) return [];
+    const group = grouped.find((g) => g.doer === from.name);
+    return (group?.tasks || []).filter((t) => t.type !== 'Checklist' && t.status !== 'done');
+  }, [fromUser, users, grouped]);
+
+  useEffect(() => {
+    setSelectedIds(new Set(fromTasks.map((t) => t.id)));
+  }, [fromTasks]);
 
   if (!open) return null;
 
+  function toggleTask(id) {
+    const next = new Set(selectedIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelectedIds(next);
+  }
+
+  function toggleAll() {
+    setSelectedIds(selectedIds.size === fromTasks.length
+      ? new Set()
+      : new Set(fromTasks.map((t) => t.id)));
+  }
+
   async function handleTransfer() {
-    if (!fromUser || !toUser) return setMsg('Dono users select karo');
-    if (fromUser === toUser)  return setMsg('From aur To same user nahi ho sakta');
-    setLoading(true);
-    setMsg('');
-    const to = users.find((u) => u.id === toUser);
+    if (!fromUser || !toUser) return setMsg('Please select both users');
+    if (fromUser === toUser)  return setMsg('From and To cannot be the same');
+    if (selectedIds.size === 0) return setMsg('Select at least one task');
+    setLoading(true); setMsg('');
+    const to   = users.find((u) => u.id === toUser);
     const from = users.find((u) => u.id === fromUser);
-    const res = await fetch('/api/delegations', {
+    const res  = await fetch('/api/delegations', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'transfer', fromDoer: from?.name, toDoer: to?.name, toDoerId: to?.id }),
+      body: JSON.stringify({
+        action: 'transfer',
+        fromDoer: from?.name, toDoer: to?.name, toDoerId: to?.id,
+        taskIds: [...selectedIds],
+      }),
     });
-    const data = await res.json();
     setLoading(false);
     if (res.ok) { onDone(); }
-    else        { setMsg(data.error || 'Transfer failed'); }
+    else { const d = await res.json(); setMsg(d.error || 'Transfer failed'); }
   }
+
+  const allSelected = fromTasks.length > 0 && selectedIds.size === fromTasks.length;
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <svg className="w-5 h-5 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+            <svg className="w-4 h-4 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
             Transfer Tasks
           </h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 grid place-items-center text-slate-400">✕</button>
+          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 grid place-items-center text-slate-400">✕</button>
         </div>
 
-        <div className="space-y-4">
+        {/* User selectors */}
+        <div className="px-6 py-4 grid grid-cols-2 gap-3 shrink-0 border-b border-slate-100">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-              Select Doer (Whose tasks to transfer)
-            </label>
-            <select
-              value={fromUser}
-              onChange={(e) => setFromUser(e.target.value)}
-              className="input w-full"
-            >
-              <option value="">-- Select user --</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
+            <label className="label">From (whose tasks)</label>
+            <select value={fromUser} onChange={(e) => { setFromUser(e.target.value); setToUser(''); }} className="input">
+              <option value="">— Select employee —</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
-
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-              Transfer To
-            </label>
-            <select
-              value={toUser}
-              onChange={(e) => setToUser(e.target.value)}
-              className="input w-full"
-            >
-              <option value="">-- Select user --</option>
-              {users.filter((u) => u.id !== fromUser).map((u) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
+            <label className="label">Transfer To</label>
+            <select value={toUser} onChange={(e) => setToUser(e.target.value)} className="input" disabled={!fromUser}>
+              <option value="">— Select employee —</option>
+              {users.filter((u) => u.id !== fromUser).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
         </div>
 
-        {msg && <p className="text-sm text-red-600">{msg}</p>}
+        {/* Task list */}
+        <div className="flex-1 overflow-y-auto">
+          {!fromUser ? (
+            <div className="p-8 text-center text-sm text-slate-400">Select an employee to see their tasks</div>
+          ) : fromTasks.length === 0 ? (
+            <div className="p-8 text-center text-sm text-slate-400">No pending tasks for this employee</div>
+          ) : (
+            <>
+              {/* Select all row */}
+              <div className="px-4 py-2 flex items-center gap-2.5 border-b border-slate-100 bg-slate-50">
+                <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                  className="w-4 h-4 rounded accent-primary-600 cursor-pointer" />
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  {allSelected ? 'Deselect All' : 'Select All'} ({fromTasks.length} tasks)
+                </span>
+                {selectedIds.size > 0 && (
+                  <span className="ml-auto text-xs font-semibold text-primary-600">{selectedIds.size} selected</span>
+                )}
+              </div>
 
-        <div className="flex justify-end gap-2 pt-1">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={handleTransfer} disabled={loading || !fromUser || !toUser} className="btn-primary">
-            {loading ? 'Transferring…' : 'Transfer Tasks'}
-          </button>
+              {/* Task rows */}
+              {fromTasks.map((t) => (
+                <label key={t.id} className="flex items-start gap-3 px-4 py-2.5 border-b border-slate-50 hover:bg-slate-50 cursor-pointer">
+                  <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleTask(t.id)}
+                    className="w-4 h-4 rounded accent-primary-600 mt-0.5 shrink-0 cursor-pointer" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12.5px] text-slate-700 leading-snug truncate">{t.description}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {t.dueDate && <span className="text-[10.5px] text-slate-400">{new Date(t.dueDate).toLocaleDateString('en-IN')}</span>}
+                      {t.client  && <span className="text-[10.5px] text-slate-400">· {t.client}</span>}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        t.status === 'revise' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
+                      }`}>{t.status}</span>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 shrink-0">
+          {msg && <p className="text-sm text-red-500 mb-2">{msg}</p>}
+          <div className="flex justify-end gap-2">
+            <button onClick={onClose} className="btn-secondary">Cancel</button>
+            <button
+              onClick={handleTransfer}
+              disabled={loading || !fromUser || !toUser || selectedIds.size === 0}
+              className="btn-primary"
+            >
+              {loading ? 'Transferring…' : `Transfer${selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MyTransferModal({ open, onClose, users, fromName, grouped, onDone }) {
+  const [toUser,      setToUser]      = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [loading,     setLoading]     = useState(false);
+  const [msg,         setMsg]         = useState('');
+
+  const myTasks = useMemo(() => {
+    const group = grouped.find((g) => g.doer === fromName);
+    return (group?.tasks || []).filter((t) => t.type !== 'Checklist' && t.status !== 'done');
+  }, [grouped, fromName]);
+
+  useEffect(() => {
+    if (open) setSelectedIds(new Set(myTasks.map((t) => t.id)));
+  }, [open, myTasks]);
+
+  if (!open) return null;
+
+  function toggleTask(id) {
+    const next = new Set(selectedIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelectedIds(next);
+  }
+
+  function toggleAll() {
+    setSelectedIds(selectedIds.size === myTasks.length
+      ? new Set()
+      : new Set(myTasks.map((t) => t.id)));
+  }
+
+  async function handleTransfer() {
+    if (!toUser) return setMsg('Please select a person to transfer to.');
+    if (selectedIds.size === 0) return setMsg('Select at least one task.');
+    setLoading(true); setMsg('');
+    const to = users.find((u) => u.id === toUser);
+    const res = await fetch('/api/delegations', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'transfer',
+        fromDoer: fromName, toDoer: to?.name, toDoerId: to?.id,
+        taskIds: [...selectedIds],
+      }),
+    });
+    setLoading(false);
+    if (res.ok) { onDone(); }
+    else { const d = await res.json(); setMsg(d.error || 'Transfer failed'); }
+  }
+
+  const allSelected = myTasks.length > 0 && selectedIds.size === myTasks.length;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+            <svg className="w-4 h-4 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
+            Transfer My Tasks
+          </h2>
+          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 grid place-items-center text-slate-400">✕</button>
+        </div>
+
+        {/* To selector */}
+        <div className="px-6 py-4 shrink-0 border-b border-slate-100">
+          <label className="label">Transfer To</label>
+          <select value={toUser} onChange={(e) => setToUser(e.target.value)} className="input">
+            <option value="">— Select employee —</option>
+            {users.filter((u) => u.name !== fromName).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+        </div>
+
+        {/* Task list */}
+        <div className="flex-1 overflow-y-auto">
+          {myTasks.length === 0 ? (
+            <div className="p-8 text-center text-sm text-slate-400">No pending tasks to transfer</div>
+          ) : (
+            <>
+              <div className="px-4 py-2 flex items-center gap-2.5 border-b border-slate-100 bg-slate-50">
+                <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                  className="w-4 h-4 rounded accent-primary-600 cursor-pointer" />
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  {allSelected ? 'Deselect All' : 'Select All'} ({myTasks.length})
+                </span>
+                {selectedIds.size > 0 && (
+                  <span className="ml-auto text-xs font-semibold text-primary-600">{selectedIds.size} selected</span>
+                )}
+              </div>
+              {myTasks.map((t) => (
+                <label key={t.id} className="flex items-start gap-3 px-4 py-2.5 border-b border-slate-50 hover:bg-slate-50 cursor-pointer">
+                  <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleTask(t.id)}
+                    className="w-4 h-4 rounded accent-primary-600 mt-0.5 shrink-0 cursor-pointer" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12.5px] text-slate-700 leading-snug truncate">{t.description}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {t.dueDate && <span className="text-[10.5px] text-slate-400">{new Date(t.dueDate).toLocaleDateString('en-IN')}</span>}
+                      {t.client  && <span className="text-[10.5px] text-slate-400">· {t.client}</span>}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        t.status === 'revise' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
+                      }`}>{t.status}</span>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 shrink-0">
+          {msg && <p className="text-sm text-red-500 mb-2">{msg}</p>}
+          <div className="flex justify-end gap-2">
+            <button onClick={onClose} className="btn-secondary">Cancel</button>
+            <button onClick={handleTransfer} disabled={loading || !toUser || selectedIds.size === 0} className="btn-primary">
+              {loading ? 'Transferring…' : `Transfer${selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}`}
+            </button>
+          </div>
         </div>
       </div>
     </div>

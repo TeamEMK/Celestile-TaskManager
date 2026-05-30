@@ -16,7 +16,6 @@ export default function UserApprovalsClient({ myRequests = [] }) {
     <div className="space-y-5 animate-fade-in">
       <div>
         <h1 className="page-title">My Approvals</h1>
-        <p className="page-sub">Aapke revise requests aur unka status</p>
       </div>
 
       {myRequests.length === 0 ? (
@@ -24,8 +23,8 @@ export default function UserApprovalsClient({ myRequests = [] }) {
           <div className="w-14 h-14 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
             <svg className="w-7 h-7 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>
           </div>
-          <div className="text-sm font-medium text-slate-700">Koi revise request nahi</div>
-          <div className="text-xs text-slate-500 mt-1">Jab aap koi revise request karoge, yahan dikhegi.</div>
+          <div className="text-sm font-medium text-slate-700">No revise requests</div>
+          <div className="text-xs text-slate-500 mt-1">Your revision requests will appear here.</div>
         </div>
       ) : (
         <div className="card overflow-hidden">

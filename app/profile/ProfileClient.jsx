@@ -1,9 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function ProfileClient({ me, notificationEmail }) {
   const router = useRouter();
+  const fileRef = useRef(null);
   const [form, setForm] = useState({
     name: me?.name || '',
     email: me?.email || '',
@@ -13,10 +14,41 @@ export default function ProfileClient({ me, notificationEmail }) {
     newPassword: '',
     confirmPassword: '',
   });
+  const [picture, setPicture] = useState(me?.picture || null);
+  const [pictureChanged, setPictureChanged] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const initials = (form.name || 'U').split(' ').filter(Boolean).map((s) => s[0]).join('').slice(0, 2).toUpperCase();
   const role = me?.roles?.[0] || 'User';
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const size = 200;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.max(size / img.width, size / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      const b64 = canvas.toDataURL('image/jpeg', 0.75);
+      setPicture(b64);
+      setPictureChanged(true);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+    e.target.value = '';
+  }
+
+  function removePicture() {
+    setPicture(null);
+    setPictureChanged(true);
+  }
 
   async function save() {
     if (form.newPassword && form.newPassword !== form.confirmPassword) {
@@ -24,10 +56,12 @@ export default function ProfileClient({ me, notificationEmail }) {
       return;
     }
     setSaving(true);
+    const payload = { ...form };
+    if (pictureChanged) payload.picture = picture;
     const res = await fetch('/api/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     setSaving(false);
     if (res.ok) { alert('Profile updated'); router.refresh(); }
@@ -38,7 +72,6 @@ export default function ProfileClient({ me, notificationEmail }) {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="page-title">Profile</h1>
-        <p className="page-sub">Manage account, contact details, and security</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6">
@@ -46,8 +79,18 @@ export default function ProfileClient({ me, notificationEmail }) {
         <div className="card overflow-hidden">
           <div className="h-24 bg-gradient-to-br from-primary-500 via-primary-600 to-violet-600"></div>
           <div className="px-6 pb-6 -mt-12">
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white text-2xl font-bold shadow-elevated ring-4 ring-white">
-              {initials}
+            <div className="relative w-24 h-24">
+              {picture ? (
+                <img
+                  src={picture}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-2xl object-cover shadow-elevated ring-4 ring-white"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white text-2xl font-bold shadow-elevated ring-4 ring-white">
+                  {initials}
+                </div>
+              )}
             </div>
             <div className="mt-4">
               <div className="text-lg font-semibold text-slate-900">{form.name || '—'}</div>
@@ -58,8 +101,25 @@ export default function ProfileClient({ me, notificationEmail }) {
               </span>
             </div>
             <div className="flex gap-2 mt-4">
-              <button className="btn-secondary !py-1.5 text-xs flex-1">Change Photo</button>
-              <button className="btn-ghost !py-1.5 text-xs text-red-600 hover:bg-red-50 flex-1">Remove</button>
+              <button
+                className="btn-secondary !py-1.5 text-xs flex-1"
+                onClick={() => fileRef.current?.click()}
+              >
+                Change Photo
+              </button>
+              <button
+                className="btn-ghost !py-1.5 text-xs text-red-600 hover:bg-red-50 flex-1"
+                onClick={removePicture}
+              >
+                Remove
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
             </div>
             <div className="mt-5 pt-5 border-t border-slate-100 grid grid-cols-2 gap-3 text-center">
               <div>

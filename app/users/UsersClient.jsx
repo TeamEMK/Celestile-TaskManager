@@ -1,245 +1,88 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import CsvImport from '../components/CsvImport';
 
 const ROLES = ['Admin', 'User', 'HOD'];
 
 const ROLE_STYLE = {
   Admin: 'bg-amber-50 text-amber-700 border-amber-200',
-  User: 'bg-primary-50 text-primary-700 border-primary-200',
-  HOD: 'bg-violet-50 text-violet-700 border-violet-200',
+  User:  'bg-primary-50 text-primary-700 border-primary-200',
+  HOD:   'bg-violet-50 text-violet-700 border-violet-200',
 };
 
 const ROLE_ICON = {
-  Admin: (p) => (
-    <svg
-      {...p}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7Z" />
-    </svg>
-  ),
-
-  HOD: (p) => (
-    <svg
-      {...p}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-    </svg>
-  ),
-
-  User: (p) => (
-    <svg
-      {...p}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  ),
+  Admin: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7Z"/></svg>,
+  HOD:   (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>,
+  User:  (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
 };
 
 function normalizeRoles(roles) {
   if (Array.isArray(roles)) return roles;
-
-  if (typeof roles === 'string') {
-    return roles
-      .split(',')
-      .map((r) => r.trim())
-      .filter(Boolean);
-  }
-
+  if (typeof roles === 'string') return roles.split(',').map(r => r.trim()).filter(Boolean);
   return ['User'];
 }
 
-export default function UsersClient({
-  users = [],
-  departments = [],
-}) {
+export default function UsersClient({ users = [], departments = [] }) {
   const router = useRouter();
-
   const { data: session } = useSession();
+  const roles   = normalizeRoles(session?.user?.roles);
+  const isAdmin = roles.includes('Admin') || roles.includes('HOD');
 
-  const roles = normalizeRoles(session?.user?.roles);
-
-  const isAdmin = roles.includes('Admin');
-
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState('');
-
-  async function syncSheets() {
-    setSyncing(true);
-    setSyncMsg('');
-    try {
-      const res = await fetch('/api/sync-sheets', { method: 'POST' });
-      const data = await res.json();
-      setSyncMsg(res.ok ? '✓ Synced to Google Sheets' : (data.error || 'Sync failed'));
-    } catch {
-      setSyncMsg('Sync failed');
-    } finally {
-      setSyncing(false);
-      setTimeout(() => setSyncMsg(''), 4000);
-    }
-  }
-  console.log('DEBUG roles:', session?.user?.roles, '| isAdmin:', isAdmin); 
-
-  const [search, setSearch] = useState('');
-
+  const [search,    setSearch]    = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [editing,   setEditing]   = useState(null);
+  const [pwdModal,  setPwdModal]  = useState(false);
+  const [pwdUser,   setPwdUser]   = useState(null);
 
-  const [editing, setEditing] = useState(null);
-
-  const [pwdModal, setPwdModal] = useState(false);
-
-  const [pwdUser, setPwdUser] = useState(null);
-
-  function openSetPassword(u) {
-    if (!u) return;
-    setPwdUser(u);
-    setPwdModal(true);
-  }
-
-  const filtered = users.filter((u) => {
-    if (!search) return true;
-
-    const s = search.toLowerCase();
-
-    return (
-      (u?.name || '').toLowerCase().includes(s) ||
-      (u?.email || '').toLowerCase().includes(s) ||
-      (u?.phone || '').toLowerCase().includes(s) ||
-      (u?.department || '').toLowerCase().includes(s) ||
-      normalizeRoles(u?.roles).some((r) =>
-        (r || '').toLowerCase().includes(s)
-      )
-    );
-  });
-
-  function openAdd() {
-    setEditing(null);
-    setModalOpen(true);
-  }
-
-  function openEdit(u) {
-    setEditing({
-      ...u,
-      roles: normalizeRoles(u?.roles),
+  const filtered = users
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    .filter((u) => {
+      if (!search) return true;
+      const s = search.toLowerCase();
+      return (
+        (u?.name       || '').toLowerCase().includes(s) ||
+        (u?.email      || '').toLowerCase().includes(s) ||
+        (u?.phone      || '').toLowerCase().includes(s) ||
+        (u?.department || '').toLowerCase().includes(s)
+      );
     });
 
-    setModalOpen(true);
-  }
+  function openAdd()    { setEditing(null); setModalOpen(true); }
+  function openEdit(u)  { setEditing({ ...u, roles: normalizeRoles(u?.roles) }); setModalOpen(true); }
+  function openSetPassword(u) { if (!u) return; setPwdUser(u); setPwdModal(true); }
 
   async function deleteUser(id) {
     if (!confirm('Delete this user?')) return;
-
-    await fetch('/api/users?id=' + id, {
-      method: 'DELETE',
-    });
-
+    await fetch('/api/users?id=' + id, { method: 'DELETE' });
     router.refresh();
   }
 
-  const stats = users.reduce((acc, u) => {
-    normalizeRoles(u?.roles).forEach((r) => {
-      acc[r] = (acc[r] || 0) + 1;
-    });
-
-    return acc;
-  }, {});
-
   return (
-    <div className="space-y-5 animate-fade-in">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Users</h1>
+    <div className="space-y-4 animate-fade-in">
 
-          <p className="page-sub">
-            Manage team members, roles, and department
-            assignments
-          </p>
+      {/* Top bar: search + Add User */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 w-72 shadow-sm">
+          <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Name, Email, Phone, Department…"
+            className="bg-transparent border-none outline-none text-[13px] text-slate-700 placeholder:text-slate-400 w-full"
+          />
         </div>
-
         {isAdmin && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {syncMsg && (
-              <span className={`text-xs font-medium px-2 py-1 rounded ${syncMsg.startsWith('✓') ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'}`}>
-                {syncMsg}
-              </span>
-            )}
-            <button onClick={syncSheets} disabled={syncing} className="btn-secondary flex items-center gap-1.5">
-              <SheetsIcon />
-              {syncing ? 'Syncing…' : 'Sync to Sheets'}
-            </button>
-            <CsvImport
-              templateName="users_template.csv"
-              columns={[
-                'name',
-                'email',
-                'phone',
-                'department',
-                'roles',
-              ]}
-              sampleRow={[
-                'Tushar Singh',
-                'tushar@example.com',
-                '9876543210',
-                departments[0] || 'Operations',
-                'User;Admin',
-              ]}
-              parseRow={(r) => {
-                if (!r.name || !r.email) return null;
-
-                const roles = (r.roles || 'User')
-                  .split(/[;|,]/)
-                  .map((x) => x.trim())
-                  .filter(Boolean);
-
-                return {
-                  name: r.name,
-                  email: r.email,
-                  phone: r.phone || '',
-                  department:
-                    r.department || (departments[0] || ''),
-                  roles:
-                    roles.length ? roles : ['User'],
-                };
-              }}
-              endpoint="/api/users"
-              onDone={() => router.refresh()}
-            />
-
-            <button
-              onClick={openAdd}
-              className="btn-primary"
-            >
-              <PlusIcon />
-              Add User
-            </button>
-          </div>
+          <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 shrink-0">
+            <PlusIcon /> Add User
+          </button>
         )}
       </div>
 
+      {/* Table */}
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -248,111 +91,51 @@ export default function UsersClient({
                 <th className="table-th">User</th>
                 <th className="table-th">Email</th>
                 <th className="table-th">Phone</th>
-                <th className="table-th">
-                  Department
-                </th>
+                <th className="table-th">Department</th>
                 <th className="table-th">Roles</th>
-
-                {isAdmin && (
-                  <th className="table-th w-60">
-                    Action
-                  </th>
-                )}
+                {isAdmin && <th className="table-th">Action</th>}
               </tr>
             </thead>
-
             <tbody>
-              {filtered.map((u) => (
-                <tr
-                  key={u.id}
-                  className="table-row"
-                >
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={isAdmin ? 6 : 5} className="table-td text-center text-slate-400 py-10">
+                    No users found
+                  </td>
+                </tr>
+              ) : filtered.map((u) => (
+                <tr key={u.id} className="table-row">
                   <td className="table-td">
                     <div className="flex items-center gap-2.5">
-                      <Avatar
-                        name={u?.name || ''}
-                      />
-
+                      <Avatar name={u?.name || ''} picture={u?.picture} />
                       <div>
-                        <div className="font-medium text-slate-900">
-                          {u?.name || 'Unknown'}
-                        </div>
-
-                        <div className="text-[11px] text-slate-500">
-                          {u?.department || '—'}
-                        </div>
+                        <div className="font-medium text-slate-900">{u?.name || 'Unknown'}</div>
+                        <div className="text-[11px] text-slate-500">{u?.department || '—'}</div>
                       </div>
                     </div>
                   </td>
-
-                  <td className="table-td text-slate-600">
-                    {u?.email || '—'}
-                  </td>
-
-                  <td className="table-td text-slate-600">
-                    {u?.phone || '—'}
-                  </td>
-
-                  <td className="table-td text-slate-600">
-                    {u?.department || '—'}
-                  </td>
-
+                  <td className="table-td text-slate-600">{u?.email || '—'}</td>
+                  <td className="table-td text-slate-600">{u?.phone || '—'}</td>
+                  <td className="table-td text-slate-600">{u?.department || '—'}</td>
                   <td className="table-td">
                     <div className="flex flex-wrap gap-1">
-                      {normalizeRoles(
-                        u?.roles
-                      ).map((r) => {
-                        const Icon =
-                          ROLE_ICON[r];
-
+                      {normalizeRoles(u?.roles).map((r) => {
+                        const Icon = ROLE_ICON[r];
                         return (
-                          <span
-                            key={r}
-                            className={`pill border ${
-                              ROLE_STYLE[r] ||
-                              'bg-slate-100 text-slate-700 border-slate-200'
-                            }`}
-                          >
-                            {Icon && (
-                              <Icon className="w-3 h-3" />
-                            )}
-
+                          <span key={r} className={`pill border ${ROLE_STYLE[r] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                            {Icon && <Icon className="w-3 h-3" />}
                             {r}
                           </span>
                         );
                       })}
                     </div>
                   </td>
-
                   {isAdmin && (
                     <td className="table-td">
                       <div className="flex gap-1.5 flex-wrap">
-                        <button
-                          onClick={() =>
-                            openEdit(u)
-                          }
-                          className="pill bg-primary-50 text-primary-700 hover:bg-primary-100 cursor-pointer"
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            openSetPassword(u)
-                          }
-                          className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
-                        >
-                          Set Password
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            deleteUser(u.id)
-                          }
-                          className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer"
-                        >
-                          Delete
-                        </button>
+                        <button onClick={() => openEdit(u)}          className="pill bg-primary-50 text-primary-700 hover:bg-primary-100 cursor-pointer">Edit</button>
+                        <button onClick={() => openSetPassword(u)}   className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Set Password</button>
+                        <button onClick={() => deleteUser(u.id)}     className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Delete</button>
                       </div>
                     </td>
                   )}
@@ -370,7 +153,6 @@ export default function UsersClient({
         departments={departments}
         onSaved={() => router.refresh()}
       />
-
       <SetPasswordModal
         open={pwdModal}
         onClose={() => setPwdModal(false)}
@@ -380,187 +162,120 @@ export default function UsersClient({
   );
 }
 
-function UserModal({
-  open,
-  onClose,
-  user,
-  departments,
-  onSaved,
-}) {
+function UserModal({ open, onClose, user, departments, onSaved }) {
+  const fileRef = useRef(null);
   const [form, setForm] = useState({});
-
+  const [picture, setPicture] = useState(null);
+  const [pictureChanged, setPictureChanged] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       if (user) {
-        setForm({
-          id: user.id,
-          name: user.name || '',
-          email: user.email || '',
-          phone: user.phone || '',
-          department:
-            user.department ||
-            departments[0] ||
-            '',
-          roles: normalizeRoles(user.roles),
-          active: user.active !== false,
-        });
+        setForm({ id: user.id, name: user.name || '', email: user.email || '', phone: user.phone || '', department: user.department || departments[0] || '', roles: normalizeRoles(user.roles), active: user.active !== false });
+        setPicture(user.picture || null);
       } else {
-        setForm({
-          name: '',
-          email: '',
-          phone: '',
-          department:
-            departments[0] || '',
-          roles: ['User'],
-        });
+        setForm({ name: '', email: '', phone: '', department: departments[0] || '', roles: ['User'] });
+        setPicture(null);
       }
+      setPictureChanged(false);
     }
   }, [user, open, departments]);
 
   if (!open) return null;
 
   function toggleRole(r) {
-    const roles = normalizeRoles(
-      form.roles
-    ).includes(r)
-      ? normalizeRoles(form.roles).filter(
-          (x) => x !== r
-        )
-      : [...normalizeRoles(form.roles), r];
+    const cur = normalizeRoles(form.roles);
+    setForm({ ...form, roles: cur.includes(r) ? cur.filter(x => x !== r) : [...cur, r] });
+  }
 
-    setForm({
-      ...form,
-      roles,
-    });
+  function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const size = 200;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.max(size / img.width, size / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      setPicture(canvas.toDataURL('image/jpeg', 0.75));
+      setPictureChanged(true);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+    e.target.value = '';
+  }
+
+  function removePicture() {
+    setPicture(null);
+    setPictureChanged(true);
   }
 
   async function save() {
     setSaving(true);
-
-    const method = user
-      ? 'PATCH'
-      : 'POST';
-
-    await fetch('/api/users', {
-      method,
-      headers: {
-        'Content-Type':
-          'application/json',
-      },
-      body: JSON.stringify(form),
-    });
-
+    const payload = { ...form };
+    if (pictureChanged) payload.picture = picture;
+    await fetch('/api/users', { method: user ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     setSaving(false);
-
     onClose();
-
     onSaved();
   }
 
+  const initials = (form.name || 'U').split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase() || 'U';
+
   return (
-    <div
-      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
-        onClick={(e) =>
-          e.stopPropagation()
-        }
-      >
-        <h2 className="text-lg font-semibold mb-5">
-          {user
-            ? 'Edit User'
-            : 'Add User'}
-        </h2>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold mb-5">{user ? 'Edit User' : 'Add User'}</h2>
+
+        {/* Photo picker */}
+        <div className="flex items-center gap-4 mb-5">
+          <div className="relative shrink-0">
+            {picture ? (
+              <img src={picture} alt="" className="w-16 h-16 rounded-xl object-cover ring-2 ring-slate-200" />
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 grid place-items-center text-white text-lg font-bold ring-2 ring-slate-200">
+                {initials}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary !py-1 text-xs">
+              Upload Photo
+            </button>
+            {picture && (
+              <button type="button" onClick={removePicture} className="text-xs text-red-500 hover:text-red-700 text-left">
+                Remove photo
+              </button>
+            )}
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+          </div>
+        </div>
 
         <div className="space-y-4">
-          <Field
-            label="Name"
-            value={form.name || ''}
-            onChange={(v) =>
-              setForm({
-                ...form,
-                name: v,
-              })
-            }
-          />
-
-          <Field
-            label="Email"
-            value={form.email || ''}
-            onChange={(v) =>
-              setForm({
-                ...form,
-                email: v,
-              })
-            }
-          />
-
-          <Field
-            label="Phone"
-            value={form.phone || ''}
-            onChange={(v) =>
-              setForm({
-                ...form,
-                phone: v,
-              })
-            }
-          />
-
+          <Field label="Name"  value={form.name  || ''} onChange={v => setForm({ ...form, name:  v })} />
+          <Field label="Email" value={form.email || ''} onChange={v => setForm({ ...form, email: v })} />
+          <Field label="Phone" value={form.phone || ''} onChange={v => setForm({ ...form, phone: v })} />
           <div>
-            <label className="label">
-              Department
-            </label>
-
-            <select
-              value={
-                form.department || ''
-              }
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  department:
-                    e.target.value,
-                })
-              }
-              className="input"
-            >
-              {departments.map((d) => (
-                <option key={d}>
-                  {d}
-                </option>
-              ))}
+            <label className="label">Department</label>
+            <select value={form.department || ''} onChange={e => setForm({ ...form, department: e.target.value })} className="input">
+              {departments.map(d => <option key={d}>{d}</option>)}
             </select>
           </div>
-
           <div>
-            <label className="label">
-              Roles
-            </label>
-
+            <label className="label">Roles</label>
             <div className="flex gap-2 flex-wrap">
-              {ROLES.map((r) => {
-                const active =
-                  normalizeRoles(
-                    form.roles
-                  ).includes(r);
-
+              {ROLES.map(r => {
+                const active = normalizeRoles(form.roles).includes(r);
                 return (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() =>
-                      toggleRole(r)
-                    }
-                    className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition ${
-                      active
-                        ? ROLE_STYLE[r]
-                        : 'bg-white text-slate-500 border-slate-200'
-                    }`}
-                  >
+                  <button key={r} type="button" onClick={() => toggleRole(r)}
+                    className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition ${active ? ROLE_STYLE[r] : 'bg-white text-slate-500 border-slate-200'}`}>
                     {r}
                   </button>
                 );
@@ -568,204 +283,71 @@ function UserModal({
             </div>
           </div>
         </div>
-
         <div className="flex justify-end gap-2 mt-6">
-          <button
-            onClick={onClose}
-            className="btn-secondary"
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={save}
-            disabled={saving}
-            className="btn-primary"
-          >
-            {saving
-              ? 'Saving...'
-              : 'Save'}
-          </button>
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button>
         </div>
       </div>
     </div>
   );
 }
 
-function SetPasswordModal({
-  open,
-  onClose,
-  user,
-}) {
-  const [password, setPassword] =
-    useState('');
+function SetPasswordModal({ open, onClose, user }) {
+  const [password, setPassword] = useState('');
+  const [confirm,  setConfirm]  = useState('');
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState('');
 
-  const [confirm, setConfirm] =
-    useState('');
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [error, setError] =
-    useState('');
-
-  useEffect(() => {
-    if (open) {
-      setPassword('');
-      setConfirm('');
-      setError('');
-    }
-  }, [open]);
+  useEffect(() => { if (open) { setPassword(''); setConfirm(''); setError(''); } }, [open]);
 
   if (!open) return null;
 
   async function save() {
     setError('');
-
-    if (password.length < 6) {
-      setError(
-        'Password minimum 6 characters ka hona chahiye'
-      );
-
-      return;
-    }
-
-    if (password !== confirm) {
-      setError(
-        'Passwords match nahi kar rahe'
-      );
-
-      return;
-    }
-
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    if (password !== confirm)  { setError('Passwords do not match.'); return; }
     setSaving(true);
-
-    const res = await fetch(
-      '/api/users/set-password',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type':
-            'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          password,
-        }),
-      }
-    );
-
+    const res = await fetch('/api/users/set-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id, password }) });
     setSaving(false);
-
-    if (res.ok) {
-      onClose();
-    } else {
-      const d = await res.json();
-
-      setError(
-        d.error ||
-          'Something went wrong'
-      );
-    }
+    if (res.ok) { onClose(); }
+    else { const d = await res.json(); setError(d.error || 'Something went wrong'); }
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
-        onClick={(e) =>
-          e.stopPropagation()
-        }
-      >
-        <h2 className="text-lg font-semibold mb-5">
-          Set Password
-        </h2>
-
-        <p className="text-sm text-slate-500 mb-4">
-          {user?.name}
-        </p>
-
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold mb-1">Set Password</h2>
+        <p className="text-sm text-slate-500 mb-4">{user?.name}</p>
         <div className="space-y-4">
-          <Field
-            label="New Password"
-            value={password}
-            onChange={setPassword}
-            type="password"
-          />
-
-          <Field
-            label="Confirm Password"
-            value={confirm}
-            onChange={setConfirm}
-            type="password"
-          />
-
-          {error && (
-            <p className="text-red-500 text-sm">
-              {error}
-            </p>
-          )}
+          <Field label="New Password"     value={password} onChange={setPassword} type="password" />
+          <Field label="Confirm Password" value={confirm}  onChange={setConfirm}  type="password" />
+          {error && <p className="text-red-500 text-sm">{error}</p>}
         </div>
-
         <div className="flex justify-end gap-2 mt-6">
-          <button
-            onClick={onClose}
-            className="btn-secondary"
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={save}
-            disabled={saving}
-            className="btn-primary"
-          >
-            {saving
-              ? 'Saving...'
-              : 'Set Password'}
-          </button>
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Set Password'}</button>
         </div>
       </div>
     </div>
   );
 }
 
-function Field({
-  label,
-  value,
-  onChange,
-  type = 'text',
-}) {
+function Field({ label, value, onChange, type = 'text' }) {
   return (
     <div>
-      <label className="label">
-        {label}
-      </label>
-
-      <input
-        type={type}
-        value={value}
-        onChange={(e) =>
-          onChange(e.target.value)
-        }
-        className="input"
-      />
+      <label className="label">{label}</label>
+      <input type={type} value={value} onChange={e => onChange(e.target.value)} className="input" />
     </div>
   );
 }
 
-function Avatar({ name = '' }) {
-  const ini = name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase();
-
+function Avatar({ name = '', picture }) {
+  const ini = name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase();
+  if (picture) {
+    return (
+      <img src={picture} alt={name} className="w-9 h-9 rounded-full object-cover" />
+    );
+  }
   return (
     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-white grid place-items-center text-[11px] font-bold">
       {ini || 'U'}
@@ -773,27 +355,4 @@ function Avatar({ name = '' }) {
   );
 }
 
-function PlusIcon() {
-  return (
-    <svg
-      className="w-4 h-4"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
-function SheetsIcon() {
-  return (
-    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M3 9h18M3 15h18M9 3v18" />
-    </svg>
-  );
-}
+function PlusIcon()   { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }

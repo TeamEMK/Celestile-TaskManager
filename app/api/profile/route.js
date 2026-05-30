@@ -11,13 +11,16 @@ export async function PATCH(req) {
     if (!id) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
     const body = await req.json();
+    const pictureChanged = body.picture !== undefined;
     await pool.query(
       `UPDATE users SET
-        name  = COALESCE(?, name),
-        email = COALESCE(?, email),
-        phone = COALESCE(?, phone)
+        name    = COALESCE(?, name),
+        email   = COALESCE(?, email),
+        phone   = COALESCE(?, phone),
+        picture = CASE WHEN ? THEN ? ELSE picture END
        WHERE id = ?`,
-      [body.name ?? null, body.email ?? null, body.phone ?? null, id]
+      [body.name ?? null, body.email ?? null, body.phone ?? null,
+       pictureChanged ? 1 : 0, body.picture ?? null, id]
     );
     return NextResponse.json({ success: true });
   } catch (err) {

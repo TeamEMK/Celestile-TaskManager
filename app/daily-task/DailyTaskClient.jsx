@@ -68,7 +68,6 @@ export default function DailyTaskClient({ doerId, doer, departments = [], client
     <div className="space-y-4">
       <div>
         <h1 className="page-title">Daily Task Form</h1>
-        <p className="page-sub">Log the time you spent today by client and department.</p>
       </div>
 
       <div className="card p-5">
