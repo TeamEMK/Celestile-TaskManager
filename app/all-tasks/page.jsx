@@ -12,7 +12,7 @@ export default async function AllTasksPage() {
   if (hasDB) {
     [delegations, users, masters, completions] = await Promise.all([
       pool.query(`SELECT id, description, doer_id AS doerId, doer, delegated_by AS delegatedBy,
-                         due_date AS dueDate, client, status, type, priority, approval,
+                         due_date AS dueDate, client, status, type, priority, approval, url,
                          transferred_by AS transferredBy, transferred_from AS transferredFrom, created_at AS createdAt
                   FROM delegations WHERE NOT (approval = 'Approval Required' AND status = 'pending')
                   ORDER BY created_at DESC`)
@@ -32,7 +32,7 @@ export default async function AllTasksPage() {
         id: d.id, description: d.description, doerId: d.doerId,
         doer: d.doer, delegatedBy: d.delegatedBy, dueDate: d.dueDate,
         client: d.client || '', status: d.status, type: d.type || 'delegation',
-        priority: d.priority, approval: d.approval,
+        priority: d.priority, approval: d.approval, url: d.url || '',
         transferredBy: d.transferredBy || null, transferredFrom: d.transferredFrom || null, createdAt: d.createdAt,
       }));
     users = store.users || [];
