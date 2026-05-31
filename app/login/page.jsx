@@ -216,7 +216,7 @@ export default function LoginPage() {
                 marginBottom: '1rem',
               }} />
               <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>
-                <span style={{ color: '#C4714A', fontWeight: 600, letterSpacing: '0.05em' }}>E-Marketing Task Manager</span>
+                <span style={{ color: '#C4714A', fontWeight: 600, letterSpacing: '0.05em' }}>India Automotive Task Manager</span>
                 <span style={{ margin: '0 6px', color: '#cbd5e1' }}>·</span>
                 <span style={{ color: '#94a3b8' }}>Grow Your Business</span>
               </p>
