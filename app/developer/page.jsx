@@ -67,26 +67,13 @@ export default function DeveloperPage() {
     else { const d = await res.json(); setError(d.error || 'Reset failed'); setResetOpen(false); }
   }
 
-  async function exportData() {
+  async function exportTable(tableKey, fileName) {
     setExporting(true); setError('');
     const res = await fetch(`/api/developer/export?secret=${encodeURIComponent(secret)}`);
     if (!res.ok) { setError('Export failed'); setExporting(false); return; }
     const data = await res.json();
     const date = new Date().toISOString().slice(0, 10);
-
-    // All tables in one file with section headers
-    const sections = [
-      { label: 'DELEGATIONS (ALL TASKS)',  rows: data.delegations },
-      { label: 'USERS',                    rows: data.users       },
-      { label: 'CHECKLISTS',               rows: data.masters     },
-      { label: 'HOLIDAYS',                 rows: data.holidays    },
-    ];
-
-    const combined = sections.map(({ label, rows }) =>
-      `===== ${label} =====\n${toCSV(rows)}`
-    ).join('\n\n');
-
-    downloadFile(combined, `india_automotive_export_${date}.csv`);
+    downloadFile(toCSV(data[tableKey]), `${fileName}_${date}.csv`);
     setExporting(false);
   }
 
@@ -208,16 +195,33 @@ export default function DeveloperPage() {
               {saving ? 'Saving…' : enabled ? '🔴  Suspend Dashboard' : '🟢  Restore Dashboard'}
             </button>
 
-            {/* Export */}
-            <button onClick={exportData} disabled={exporting} style={{
-              width: '100%', padding: '12px', borderRadius: '12px', border: 'none',
-              cursor: exporting ? 'not-allowed' : 'pointer',
-              fontSize: '14px', fontWeight: '600', color: '#3b82f6',
-              background: '#eff6ff', marginTop: '10px',
-              opacity: exporting ? 0.7 : 1,
-            }}>
-              {exporting ? '⏳ Exporting…' : '📥 Export All Data (CSV)'}
-            </button>
+            {/* Export buttons */}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+              <button onClick={() => exportTable('delegations', 'tasks')} disabled={exporting} style={{
+                flex: 1, padding: '10px 6px', borderRadius: '10px', border: 'none',
+                cursor: exporting ? 'not-allowed' : 'pointer',
+                fontSize: '12px', fontWeight: '600', color: '#3b82f6',
+                background: '#eff6ff', opacity: exporting ? 0.7 : 1,
+              }}>
+                {exporting ? '⏳' : '📥'} Tasks
+              </button>
+              <button onClick={() => exportTable('users', 'users')} disabled={exporting} style={{
+                flex: 1, padding: '10px 6px', borderRadius: '10px', border: 'none',
+                cursor: exporting ? 'not-allowed' : 'pointer',
+                fontSize: '12px', fontWeight: '600', color: '#3b82f6',
+                background: '#eff6ff', opacity: exporting ? 0.7 : 1,
+              }}>
+                {exporting ? '⏳' : '👥'} Users
+              </button>
+              <button onClick={() => exportTable('masters', 'checklists')} disabled={exporting} style={{
+                flex: 1, padding: '10px 6px', borderRadius: '10px', border: 'none',
+                cursor: exporting ? 'not-allowed' : 'pointer',
+                fontSize: '12px', fontWeight: '600', color: '#3b82f6',
+                background: '#eff6ff', opacity: exporting ? 0.7 : 1,
+              }}>
+                {exporting ? '⏳' : '✅'} Checklist
+              </button>
+            </div>
 
             {/* Reset all tasks */}
             <button onClick={() => { setResetOpen(true); setResetInput(''); setResetDone(false); }} style={{
