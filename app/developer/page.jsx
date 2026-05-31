@@ -72,15 +72,21 @@ export default function DeveloperPage() {
     const res = await fetch(`/api/developer/export?secret=${encodeURIComponent(secret)}`);
     if (!res.ok) { setError('Export failed'); setExporting(false); return; }
     const data = await res.json();
-    const date  = new Date().toISOString().slice(0, 10);
-    [
-      { key: 'delegations', name: `delegations_${date}.csv` },
-      { key: 'users',       name: `users_${date}.csv`       },
-      { key: 'masters',     name: `checklists_${date}.csv`  },
-      { key: 'holidays',    name: `holidays_${date}.csv`    },
-    ].forEach(({ key, name }, i) => {
-      setTimeout(() => downloadFile(toCSV(data[key]), name), i * 400);
-    });
+    const date = new Date().toISOString().slice(0, 10);
+
+    // All tables in one file with section headers
+    const sections = [
+      { label: 'DELEGATIONS (ALL TASKS)',  rows: data.delegations },
+      { label: 'USERS',                    rows: data.users       },
+      { label: 'CHECKLISTS',               rows: data.masters     },
+      { label: 'HOLIDAYS',                 rows: data.holidays    },
+    ];
+
+    const combined = sections.map(({ label, rows }) =>
+      `===== ${label} =====\n${toCSV(rows)}`
+    ).join('\n\n');
+
+    downloadFile(combined, `india_automotive_export_${date}.csv`);
     setExporting(false);
   }
 
