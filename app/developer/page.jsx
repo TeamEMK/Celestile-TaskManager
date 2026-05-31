@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import * as XLSX from 'xlsx';
 
 export default function DeveloperPage() {
   const [password,   setPassword]   = useState('');
@@ -43,20 +44,6 @@ export default function DeveloperPage() {
     setSaving(false);
   }
 
-  function toCSV(rows) {
-    if (!rows?.length) return '';
-    const keys = Object.keys(rows[0]);
-    const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    return [keys.join(','), ...rows.map((r) => keys.map((k) => escape(r[k])).join(','))].join('\n');
-  }
-
-  function downloadFile(content, filename) {
-    const blob = new Blob([content], { type: 'text/csv' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
-  }
 
   async function resetData() {
     if (resetInput !== 'DELETE') return;
@@ -67,13 +54,25 @@ export default function DeveloperPage() {
     else { const d = await res.json(); setError(d.error || 'Reset failed'); setResetOpen(false); }
   }
 
-  async function exportTable(tableKey, fileName) {
+  async function exportExcel() {
     setExporting(true); setError('');
     const res = await fetch(`/api/developer/export?secret=${encodeURIComponent(secret)}`);
     if (!res.ok) { setError('Export failed'); setExporting(false); return; }
     const data = await res.json();
     const date = new Date().toISOString().slice(0, 10);
-    downloadFile(toCSV(data[tableKey]), `${fileName}_${date}.csv`);
+
+    const wb = XLSX.utils.book_new();
+    const sheets = [
+      { name: 'Tasks',      rows: data.delegations },
+      { name: 'Users',      rows: data.users       },
+      { name: 'Checklists', rows: data.masters     },
+      { name: 'Holidays',   rows: data.holidays    },
+    ];
+    sheets.forEach(({ name, rows }) => {
+      const ws = XLSX.utils.json_to_sheet(rows || []);
+      XLSX.utils.book_append_sheet(wb, ws, name);
+    });
+    XLSX.writeFile(wb, `india_automotive_${date}.xlsx`);
     setExporting(false);
   }
 
@@ -195,33 +194,16 @@ export default function DeveloperPage() {
               {saving ? 'Saving…' : enabled ? '🔴  Suspend Dashboard' : '🟢  Restore Dashboard'}
             </button>
 
-            {/* Export buttons */}
-            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-              <button onClick={() => exportTable('delegations', 'tasks')} disabled={exporting} style={{
-                flex: 1, padding: '10px 6px', borderRadius: '10px', border: 'none',
-                cursor: exporting ? 'not-allowed' : 'pointer',
-                fontSize: '12px', fontWeight: '600', color: '#3b82f6',
-                background: '#eff6ff', opacity: exporting ? 0.7 : 1,
-              }}>
-                {exporting ? '⏳' : '📥'} Tasks
-              </button>
-              <button onClick={() => exportTable('users', 'users')} disabled={exporting} style={{
-                flex: 1, padding: '10px 6px', borderRadius: '10px', border: 'none',
-                cursor: exporting ? 'not-allowed' : 'pointer',
-                fontSize: '12px', fontWeight: '600', color: '#3b82f6',
-                background: '#eff6ff', opacity: exporting ? 0.7 : 1,
-              }}>
-                {exporting ? '⏳' : '👥'} Users
-              </button>
-              <button onClick={() => exportTable('masters', 'checklists')} disabled={exporting} style={{
-                flex: 1, padding: '10px 6px', borderRadius: '10px', border: 'none',
-                cursor: exporting ? 'not-allowed' : 'pointer',
-                fontSize: '12px', fontWeight: '600', color: '#3b82f6',
-                background: '#eff6ff', opacity: exporting ? 0.7 : 1,
-              }}>
-                {exporting ? '⏳' : '✅'} Checklist
-              </button>
-            </div>
+            {/* Export Excel */}
+            <button onClick={exportExcel} disabled={exporting} style={{
+              width: '100%', padding: '12px', borderRadius: '12px', border: 'none',
+              cursor: exporting ? 'not-allowed' : 'pointer',
+              fontSize: '14px', fontWeight: '600', color: '#16a34a',
+              background: '#f0fdf4', marginTop: '10px',
+              opacity: exporting ? 0.7 : 1,
+            }}>
+              {exporting ? '⏳ Exporting…' : '📊 Export All Data (Excel)'}
+            </button>
 
             {/* Reset all tasks */}
             <button onClick={() => { setResetOpen(true); setResetInput(''); setResetDone(false); }} style={{
