@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { syncTasks } from '@/lib/google-sheets';
-import { sql } from '@/lib/mysql-sql';
 
 function normDate(s) {
   if (!s) return null;
@@ -126,7 +124,6 @@ export async function POST(req) {
       client: body.client, priority: body.priority, approval: resolvedApproval,
       url: body.url, remarks: body.remarks,
     });
-    syncTasks(sql).catch(() => {});
     return NextResponse.json(row, { status: 201 });
   } catch (err) {
     console.error(err);
@@ -253,7 +250,6 @@ export async function PATCH(req) {
 
     const [result] = await pool.query('SELECT * FROM delegations WHERE id = ?', [body.id]);
     if (!result.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    syncTasks(sql).catch(() => {});
     return NextResponse.json(result[0]);
   } catch (err) {
     console.error(err);
