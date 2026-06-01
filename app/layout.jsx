@@ -52,7 +52,7 @@ export default async function RootLayout({ children }) {
                   background: '#f8fafc', borderRadius: '10px', padding: '14px 18px',
                   fontSize: '13px', color: '#94a3b8',
                 }}>
-                  📧 contact@e-marketing.io
+                  📧 akhileshvyas@e-marketingtech.in
                 </div>
               </div>
             </div>

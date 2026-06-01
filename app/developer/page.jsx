@@ -25,6 +25,7 @@ export default function DeveloperPage() {
   const [loadingBackups,   setLoadingBackups]   = useState(false);
   const [restoring,        setRestoring]        = useState(null);
   const [restoreDone,      setRestoreDone]      = useState(false);
+  const [confirmRestore,   setConfirmRestore]   = useState(null); // backup object to confirm
   const [error,            setError]            = useState('');
 
   async function handleLogin(e) {
@@ -71,16 +72,21 @@ export default function DeveloperPage() {
     setLoadingBackups(false);
   }
 
-  async function restoreBackup(id) {
-    if (!confirm('Restore this backup? Current data will be replaced.')) return;
-    setRestoring(id); setRestoreDone(false);
-    const res = await fetch(`/api/developer/restore?secret=${encodeURIComponent(secret)}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
+  async function doRestore(id) {
+    setConfirmRestore(null);
+    setRestoring(id); setRestoreDone(false); setError('');
+    try {
+      const res = await fetch(`/api/developer/restore?secret=${encodeURIComponent(secret)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const d = await res.json();
+      if (res.ok) { setRestoreDone(true); }
+      else { setError(d.error || 'Restore failed'); }
+    } catch (e) {
+      setError('Network error: ' + e.message);
+    }
     setRestoring(null);
-    if (res.ok) { setRestoreDone(true); }
-    else { const d = await res.json(); setError(d.error || 'Restore failed'); }
   }
 
   async function deleteUsers(mode) {
@@ -331,16 +337,16 @@ export default function DeveloperPage() {
                           </div>
                         </div>
                         <button
-                          onClick={() => restoreBackup(b.id)}
-                          disabled={restoring === b.id}
+                          onClick={() => setConfirmRestore(b)}
+                          disabled={!!restoring}
                           style={{
                             marginLeft: '8px', padding: '5px 12px', borderRadius: '8px', border: 'none',
-                            background: restoring === b.id ? '#cbd5e1' : '#3b82f6',
+                            background: restoring ? '#cbd5e1' : '#3b82f6',
                             color: '#fff', fontSize: '11px', fontWeight: '700',
-                            cursor: restoring === b.id ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                            cursor: restoring ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
                           }}
                         >
-                          {restoring === b.id ? '…' : 'Restore'}
+                          {restoring === b.id ? '⏳' : 'Restore'}
                         </button>
                       </div>
                     );
@@ -479,6 +485,54 @@ export default function DeveloperPage() {
           </div>
         </div>
       )}
+      {/* ── Confirm Restore modal ── */}
+      {confirmRestore && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 50, padding: '24px',
+        }} onClick={() => setConfirmRestore(null)}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', padding: '32px 28px',
+            maxWidth: '360px', width: '100%', textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              width: '48px', height: '48px', borderRadius: '12px', margin: '0 auto 16px',
+              background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/>
+              </svg>
+            </div>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px' }}>
+              Restore Backup?
+            </h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 6px', lineHeight: '1.5' }}>
+              <strong>{confirmRestore.label}</strong>
+            </p>
+            <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 24px' }}>
+              {new Date(confirmRestore.created_at).toLocaleString('en-IN')}
+            </p>
+            <p style={{ fontSize: '13px', color: '#dc2626', margin: '0 0 20px', fontWeight: '600' }}>
+              ⚠️ Current data will be permanently replaced.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setConfirmRestore(null)} style={{
+                flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid #e2e8f0',
+                background: '#fff', color: '#64748b', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+              }}>Cancel</button>
+              <button onClick={() => doRestore(confirmRestore.id)} style={{
+                flex: 1, padding: '10px', borderRadius: '10px', border: 'none',
+                background: '#3b82f6', color: '#fff', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+              }}>
+                Yes, Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Delete Users modal ── */}
       {usersOpen && (
         <div style={{
