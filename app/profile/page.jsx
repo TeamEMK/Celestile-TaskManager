@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { pool } from '@/lib/db';
+import { pool, ensureSchema } from '@/lib/db';
 import { readStore } from '@/lib/store';
 import ProfileClient from './ProfileClient';
 
@@ -17,6 +17,8 @@ export default async function ProfilePage() {
 
   if (id) {
     if (hasDB) {
+      await ensureSchema();
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS picture MEDIUMTEXT DEFAULT NULL').catch(() => {});
       const [rows, profRows] = await Promise.all([
         pool.query('SELECT id, name, email, phone, department, roles, picture FROM users WHERE id = ?', [id])
           .then(([r]) => r).catch(() => []),

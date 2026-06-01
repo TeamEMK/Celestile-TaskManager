@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+
 import { useRouter } from 'next/navigation';
 import AddMasterModal from './components/AddMasterModal';
 import AddDelegateModal from './components/AddDelegateModal';
@@ -11,7 +11,7 @@ import { FMS_ENABLED } from '@/lib/config';
 
 export default function DashboardClient({ data, performance, holidays, users = [], isAdmin }) {
   const router = useRouter();
-  const { data: session } = useSession();
+
 
   const [masterOpen,   setMasterOpen]   = useState(false);
   const [delegateOpen, setDelegateOpen] = useState(false);
@@ -35,9 +35,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
     return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
   };
 
-  const visibleTasks = isAdmin
-    ? data.pendingTasks
-    : data.pendingTasks.filter((t) => t.doer === session?.user?.name);
+  const visibleTasks = data.pendingTasks;
 
   const allDoers = useMemo(() => users.map((u) => u.name).sort(), [users]);
 
@@ -137,7 +135,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Pending</div>
           <div className="text-4xl font-bold text-red-500">{visibleTasks.length}</div>
           {data.revised > 0 && (
-            <div className="text-xs font-semibold text-amber-500 mt-1">+ {data.revised} revised</div>
+            <div className="text-xs font-semibold text-amber-500 mt-1">{data.revised} revised</div>
           )}
         </div>
       </div>

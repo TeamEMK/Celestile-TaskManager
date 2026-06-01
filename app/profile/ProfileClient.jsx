@@ -15,11 +15,21 @@ export default function ProfileClient({ me, notificationEmail }) {
     confirmPassword: '',
   });
   const [picture, setPicture] = useState(me?.picture || null);
-  const [pictureChanged, setPictureChanged] = useState(false);
+  const [picSaving, setPicSaving] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const initials = (form.name || 'U').split(' ').filter(Boolean).map((s) => s[0]).join('').slice(0, 2).toUpperCase();
   const role = me?.roles?.[0] || 'User';
+
+  async function savePicture(b64) {
+    setPicSaving(true);
+    await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ picture: b64 }),
+    }).catch(() => {});
+    setPicSaving(false);
+  }
 
   function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -38,7 +48,7 @@ export default function ProfileClient({ me, notificationEmail }) {
       ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
       const b64 = canvas.toDataURL('image/jpeg', 0.75);
       setPicture(b64);
-      setPictureChanged(true);
+      savePicture(b64);
       URL.revokeObjectURL(url);
     };
     img.src = url;
@@ -47,7 +57,7 @@ export default function ProfileClient({ me, notificationEmail }) {
 
   function removePicture() {
     setPicture(null);
-    setPictureChanged(true);
+    savePicture(null);
   }
 
   async function save() {
@@ -57,15 +67,20 @@ export default function ProfileClient({ me, notificationEmail }) {
     }
     setSaving(true);
     const payload = { ...form };
-    if (pictureChanged) payload.picture = picture;
     const res = await fetch('/api/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     setSaving(false);
-    if (res.ok) { alert('Profile updated'); router.refresh(); }
-    else alert('Failed to save');
+    if (res.ok) {
+      alert('Profile updated');
+      setForm((f) => ({ ...f, currentPassword: '', newPassword: '', confirmPassword: '' }));
+      router.refresh();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Failed to save');
+    }
   }
 
   return (
@@ -101,12 +116,14 @@ export default function ProfileClient({ me, notificationEmail }) {
               <button
                 className="btn-secondary !py-1.5 text-xs flex-1"
                 onClick={() => fileRef.current?.click()}
+                disabled={picSaving}
               >
-                Change Photo
+                {picSaving ? 'Saving…' : 'Change Photo'}
               </button>
               <button
                 className="btn-ghost !py-1.5 text-xs text-red-600 hover:bg-red-50 flex-1"
                 onClick={removePicture}
+                disabled={picSaving}
               >
                 Remove
               </button>

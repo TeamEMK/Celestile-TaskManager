@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import bcrypt from 'bcryptjs';
+
+const DEFAULT_PASSWORD = 'India@123';
 
 export async function PATCH(req) {
   try {
@@ -33,6 +36,23 @@ export async function PATCH(req) {
         [id, body.notificationEmail || '', body.notificationEmail || '']
       );
     }
+
+    // Password change
+    if (body.newPassword) {
+      const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [id]);
+      if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+      const currentOk = !user.password_hash
+        ? body.currentPassword === DEFAULT_PASSWORD
+        : await bcrypt.compare(body.currentPassword || '', user.password_hash);
+
+      if (!currentOk)
+        return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
+
+      const hash = await bcrypt.hash(body.newPassword, 10);
+      await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, id]);
+    }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

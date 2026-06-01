@@ -221,10 +221,10 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
   useEffect(() => {
     if (open) {
       if (user) {
-        setForm({ id: user.id, name: user.name || '', email: user.email || '', phone: user.phone || '', department: user.department || '', roles: normalizeRoles(user.roles), active: user.active !== false });
+        setForm({ id: user.id, name: user.name || '', email: user.email || '', phone: user.phone || '', department: user.department || '', roles: normalizeRoles(user.roles), active: user.active !== false, notifEmail: user.notifEmail || '' });
         setPicture(user.picture || null);
       } else {
-        setForm({ name: '', email: '', phone: '', department: '', roles: ['User'], password: '' });
+        setForm({ name: '', email: '', phone: '', department: '', roles: ['User'], password: '', notifEmail: '' });
         setPicture(null);
       }
       setPictureChanged(false);
@@ -299,87 +299,128 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
   const initials = (form.name || 'U').split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase() || 'U';
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold mb-5">{user ? 'Edit User' : 'Add User'}</h2>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[440px] overflow-hidden" onClick={e => e.stopPropagation()}>
 
-        {/* Photo picker */}
-        <div className="flex items-center gap-4 mb-5">
-          <div className="relative shrink-0">
-            {picture ? (
-              <img src={picture} alt="" className="w-16 h-16 rounded-xl object-cover ring-2 ring-slate-200" />
-            ) : (
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 grid place-items-center text-white text-lg font-bold ring-2 ring-slate-200">
-                {initials}
-              </div>
-            )}
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+            <svg className="w-4.5 h-4.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary !py-1 text-xs">
-              Upload Photo
-            </button>
-            {picture && (
-              <button type="button" onClick={removePicture} className="text-xs text-red-500 hover:text-red-700 text-left">
-                Remove photo
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+          <div className="flex-1">
+            <h2 className="text-[15px] font-semibold text-slate-900">{user ? 'Edit User' : 'Add User'}</h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">{user ? 'Update member details' : 'Create a new team member'}</p>
           </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
 
-        <div className="space-y-4">
-          <Field label="Name"  value={form.name  || ''} onChange={v => setForm({ ...form, name:  v })} />
-          <Field label="Email" value={form.email || ''} onChange={v => setForm({ ...form, email: v })} />
-          <Field label="Phone" value={form.phone || ''} onChange={v => setForm({ ...form, phone: v })} />
-          <div>
-            <label className="label">Department</label>
-            <select value={form.department || ''} onChange={e => setForm({ ...form, department: e.target.value })} className="input">
-              <option value="">— Select Department —</option>
-              {departments.map(d => <option key={d}>{d}</option>)}
-            </select>
+        {/* Body */}
+        <div className="px-6 py-5 space-y-3 overflow-y-auto max-h-[calc(90vh-160px)]">
+
+          {/* Photo picker */}
+          <div className="flex items-center gap-4 pb-1">
+            <div className="shrink-0">
+              {picture ? (
+                <img src={picture} alt="" className="w-14 h-14 rounded-xl object-cover ring-2 ring-slate-100 shadow-sm" />
+              ) : (
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 grid place-items-center text-white text-base font-bold ring-2 ring-slate-100 shadow-sm">
+                  {initials}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary !py-1.5 !px-3 text-xs">
+                Upload Photo
+              </button>
+              {picture && (
+                <button type="button" onClick={removePicture} className="text-xs text-red-500 hover:text-red-700 transition">
+                  Remove
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            </div>
           </div>
-          {!user && (
-            <Field label="Password" type="password" value={form.password || ''} onChange={v => setForm({ ...form, password: v })} placeholder="Set initial password" />
-          )}
+
+          {/* Row 1: Name + Email */}
+          <div className="grid grid-cols-2 gap-3">
+            <UField label="Full Name" placeholder="Enter full name" value={form.name || ''} onChange={v => setForm({ ...form, name: v })} />
+            <UField label="Email" sublabel="Login" placeholder="Enter login email" type="email" value={form.email || ''} onChange={v => setForm({ ...form, email: v })} />
+          </div>
+
+          {/* Row 2: Notification Email + Phone */}
+          <div className="grid grid-cols-2 gap-3">
+            <UField label="Notification Email" sublabel="Real Gmail for task notifications" placeholder="real email for notifications" value={form.notifEmail || ''} onChange={v => setForm({ ...form, notifEmail: v })} />
+            <UField label="Phone Number" placeholder="Enter phone number" value={form.phone || ''} onChange={v => setForm({ ...form, phone: v })} />
+          </div>
+
+          {/* Row 3: Department */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Department</label>
+              <div className="relative">
+                <select
+                  value={form.department || ''}
+                  onChange={e => setForm({ ...form, department: e.target.value })}
+                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[13px] text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition"
+                >
+                  <option value="">e.g. Sales, Production</option>
+                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            {/* Password — add mode only */}
+            {!user && (
+              <UField label="Password" placeholder="Enter password" type="password" value={form.password || ''} onChange={v => setForm({ ...form, password: v })} />
+            )}
+          </div>
+
+          {/* Roles */}
           <div>
-            <label className="label">Roles</label>
-            <div className="flex gap-2 flex-wrap">
+            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Roles</div>
+            <div className="flex gap-2">
               {ROLES.map(r => {
                 const active = normalizeRoles(form.roles).includes(r);
                 return (
                   <button key={r} type="button" onClick={() => toggleRole(r)}
-                    className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition ${active ? ROLE_STYLE[r] : 'bg-white text-slate-500 border-slate-200'}`}>
+                    className={`flex-1 py-2 text-xs rounded-xl border font-medium transition ${active ? ROLE_STYLE[r] : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300 hover:text-slate-600'}`}>
                     {r}
                   </button>
                 );
               })}
             </div>
           </div>
+
+          {/* Bulk upload — add mode only */}
+          {!user && (
+            <div className="rounded-xl border border-dashed border-slate-200 p-3">
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-2">Bulk Add Users (CSV)</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input type="file" accept=".csv,text/csv"
+                  onChange={(e) => { setBulkFile(e.target.files?.[0] || null); setBulkMsg(''); }}
+                  className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
+                <button className="btn-success !py-1.5 text-xs" disabled={bulkSaving || !bulkFile} onClick={uploadBulkUsers}>
+                  {bulkSaving ? '⏳ Uploading…' : '⬆ Upload CSV'}
+                </button>
+                <button className="btn-secondary !py-1.5 text-xs" onClick={downloadUserSample}>⬇ Sample</button>
+              </div>
+              {bulkMsg && <div className="text-[12px] mt-2 text-slate-600">{bulkMsg}</div>}
+              <div className="text-[10px] text-slate-400 mt-1.5">
+                Format: name, email, password, role, user_role, phone, department
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Bulk upload — only for Add mode */}
-        {!user && (
-          <div className="mt-5 rounded-lg border border-dashed border-slate-200 p-3">
-            <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-2">or bulk upload CSV</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <input type="file" accept=".csv,text/csv"
-                onChange={(e) => { setBulkFile(e.target.files?.[0] || null); setBulkMsg(''); }}
-                className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
-              <button className="btn-success" disabled={bulkSaving || !bulkFile} onClick={uploadBulkUsers}>
-                {bulkSaving ? '⏳ Uploading…' : '⬆ Upload CSV'}
-              </button>
-              <button className="btn-secondary" onClick={downloadUserSample}>⬇ Sample</button>
-            </div>
-            {bulkMsg && <div className="text-[12px] mt-2 text-slate-600">{bulkMsg}</div>}
-            <div className="text-[10.5px] text-slate-400 mt-1">
-              Format: name, email, password, role (admin/hod/user), user_role, phone, department
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 mt-6">
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button>
+          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
     </div>
@@ -471,11 +512,20 @@ function EyeIcon({ open }) {
   );
 }
 
-function Field({ label, value, onChange, type = 'text' }) {
+function UField({ label, sublabel, placeholder, value, onChange, type = 'text' }) {
   return (
     <div>
-      <label className="label">{label}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} className="input" />
+      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+        {label}
+        {sublabel && <span className="normal-case font-normal text-slate-400 ml-1">({sublabel})</span>}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[13px] text-slate-800 placeholder:text-slate-400 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition"
+      />
     </div>
   );
 }
