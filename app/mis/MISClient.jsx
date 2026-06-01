@@ -1,23 +1,21 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 export default function MISClient({ initialRows = [], initialSummary = {}, initialStart, initialEnd, initialType }) {
-  const router  = useRouter();
-  const [start,   setStart]   = useState(initialStart);
-  const [end,     setEnd]     = useState(initialEnd);
-  const [tab,     setTab]     = useState(initialType);
-  const [rows,    setRows]    = useState(initialRows);
-  const [summary, setSummary] = useState(initialSummary);
-  const [loading, setLoading] = useState(false);
-  const [detail,  setDetail]  = useState(null);
+  const [start,      setStart]      = useState(initialStart);
+  const [end,        setEnd]        = useState(initialEnd);
+  const [tab,        setTab]        = useState(initialType);
+  const [rows,       setRows]       = useState(initialRows);
+  const [summary,    setSummary]    = useState(initialSummary);
+  const [loading,    setLoading]    = useState(false);
+  const [modal,      setModal]      = useState(null); // { row, tasks }
+  const [taskLoad,   setTaskLoad]   = useState(false);
 
   const TABS = ['Delegation MIS', 'Checklist MIS', 'All MIS'];
 
   async function generate() {
     if (!start || !end) { alert('Please select Start Date and End Date first.'); return; }
-    setLoading(true);
-    setDetail(null);
+    setLoading(true); setModal(null);
     try {
       const res  = await fetch(`/api/mis?start=${start}&end=${end}&type=${encodeURIComponent(tab)}`);
       const json = await res.json();
@@ -25,6 +23,17 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
       setSummary(json.summary || {});
     } catch { setRows([]); setSummary({}); }
     setLoading(false);
+  }
+
+  async function openDetail(r) {
+    setModal({ row: r, tasks: null });
+    setTaskLoad(true);
+    try {
+      const res  = await fetch(`/api/mis?start=${start}&end=${end}&type=${encodeURIComponent(tab)}&employee=${encodeURIComponent(r.name)}`);
+      const json = await res.json();
+      setModal({ row: r, tasks: json.rows || [] });
+    } catch { setModal({ row: r, tasks: [] }); }
+    setTaskLoad(false);
   }
 
   function exportCSV() {
@@ -40,6 +49,8 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
     });
     a.click();
   }
+
+  const isGood = (score) => score >= 0;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -58,8 +69,7 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
           <button onClick={generate} disabled={loading} className="btn-primary">
             {loading
               ? <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg> Generating…</>
-              : <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 14 4-4 4 4 5-6"/><path d="M3 3v18h18"/></svg> Generate</>
-            }
+              : <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 14 4-4 4 4 5-6"/><path d="M3 3v18h18"/></svg> Generate</>}
           </button>
           <button onClick={exportCSV} className="btn-secondary">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
@@ -68,7 +78,7 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
         </div>
         <div className="flex gap-2 flex-wrap pt-2 border-t border-slate-100">
           {TABS.map((t) => (
-            <button key={t} onClick={() => { setTab(t); setRows([]); setSummary({}); setDetail(null); }}
+            <button key={t} onClick={() => { setTab(t); setRows([]); setSummary({}); setModal(null); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${tab === t ? 'bg-primary-50 text-primary-700 border-primary-200' : 'text-slate-600 hover:bg-slate-50 border-slate-200'}`}>
               {t}
             </button>
@@ -116,16 +126,32 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const isGood   = r.score >= 0;
+                  const good     = isGood(r.score);
                   const barWidth = Math.min(Math.abs(r.score), 100);
-                  const isOpen   = detail === r.name;
                   return (
-                    <EmployeeRow
-                      key={r.name}
-                      r={r} i={i} isGood={isGood} barWidth={barWidth} isOpen={isOpen}
-                      onToggle={() => setDetail(isOpen ? null : r.name)}
-                      start={start} end={end} tab={tab}
-                    />
+                    <tr key={r.name} onClick={() => openDetail(r)}
+                      className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer transition">
+                      <td className="px-5 py-3.5 text-xs text-slate-400 font-mono">{i + 1}</td>
+                      <td className="px-5 py-3.5 font-medium text-primary-600 hover:text-primary-800">{r.name}</td>
+                      <td className="px-4 py-3.5 text-center font-semibold text-slate-800">{r.total}</td>
+                      <td className="px-4 py-3.5 text-center font-semibold text-orange-500">{r.pending}</td>
+                      <td className="px-4 py-3.5 text-center font-semibold text-emerald-600">{r.completed}</td>
+                      <td className="px-4 py-3.5 text-center font-semibold text-amber-500">{r.revised}</td>
+                      <td className="px-4 py-3.5 text-center font-semibold text-red-500">{r.delayed}</td>
+                      <td className="px-4 py-3.5 min-w-[160px]">
+                        <div className={`font-bold text-sm ${good ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {r.score > 0 ? '+' : ''}{r.score}%
+                        </div>
+                        <div className={`flex items-center gap-1 mt-0.5 text-[10px] font-medium ${good ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {good
+                            ? <><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 12 2 2 4-4"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Perfect</>
+                            : <><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Needs Improvement</>}
+                        </div>
+                        <div className="mt-1 h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${good ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ width: `${barWidth}%` }} />
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -133,100 +159,103 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
           </div>
         )}
       </div>
-    </div>
-  );
-}
 
-function EmployeeRow({ r, i, isGood, barWidth, isOpen, onToggle, start, end, tab }) {
-  const [tasks,   setTasks]   = useState(null);
-  const [loading, setLoading] = useState(false);
+      {/* ── Detail Popup Modal ── */}
+      {modal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}>
 
-  async function loadTasks() {
-    if (tasks) return; // already loaded
-    setLoading(true);
-    try {
-      const res  = await fetch(`/api/mis?start=${start}&end=${end}&type=${encodeURIComponent(tab)}&employee=${encodeURIComponent(r.name)}`);
-      const json = await res.json();
-      setTasks(json.rows || []);
-    } catch { setTasks([]); }
-    setLoading(false);
-  }
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="text-base font-semibold text-slate-900">
+                {modal.row.name} — {tab}
+              </h2>
+              <button onClick={() => setModal(null)}
+                className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:bg-slate-100">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
 
-  function handleToggle() {
-    onToggle();
-    if (!isOpen) loadTasks();
-  }
+            {/* Score card */}
+            <div className="px-6 py-4 border-b border-slate-100">
+              <div className={`text-4xl font-bold mb-1 ${isGood(modal.row.score) ? 'text-emerald-600' : 'text-red-500'}`}>
+                {modal.row.score > 0 ? '+' : ''}{modal.row.score}%
+              </div>
+              {!isGood(modal.row.score) && (
+                <div className="text-xs text-amber-600 mb-2 flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                  Score reduced because: {modal.row.pending} task(s) still pending
+                </div>
+              )}
+              <div className="flex flex-wrap gap-3 mt-2">
+                {[
+                  { label: 'Total',     val: modal.row.total,     color: 'text-slate-700',   icon: '📋' },
+                  { label: 'Done',      val: modal.row.completed, color: 'text-emerald-600', icon: '✅' },
+                  { label: 'Pending',   val: modal.row.pending,   color: 'text-orange-500',  icon: '⏳' },
+                  { label: 'Delayed',   val: modal.row.delayed,   color: 'text-red-500',     icon: '🔴' },
+                  { label: 'Revised',   val: modal.row.revised,   color: 'text-amber-500',   icon: '🔄' },
+                ].map(({ label, val, color, icon }) => (
+                  <div key={label} className={`text-sm font-semibold ${color} flex items-center gap-1`}>
+                    <span>{icon}</span> {label}: <span className="font-bold">{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-  return (
-    <>
-      <tr onClick={handleToggle} className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer transition">
-        <td className="px-5 py-3.5 text-xs text-slate-400 font-mono">{i + 1}</td>
-        <td className="px-5 py-3.5 font-medium text-primary-600 hover:text-primary-800">{r.name}</td>
-        <td className="px-4 py-3.5 text-center font-semibold text-slate-800">{r.total}</td>
-        <td className="px-4 py-3.5 text-center font-semibold text-orange-500">{r.pending}</td>
-        <td className="px-4 py-3.5 text-center font-semibold text-emerald-600">{r.completed}</td>
-        <td className="px-4 py-3.5 text-center font-semibold text-amber-500">{r.revised}</td>
-        <td className="px-4 py-3.5 text-center font-semibold text-red-500">{r.delayed}</td>
-        <td className="px-4 py-3.5 min-w-[160px]">
-          <div className={`font-bold text-sm ${isGood ? 'text-emerald-600' : 'text-red-500'}`}>
-            {r.score > 0 ? '+' : ''}{r.score}%
-          </div>
-          <div className={`flex items-center gap-1 mt-0.5 text-[10px] font-medium ${isGood ? 'text-emerald-600' : 'text-red-500'}`}>
-            {isGood
-              ? <><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 12 2 2 4-4"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Perfect</>
-              : <><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Needs Improvement</>
-            }
-          </div>
-          <div className="mt-1 h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full ${isGood ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ width: `${barWidth}%` }} />
-          </div>
-        </td>
-      </tr>
-
-      {isOpen && (
-        <tr>
-          <td colSpan={8} className="bg-slate-50 px-8 py-3 border-t border-slate-200">
-            {loading || !tasks ? (
-              <div className="text-xs text-slate-500 py-2">Loading…</div>
-            ) : tasks.length === 0 ? (
-              <div className="text-xs text-slate-500 py-2">No tasks found.</div>
-            ) : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                    <th className="text-left py-1.5 pr-4">#</th>
-                    <th className="text-left py-1.5 pr-4">Description</th>
-                    <th className="text-left py-1.5 pr-4">Client</th>
-                    <th className="text-left py-1.5 pr-4">Due Date</th>
-                    <th className="text-left py-1.5 pr-4">Priority</th>
-                    <th className="text-left py-1.5">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tasks.map((t, j) => (
-                    <tr key={j} className="border-t border-slate-200/60">
-                      <td className="py-1.5 pr-4 text-slate-400">{j + 1}</td>
-                      <td className="py-1.5 pr-4 text-slate-700 max-w-xs truncate">{t['Description']}</td>
-                      <td className="py-1.5 pr-4 text-slate-500">{t['Client']}</td>
-                      <td className="py-1.5 pr-4 text-slate-500 whitespace-nowrap">{t['Due Date']}</td>
-                      <td className="py-1.5 pr-4">
-                        <span className={`pill text-[10px] ${t['Priority'] === 'High' ? 'bg-red-50 text-red-700' : t['Priority'] === 'Medium' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
-                          {t['Priority'] || 'Low'}
-                        </span>
-                      </td>
-                      <td className="py-1.5">
-                        <span className={`pill text-[10px] ${t['Status'] === 'done' ? 'bg-emerald-50 text-emerald-700' : t['Status'] === 'pending' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
-                          {t['Status']}
-                        </span>
-                      </td>
+            {/* Task list */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="px-6 py-3 text-[10px] uppercase tracking-wider font-semibold text-slate-400 border-b border-slate-100">
+                All Tasks in Date Range
+              </div>
+              {taskLoad ? (
+                <div className="p-8 text-center text-sm text-slate-400">Loading…</div>
+              ) : !modal.tasks?.length ? (
+                <div className="p-8 text-center text-sm text-slate-400">No tasks found.</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50/80 sticky top-0">
+                    <tr>
+                      <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-400">#</th>
+                      <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-400">Description</th>
+                      <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-400">Assigned By</th>
+                      <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-400">Due Date</th>
+                      <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-400">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </td>
-        </tr>
+                  </thead>
+                  <tbody>
+                    {modal.tasks.map((t, j) => (
+                      <tr key={j} className="border-t border-slate-100">
+                        <td className="px-4 py-2.5 text-xs text-slate-400">{j + 1}</td>
+                        <td className="px-4 py-2.5 text-slate-700 max-w-[260px]">{t['Description']}</td>
+                        <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">{t['Assigned By'] || t['AssignedBy'] || '—'}</td>
+                        <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">{t['Due Date']}</td>
+                        <td className="px-4 py-2.5">
+                          <span className={`pill text-[10px] ${
+                            t['Status'] === 'done'             ? 'bg-emerald-50 text-emerald-700' :
+                            t['Status'] === 'pending'          ? 'bg-red-50 text-red-700' :
+                            t['Status'] === 'revise'           ? 'bg-amber-50 text-amber-700' :
+                            t['Status'] === 'revise_requested' ? 'bg-orange-50 text-orange-700' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>
+                            {t['Status']}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setModal(null)} className="btn-secondary">Close</button>
+            </div>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }

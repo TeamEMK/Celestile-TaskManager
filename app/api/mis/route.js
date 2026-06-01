@@ -38,11 +38,13 @@ export async function GET(req) {
           const due     = d.dueDate ? new Date(d.dueDate) : null;
           return (due && due >= from && due <= to) || (created >= from && created <= to);
         });
-        const rows = data.map((d, i) => ({
-          '#': i + 1, 'Description': (d.description || '').substring(0, 100),
-          'Client': d.client || '—', 'Due Date': fmtDate(d.dueDate),
-          'Priority': d.priority || 'Low', 'Status': d.status || '—',
-        }));
+        const users = store.users || [];
+        const rows = data.map((d, i) => {
+          const assignedBy = users.find(u => u.id === d.delegatedBy)?.name || d.delegatedBy || '—';
+          return { '#': i + 1, 'Description': (d.description || '').substring(0, 100),
+            'Assigned By': assignedBy, 'Client': d.client || '—',
+            'Due Date': fmtDate(d.dueDate), 'Priority': d.priority || 'Low', 'Status': d.status || '—' };
+        });
         return NextResponse.json({ rows, summary: {} });
       }
 
@@ -108,13 +110,16 @@ export async function GET(req) {
     // Drill-down: single employee
     if (employee && (type === 'Delegation MIS' || type === 'All MIS')) {
       const [data] = await pool.query(
-        `SELECT id, description, client, due_date, priority, status FROM delegations
-         WHERE doer = ? AND (due_date BETWEEN ? AND ? OR created_at BETWEEN ? AND ?)
-         ORDER BY due_date ASC`,
+        `SELECT d.id, d.description, d.client, d.due_date, d.priority, d.status,
+                u.name AS delegated_by_name
+         FROM delegations d LEFT JOIN users u ON u.id = d.delegated_by
+         WHERE d.doer = ? AND (d.due_date BETWEEN ? AND ? OR d.created_at BETWEEN ? AND ?)
+         ORDER BY d.due_date ASC`,
         [employee, fromISO, toISO, fromISO, toISO]
       );
       const rows = data.map((d, i) => ({
         '#': i + 1, 'Description': (d.description || '').substring(0, 100),
+        'Assigned By': d.delegated_by_name || d.delegated_by || '—',
         'Client': d.client || '—', 'Due Date': fmtDate(d.due_date),
         'Priority': d.priority || 'Low', 'Status': d.status || '—',
       }));
