@@ -316,11 +316,20 @@ export default function DashboardClient({ data, performance, holidays, users = [
                 </button>
               </div>
               <div className="p-6 space-y-3">
-                <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-sm">
+                <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-sm space-y-2">
                   <div className="font-medium text-slate-800">{reviseTask.description}</div>
-                  <div className="text-xs text-slate-500 mt-0.5">Doer: <b>{reviseTask.doer}</b></div>
+                  <div className="text-xs text-slate-500">Doer: <b>{reviseTask.doer}</b></div>
+                  {mode === 'grant' && reviseTask.date && (
+                    <div className="flex items-center gap-1.5 text-xs text-slate-600 pt-2 border-t border-slate-200">
+                      <svg className="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                      <span className="text-slate-400">Revise Until:</span>
+                      <b className="text-primary-600">{fmt(reviseTask.date)}</b>
+                    </div>
+                  )}
                   {mode === 'grant' && reviseTask.remarks && (
-                    <div className="text-xs text-slate-600 mt-2 pt-2 border-t border-slate-200"><span className="text-slate-400">Note:</span> {reviseTask.remarks}</div>
+                    <div className="text-xs text-slate-600 pt-2 border-t border-slate-200">
+                      <span className="text-slate-400">Revise Note:</span> <span className="font-medium">{reviseTask.remarks}</span>
+                    </div>
                   )}
                 </div>
                 {/* Date picker: user request mein dikhao, admin grant mein nahi */}
