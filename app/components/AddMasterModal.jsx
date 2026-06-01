@@ -32,7 +32,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
 
   useEffect(() => {
     if (!open) return;
-    fetch('/api/users').then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d); }).catch(() => {});
+    fetch('/api/users').then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''))); }).catch(() => {});
   }, [open]);
 
   const [form, setForm] = useState({

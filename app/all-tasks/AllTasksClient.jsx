@@ -136,9 +136,8 @@ export default function AllTasksClient({ grouped, users }) {
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
               Transfer
             </button>
-            <button onClick={() => setChecklistOpen(true)} className="btn-secondary">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>
-              Checklist
+            <button onClick={() => setChecklistOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition shadow-sm">
+              <PlusIcon /> Checklist
             </button>
             <button onClick={() => setDelegateOpen(true)} className="btn-primary">
               <PlusIcon /> Delegate Task
