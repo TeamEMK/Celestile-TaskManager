@@ -30,14 +30,11 @@ export default function UsersClient({ users = [], departments = [] }) {
   const roles   = normalizeRoles(session?.user?.roles);
   const isAdmin = roles.includes('Admin') || roles.includes('HOD');
 
-  const [search,      setSearch]      = useState('');
-  const [modalOpen,   setModalOpen]   = useState(false);
-  const [editing,     setEditing]     = useState(null);
-  const [pwdModal,    setPwdModal]    = useState(false);
-  const [pwdUser,     setPwdUser]     = useState(null);
-  const [bulkFile,    setBulkFile]    = useState(null);
-  const [bulkSaving,  setBulkSaving]  = useState(false);
-  const [bulkMsg,     setBulkMsg]     = useState('');
+  const [search,    setSearch]    = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing,   setEditing]   = useState(null);
+  const [pwdModal,  setPwdModal]  = useState(false);
+  const [pwdUser,   setPwdUser]   = useState(null);
 
   const filtered = users
     .slice()
@@ -56,52 +53,6 @@ export default function UsersClient({ users = [], departments = [] }) {
   function openAdd()    { setEditing(null); setModalOpen(true); }
   function openEdit(u)  { setEditing({ ...u, roles: normalizeRoles(u?.roles) }); setModalOpen(true); }
   function openSetPassword(u) { if (!u) return; setPwdUser(u); setPwdModal(true); }
-
-  function parseUserCSV(text) {
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    if (!lines.length) return [];
-    const header = lines[0].split(',').map(h => h.trim().toLowerCase());
-    const hasHeader = header.includes('email') || header.includes('name');
-    const cols = hasHeader ? header : ['name','email','password','role','user_role','phone','department'];
-    const start = hasHeader ? 1 : 0;
-    return lines.slice(start).map(line => {
-      const parts = line.split(',');
-      const row = {};
-      cols.forEach((c, i) => { row[c] = (parts[i] || '').trim(); });
-      return row;
-    });
-  }
-
-  async function uploadBulkUsers() {
-    if (!bulkFile) return;
-    setBulkSaving(true); setBulkMsg('');
-    try {
-      const rows = parseUserCSV(await bulkFile.text());
-      if (!rows.length) { setBulkMsg('No valid rows found.'); setBulkSaving(false); return; }
-      const res = await fetch('/api/users', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bulk: rows }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || 'Failed');
-      setBulkMsg(`✅ ${d.inserted} added${d.errors?.length ? ` · ${d.errors.length} skipped` : ''}`);
-      setBulkFile(null);
-      router.refresh();
-    } catch (e) {
-      setBulkMsg('❌ ' + e.message);
-    } finally { setBulkSaving(false); }
-  }
-
-  function downloadUserSample() {
-    const csv = 'name,email,password,role,user_role,phone,department\n' +
-      'John Doe,john@test.com,pass123,user,user,9876543210,Sales\n' +
-      'Jane Smith,jane@test.com,pass123,hod,hod,9876543211,Production\n' +
-      'IT Admin,it@test.com,pass123,admin,user,9876543212,IT\n';
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = 'users-sample.csv';
-    a.click();
-  }
 
   async function deleteUser(id) {
     if (!confirm('Delete this user?')) return;
@@ -130,25 +81,6 @@ export default function UsersClient({ users = [], departments = [] }) {
           </button>
         )}
       </div>
-
-      {/* Bulk upload */}
-      {isAdmin && (
-        <div className="card p-4">
-          <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-2">Bulk Upload Users (CSV)</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <input type="file" accept=".csv,text/csv" onChange={(e) => { setBulkFile(e.target.files?.[0] || null); setBulkMsg(''); }}
-              className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
-            <button className="btn-success" disabled={bulkSaving || !bulkFile} onClick={uploadBulkUsers}>
-              {bulkSaving ? '⏳ Uploading…' : '⬆ Upload CSV'}
-            </button>
-            <button className="btn-secondary" onClick={downloadUserSample}>⬇ Sample</button>
-          </div>
-          {bulkMsg && <div className="text-[12px] mt-2 text-slate-600">{bulkMsg}</div>}
-          <div className="text-[10.5px] text-slate-400 mt-1">
-            Format: name, email, password, role (admin/hod/user), user_role, phone, department
-          </div>
-        </div>
-      )}
 
       {/* Table */}
       <div className="card overflow-hidden">
@@ -231,11 +163,60 @@ export default function UsersClient({ users = [], departments = [] }) {
 }
 
 function UserModal({ open, onClose, user, departments, onSaved }) {
-  const fileRef = useRef(null);
-  const [form, setForm] = useState({});
-  const [picture, setPicture] = useState(null);
-  const [pictureChanged, setPictureChanged] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const fileRef    = useRef(null);
+  const [form,           setForm]          = useState({});
+  const [picture,        setPicture]       = useState(null);
+  const [pictureChanged, setPictureChanged]= useState(false);
+  const [saving,         setSaving]        = useState(false);
+  const [bulkFile,       setBulkFile]      = useState(null);
+  const [bulkSaving,     setBulkSaving]    = useState(false);
+  const [bulkMsg,        setBulkMsg]       = useState('');
+
+  function parseUserCSV(text) {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return [];
+    const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const hasHeader = header.includes('email') || header.includes('name');
+    const cols = hasHeader ? header : ['name','email','password','role','user_role','phone','department'];
+    const start = hasHeader ? 1 : 0;
+    return lines.slice(start).map(line => {
+      const parts = line.split(',');
+      const row = {};
+      cols.forEach((c, i) => { row[c] = (parts[i] || '').trim(); });
+      return row;
+    });
+  }
+
+  async function uploadBulkUsers() {
+    if (!bulkFile) return;
+    setBulkSaving(true); setBulkMsg('');
+    try {
+      const rows = parseUserCSV(await bulkFile.text());
+      if (!rows.length) { setBulkMsg('No valid rows found.'); setBulkSaving(false); return; }
+      const res = await fetch('/api/users', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bulk: rows }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed');
+      setBulkMsg(`✅ ${d.inserted} added${d.errors?.length ? ` · ${d.errors.length} skipped` : ''}`);
+      setBulkFile(null);
+      onSaved();
+    } catch (e) {
+      setBulkMsg('❌ ' + e.message);
+    } finally { setBulkSaving(false); }
+  }
+
+  function downloadUserSample() {
+    const csv = 'name,email,password,role,user_role,phone,department\n' +
+      'John Doe,john@test.com,pass123,user,user,9876543210,Sales\n' +
+      'Jane Smith,jane@test.com,pass123,hod,hod,9876543211,Production\n' +
+      'IT Admin,it@test.com,pass123,admin,user,9876543212,IT\n';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = 'users-sample.csv';
+    a.click();
+  }
 
   useEffect(() => {
     if (open) {
@@ -375,6 +356,27 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
             </div>
           </div>
         </div>
+
+        {/* Bulk upload — only for Add mode */}
+        {!user && (
+          <div className="mt-5 rounded-lg border border-dashed border-slate-200 p-3">
+            <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-2">or bulk upload CSV</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input type="file" accept=".csv,text/csv"
+                onChange={(e) => { setBulkFile(e.target.files?.[0] || null); setBulkMsg(''); }}
+                className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
+              <button className="btn-success" disabled={bulkSaving || !bulkFile} onClick={uploadBulkUsers}>
+                {bulkSaving ? '⏳ Uploading…' : '⬆ Upload CSV'}
+              </button>
+              <button className="btn-secondary" onClick={downloadUserSample}>⬇ Sample</button>
+            </div>
+            {bulkMsg && <div className="text-[12px] mt-2 text-slate-600">{bulkMsg}</div>}
+            <div className="text-[10.5px] text-slate-400 mt-1">
+              Format: name, email, password, role (admin/hod/user), user_role, phone, department
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 mt-6">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
           <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button>
