@@ -269,3 +269,24 @@ export async function PATCH(req) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req) {
+  try {
+    const id = new URL(req.url).searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    if (!process.env.DB_HOST) {
+      const { readStore, writeStore } = await import('@/lib/store');
+      const store = await readStore();
+      store.delegations = (store.delegations || []).filter((d) => d.id !== id);
+      await writeStore(store);
+      return NextResponse.json({ success: true });
+    }
+
+    await ensureSchema();
+    await pool.query('DELETE FROM delegations WHERE id = ?', [id]);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

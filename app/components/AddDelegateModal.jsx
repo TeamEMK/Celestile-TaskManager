@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
@@ -26,13 +26,19 @@ function parseCSV(text) {
   return out;
 }
 
-export default function AddDelegateModal({ open, onClose, users = [] }) {
+export default function AddDelegateModal({ open, onClose, users: propUsers = [] }) {
   const router = useRouter();
   const { data: session } = useSession();
   const [form, setForm] = useState(blank());
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [file, setFile] = useState(null);
+  const [users, setUsers] = useState(propUsers);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch('/api/users').then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d); }).catch(() => {});
+  }, [open]);
 
   if (!open) return null;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));

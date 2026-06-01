@@ -12,7 +12,7 @@ export default async function AllTasksPage() {
   if (hasDB) {
     [delegations, users, masters, completions] = await Promise.all([
       pool.query(`SELECT id, description, doer_id AS doerId, doer, delegated_by AS delegatedBy,
-                         due_date AS dueDate, client, status, type, priority, approval, url,
+                         due_date AS dueDate, client, status, type, priority, approval, url, remarks,
                          transferred_by AS transferredBy, transferred_from AS transferredFrom, created_at AS createdAt
                   FROM delegations WHERE NOT (approval = 'Approval Required' AND status = 'pending')
                   ORDER BY created_at DESC`)
