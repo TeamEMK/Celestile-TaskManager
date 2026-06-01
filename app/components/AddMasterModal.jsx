@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const FREQS = [
   { label: 'Daily (365 tasks/year)',            value: 'Daily'            },
@@ -27,7 +27,14 @@ function parseCSV(text) {
   return out;
 }
 
-export default function AddMasterModal({ open, onClose, users = [] }) {
+export default function AddMasterModal({ open, onClose, users: propUsers = [] }) {
+  const [users, setUsers] = useState(propUsers);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch('/api/users').then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d); }).catch(() => {});
+  }, [open]);
+
   const [form, setForm] = useState({
     assignedTo: '',
     frequency: 'Daily',

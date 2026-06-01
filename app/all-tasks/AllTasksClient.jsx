@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import AddDelegateModal from '../components/AddDelegateModal';
+import AddMasterModal   from '../components/AddMasterModal';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function AllTasksClient({ grouped, users }) {
   const [expanded, setExpanded] = useState({});
   const [search, setSearch] = useState('');
   const [delegateOpen,     setDelegateOpen]     = useState(false);
+  const [checklistOpen,    setChecklistOpen]    = useState(false);
   const [transferOpen,     setTransferOpen]     = useState(false);
   const [myTransferOpen,   setMyTransferOpen]   = useState(false);
   const [editTask,         setEditTask]         = useState(null);
@@ -133,6 +135,10 @@ export default function AllTasksClient({ grouped, users }) {
             <button onClick={() => setTransferOpen(true)} className="btn-secondary">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
               Transfer
+            </button>
+            <button onClick={() => setChecklistOpen(true)} className="btn-secondary">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>
+              Checklist
             </button>
             <button onClick={() => setDelegateOpen(true)} className="btn-primary">
               <PlusIcon /> Delegate Task
@@ -357,7 +363,8 @@ export default function AllTasksClient({ grouped, users }) {
         )}
       </div>
 
-      <AddDelegateModal open={delegateOpen} onClose={() => setDelegateOpen(false)} users={users} />
+      <AddDelegateModal open={delegateOpen}   onClose={() => setDelegateOpen(false)}  users={users} />
+      <AddMasterModal   open={checklistOpen}  onClose={() => setChecklistOpen(false)} users={users} />
       {editTask && (
         <EditTaskModal
           task={editTask}
