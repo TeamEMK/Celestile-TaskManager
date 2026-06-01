@@ -1,11 +1,12 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
 const blank = () => ({
   description: '', doerId: '', dueDate: '',
-  priority: 'Low', approval: 'No Approval', url: '', remarks: '',
+  priority: 'Low', approval: 'No Approval',
+  client: '', url: '', remarks: '',
 });
 
 function parseCSV(text) {
@@ -13,7 +14,7 @@ function parseCSV(text) {
   if (!lines.length) return [];
   const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
   const looksHeader = header.includes('doer_email') || header.includes('description');
-  const cols = looksHeader ? header : ['doer_email', 'due_date', 'priority', 'approval', 'description', 'remarks', 'url'];
+  const cols = looksHeader ? header : ['doer_email', 'due_date', 'priority', 'approval', 'description', 'remarks', 'client_name'];
   const start = looksHeader ? 1 : 0;
   const out = [];
   for (let i = start; i < lines.length; i++) {
@@ -32,13 +33,20 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [file, setFile] = useState(null);
+  const [clients, setClients] = useState([]);
+
+  useEffect(() => {
+    if (open) {
+      fetch('/api/clients').then(r => r.json()).then(d => setClients(Array.isArray(d) ? d : [])).catch(() => {});
+    }
+  }, [open]);
 
   if (!open) return null;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   async function save() {
-    if (!form.description.trim() || !form.doerId || !form.dueDate) {
-      setMsg('Description, Doer and Due Date are required.');
+    if (!form.description.trim() || !form.doerId || !form.dueDate || !form.client) {
+      setMsg('Description, Doer, Due Date and Client are required.');
       return;
     }
     setSaving(true); setMsg('');
@@ -78,11 +86,11 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
 
   function downloadSample() {
     const csv =
-      'doer_email,due_date,priority,approval,description,remarks,url\n' +
-      'someone@example.com,2026-06-15,High,Approval Required,Finish landing page,Urgent,https://docs.google.com/...\n';
-    const blob = new Blob([csv], { type: 'text/csv' });
+      'doer_email,approver_email,due_date,priority,approval,description,remarks,client_name\n' +
+      'someone@example.com,manager@example.com,2026-06-15,High,Approval Required,Finish landing page,Urgent,Ambraee\n' +
+      'john@example.com,,2026-06-20,Low,No Approval,Update weekly report,,Sohan Health Care\n';
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = 'delegation-sample.csv';
     a.click();
   }
@@ -96,7 +104,7 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-semibold text-slate-900">Delegate Task</h2>
+            <h2 className="text-base font-semibold text-slate-900">+ Delegate Task</h2>
             <p className="text-[12px] text-slate-500 mt-0.5">Assign new work to a team member</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 hover:text-slate-700">
@@ -110,7 +118,7 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
             <div>
               <label className="label">Doer (Assign To) *</label>
               <select value={form.doerId} onChange={(e) => set('doerId', e.target.value)} className="input">
-                <option value="">— Select —</option>
+                <option value="">Select Doer</option>
                 {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
@@ -136,8 +144,20 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
           </div>
 
           <div>
+            <label className="label">Client <span className="text-red-500">*</span></label>
+            <select value={form.client} onChange={(e) => set('client', e.target.value)} className="input">
+              <option value="">— Select Client —</option>
+              {clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              <option value="__other__">Other (type below)</option>
+            </select>
+            {form.client === '__other__' && (
+              <input className="input mt-2" placeholder="Enter client name..." onChange={(e) => set('client', e.target.value)} />
+            )}
+          </div>
+
+          <div>
             <label className="label">Description *</label>
-            <textarea value={form.description} rows={3} onChange={(e) => set('description', e.target.value)} className="input resize-none" placeholder="What needs to be done?" />
+            <textarea value={form.description} rows={3} onChange={(e) => set('description', e.target.value)} className="input resize-none" placeholder="Enter task description..." />
           </div>
 
           <div>
@@ -162,14 +182,14 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
               <button className="btn-secondary" onClick={downloadSample}>⬇ Sample</button>
             </div>
             <div className="text-[10.5px] text-slate-400 mt-2">
-              Format: doer_email, due_date, priority, approval, description, remarks, url
+              Format: doer_email, approver_email, due_date, priority, approval, description, remarks, client_name
             </div>
           </div>
         </div>
 
         {/* footer */}
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={onClose} className="btn-secondary">Close</button>
           <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Assigning…' : 'Assign'}</button>
         </div>
       </div>
