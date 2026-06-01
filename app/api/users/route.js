@@ -95,6 +95,10 @@ export async function POST(req) {
     'INSERT INTO users (id, name, email, phone, department, roles, active, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, NOW())',
     [id, body.name.trim(), body.email.trim(), body.phone || '', body.department || '', roles.join(','), hash]
   );
+  if (body.picture) {
+    try { await pool.query('ALTER TABLE users ADD COLUMN picture MEDIUMTEXT DEFAULT NULL'); } catch {}
+    await pool.query('UPDATE users SET picture = ? WHERE id = ?', [body.picture, id]);
+  }
   const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
   syncUsers(sql).catch(() => {});
   return NextResponse.json(result[0], { status: 201 });
