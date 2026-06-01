@@ -124,7 +124,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
       </div>
 
       {/* ── Stat cards ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         <div className="card p-5">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total</div>
           <div className="text-4xl font-bold text-primary-600">{isAdmin ? data.total : visibleTasks.length}</div>
@@ -143,7 +143,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
       </div>
 
       {/* ── Pending tasks + Pie ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
 
         {/* Tasks card */}
         <div className="card overflow-hidden">
