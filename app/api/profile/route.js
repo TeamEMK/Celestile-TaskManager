@@ -11,17 +11,21 @@ export async function PATCH(req) {
     if (!id) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
     const body = await req.json();
-    const pictureChanged = body.picture !== undefined;
+    // Ensure picture column exists
+    try { await pool.query('ALTER TABLE users ADD COLUMN picture MEDIUMTEXT DEFAULT NULL'); } catch {}
+    // Update core fields without picture first
     await pool.query(
       `UPDATE users SET
-        name    = COALESCE(?, name),
-        email   = COALESCE(?, email),
-        phone   = COALESCE(?, phone),
-        picture = CASE WHEN ? THEN ? ELSE picture END
+        name  = COALESCE(?, name),
+        email = COALESCE(?, email),
+        phone = COALESCE(?, phone)
        WHERE id = ?`,
-      [body.name ?? null, body.email ?? null, body.phone ?? null,
-       pictureChanged ? 1 : 0, body.picture ?? null, id]
+      [body.name ?? null, body.email ?? null, body.phone ?? null, id]
     );
+    // Picture update separately
+    if (body.picture !== undefined) {
+      await pool.query('UPDATE users SET picture = ? WHERE id = ?', [body.picture, id]);
+    }
     if (body.notificationEmail !== undefined) {
       await pool.query(
         `INSERT INTO profile (user_id, notification_email) VALUES (?, ?)
