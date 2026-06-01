@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { syncUsers } from '@/lib/google-sheets';
 import { sql } from '@/lib/mysql-sql';
+import bcrypt from 'bcryptjs';
+
+function parseRoles(role, userRole) {
+  const combined = [role, userRole].join(',').toLowerCase();
+  const roles = [];
+  if (combined.includes('admin')) roles.push('Admin');
+  if (combined.includes('hod'))   roles.push('HOD');
+  if (combined.includes('user'))  roles.push('User');
+  return roles.length ? roles : ['User'];
+}
 
 const hasDB = !!process.env.DB_HOST;
 
@@ -23,6 +33,32 @@ export async function GET() {
 
 export async function POST(req) {
   const body = await req.json();
+
+  // Bulk upload
+  if (Array.isArray(body.bulk)) {
+    await ensureSchema();
+    let inserted = 0; const errors = [];
+    for (const [i, row] of body.bulk.entries()) {
+      const name  = (row.name  || '').trim();
+      const email = (row.email || '').trim().toLowerCase();
+      if (!name || !email) { errors.push(`Row ${i+1}: name/email missing`); continue; }
+      const [ex] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+      if (ex.length) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
+      const [last] = await pool.query('SELECT id FROM users ORDER BY id DESC LIMIT 1');
+      const lastNum = last.length ? parseInt((last[0].id || 'U000').replace('U','')) || 0 : 0;
+      const id = 'U' + (lastNum + 1).toString().padStart(3, '0');
+      const roles = parseRoles(row.role || '', row.user_role || '');
+      const hash = row.password ? await bcrypt.hash(row.password, 10) : null;
+      await pool.query(
+        'INSERT INTO users (id,name,email,phone,department,roles,active,password_hash,created_at) VALUES (?,?,?,?,?,?,1,?,NOW())',
+        [id, name, email, row.phone||'', row.department||'', roles.join(','), hash]
+      );
+      inserted++;
+    }
+    syncUsers(sql).catch(()=>{});
+    return NextResponse.json({ success: true, inserted, errors }, { status: 201 });
+  }
+
   if (!body.name || !body.email)
     return NextResponse.json({ error: 'Name and email required' }, { status: 400 });
 
