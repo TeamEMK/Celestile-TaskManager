@@ -24,6 +24,9 @@ export async function GET(req) {
   const now     = new Date();
   const fromISO = from.toISOString();
   const toISO   = to.toISOString();
+  // MySQL-compatible datetime strings (no T/Z — older MySQL versions reject ISO format)
+  const fromDT  = start + ' 00:00:00';
+  const toDT    = end   + ' 23:59:59';
 
   try {
     if (!hasDB) {
