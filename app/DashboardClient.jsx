@@ -260,9 +260,8 @@ export default function DashboardClient({ data, performance, holidays, users = [
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">Task Overview</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Current distribution</p>
+              <p className="text-xs text-slate-500 mt-0.5">Overall distribution</p>
             </div>
-            <span className="pill bg-slate-100 text-slate-600">Today</span>
           </div>
           <div className="flex-1 flex items-center justify-center pt-2">
             <PieChart completed={visibleCompleted} pending={visibleTasks.length} revised={visibleRevised} />
