@@ -52,7 +52,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
   async function grantRevise(task) {
     await fetch('/api/delegations', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: task.id, status: 'revise' }),
+      body: JSON.stringify({ id: task.id, status: 'revise', _grantRevise: true }),
     });
     router.refresh();
   }

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
+import NextImage from 'next/image';
 
 export default function LoginPage() {
   const [email,    setEmail]    = useState('');
@@ -67,15 +68,13 @@ export default function LoginPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                <img
+                <NextImage
                   src="/logo.png"
                   alt="India Automotive"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.parentElement.style.background = '#C4714A';
-                    e.target.parentElement.innerHTML = '<span style="color:white;font-size:22px;font-weight:900;letter-spacing:-1px">IA</span>';
-                  }}
+                  width={88}
+                  height={88}
+                  style={{ objectFit: 'contain', borderRadius: '1.25rem' }}
+                  priority
                 />
               </div>
 
