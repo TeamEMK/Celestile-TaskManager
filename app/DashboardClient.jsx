@@ -136,6 +136,9 @@ export default function DashboardClient({ data, performance, holidays, users = [
         <div className="card p-5">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Pending</div>
           <div className="text-4xl font-bold text-red-500">{visibleTasks.length}</div>
+          {data.revised > 0 && (
+            <div className="text-xs font-semibold text-amber-500 mt-1">+ {data.revised} revised</div>
+          )}
         </div>
       </div>
 
