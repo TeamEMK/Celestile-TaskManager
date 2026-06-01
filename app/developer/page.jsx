@@ -11,12 +11,21 @@ export default function DeveloperPage() {
   const [loading,    setLoading]    = useState(false);
   const [saving,     setSaving]     = useState(false);
   const [exporting,  setExporting]  = useState(false);
-  const [confirm,      setConfirm]      = useState(false);
-  const [resetOpen,    setResetOpen]    = useState(false);
-  const [resetInput,   setResetInput]   = useState('');
-  const [resetting,    setResetting]    = useState(false);
-  const [resetDone,    setResetDone]    = useState(false);
-  const [error,        setError]        = useState('');
+  const [confirm,          setConfirm]          = useState(false);
+  const [resetOpen,        setResetOpen]        = useState(false);
+  const [resetInput,       setResetInput]       = useState('');
+  const [resetting,        setResetting]        = useState(false);
+  const [resetDone,        setResetDone]        = useState(false);
+  const [usersOpen,        setUsersOpen]        = useState(false);
+  const [usersInput,       setUsersInput]       = useState('');
+  const [deletingUsers,    setDeletingUsers]    = useState(false);
+  const [usersDone,        setUsersDone]        = useState(false);
+  const [newAdminCreds,    setNewAdminCreds]    = useState(null);
+  const [backups,          setBackups]          = useState([]);
+  const [loadingBackups,   setLoadingBackups]   = useState(false);
+  const [restoring,        setRestoring]        = useState(null);
+  const [restoreDone,      setRestoreDone]      = useState(false);
+  const [error,            setError]            = useState('');
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -52,6 +61,39 @@ export default function DeveloperPage() {
     setResetting(false);
     if (res.ok) { setResetDone(true); setResetOpen(false); setResetInput(''); }
     else { const d = await res.json(); setError(d.error || 'Reset failed'); setResetOpen(false); }
+  }
+
+  async function loadBackups() {
+    setLoadingBackups(true);
+    const res = await fetch(`/api/developer/backups?secret=${encodeURIComponent(secret)}`);
+    const d = await res.json();
+    if (res.ok) setBackups(d.backups || []);
+    setLoadingBackups(false);
+  }
+
+  async function restoreBackup(id) {
+    if (!confirm('Restore this backup? Current data will be replaced.')) return;
+    setRestoring(id); setRestoreDone(false);
+    const res = await fetch(`/api/developer/restore?secret=${encodeURIComponent(secret)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    setRestoring(null);
+    if (res.ok) { setRestoreDone(true); }
+    else { const d = await res.json(); setError(d.error || 'Restore failed'); }
+  }
+
+  async function deleteUsers(mode) {
+    if (usersInput !== 'DELETE') return;
+    setDeletingUsers(true); setError('');
+    const res = await fetch(`/api/developer/reset-users?secret=${encodeURIComponent(secret)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    });
+    const d = await res.json();
+    setDeletingUsers(false);
+    if (res.ok) { setUsersDone(true); setNewAdminCreds(d.admin || null); setUsersOpen(false); setUsersInput(''); }
+    else { setError(d.error || 'Delete failed'); setUsersOpen(false); }
   }
 
   async function exportExcel() {
@@ -205,21 +247,113 @@ export default function DeveloperPage() {
               {exporting ? '⏳ Exporting…' : '📊 Export All Data (Excel)'}
             </button>
 
-            {/* Reset all tasks */}
-            <button onClick={() => { setResetOpen(true); setResetInput(''); setResetDone(false); }} style={{
-              width: '100%', padding: '12px', borderRadius: '12px',
-              border: '1.5px solid #fecaca', background: '#fff5f5',
-              cursor: 'pointer', fontSize: '14px', fontWeight: '600',
-              color: '#ef4444', marginTop: '10px',
-            }}>
-              🗑️ Delete All Tasks
-            </button>
+            {/* Delete buttons row */}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+              <button onClick={() => { setResetOpen(true); setResetInput(''); setResetDone(false); }} style={{
+                flex: 1, padding: '12px', borderRadius: '12px',
+                border: '1.5px solid #fecaca', background: '#fff5f5',
+                cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#ef4444',
+              }}>
+                🗑️ Delete All Tasks
+              </button>
+              <button onClick={() => { setUsersOpen(true); setUsersInput(''); setUsersDone(false); }} style={{
+                flex: 1, padding: '12px', borderRadius: '12px',
+                border: '1.5px solid #fed7aa', background: '#fff7ed',
+                cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#ea580c',
+              }}>
+                👤 Delete All Users
+              </button>
+            </div>
 
             {resetDone && (
               <p style={{ color: '#16a34a', fontSize: '13px', marginTop: '10px', fontWeight: '600' }}>
                 ✓ All tasks deleted successfully.
               </p>
             )}
+            {usersDone && newAdminCreds && (
+              <div style={{
+                marginTop: '12px', padding: '14px 16px', borderRadius: '12px',
+                background: '#f0fdf4', border: '1.5px solid #86efac', textAlign: 'left',
+              }}>
+                <p style={{ color: '#16a34a', fontSize: '13px', fontWeight: '700', margin: '0 0 10px' }}>
+                  ✓ All users deleted. New admin created:
+                </p>
+                <div style={{ background: '#fff', borderRadius: '8px', padding: '10px 12px', border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Email</div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', fontFamily: 'monospace', marginBottom: '8px' }}>
+                    {newAdminCreds.email}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Password</div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', fontFamily: 'monospace' }}>
+                    {newAdminCreds.password}
+                  </div>
+                </div>
+                <p style={{ fontSize: '11px', color: '#94a3b8', margin: '8px 0 0' }}>
+                  Save these credentials before leaving this page.
+                </p>
+              </div>
+            )}
+
+            {/* ── Restore Section ── */}
+            <div style={{ marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
+              <button onClick={loadBackups} disabled={loadingBackups} style={{
+                width: '100%', padding: '11px', borderRadius: '12px',
+                border: '1.5px solid #bfdbfe', background: '#eff6ff',
+                cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#1d4ed8',
+              }}>
+                {loadingBackups ? '⏳ Loading…' : '🔄 View Backups (Restore Data)'}
+              </button>
+
+              {restoreDone && (
+                <p style={{ color: '#16a34a', fontSize: '13px', marginTop: '8px', fontWeight: '600' }}>
+                  ✓ Data restored successfully!
+                </p>
+              )}
+
+              {backups.length > 0 && (
+                <div style={{ marginTop: '12px', maxHeight: '220px', overflowY: 'auto', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  {backups.map((b, i) => {
+                    const date = new Date(b.created_at);
+                    const expires = new Date(b.expires_at);
+                    const daysLeft = Math.ceil((expires - new Date()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div key={b.id} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '10px 12px', borderBottom: i < backups.length - 1 ? '1px solid #f1f5f9' : 'none',
+                        background: i % 2 === 0 ? '#fff' : '#fafafa',
+                      }}>
+                        <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {b.label || 'Backup'}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>
+                            {date.toLocaleString('en-IN')} · {daysLeft}d left
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => restoreBackup(b.id)}
+                          disabled={restoring === b.id}
+                          style={{
+                            marginLeft: '8px', padding: '5px 12px', borderRadius: '8px', border: 'none',
+                            background: restoring === b.id ? '#cbd5e1' : '#3b82f6',
+                            color: '#fff', fontSize: '11px', fontWeight: '700',
+                            cursor: restoring === b.id ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {restoring === b.id ? '…' : 'Restore'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {backups.length === 0 && !loadingBackups && backups !== null && (
+                <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '8px', textAlign: 'center' }}>
+                  No backups found. Backups are created automatically before any delete.
+                </p>
+              )}
+            </div>
 
             {error && <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '12px' }}>{error}</p>}
 
@@ -342,6 +476,88 @@ export default function DeveloperPage() {
                 {resetting ? 'Deleting…' : 'Delete All'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ── Delete Users modal ── */}
+      {usersOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 50, padding: '24px',
+        }} onClick={() => setUsersOpen(false)}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', padding: '32px 28px',
+            maxWidth: '360px', width: '100%', textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              width: '48px', height: '48px', borderRadius: '12px', margin: '0 auto 16px',
+              background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <line x1="17" y1="8" x2="23" y2="14"/><line x1="23" y1="8" x2="17" y2="14"/>
+              </svg>
+            </div>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px' }}>
+              Delete All Users?
+            </h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px', lineHeight: '1.5' }}>
+              Choose what to delete. A backup is created automatically before any action.
+            </p>
+
+            {/* 3 option cards */}
+            {[
+              { mode: 'users',  icon: '👤', label: 'Only Users',   desc: 'Delete all non-admin users. Admin accounts stay.', color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
+              { mode: 'admins', icon: '🛡️', label: 'Only Admins', desc: 'Delete all admin users. A fresh admin will be created.', color: '#ea580c', bg: '#fff7ed', border: '#fed7aa' },
+              { mode: 'all',    icon: '🗑️', label: 'All Users',   desc: 'Delete everyone. A fresh admin will be created.', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+            ].map(({ mode, icon, label, desc, color, bg, border }) => (
+              <div key={mode} style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '10px 12px', borderRadius: '10px', marginBottom: '8px',
+                background: bg, border: `1.5px solid ${border}`,
+              }}>
+                <span style={{ fontSize: '20px' }}>{icon}</span>
+                <div style={{ flex: 1, textAlign: 'left' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{label}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>{desc}</div>
+                </div>
+                <button
+                  onClick={() => deleteUsers(mode)}
+                  disabled={usersInput !== 'DELETE' || deletingUsers}
+                  style={{
+                    padding: '6px 14px', borderRadius: '8px', border: 'none',
+                    background: usersInput === 'DELETE' ? color : '#cbd5e1',
+                    color: '#fff', fontSize: '12px', fontWeight: '700',
+                    cursor: usersInput !== 'DELETE' || deletingUsers ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {deletingUsers ? '…' : 'Delete'}
+                </button>
+              </div>
+            ))}
+
+            <p style={{ fontSize: '13px', color: '#0f172a', margin: '12px 0 6px', fontWeight: '600' }}>
+              Type <span style={{ color: '#ea580c', fontFamily: 'monospace' }}>DELETE</span> to enable
+            </p>
+            <input
+              value={usersInput}
+              onChange={(e) => setUsersInput(e.target.value)}
+              placeholder="Type DELETE here"
+              autoFocus
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: '8px', boxSizing: 'border-box',
+                border: `1.5px solid ${usersInput === 'DELETE' ? '#fca5a5' : '#e2e8f0'}`,
+                fontSize: '14px', outline: 'none', marginBottom: '12px',
+                textAlign: 'center', fontWeight: '600', letterSpacing: '1px',
+              }}
+            />
+            <button onClick={() => setUsersOpen(false)} style={{
+              width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid #e2e8f0',
+              background: '#fff', color: '#64748b', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+            }}>Cancel</button>
           </div>
         </div>
       )}

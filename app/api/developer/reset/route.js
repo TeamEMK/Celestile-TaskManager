@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
+import { createBackup } from '../backups/route';
 
 function checkSecret(req) {
   const secret = req.nextUrl.searchParams.get('secret');
@@ -11,10 +12,13 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
+    // Auto-backup before delete
+    const backupId = await createBackup('Before Delete All Tasks').catch(() => null);
+
     await pool.query('DELETE FROM checklist_completions');
     await pool.query('DELETE FROM delegations');
     await pool.query('DELETE FROM masters');
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, backupId });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
