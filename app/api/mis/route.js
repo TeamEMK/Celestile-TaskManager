@@ -116,9 +116,9 @@ export async function GET(req) {
         `SELECT d.id, d.description, d.client, d.due_date, d.priority, d.status,
                 u.name AS delegated_by_name
          FROM delegations d LEFT JOIN users u ON u.id = d.delegated_by
-         WHERE d.doer = ? AND (d.due_date BETWEEN ? AND ? OR d.created_at BETWEEN ? AND ?)
+         WHERE d.doer = ? AND d.due_date BETWEEN ? AND ?
          ORDER BY d.due_date ASC`,
-        [employee, fromISO, toISO, fromISO, toISO]
+        [employee, fromDT, toDT]
       );
       const rows = data.map((d, i) => ({
         '#': i + 1, 'Description': (d.description || '').substring(0, 100),
@@ -133,9 +133,9 @@ export async function GET(req) {
     if (type === 'Delegation MIS' || type === 'All MIS') {
       const [data] = await pool.query(
         `SELECT doer, status, due_date FROM delegations
-         WHERE due_date BETWEEN ? AND ? OR created_at BETWEEN ? AND ?
+         WHERE due_date BETWEEN ? AND ?
          ORDER BY doer ASC`,
-        [fromISO, toISO, fromISO, toISO]
+        [fromDT, toDT]
       );
       const empMap = {};
       for (const t of data) {
@@ -160,7 +160,7 @@ export async function GET(req) {
         'Completed': data.filter((d) => d.status === 'done').length,
         'Pending': data.filter((d) => d.status !== 'done').length,
         'Delayed': data.filter((d) => d.status !== 'done' && d.due_date && new Date(d.due_date) < now).length,
-        'Period': `${fmtDate(fromISO)} – ${fmtDate(toISO)}`,
+        'Period': `${fmtDate(fromDT)} – ${fmtDate(toDT)}`,
       };
       return NextResponse.json({ rows, summary, view: 'employee' });
     }
@@ -187,7 +187,7 @@ export async function GET(req) {
       }));
       const summary = {
         'Total Checklists': masters.length, 'Employees': rows.length,
-        'Completions': completions.length, 'Period': `${fmtDate(fromISO)} – ${fmtDate(toISO)}`,
+        'Completions': completions.length, 'Period': `${fmtDate(fromDT)} – ${fmtDate(toDT)}`,
       };
       return NextResponse.json({ rows, summary, view: 'employee' });
     }

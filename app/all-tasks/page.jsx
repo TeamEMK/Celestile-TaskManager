@@ -19,7 +19,7 @@ export default async function AllTasksPage() {
         .then(([r]) => r).catch(() => []),
       pool.query('SELECT id, name, email, department, roles FROM users ORDER BY id')
         .then(([r]) => r).catch(() => []),
-      pool.query('SELECT id, task, assigned_to AS assignedTo, frequency FROM masters ORDER BY created_at DESC')
+      pool.query('SELECT id, task, assigned_to AS assignedTo, frequency, created_at AS createdAt FROM masters ORDER BY created_at DESC')
         .then(([r]) => r).catch(() => []),
       pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()')
         .then(([r]) => r).catch(() => []),
@@ -36,7 +36,7 @@ export default async function AllTasksPage() {
         transferredBy: d.transferredBy || null, transferredFrom: d.transferredFrom || null, createdAt: d.createdAt,
       }));
     users = store.users || [];
-    masters = (store.masters || []).map((m) => ({ id: m.id, task: m.task, assignedTo: m.assignedTo, frequency: m.frequency }));
+    masters = (store.masters || []).map((m) => ({ id: m.id, task: m.task, assignedTo: m.assignedTo, frequency: m.frequency, createdAt: m.createdAt }));
     completions = [];
   }
 
@@ -46,8 +46,8 @@ export default async function AllTasksPage() {
     ...delegations,
     ...masters.map((m) => ({
       id: m.id, description: m.task, doer: m.assignedTo, doerId: null,
-      dueDate: null, client: '', status: completedToday.has(m.id) ? 'done' : 'pending',
-      type: 'Checklist', frequency: m.frequency,
+      dueDate: m.createdAt || null, client: '', status: completedToday.has(m.id) ? 'done' : 'pending',
+      type: 'Checklist', frequency: m.frequency, createdAt: m.createdAt,
     })),
   ];
 

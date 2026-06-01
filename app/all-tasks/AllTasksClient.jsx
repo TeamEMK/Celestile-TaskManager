@@ -331,7 +331,7 @@ export default function AllTasksClient({ grouped, users }) {
                                 <td className="table-td text-slate-600 whitespace-nowrap">{getUserName(t.delegatedBy)}</td>
                                 {/* DATE */}
                                 <td className="table-td text-slate-600 whitespace-nowrap text-xs">
-                                  {t.type === 'Checklist' ? (t.frequency || 'Recurring') : fmt(t.dueDate)}
+                                  {fmt(t.dueDate)}
                                 </td>
                                 {/* REMARKS */}
                                 <td className="table-td text-slate-500 max-w-[160px] text-xs">{t.remarks || '—'}</td>

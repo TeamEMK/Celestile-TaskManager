@@ -113,10 +113,10 @@ export default function Sidebar() {
 
                   return (
                     <Link key={n.href} href={n.href} title={n.label}
-                      className="group/item flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] font-medium relative transition-colors duration-150"
+                      className={`group/item flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] relative transition-colors duration-150 ${active ? 'font-bold' : 'font-medium'}`}
                       style={{
                         background: active ? 'rgba(46,114,181,0.14)' : 'transparent',
-                        color: active ? '#f4f4f5' : '#52525b',
+                        color: active ? '#ffffff' : '#52525b',
                       }}
                       onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#a1a1aa'; } }}
                       onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#52525b'; } }}
