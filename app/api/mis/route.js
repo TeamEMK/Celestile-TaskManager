@@ -37,9 +37,9 @@ export async function GET(req) {
       if (employee && (type === 'Delegation MIS' || type === 'All MIS')) {
         const data = (store.delegations || []).filter((d) => {
           if (d.doer !== employee) return false;
-          const created = new Date(d.createdAt);
-          const due     = d.dueDate ? new Date(d.dueDate) : null;
-          return (due && due >= from && due <= to) || (created >= from && created <= to);
+          const due = d.dueDate ? new Date(d.dueDate) : null;
+          if (due) return due >= from && due <= to;
+          return new Date(d.createdAt) >= from && new Date(d.createdAt) <= to;
         });
         const users = store.users || [];
         const rows = data.map((d, i) => {
@@ -53,9 +53,9 @@ export async function GET(req) {
 
       if (type === 'Delegation MIS' || type === 'All MIS') {
         const data = (store.delegations || []).filter((d) => {
-          const created = new Date(d.createdAt);
-          const due     = d.dueDate ? new Date(d.dueDate) : null;
-          return (due && due >= from && due <= to) || (created >= from && created <= to);
+          const due = d.dueDate ? new Date(d.dueDate) : null;
+          if (due) return due >= from && due <= to;
+          return new Date(d.createdAt) >= from && new Date(d.createdAt) <= to;
         });
         const empMap = {};
         for (const t of data) {
@@ -116,9 +116,11 @@ export async function GET(req) {
         `SELECT d.id, d.description, d.client, d.due_date, d.priority, d.status,
                 u.name AS delegated_by_name
          FROM delegations d LEFT JOIN users u ON u.id = d.delegated_by
-         WHERE d.doer = ? AND d.due_date BETWEEN ? AND ?
+         WHERE d.doer = ?
+           AND ((d.due_date IS NOT NULL AND d.due_date BETWEEN ? AND ?)
+             OR (d.due_date IS NULL     AND d.created_at BETWEEN ? AND ?))
          ORDER BY d.due_date ASC`,
-        [employee, fromDT, toDT]
+        [employee, fromDT, toDT, fromDT, toDT]
       );
       const rows = data.map((d, i) => ({
         '#': i + 1, 'Description': (d.description || '').substring(0, 100),
@@ -133,9 +135,10 @@ export async function GET(req) {
     if (type === 'Delegation MIS' || type === 'All MIS') {
       const [data] = await pool.query(
         `SELECT doer, status, due_date FROM delegations
-         WHERE due_date BETWEEN ? AND ?
+         WHERE (due_date IS NOT NULL AND due_date BETWEEN ? AND ?)
+            OR (due_date IS NULL     AND created_at BETWEEN ? AND ?)
          ORDER BY doer ASC`,
-        [fromDT, toDT]
+        [fromDT, toDT, fromDT, toDT]
       );
       const empMap = {};
       for (const t of data) {

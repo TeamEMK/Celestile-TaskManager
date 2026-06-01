@@ -101,11 +101,7 @@ export default function Sidebar() {
           const items = sec.items.filter(visible);
           if (items.length === 0) return null;
           return (
-            <div key={sec.title} className="mb-2">
-              <div className="h-5 px-3 mb-0.5 text-[9px] font-semibold uppercase opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap"
-                style={{ letterSpacing: '0.14em', color: '#3f3f46' }}>
-                {sec.title}
-              </div>
+            <div key={sec.title} className="mb-1">
               <div className="px-2 space-y-0.5">
                 {items.map((n) => {
                   const active   = pathname === n.href;
@@ -115,11 +111,11 @@ export default function Sidebar() {
                     <Link key={n.href} href={n.href} title={n.label}
                       className={`group/item flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] relative transition-colors duration-150 ${active ? 'font-bold' : 'font-medium'}`}
                       style={{
-                        background: active ? 'rgba(46,114,181,0.14)' : 'transparent',
-                        color: active ? '#ffffff' : '#52525b',
+                        background: active ? 'rgba(46,114,181,0.18)' : 'transparent',
+                        color: '#ffffff',
                       }}
-                      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#a1a1aa'; } }}
-                      onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#52525b'; } }}
+                      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; } }}
+                      onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; } }}
                     >
                       {active && (
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
