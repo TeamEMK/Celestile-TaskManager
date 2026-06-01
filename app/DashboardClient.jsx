@@ -181,7 +181,6 @@ export default function DashboardClient({ data, performance, holidays, users = [
                     <th className="table-th">Doer</th>
                     <th className="table-th">Priority</th>
                     <th className="table-th">Date</th>
-                    <th className="table-th">Client</th>
                     <th className="table-th">Action</th>
                   </tr>
                 </thead>
@@ -220,11 +219,6 @@ export default function DashboardClient({ data, performance, holidays, users = [
                       </td>
                       <td className={`table-td whitespace-nowrap text-xs ${t.overdue ? 'text-red-600 font-semibold' : 'text-slate-600'}`}>
                         {fmt(t.date)}
-                      </td>
-                      <td className="table-td">
-                        {t.client
-                          ? <span className="inline-flex items-center gap-1 text-xs text-primary-600 bg-primary-50 px-2 py-0.5 rounded-md font-medium"><FolderIcon />{t.client}</span>
-                          : <span className="text-slate-400">—</span>}
                       </td>
                       <td className="table-td">
                         <div className="flex gap-1.5">

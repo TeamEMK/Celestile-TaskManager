@@ -1,12 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
 const blank = () => ({
   description: '', doerId: '', dueDate: '',
   priority: 'Low', approval: 'No Approval',
-  client: '', url: '', remarks: '',
+  url: '', remarks: '',
 });
 
 function parseCSV(text) {
@@ -33,20 +33,13 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [file, setFile] = useState(null);
-  const [clients, setClients] = useState([]);
-
-  useEffect(() => {
-    if (open) {
-      fetch('/api/clients').then(r => r.json()).then(d => setClients(Array.isArray(d) ? d : [])).catch(() => {});
-    }
-  }, [open]);
 
   if (!open) return null;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   async function save() {
-    if (!form.description.trim() || !form.doerId || !form.dueDate || !form.client) {
-      setMsg('Description, Doer, Due Date and Client are required.');
+    if (!form.description.trim() || !form.doerId || !form.dueDate) {
+      setMsg('Description, Doer and Due Date are required.');
       return;
     }
     setSaving(true); setMsg('');
@@ -141,18 +134,6 @@ export default function AddDelegateModal({ open, onClose, users = [] }) {
                 <option>No Approval</option><option>Approval Required</option>
               </select>
             </div>
-          </div>
-
-          <div>
-            <label className="label">Client <span className="text-red-500">*</span></label>
-            <select value={form.client} onChange={(e) => set('client', e.target.value)} className="input">
-              <option value="">— Select Client —</option>
-              {clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-              <option value="__other__">Other (type below)</option>
-            </select>
-            {form.client === '__other__' && (
-              <input className="input mt-2" placeholder="Enter client name..." onChange={(e) => set('client', e.target.value)} />
-            )}
           </div>
 
           <div>

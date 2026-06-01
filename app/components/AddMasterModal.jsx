@@ -159,11 +159,6 @@ export default function AddMasterModal({ open, onClose, users = [] }) {
           </div>
 
           <div>
-            <label className="label">Client <span className="text-slate-400 font-normal">(Optional)</span></label>
-            <input value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} placeholder="Client name..." className="input" />
-          </div>
-
-          <div>
             <label className="label">Task Name / Description</label>
             <input value={form.task} onChange={(e) => setForm({ ...form, task: e.target.value })} placeholder="Enter task name..." className="input" />
           </div>
