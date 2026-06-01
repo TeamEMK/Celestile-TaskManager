@@ -1,6 +1,5 @@
 'use client';
 import { usePathname } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
 
 const TITLES = {
   '/':               'Dashboard',
@@ -22,12 +21,8 @@ const TITLES = {
 
 export default function Topbar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const title    = TITLES[pathname] || '';
-  const today    = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-  const userName = session?.user?.name || 'User';
-  const userRole = session?.user?.roles?.[0] || 'User';
-  const initials = userName.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase() || 'U';
+  const title = TITLES[pathname] || '';
+  const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
     <header className="sticky top-0 z-20 backdrop-blur-sm"
@@ -47,26 +42,6 @@ export default function Topbar() {
           {today}
         </div>
 
-        <div className="flex items-center gap-2 pl-3 ml-1 shrink-0" style={{ borderLeft: '1px solid #e2e8f0' }}>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white font-semibold text-sm shrink-0">
-            {initials}
-          </div>
-          <div className="hidden lg:block leading-tight">
-            <div className="text-[13px] font-semibold text-slate-700">{userName}</div>
-            <div className="text-[11px] text-slate-400">{userRole}</div>
-          </div>
-          <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
-            title="Logout"
-            className="w-8 h-8 grid place-items-center rounded-lg ml-1 transition-all duration-150 text-slate-400 hover:text-red-500 hover:bg-red-50"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
-        </div>
       </div>
     </header>
   );
