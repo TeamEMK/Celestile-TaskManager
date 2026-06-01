@@ -53,13 +53,6 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    // Check if delegator is admin — admin ka delegate auto-approved hota hai
-    const session = await getServerSession(authOptions);
-    const delegatorRoles = session?.user?.roles || [];
-    const delegatorIsAdmin = Array.isArray(delegatorRoles)
-      ? delegatorRoles.includes('Admin') || delegatorRoles.includes('HOD')
-      : String(delegatorRoles).includes('Admin') || String(delegatorRoles).includes('HOD');
-
     // Doer ki roles check karo — agar doer bhi admin/HOD hai toh auto-approve
     let doerIsAdmin = false;
     if (!process.env.DB_HOST) {
@@ -80,8 +73,8 @@ export async function POST(req) {
       } catch { doerIsAdmin = false; }
     }
 
-    // Admin/HOD delegate kare, YA doer Admin/HOD ho — auto "Approved"
-    const resolvedApproval = ((delegatorIsAdmin || doerIsAdmin) && body.approval === 'Approval Required')
+    // Sirf doer Admin/HOD ho toh auto "Approved" — baaki sab approval flow pe jaata hai
+    const resolvedApproval = (doerIsAdmin && body.approval === 'Approval Required')
       ? 'Approved'
       : (body.approval || 'No Approval');
 
