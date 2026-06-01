@@ -165,6 +165,15 @@ export default function AllTasksClient({ grouped, users }) {
         <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="input !w-auto !py-1.5" />
         <span className="text-xs text-slate-400">to</span>
         <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="input !w-auto !py-1.5" />
+        {(fromDate || toDate || employeeFilter !== 'All') && (
+          <button
+            onClick={() => { setFromDate(''); setToDate(''); setEmployeeFilter('All'); }}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 transition"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            Clear
+          </button>
+        )}
         <div className="flex-1" />
         <div className="relative">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
