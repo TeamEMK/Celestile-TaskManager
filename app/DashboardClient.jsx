@@ -321,9 +321,10 @@ export default function DashboardClient({ data, performance, holidays, users = [
                       <b className="text-primary-600">{fmt(reviseTask.date)}</b>
                     </div>
                   )}
-                  {mode === 'grant' && reviseTask.remarks && (
+                  {mode === 'grant' && (
                     <div className="text-xs text-slate-600 pt-2 border-t border-slate-200">
-                      <span className="text-slate-400">Revise Note:</span> <span className="font-medium">{reviseTask.remarks}</span>
+                      <span className="text-slate-400">Revise Note:</span>{' '}
+                      <span className="font-medium">{reviseTask.remarks || '—'}</span>
                     </div>
                   )}
                 </div>

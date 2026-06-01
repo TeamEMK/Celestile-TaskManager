@@ -20,6 +20,8 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
 
   const [seenRevise,    setSeenRevise]    = useState(() => new Set());
   const [seenApprovals, setSeenApprovals] = useState(() => new Set());
+  const [grantTask,     setGrantTask]     = useState(null);
+  const [granting,      setGranting]      = useState(false);
   const timer = useRef(null);
 
   // Load from localStorage only on client to avoid SSR hydration mismatch
@@ -49,11 +51,14 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
     { key: 'Task Approvals',  count: taskApprovals.length,  icon: TaskIcon   },
   ];
 
-  async function grantRevise(task) {
+  async function confirmGrant() {
+    if (!grantTask) return;
+    setGranting(true);
     await fetch('/api/delegations', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: task.id, status: 'revise', _grantRevise: true }),
+      body: JSON.stringify({ id: grantTask.id, status: 'revise', _grantRevise: true }),
     });
+    setGrantTask(null); setGranting(false);
     router.refresh();
   }
 
@@ -138,7 +143,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                       <td className="table-td text-slate-500">{t.remarks || '—'}</td>
                       <td className="table-td">
                         <div className="flex gap-1.5">
-                          <button onClick={() => grantRevise(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Grant</button>
+                          <button onClick={() => setGrantTask(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Grant</button>
                           <button onClick={() => denyRevise(t)}  className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Deny</button>
                         </div>
                       </td>
@@ -198,6 +203,49 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
         )
       )}
 
+      {/* Grant Revise Popup */}
+      {grantTask && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => !granting && setGrantTask(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 grid place-items-center shrink-0">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-base font-semibold">Grant Revise Request</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Approve this revision request and send task back?</p>
+              </div>
+              <button onClick={() => setGrantTask(null)} disabled={granting} className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:bg-slate-100">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-sm space-y-2">
+                <div className="font-medium text-slate-800">{grantTask.description}</div>
+                <div className="text-xs text-slate-500">Doer: <b>{grantTask.doer}</b></div>
+                {grantTask.dueDate && (
+                  <div className="flex items-center gap-1.5 text-xs text-slate-600 pt-2 border-t border-slate-200">
+                    <svg className="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                    <span className="text-slate-400">Revise Until:</span>
+                    <b className="text-primary-600">{fmt(grantTask.dueDate)}</b>
+                  </div>
+                )}
+                <div className="text-xs text-slate-600 pt-2 border-t border-slate-200">
+                  <span className="text-slate-400">Revise Note:</span>{' '}
+                  <span className="font-medium">{grantTask.remarks || '—'}</span>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+              <button onClick={() => setGrantTask(null)} disabled={granting} className="btn-secondary">Cancel</button>
+              <button onClick={confirmGrant} disabled={granting} className="btn-success">
+                {granting ? 'Granting…' : 'Grant Revise'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

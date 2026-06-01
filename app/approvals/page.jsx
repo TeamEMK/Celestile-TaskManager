@@ -44,7 +44,7 @@ export default async function ApprovalsPage() {
   if (hasDB) {
     [reviseRequests, taskApprovals] = await Promise.all([
       pool.query(
-        `SELECT id, description, doer, remarks, created_at AS createdAt
+        `SELECT id, description, doer, remarks, due_date AS dueDate, created_at AS createdAt
          FROM delegations WHERE status = 'revise_requested' ORDER BY created_at DESC`
       ).then(([r]) => r).catch(() => []),
       pool.query(
