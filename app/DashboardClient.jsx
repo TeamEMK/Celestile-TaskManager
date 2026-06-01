@@ -209,7 +209,9 @@ export default function DashboardClient({ data, performance, holidays, users = [
                         </div>
                       </td>
                       <td className="table-td">
-                        {t.priority && t.priority !== 'Low' ? (
+                        {t.type === 'Checklist' ? (
+                          <span className="text-slate-400 text-xs">—</span>
+                        ) : t.priority && t.priority !== 'Low' ? (
                           <span className={`pill ${t.priority === 'High' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
                             {t.priority}
                           </span>

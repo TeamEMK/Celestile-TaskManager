@@ -240,10 +240,10 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
   useEffect(() => {
     if (open) {
       if (user) {
-        setForm({ id: user.id, name: user.name || '', email: user.email || '', phone: user.phone || '', department: user.department || departments[0] || '', roles: normalizeRoles(user.roles), active: user.active !== false });
+        setForm({ id: user.id, name: user.name || '', email: user.email || '', phone: user.phone || '', department: user.department || '', roles: normalizeRoles(user.roles), active: user.active !== false });
         setPicture(user.picture || null);
       } else {
-        setForm({ name: '', email: '', phone: '', department: departments[0] || '', roles: ['User'] });
+        setForm({ name: '', email: '', phone: '', department: '', roles: ['User'], password: '' });
         setPicture(null);
       }
       setPictureChanged(false);
@@ -353,9 +353,13 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
           <div>
             <label className="label">Department</label>
             <select value={form.department || ''} onChange={e => setForm({ ...form, department: e.target.value })} className="input">
+              <option value="">— Select Department —</option>
               {departments.map(d => <option key={d}>{d}</option>)}
             </select>
           </div>
+          {!user && (
+            <Field label="Password" type="password" value={form.password || ''} onChange={v => setForm({ ...form, password: v })} placeholder="Set initial password" />
+          )}
           <div>
             <label className="label">Roles</label>
             <div className="flex gap-2 flex-wrap">

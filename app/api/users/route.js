@@ -90,9 +90,10 @@ export async function POST(req) {
   const lastNum = last.length ? parseInt(last[0].id.replace('U', '')) : 0;
   const id = 'U' + (lastNum + 1).toString().padStart(3, '0');
   const roles = body.roles?.length ? body.roles : ['User'];
+  const hash = body.password ? await bcrypt.hash(body.password, 10) : null;
   await pool.query(
-    'INSERT INTO users (id, name, email, phone, department, roles, active, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, NOW())',
-    [id, body.name.trim(), body.email.trim(), body.phone || '', body.department || '', roles.join(',')]
+    'INSERT INTO users (id, name, email, phone, department, roles, active, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, NOW())',
+    [id, body.name.trim(), body.email.trim(), body.phone || '', body.department || '', roles.join(','), hash]
   );
   const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
   syncUsers(sql).catch(() => {});
