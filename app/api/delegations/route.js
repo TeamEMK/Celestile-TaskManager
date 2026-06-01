@@ -57,11 +57,31 @@ export async function POST(req) {
     const session = await getServerSession(authOptions);
     const delegatorRoles = session?.user?.roles || [];
     const delegatorIsAdmin = Array.isArray(delegatorRoles)
-      ? delegatorRoles.includes('Admin')
-      : String(delegatorRoles).includes('Admin');
+      ? delegatorRoles.includes('Admin') || delegatorRoles.includes('HOD')
+      : String(delegatorRoles).includes('Admin') || String(delegatorRoles).includes('HOD');
 
-    // Admin delegate kare toh "Approval Required" auto "Approved" ho jaata hai
-    const resolvedApproval = (delegatorIsAdmin && body.approval === 'Approval Required')
+    // Doer ki roles check karo — agar doer bhi admin/HOD hai toh auto-approve
+    let doerIsAdmin = false;
+    if (!process.env.DB_HOST) {
+      const { readStore } = await import('@/lib/store');
+      const store = await readStore();
+      const doerUser = (store.users || []).find(u => u.id === body.doerId);
+      const doerRoles = doerUser?.roles || [];
+      doerIsAdmin = Array.isArray(doerRoles)
+        ? doerRoles.includes('Admin') || doerRoles.includes('HOD')
+        : String(doerRoles).includes('Admin') || String(doerRoles).includes('HOD');
+    } else {
+      try {
+        const { pool: _pool, ensureSchema: _ens } = await import('@/lib/db');
+        await _ens();
+        const [rows] = await _pool.query('SELECT roles FROM users WHERE id = ?', [body.doerId]);
+        const doerRoles = rows[0]?.roles || '';
+        doerIsAdmin = doerRoles.includes('Admin') || doerRoles.includes('HOD');
+      } catch { doerIsAdmin = false; }
+    }
+
+    // Admin/HOD delegate kare, YA doer Admin/HOD ho — auto "Approved"
+    const resolvedApproval = ((delegatorIsAdmin || doerIsAdmin) && body.approval === 'Approval Required')
       ? 'Approved'
       : (body.approval || 'No Approval');
 
