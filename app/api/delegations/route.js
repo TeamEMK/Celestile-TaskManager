@@ -35,7 +35,7 @@ async function nextDelId() {
 
 async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, client, priority, approval, url, remarks }) {
   const id = await nextDelId();
-  const initialStatus = 'pending';
+  const initialStatus = (approval === 'Approval Required') ? 'approval_pending' : 'pending';
   await pool.query(
     `INSERT INTO delegations
       (id, description, doer_id, doer, delegated_by, due_date, client, status, type,
