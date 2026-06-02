@@ -168,6 +168,25 @@ export async function GET(req) {
       return NextResponse.json({ rows, summary, view: 'employee' });
     }
 
+    // Checklist MIS drill-down: single employee
+    if (employee && type === 'Checklist MIS') {
+      const [[masters], [completions]] = await Promise.all([
+        pool.query('SELECT id, task, assigned_to, frequency FROM masters WHERE assigned_to = ? ORDER BY id', [employee]),
+        pool.query('SELECT master_id FROM checklist_completions WHERE date BETWEEN ? AND ?', [start, end])
+          .catch(() => [[]]),
+      ]);
+      const doneSet = {};
+      for (const c of completions) doneSet[c.master_id] = (doneSet[c.master_id] || 0) + 1;
+      const rows = masters.map((m, i) => ({
+        '#': i + 1,
+        'Description': m.task || '—',
+        'Assigned By': m.assigned_to || '—',
+        'Due Date': `${m.frequency}`,
+        'Status': doneSet[m.id] > 0 ? 'done' : 'pending',
+      }));
+      return NextResponse.json({ rows, summary: {} });
+    }
+
     // Checklist MIS
     if (type === 'Checklist MIS') {
       const [[masters], [completions]] = await Promise.all([
