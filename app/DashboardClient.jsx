@@ -26,7 +26,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
   const todayISO = new Date().toISOString().split('T')[0];
   useEffect(() => {
     if (!isAdmin) return;
-    const t = setInterval(() => router.refresh(), 15000);
+    const t = setInterval(() => router.refresh(), 60000);
     return () => clearInterval(t);
   }, [isAdmin, router]);
 
@@ -61,7 +61,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
       const parts = task.id.split('-'); const stepIndex = parseInt(parts.pop()); const fmsId = parts.join('-');
       await fetch('/api/fms/step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fmsId, stepIndex }) });
     }
-    window.location.reload();
+    router.refresh();
   }
 
   function requestRevise(task) { setReviseNote(''); setReviseDate(''); setReviseTask({ ...task, _mode: 'request' }); }
@@ -209,12 +209,12 @@ export default function DashboardClient({ data, performance, holidays, users = [
                       <td className="table-td">
                         {t.type === 'Checklist' ? (
                           <span className="text-slate-400 text-xs">—</span>
-                        ) : t.priority && t.priority !== 'Low' ? (
-                          <span className={`pill ${t.priority === 'High' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
-                            {t.priority}
-                          </span>
+                        ) : t.priority === 'High' ? (
+                          <span className="pill bg-red-50 text-red-600 border border-red-100">High</span>
+                        ) : t.priority === 'Medium' ? (
+                          <span className="pill bg-amber-50 text-amber-600 border border-amber-100">Medium</span>
                         ) : (
-                          <span className="text-slate-400 text-xs">Low</span>
+                          <span className="pill bg-blue-50 text-blue-600 border border-blue-100">Low</span>
                         )}
                       </td>
                       <td className={`table-td whitespace-nowrap text-xs ${t.overdue ? 'text-red-600 font-semibold' : 'text-slate-600'}`}>

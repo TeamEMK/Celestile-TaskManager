@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 const FREQS = [
   { label: 'Daily (365 tasks/year)',            value: 'Daily'            },
@@ -28,6 +29,7 @@ function parseCSV(text) {
 }
 
 export default function AddMasterModal({ open, onClose, users: propUsers = [] }) {
+  const router = useRouter();
   const [users, setUsers] = useState(propUsers);
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
     if (res.ok) {
       setForm({ assignedTo: '', frequency: 'Daily', startDate: new Date().toISOString().slice(0, 10), endDate: '', task: '', remarks: '', client: '' });
       onClose();
-      window.location.reload();
+      router.refresh();
     } else {
       const d = await res.json();
       alert(d.error || 'Something went wrong');
@@ -101,7 +103,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
       }
       setMsg(`✅ ${inserted} added${errors.length ? ` · ${errors.length} skipped` : ''}`);
       setFile(null);
-      window.location.reload();
+      router.refresh();
     } catch (e) {
       setMsg('❌ ' + e.message);
     } finally { setSaving(false); }

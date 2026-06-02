@@ -100,7 +100,7 @@ export default function AllTasksClient({ grouped, users }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
     });
-    window.location.reload();
+    router.refresh();
   }
 
   async function markChecklistDone(taskId) {
@@ -109,7 +109,7 @@ export default function AllTasksClient({ grouped, users }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ masterId: taskId }),
     });
-    window.location.reload();
+    router.refresh();
   }
 
   async function deleteTask(id, type) {
@@ -119,7 +119,7 @@ export default function AllTasksClient({ grouped, users }) {
     } else {
       await fetch('/api/delegations?id=' + id, { method: 'DELETE' });
     }
-    window.location.reload();
+    router.refresh();
   }
 
   const getUserName = (id) => users.find((u) => u.id === id)?.name || id || '—';
@@ -369,11 +369,11 @@ export default function AllTasksClient({ grouped, users }) {
           task={editTask}
           users={users}
           onClose={() => setEditTask(null)}
-          onSaved={() => { setEditTask(null); window.location.reload(); }}
+          onSaved={() => { setEditTask(null); router.refresh(); }}
         />
       )}
-      <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} users={users} grouped={grouped} onDone={() => { setTransferOpen(false); window.location.reload(); }} />
-      <MyTransferModal open={myTransferOpen} onClose={() => setMyTransferOpen(false)} users={users} grouped={grouped} fromName={currentUserName} onDone={() => { setMyTransferOpen(false); window.location.reload(); }} />
+      <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} users={users} grouped={grouped} onDone={() => { setTransferOpen(false); router.refresh(); }} />
+      <MyTransferModal open={myTransferOpen} onClose={() => setMyTransferOpen(false)} users={users} grouped={grouped} fromName={currentUserName} onDone={() => { setMyTransferOpen(false); router.refresh(); }} />
     </div>
   );
 }

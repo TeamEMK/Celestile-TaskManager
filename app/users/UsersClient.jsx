@@ -72,6 +72,7 @@ export default function UsersClient({ users = [], departments = [] }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Name, Email, Phone, Department…"
+            autoComplete="off"
             className="bg-transparent border-none outline-none text-[13px] text-slate-700 placeholder:text-slate-400 w-full"
           />
         </div>
@@ -267,10 +268,13 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
   }
 
   async function save() {
-    if (!form.name?.trim() || !form.email?.trim()) {
-      alert('Name and email are required.');
-      return;
-    }
+    if (!form.name?.trim())       { alert('Full Name is required.');   return; }
+    if (!form.email?.trim())      { alert('Email is required.');       return; }
+    if (!form.phone?.trim())      { alert('Phone Number is required.'); return; }
+    if (!form.department?.trim()) { alert('Department is required.');  return; }
+    if (!user && !form.password?.trim()) { alert('Password is required.'); return; }
+    if (!form.roles?.length)      { alert('Please select at least one role.'); return; }
+
     setSaving(true);
     const payload = { ...form };
     if (pictureChanged) payload.picture = picture;
@@ -347,14 +351,14 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
 
           {/* Row 1: Name + Email */}
           <div className="grid grid-cols-2 gap-3">
-            <UField label="Full Name" placeholder="Enter full name" value={form.name || ''} onChange={v => setForm({ ...form, name: v })} />
-            <UField label="Email" sublabel="Login" placeholder="Enter login email" type="email" value={form.email || ''} onChange={v => setForm({ ...form, email: v })} />
+            <UField label="Full Name" placeholder="Enter full name" value={form.name || ''} onChange={v => setForm({ ...form, name: v })} autoComplete="off" />
+            <UField label="Email" sublabel="Login" placeholder="Enter login email" type="email" value={form.email || ''} onChange={v => setForm({ ...form, email: v })} autoComplete="off" />
           </div>
 
           {/* Row 2: Notification Email + Phone */}
           <div className="grid grid-cols-2 gap-3">
-            <UField label="Notification Email" sublabel="Real Gmail for task notifications" placeholder="real email for notifications" value={form.notifEmail || ''} onChange={v => setForm({ ...form, notifEmail: v })} />
-            <UField label="Phone Number" placeholder="Enter phone number" value={form.phone || ''} onChange={v => setForm({ ...form, phone: v })} />
+            <UField label="Notification Email" sublabel="Real Gmail for task notifications" placeholder="real email for notifications" value={form.notifEmail || ''} onChange={v => setForm({ ...form, notifEmail: v })} autoComplete="off" />
+            <UField label="Phone Number" placeholder="Enter phone number" value={form.phone || ''} onChange={v => setForm({ ...form, phone: v })} autoComplete="off" />
           </div>
 
           {/* Row 3: Department */}
@@ -512,7 +516,7 @@ function EyeIcon({ open }) {
   );
 }
 
-function UField({ label, sublabel, placeholder, value, onChange, type = 'text' }) {
+function UField({ label, sublabel, placeholder, value, onChange, type = 'text', autoComplete }) {
   return (
     <div>
       <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
@@ -524,6 +528,7 @@ function UField({ label, sublabel, placeholder, value, onChange, type = 'text' }
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
+        autoComplete={autoComplete || (type === 'password' ? 'new-password' : 'off')}
         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[13px] text-slate-800 placeholder:text-slate-400 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition"
       />
     </div>
