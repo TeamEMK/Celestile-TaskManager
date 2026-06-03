@@ -39,15 +39,13 @@ export default function DashboardClient({ data, performance, holidays, users = [
 
   const allDoers = useMemo(() => users.map((u) => u.name).sort(), [users]);
 
-  const STATUS_RANK = { revise: 0, revise_requested: 1, pending: 2, done: 3 };
-
   const filtered = visibleTasks
     .filter((t) =>
       (subTab === 'All' || t.type === subTab) &&
       (userFilter === 'All' || t.doer === userFilter)
     )
     .slice()
-    .sort((a, b) => (STATUS_RANK[a.status] ?? 2) - (STATUS_RANK[b.status] ?? 2));
+    .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
   const visibleCompleted = data.completed;
   const visibleRevised   = data.revised;
