@@ -53,30 +53,7 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    // Doer ki roles check karo — agar doer bhi admin/HOD hai toh auto-approve
-    let doerIsAdmin = false;
-    if (!process.env.DB_HOST) {
-      const { readStore } = await import('@/lib/store');
-      const store = await readStore();
-      const doerUser = (store.users || []).find(u => u.id === body.doerId);
-      const doerRoles = doerUser?.roles || [];
-      doerIsAdmin = Array.isArray(doerRoles)
-        ? doerRoles.includes('Admin') || doerRoles.includes('HOD')
-        : String(doerRoles).includes('Admin') || String(doerRoles).includes('HOD');
-    } else {
-      try {
-        const { pool: _pool, ensureSchema: _ens } = await import('@/lib/db');
-        await _ens();
-        const [rows] = await _pool.query('SELECT roles FROM users WHERE id = ?', [body.doerId]);
-        const doerRoles = rows[0]?.roles || '';
-        doerIsAdmin = doerRoles.includes('Admin') || doerRoles.includes('HOD');
-      } catch { doerIsAdmin = false; }
-    }
-
-    // Sirf doer Admin/HOD ho toh auto "Approved" — baaki sab approval flow pe jaata hai
-    const resolvedApproval = (doerIsAdmin && body.approval === 'Approval Required')
-      ? 'Approved'
-      : (body.approval || 'No Approval');
+    const resolvedApproval = body.approval || 'No Approval';
 
     // JSON store fallback when no MySQL
     if (!process.env.DB_HOST) {
