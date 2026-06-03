@@ -5,7 +5,7 @@ import AppShell from './components/AppShell';
 import { isAccessEnabled } from '@/lib/access';
 
 export const metadata = {
-  title: 'Manpur Patrol Pump',
+  title: 'Manpur Petrol Pump',
   description: 'FMS & Checklist Operations Platform',
   icons: { icon: '/logo.png', apple: '/logo.png' },
 };

@@ -120,7 +120,7 @@ export default function DeveloperPage() {
       const ws = XLSX.utils.json_to_sheet(rows || []);
       XLSX.utils.book_append_sheet(wb, ws, name);
     });
-    XLSX.writeFile(wb, `manpur_patrol_pump_${date}.xlsx`);
+    XLSX.writeFile(wb, `manpur_petrol_pump_${date}.xlsx`);
     setExporting(false);
   }
 
@@ -227,7 +227,7 @@ export default function DeveloperPage() {
             </div>
 
             <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>
-              Client: <strong style={{ color: '#0f172a' }}>Manpur Patrol Pump</strong>
+              Client: <strong style={{ color: '#0f172a' }}>Manpur Petrol Pump</strong>
             </p>
 
             {/* Suspend / Restore */}
