@@ -62,8 +62,8 @@ export async function POST(req) {
         const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM masters');
         const id = 'CHK' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
         await pool.query(
-          'INSERT INTO masters (id, task, assigned_to, frequency, created_at) VALUES (?, ?, ?, ?, NOW())',
-          [id, desc, users[0].name, row.frequency || 'Daily']
+          'INSERT INTO masters (id, task, assigned_to, frequency, start_date, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
+          [id, desc, users[0].name, row.frequency || 'Daily', row.start_date || null]
         );
         inserted++;
       }
@@ -82,6 +82,7 @@ export async function POST(req) {
         id, task: body.task.trim(),
         assignedTo: body.assignedTo || '',
         frequency: body.frequency || 'Daily',
+        startDate: body.startDate || null,
         createdAt: new Date().toISOString(),
       });
       store.masters = masters;
@@ -90,11 +91,13 @@ export async function POST(req) {
     }
 
     await ensureSchema();
+    // Add start_date column if missing (existing deployments)
+    try { await pool.query('ALTER TABLE masters ADD COLUMN start_date DATE DEFAULT NULL'); } catch {}
     const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM masters');
     const id  = 'CHK' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
     await pool.query(
-      'INSERT INTO masters (id, task, assigned_to, frequency, created_at) VALUES (?, ?, ?, ?, NOW())',
-      [id, body.task.trim(), body.assignedTo || '', body.frequency || 'Daily']
+      'INSERT INTO masters (id, task, assigned_to, frequency, start_date, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
+      [id, body.task.trim(), body.assignedTo || '', body.frequency || 'Daily', body.startDate || null]
     );
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (err) {
