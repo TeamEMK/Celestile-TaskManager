@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useConfirmToast } from './ConfirmToast';
 
 const fmt = (d) =>
   new Date(d).toLocaleDateString('en-IN', {
@@ -32,6 +33,7 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
   const [date, setDate] = useState('');
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
+  const { ask, ConfirmUI } = useConfirmToast();
   const [msg, setMsg] = useState('');
   const [file, setFile] = useState(null);
 
@@ -66,11 +68,12 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
     } finally { setSaving(false); }
   }
 
-  async function remove(id) {
-    if (!confirm('Remove this holiday?')) return;
-    await fetch(`/api/holidays?id=${id}`, { method: 'DELETE' });
-    setList((xs) => xs.filter((h) => h.id !== id));
-    router.refresh();
+  function remove(id) {
+    ask('Remove this holiday?', async () => {
+      await fetch(`/api/holidays?id=${id}`, { method: 'DELETE' });
+      setList((xs) => xs.filter((h) => h.id !== id));
+      router.refresh();
+    });
   }
 
   async function uploadCsv() {
@@ -187,6 +190,7 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
           <button onClick={onClose} className="btn-secondary w-full">Close</button>
         </div>
       </div>
+      {ConfirmUI}
     </div>
   );
 }

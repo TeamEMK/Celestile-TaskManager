@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useConfirmToast } from '../components/ConfirmToast';
 
 const ROLES = ['Admin', 'User', 'HOD'];
 
@@ -29,6 +30,7 @@ export default function UsersClient({ users = [], departments = [] }) {
   const { data: session } = useSession();
   const roles   = normalizeRoles(session?.user?.roles);
   const isAdmin = roles.includes('Admin') || roles.includes('HOD');
+  const { ask, ConfirmUI } = useConfirmToast();
 
   const [search,    setSearch]    = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -54,10 +56,11 @@ export default function UsersClient({ users = [], departments = [] }) {
   function openEdit(u)  { setEditing({ ...u, roles: normalizeRoles(u?.roles) }); setModalOpen(true); }
   function openSetPassword(u) { if (!u) return; setPwdUser(u); setPwdModal(true); }
 
-  async function deleteUser(id) {
-    if (!confirm('Delete this user?')) return;
-    await fetch('/api/users?id=' + id, { method: 'DELETE' });
-    router.refresh();
+  function deleteUser(id) {
+    ask('Delete this user?', async () => {
+      await fetch('/api/users?id=' + id, { method: 'DELETE' });
+      router.refresh();
+    });
   }
 
   return (
@@ -154,6 +157,7 @@ export default function UsersClient({ users = [], departments = [] }) {
         departments={departments}
         onSaved={() => router.refresh()}
       />
+      {ConfirmUI}
       <SetPasswordModal
         open={pwdModal}
         onClose={() => setPwdModal(false)}

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import AddDelegateModal from '../components/AddDelegateModal';
 import AddMasterModal   from '../components/AddMasterModal';
+import { useConfirmToast } from '../components/ConfirmToast';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function AllTasksClient({ grouped, users }) {
 
   const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
   const currentUserName = session?.user?.name;
+  const { ask, ConfirmUI } = useConfirmToast();
 
   const fmt = (iso) => {
     if (!iso) return '—';
@@ -154,14 +156,15 @@ export default function AllTasksClient({ grouped, users }) {
     } finally { setReviseSaving(false); }
   }
 
-  async function deleteTask(id, type) {
-    if (!confirm('Are you sure you want to delete this task?')) return;
-    if (type === 'Checklist') {
-      await fetch('/api/masters?id=' + id, { method: 'DELETE' });
-    } else {
-      await fetch('/api/delegations?id=' + id, { method: 'DELETE' });
-    }
-    window.location.reload();
+  function deleteTask(id, type) {
+    ask('Delete this task?', async () => {
+      if (type === 'Checklist') {
+        await fetch('/api/masters?id=' + id, { method: 'DELETE' });
+      } else {
+        await fetch('/api/delegations?id=' + id, { method: 'DELETE' });
+      }
+      window.location.reload();
+    });
   }
 
   const getUserName = (id) => users.find((u) => u.id === id)?.name || id || '—';
@@ -420,6 +423,8 @@ export default function AllTasksClient({ grouped, users }) {
       )}
       <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} users={users} grouped={grouped} onDone={() => { setTransferOpen(false); window.location.reload(); }} />
       <MyTransferModal open={myTransferOpen} onClose={() => setMyTransferOpen(false)} users={users} grouped={grouped} fromName={currentUserName} onDone={() => { setMyTransferOpen(false); window.location.reload(); }} />
+
+      {ConfirmUI}
 
       {/* Revise Modal */}
       {reviseTask && (

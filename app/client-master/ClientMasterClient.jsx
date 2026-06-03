@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { useConfirmToast } from '../components/ConfirmToast';
 
 const blankForm = () => ({
   name: '', contactPerson: '', contactNumber: '', email: '', industry: '', status: 'active', notes: '',
@@ -13,6 +14,7 @@ export default function ClientMasterClient({ canEdit }) {
   const [editing, setEditing] = useState(null); // id or null
   const [form, setForm] = useState(blankForm());
   const [saving, setSaving] = useState(false);
+  const { ask, ConfirmUI } = useConfirmToast();
 
   async function load() {
     try {
@@ -60,10 +62,11 @@ export default function ClientMasterClient({ canEdit }) {
     } finally { setSaving(false); }
   }
 
-  async function remove(id) {
-    if (!confirm('Delete this client?')) return;
-    await fetch(`/api/clients?id=${id}`, { method: 'DELETE' });
-    load();
+  function remove(id) {
+    ask('Delete this client?', async () => {
+      await fetch(`/api/clients?id=${id}`, { method: 'DELETE' });
+      load();
+    });
   }
 
   return (
@@ -157,6 +160,7 @@ export default function ClientMasterClient({ canEdit }) {
           </div>
         </div>
       )}
+      {ConfirmUI}
     </div>
   );
 }

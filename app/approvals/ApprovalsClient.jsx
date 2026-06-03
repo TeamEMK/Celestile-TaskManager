@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useConfirmToast } from '../components/ConfirmToast';
 
 const fmt = (iso) => {
   if (!iso) return '—';
@@ -23,6 +24,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
   const [grantTask,     setGrantTask]     = useState(null);
   const [granting,      setGranting]      = useState(false);
   const timer = useRef(null);
+  const { ask, ConfirmUI } = useConfirmToast();
 
   // Load from localStorage only on client to avoid SSR hydration mismatch
   useEffect(() => {
@@ -62,13 +64,14 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
     router.refresh();
   }
 
-  async function denyRevise(task) {
-    if (!confirm('Are you sure you want to deny this request?')) return;
-    await fetch('/api/delegations', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: task.id, status: 'pending', _denyRevise: true }),
+  function denyRevise(task) {
+    ask('Deny this revise request?', async () => {
+      await fetch('/api/delegations', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: task.id, status: 'pending', _denyRevise: true }),
+      });
+      router.refresh();
     });
-    router.refresh();
   }
 
   async function approveTask(task) {
@@ -79,13 +82,14 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
     router.refresh();
   }
 
-  async function rejectTask(task) {
-    if (!confirm('Are you sure you want to reject this task?')) return;
-    await fetch('/api/delegations', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: task.id, status: 'revise' }),
+  function rejectTask(task) {
+    ask('Reject this task?', async () => {
+      await fetch('/api/delegations', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: task.id, status: 'revise' }),
+      });
+      router.refresh();
     });
-    router.refresh();
   }
 
   function EmptyState({ icon: Icon, label }) {
@@ -208,6 +212,8 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
           </div>
         )
       )}
+
+      {ConfirmUI}
 
       {/* Grant Revise Popup */}
       {grantTask && (

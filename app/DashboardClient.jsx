@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AddMasterModal from './components/AddMasterModal';
 import AddDelegateModal from './components/AddDelegateModal';
 import HolidaysModal from './components/HolidaysModal';
+import { useConfirmToast } from './components/ConfirmToast';
 import PieChart from './components/PieChart';
 import BarList from './components/BarList';
 import { FMS_ENABLED } from '@/lib/config';
@@ -22,6 +23,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
   const [reviseSaving, setReviseSaving] = useState(false);
   const [subTab,       setSubTab]       = useState('All');
   const [userFilter,   setUserFilter]   = useState('All');
+  const { ask, ConfirmUI } = useConfirmToast();
 
   const todayISO = new Date().toISOString().split('T')[0];
   useEffect(() => {
@@ -87,10 +89,11 @@ export default function DashboardClient({ data, performance, holidays, users = [
     } finally { setReviseSaving(false); }
   }
 
-  async function denyRevise(task) {
-    if (!confirm('Deny this revise request?')) return;
-    await fetch('/api/delegations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: task.id, status: 'pending' }) });
-    router.refresh();
+  function denyRevise(task) {
+    ask('Deny this revise request?', async () => {
+      await fetch('/api/delegations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: task.id, status: 'pending' }) });
+      router.refresh();
+    });
   }
 
   return (
@@ -282,6 +285,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
         </div>
       )}
 
+      {ConfirmUI}
       <AddMasterModal   open={masterOpen}   onClose={() => setMasterOpen(false)}   users={users} />
       <AddDelegateModal open={delegateOpen} onClose={() => setDelegateOpen(false)} users={users} />
       <HolidaysModal    open={holidayOpen}  onClose={() => setHolidayOpen(false)}  holidays={holidays} />
