@@ -31,7 +31,7 @@ export default function LoginPage() {
           from { opacity: 0; transform: translateY(18px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .login-logo { animation: float 4s ease-in-out infinite; }
+        .login-logo { animation: none; }
         .login-card { animation: fadeSlide 0.5s cubic-bezier(0.16,1,0.3,1) both; }
         .login-input:focus { border-color: #C4714A !important; box-shadow: 0 0 0 3px rgba(196,113,74,0.12); }
       `}</style>
@@ -57,10 +57,10 @@ export default function LoginPage() {
             {/* Logo */}
             <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
               <div className="login-logo" style={{
-                width: '88px',
-                height: '88px',
+                width: '120px',
+                height: '120px',
                 margin: '0 auto 1rem',
-                borderRadius: '1.25rem',
+                borderRadius: '1.5rem',
                 overflow: 'hidden',
                 background: '#ffffff',
                 boxShadow: '0 8px 28px rgba(196,113,74,0.18), 0 2px 8px rgba(0,0,0,0.08)',
@@ -71,9 +71,9 @@ export default function LoginPage() {
                 <img
                   src="/logo.png"
                   alt="Manpur Patrol Pump"
-                  width={88}
-                  height={88}
-                  style={{ objectFit: 'contain', borderRadius: '1.25rem', width: '88px', height: '88px' }}
+                  width={120}
+                  height={120}
+                  style={{ objectFit: 'contain', borderRadius: '1.5rem', width: '120px', height: '120px' }}
                 />
               </div>
 
