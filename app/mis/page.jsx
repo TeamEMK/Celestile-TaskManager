@@ -15,11 +15,15 @@ export default async function MISPage({ searchParams }) {
   const sp   = await searchParams;
   const type = sp?.type || 'Delegation MIS';
 
-  // Dates and data are handled fully client-side
+  const today = new Date();
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 7);
+  const fmt = (d) => d.toISOString().slice(0, 10);
+
   return (
     <MISClient
       initialRows={[]} initialSummary={{}}
-      initialStart="" initialEnd="" initialType={type}
+      initialStart={fmt(weekAgo)} initialEnd={fmt(today)} initialType={type}
     />
   );
 }

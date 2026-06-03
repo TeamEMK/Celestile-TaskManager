@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function MISClient({ initialRows = [], initialSummary = {}, initialStart, initialEnd, initialType }) {
   const [start,      setStart]      = useState(initialStart);
@@ -10,6 +10,11 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
   const [loading,    setLoading]    = useState(false);
   const [modal,      setModal]      = useState(null); // { row, tasks }
   const [taskLoad,   setTaskLoad]   = useState(false);
+
+  useEffect(() => {
+    if (initialStart && initialEnd) generate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const TABS = ['Delegation MIS', 'Checklist MIS', 'All MIS'];
 
