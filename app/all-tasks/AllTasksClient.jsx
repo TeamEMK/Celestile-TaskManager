@@ -17,7 +17,12 @@ export default function AllTasksClient({ grouped, users }) {
   const [transferOpen,     setTransferOpen]     = useState(false);
   const [myTransferOpen,   setMyTransferOpen]   = useState(false);
   const [editTask,         setEditTask]         = useState(null);
+  const [reviseTask,       setReviseTask]       = useState(null);
+  const [reviseNote,       setReviseNote]       = useState('');
+  const [reviseDate,       setReviseDate]       = useState('');
+  const [reviseSaving,     setReviseSaving]     = useState(false);
   const [employeeFilter, setEmployeeFilter] = useState('All');
+  const todayISO = new Date().toISOString().split('T')[0];
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
@@ -100,7 +105,7 @@ export default function AllTasksClient({ grouped, users }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
     });
-    router.refresh();
+    window.location.reload();
   }
 
   async function markChecklistDone(taskId) {
@@ -109,7 +114,7 @@ export default function AllTasksClient({ grouped, users }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ masterId: taskId }),
     });
-    router.refresh();
+    window.location.reload();
   }
 
   async function undoTask(task) {
@@ -126,7 +131,27 @@ export default function AllTasksClient({ grouped, users }) {
         body: JSON.stringify({ id: task.id, status: 'pending' }),
       });
     }
-    router.refresh();
+    window.location.reload();
+  }
+
+  async function confirmRevise() {
+    if (!reviseTask) return;
+    if (!reviseDate) { alert('Please pick a "revise until" date.'); return; }
+    if (!reviseNote.trim()) { alert('Revise note is required.'); return; }
+    setReviseSaving(true);
+    try {
+      await fetch('/api/delegations', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: reviseTask.id,
+          status: 'revise',
+          remarks: reviseNote,
+          dueDate: reviseDate,
+        }),
+      });
+      setReviseTask(null); setReviseNote(''); setReviseDate('');
+      window.location.reload();
+    } finally { setReviseSaving(false); }
   }
 
   async function deleteTask(id, type) {
@@ -136,7 +161,7 @@ export default function AllTasksClient({ grouped, users }) {
     } else {
       await fetch('/api/delegations?id=' + id, { method: 'DELETE' });
     }
-    router.refresh();
+    window.location.reload();
   }
 
   const getUserName = (id) => users.find((u) => u.id === id)?.name || id || '—';
@@ -314,8 +339,8 @@ export default function AllTasksClient({ grouped, users }) {
                                         <button title="Mark Done" onClick={() => updateStatus(t.id, 'done', t.type)}
                                           className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer text-[11px]">Done</button>
                                         {t.status !== 'revise' && (
-                                          <button title="Revise" onClick={() => updateStatus(t.id, 'revise', t.type)}
-                                            className="pill bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer text-[11px]">Revise</button>
+                                          <button title="Revise" onClick={() => { setReviseNote(''); setReviseDate(''); setReviseTask(t); }}
+                                            className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer text-[11px]">Revise</button>
                                         )}
                                       </>
                                     )}
@@ -393,8 +418,46 @@ export default function AllTasksClient({ grouped, users }) {
           onSaved={() => { setEditTask(null); router.refresh(); }}
         />
       )}
-      <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} users={users} grouped={grouped} onDone={() => { setTransferOpen(false); router.refresh(); }} />
-      <MyTransferModal open={myTransferOpen} onClose={() => setMyTransferOpen(false)} users={users} grouped={grouped} fromName={currentUserName} onDone={() => { setMyTransferOpen(false); router.refresh(); }} />
+      <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} users={users} grouped={grouped} onDone={() => { setTransferOpen(false); window.location.reload(); }} />
+      <MyTransferModal open={myTransferOpen} onClose={() => setMyTransferOpen(false)} users={users} grouped={grouped} fromName={currentUserName} onDone={() => { setMyTransferOpen(false); window.location.reload(); }} />
+
+      {/* Revise Modal */}
+      {reviseTask && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !reviseSaving && setReviseTask(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 grid place-items-center shrink-0">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-base font-semibold text-slate-900">Request Revision</h2>
+                <p className="text-[12px] text-slate-500 mt-0.5">Send this task back for revision</p>
+              </div>
+              <button onClick={() => setReviseTask(null)} disabled={reviseSaving} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-sm">
+                <div className="font-medium text-slate-800">{reviseTask.description}</div>
+                <div className="text-xs text-slate-500 mt-0.5">Doer: <b>{reviseTask.doer}</b></div>
+              </div>
+              <div>
+                <label className="label">Revise until <span className="text-red-500">*</span></label>
+                <input type="date" className="input" min={todayISO} value={reviseDate} onChange={e => setReviseDate(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Revise note <span className="text-red-500">*</span></label>
+                <textarea rows={3} className="input resize-none" placeholder="What needs to be corrected?" value={reviseNote} onChange={e => setReviseNote(e.target.value)} />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+              <button onClick={() => setReviseTask(null)} disabled={reviseSaving} className="btn-secondary">Cancel</button>
+              <button onClick={confirmRevise} disabled={reviseSaving} className="btn-danger">{reviseSaving ? 'Saving…' : 'Confirm Revise'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
