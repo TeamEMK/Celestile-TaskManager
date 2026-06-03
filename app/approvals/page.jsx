@@ -14,29 +14,40 @@ export default async function ApprovalsPage() {
   const isAdmin  = rolesArr.includes('Admin') || rolesArr.includes('HOD');
   const hasDB   = !!process.env.DB_HOST;
 
-  // Non-admin users AND admin-as-doer: show own revise requests
   const userId = session?.user?.id;
-  let myRequests = [];
+  let myReviseRequests = [], myTaskApprovals = [];
 
   if (hasDB) {
-    myRequests = userId
-      ? await pool.query(
-          `SELECT id, description, client, due_date AS dueDate,
-                  created_at AS createdAt, remarks, revise_action AS reviseAction
-           FROM delegations WHERE doer_id = ? AND revise_action IS NOT NULL
-           ORDER BY created_at DESC`,
-          [userId]
-        ).then(([r]) => r).catch(() => [])
-      : [];
+    [myReviseRequests, myTaskApprovals] = await Promise.all([
+      userId ? pool.query(
+        `SELECT id, description, due_date AS dueDate, created_at AS createdAt,
+                remarks, revise_action AS reviseAction
+         FROM delegations WHERE doer_id = ? AND revise_action IS NOT NULL
+         ORDER BY created_at DESC`,
+        [userId]
+      ).then(([r]) => r).catch(() => []) : Promise.resolve([]),
+      userId ? pool.query(
+        `SELECT id, description, due_date AS dueDate, created_at AS createdAt, priority
+         FROM delegations WHERE doer_id = ? AND approval = 'Approval Required' AND status = 'pending'
+         ORDER BY created_at DESC`,
+        [userId]
+      ).then(([r]) => r).catch(() => []) : Promise.resolve([]),
+    ]);
   } else {
     const store = await readStore();
-    myRequests = (store.delegations || [])
+    const dels = store.delegations || [];
+    myReviseRequests = dels
       .filter(d => d.doerId === userId && d.reviseAction != null)
-      .map(d => ({ ...d, dueDate: d.dueDate, createdAt: d.createdAt }));
+      .map(d => ({ id: d.id, description: d.description, dueDate: d.dueDate, createdAt: d.createdAt, remarks: d.remarks, reviseAction: d.reviseAction }))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    myTaskApprovals = dels
+      .filter(d => d.doerId === userId && d.approval === 'Approval Required' && d.status === 'pending')
+      .map(d => ({ id: d.id, description: d.description, dueDate: d.dueDate, createdAt: d.createdAt, priority: d.priority }))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
   if (!isAdmin) {
-    return <UserApprovalsClient myRequests={myRequests} />;
+    return <UserApprovalsClient myReviseRequests={myReviseRequests} myTaskApprovals={myTaskApprovals} />;
   }
 
   let reviseRequests = [], taskApprovals = [];
