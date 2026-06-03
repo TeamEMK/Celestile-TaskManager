@@ -210,8 +210,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {false && (
-              )}
 
               <button
                 type="submit" disabled={loading}
