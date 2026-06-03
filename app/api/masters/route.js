@@ -22,6 +22,54 @@ export async function GET() {
 export async function POST(req) {
   try {
     const body = await req.json();
+
+    // Bulk CSV upload
+    if (Array.isArray(body.bulk)) {
+      if (!hasDB) {
+        const { readStore, writeStore } = await getStore();
+        const store = await readStore();
+        const masters = store.masters || [];
+        const users = store.users || [];
+        let inserted = 0; const errors = [];
+        for (const [i, row] of body.bulk.entries()) {
+          const email = (row.user_email || '').trim().toLowerCase();
+          const desc  = (row.description || '').trim();
+          if (!email || !desc) { errors.push(`Row ${i + 1}: missing fields`); continue; }
+          const user = users.find((u) => (u.email || '').toLowerCase() === email);
+          if (!user) { errors.push(`Row ${i + 1}: no user ${email}`); continue; }
+          const id = 'CHK' + (masters.length + 1).toString().padStart(3, '0');
+          masters.push({
+            id, task: desc,
+            assignedTo: user.name || email,
+            frequency: row.frequency || 'Daily',
+            createdAt: new Date().toISOString(),
+          });
+          inserted++;
+        }
+        store.masters = masters;
+        await writeStore(store);
+        return NextResponse.json({ success: true, inserted, errors }, { status: 201 });
+      }
+
+      await ensureSchema();
+      let inserted = 0; const errors = [];
+      for (const [i, row] of body.bulk.entries()) {
+        const email = (row.user_email || '').trim().toLowerCase();
+        const desc  = (row.description || '').trim();
+        if (!email || !desc) { errors.push(`Row ${i + 1}: missing fields`); continue; }
+        const [users] = await pool.query('SELECT id, name FROM users WHERE LOWER(email) = ?', [email]);
+        if (!users.length) { errors.push(`Row ${i + 1}: no user ${email}`); continue; }
+        const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM masters');
+        const id = 'CHK' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
+        await pool.query(
+          'INSERT INTO masters (id, task, assigned_to, frequency, created_at) VALUES (?, ?, ?, ?, NOW())',
+          [id, desc, users[0].name, row.frequency || 'Daily']
+        );
+        inserted++;
+      }
+      return NextResponse.json({ success: true, inserted, errors }, { status: 201 });
+    }
+
     if (!body.task?.trim())
       return NextResponse.json({ error: 'Task required' }, { status: 400 });
 

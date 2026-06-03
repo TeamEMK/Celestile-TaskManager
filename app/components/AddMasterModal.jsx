@@ -2,6 +2,21 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return [];
+  const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  const looksHeader = header.includes('user_email') || header.includes('description');
+  const cols = looksHeader ? header : ['user_email', 'frequency', 'start_date', 'description', 'remarks'];
+  const start = looksHeader ? 1 : 0;
+  return lines.slice(start).map((line) => {
+    const parts = line.split(',');
+    const row = {};
+    cols.forEach((c, i) => { row[c] = (parts[i] || '').trim(); });
+    return row;
+  });
+}
+
 const FREQS = [
   { label: 'Daily (365 tasks/year)',            value: 'Daily'            },
   { label: 'Weekly (52 tasks/year)',             value: 'Weekly'           },
@@ -51,6 +66,39 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
   const [msg, setMsg] = useState('');
 
   if (!open) return null;
+
+  async function uploadCsv() {
+    if (!file) { setMsg('Please choose a CSV file first.'); return; }
+    setSaving(true); setMsg('');
+    try {
+      const rows = parseCSV(await file.text());
+      if (!rows.length) { setMsg('No valid rows found in CSV.'); setSaving(false); return; }
+      const res = await fetch('/api/masters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bulk: rows }),
+      });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error || 'Upload failed');
+      setMsg(`✅ ${out.inserted} added${out.errors?.length ? ` · ${out.errors.length} skipped` : ''}`);
+      setFile(null);
+      window.location.reload();
+    } catch (e) {
+      setMsg('❌ ' + e.message);
+    } finally { setSaving(false); }
+  }
+
+  function downloadSample() {
+    const csv =
+      'user_email,frequency,start_date,description,remarks\n' +
+      'priyanka@example.com,daily,2026-04-01,Review attendance sheet,\n' +
+      'pooja@example.com,weekly,2026-04-01,Send weekly report,\n';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'checklist-sample.csv';
+    a.click();
+  }
 
   async function save() {
     if (!form.task.trim()) { alert('Task name is required'); return; }
@@ -192,6 +240,24 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
               Format: user_email, frequency (daily/weekly/monthly/yearly/quarterly/alternative_week), start_date, description, remarks — tasks auto-generate!
             </div>
           </div>
+
+          {/* Bulk CSV */}
+          <div className="rounded-lg border border-dashed border-slate-200 p-3">
+            <div className="text-center text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-2">or bulk upload CSV</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="file" accept=".csv,text/csv"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50"
+              />
+              <button className="btn-success" disabled={saving || !file} onClick={uploadCsv}>⬆ Upload CSV</button>
+              <button className="btn-secondary" onClick={downloadSample}>⬇ Sample</button>
+            </div>
+            <div className="text-[10.5px] text-slate-400 mt-2">
+              Format: user_email, frequency (daily/weekly/monthly/yearly/quarterly/alternative_week), start_date, description, remarks — tasks auto-generate!
+            </div>
+          </div>
+          {msg && <div className="text-[12px] text-slate-600">{msg}</div>}
         </div>
 
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">

@@ -59,7 +59,7 @@ export default async function ApprovalsPage() {
     const dels = store.delegations || [];
     reviseRequests = dels
       .filter(d => d.status === 'revise_requested')
-      .map(d => ({ id: d.id, description: d.description, doer: d.doer, remarks: d.remarks, createdAt: d.createdAt }))
+      .map(d => ({ id: d.id, description: d.description, doer: d.doer, remarks: d.remarks, dueDate: d.dueDate, createdAt: d.createdAt }))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     taskApprovals = dels
       .filter(d => d.approval === 'Approval Required' && d.status === 'pending')
