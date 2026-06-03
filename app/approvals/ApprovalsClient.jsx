@@ -74,12 +74,14 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
     });
   }
 
-  async function approveTask(task) {
-    await fetch('/api/delegations', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: task.id, status: 'pending', approval: 'Approved' }),
+  function approveTask(task) {
+    ask('Approve this task?', async () => {
+      await fetch('/api/delegations', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: task.id, status: 'pending', approval: 'Approved' }),
+      });
+      router.refresh();
     });
-    router.refresh();
   }
 
   function rejectTask(task) {
