@@ -1,22 +1,35 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-
 
 export default function LoginPage() {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
-  const [error,    setError]    = useState('');
+  const [toast,    setToast]    = useState(null); // { msg, type }
   const [loading,  setLoading]  = useState(false);
   const [showPass, setShowPass] = useState(false);
 
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  function showToast(msg, type = 'error') {
+    setToast({ msg, type });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true); setError('');
+    setLoading(true); setToast(null);
     const res = await signIn('credentials', { email, password, redirect: false });
     setLoading(false);
-    if (res?.error) setError('Invalid email or password');
-    else window.location.href = '/';
+    if (res?.error) {
+      showToast('Invalid email or password ❌', 'error');
+    } else {
+      showToast('Login successful! Redirecting… ✅', 'success');
+      setTimeout(() => { window.location.href = '/'; }, 1000);
+    }
   }
 
   return (
@@ -31,10 +44,31 @@ export default function LoginPage() {
           from { opacity: 0; transform: translateY(18px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
         .login-logo { animation: none; }
         .login-card { animation: fadeSlide 0.5s cubic-bezier(0.16,1,0.3,1) both; }
         .login-input:focus { border-color: #C4714A !important; box-shadow: 0 0 0 3px rgba(196,113,74,0.12); }
       `}</style>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: '24px', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, animation: 'toastIn 0.3s cubic-bezier(0.16,1,0.3,1) both',
+          background: toast.type === 'success' ? '#1a2e1a' : '#2e1a1a',
+          color: toast.type === 'success' ? '#4ade80' : '#f87171',
+          padding: '12px 22px', borderRadius: '12px',
+          fontSize: '13px', fontWeight: 600,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+          border: `1px solid ${toast.type === 'success' ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'}`,
+          whiteSpace: 'nowrap',
+        }}>
+          {toast.msg}
+        </div>
+      )}
 
       <div style={{
         minHeight: '100vh',
@@ -176,10 +210,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {error && (
-                <p style={{ color: '#ef4444', fontSize: '12px', textAlign: 'center', margin: 0, background: '#fef2f2', padding: '8px 12px', borderRadius: '8px' }}>
-                  {error}
-                </p>
+              {false && (
               )}
 
               <button
