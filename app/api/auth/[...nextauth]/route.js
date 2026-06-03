@@ -46,11 +46,13 @@ async function getUserForceLogout(userId) {
     if (hasMySQL) {
       const { pool } = await import('@/lib/db');
       const [rows] = await pool.query('SELECT force_logout_after FROM users WHERE id = ?', [userId]);
+      if (!rows.length) return Date.now(); // user deleted → force logout
       return rows[0]?.force_logout_after ? new Date(rows[0].force_logout_after).getTime() : 0;
     }
     const { readStore } = await import('@/lib/store');
     const store = await readStore();
     const u = (store.users || []).find(x => x.id === userId);
+    if (!u) return Date.now(); // user deleted → force logout
     return u?.forceLogoutAfter || 0;
   } catch {
     return 0;
