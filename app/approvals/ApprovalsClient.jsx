@@ -124,6 +124,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                   <th className="table-th">Task</th>
                   <th className="table-th">Doer</th>
                   <th className="table-th">Requested On</th>
+                  <th className="table-th">Revise Until</th>
                   <th className="table-th">Remarks</th>
                   <th className="table-th">Action</th>
                 </tr>
@@ -140,6 +141,11 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                       </td>
                       <td className="table-td text-slate-600">{t.doer}</td>
                       <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.createdAt)}</td>
+                      <td className="table-td whitespace-nowrap">
+                        {t.dueDate
+                          ? <span className="font-medium text-red-600">{fmt(t.dueDate)}</span>
+                          : <span className="text-slate-400">—</span>}
+                      </td>
                       <td className="table-td text-slate-500">{t.remarks || '—'}</td>
                       <td className="table-td">
                         <div className="flex gap-1.5">
