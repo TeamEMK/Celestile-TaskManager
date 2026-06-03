@@ -25,6 +25,26 @@ export async function POST(req) {
   }
 }
 
+export async function DELETE(req) {
+  try {
+    const { masterId } = await req.json();
+    if (!masterId) return NextResponse.json({ error: 'masterId required' }, { status: 400 });
+
+    if (!process.env.DB_HOST) {
+      return NextResponse.json({ success: true });
+    }
+
+    await ensureSchema();
+    await pool.query(
+      'DELETE FROM checklist_completions WHERE master_id = ? AND date = CURDATE() LIMIT 1',
+      [masterId]
+    );
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 export async function GET() {
   await ensureSchema();
   const [rows] = await pool.query('SELECT * FROM checklist_completions ORDER BY completed_at DESC');

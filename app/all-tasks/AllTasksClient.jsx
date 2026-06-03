@@ -112,6 +112,23 @@ export default function AllTasksClient({ grouped, users }) {
     router.refresh();
   }
 
+  async function undoTask(task) {
+    if (task.type === 'Checklist') {
+      await fetch('/api/checklist-completions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ masterId: task.id }),
+      });
+    } else {
+      await fetch('/api/delegations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: task.id, status: 'pending' }),
+      });
+    }
+    router.refresh();
+  }
+
   async function deleteTask(id, type) {
     if (!confirm('Are you sure you want to delete this task?')) return;
     if (type === 'Checklist') {
@@ -305,6 +322,10 @@ export default function AllTasksClient({ grouped, users }) {
                                     {t.type === 'Checklist' && t.status !== 'done' && (
                                       <button onClick={() => markChecklistDone(t.id)}
                                         className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer text-[11px]">Done</button>
+                                    )}
+                                    {t.status === 'done' && (
+                                      <button title="Undo Done" onClick={() => undoTask(t)}
+                                        className="pill bg-slate-100 text-slate-600 hover:bg-orange-50 hover:text-orange-600 cursor-pointer text-[11px]">↩ Undo</button>
                                     )}
                                   </div>
                                 </td>
