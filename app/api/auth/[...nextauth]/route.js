@@ -1,6 +1,11 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
+// Side-effect import: ensures lib/db runs first so it can set the DB_HOST
+// sentinel (Sheets mode) BEFORE the hasMySQL checks below are evaluated.
+// Without this, findUser falls back to readStore, which strips password_hash
+// and would force the default password instead of the real one.
+import '@/lib/db';
 
 const DEFAULT_PASSWORD = 'India@123';
 
