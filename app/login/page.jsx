@@ -129,13 +129,15 @@ export default function LoginPage() {
 
           {/* ── Brand panel (desktop) — logo + name, centered ── */}
           <aside className="lx-brand lx-stagger" style={{ alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 18 }}>
-            <div className="login-logo" style={{
-              width: 116, height: 116, borderRadius: 26, overflow: 'hidden',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: '#0c0a08', animation: 'lx-float 5s ease-in-out infinite, lx-ring 4s ease-in-out infinite',
-            }}>
-              <img src="/logo.jpeg" alt="Celestile-TaskManager" width={116} height={116}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <div className="login-logo" style={{
+                width: 116, height: 116, borderRadius: 26, overflow: 'hidden',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: '#0c0a08', animation: 'lx-float 5s ease-in-out infinite, lx-ring 4s ease-in-out infinite',
+              }}>
+                <img src="/logo.jpeg" alt="Celestile-TaskManager" width={116} height={116}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
             </div>
 
             <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase', color: '#E8B873' }}>
