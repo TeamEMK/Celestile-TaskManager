@@ -1,4 +1,4 @@
-# E-Marketing Task Manager
+# Celestile-TaskManager
 
 Next.js 14 (App Router) based task manager with Dashboard, Masters, and FMS Master views.
 
@@ -47,7 +47,7 @@ Edit the `FMS_STEPS` array in `lib/store.js` to change step names, owners, or ad
 ## Folder Structure
 
 ```
-task-manager/
+Celestile-TaskManager/
 ├── app/
 │   ├── api/                # API routes
 │   │   ├── dashboard/      

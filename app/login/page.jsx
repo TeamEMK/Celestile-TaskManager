@@ -120,7 +120,7 @@ export default function LoginPage() {
                 color: '#C4714A',
                 marginBottom: '4px',
               }}>
-                Task Manager
+                Celestile-TaskManager
               </div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '1.25rem' }}>
                 {[0,1,2].map(i => (
@@ -243,7 +243,7 @@ export default function LoginPage() {
                 marginBottom: '1rem',
               }} />
               <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>
-                <span style={{ color: '#C4714A', fontWeight: 600, letterSpacing: '0.05em' }}>Manpur Petrol Pump Task Manager</span>
+                <span style={{ color: '#C4714A', fontWeight: 600, letterSpacing: '0.05em' }}>Celestile-TaskManager</span>
                 <span style={{ margin: '0 6px', color: '#cbd5e1' }}>·</span>
                 <span style={{ color: '#94a3b8' }}>Grow Your Business</span>
               </p>

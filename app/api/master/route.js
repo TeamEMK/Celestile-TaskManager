@@ -56,7 +56,7 @@ export async function GET(req) {
 <body>
 <div class="card">
   <h1>🎛️ Master Control Panel</h1>
-  <p class="sub">E-Marketing Task Manager — Developer Only</p>
+  <p class="sub">Celestile-TaskManager — Developer Only</p>
 
   <div class="status ${isActive ? 'on' : 'off'}">
     <span class="dot ${isActive ? 'on' : 'off'}"></span>
