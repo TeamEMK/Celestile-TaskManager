@@ -127,43 +127,19 @@ export default function LoginPage() {
 
         <div className="lx-shell">
 
-          {/* ── Brand panel (desktop) ── */}
-          <aside className="lx-brand lx-stagger">
-            <div>
-              <div className="login-logo" style={{
-                width: 92, height: 92, borderRadius: 22, overflow: 'hidden',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: '#0c0a08', animation: 'lx-float 5s ease-in-out infinite, lx-ring 4s ease-in-out infinite',
-              }}>
-                <img src="/logo.jpeg" alt="Celestile-TaskManager" width={92} height={92}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </div>
+          {/* ── Brand panel (desktop) — logo + name, centered ── */}
+          <aside className="lx-brand lx-stagger" style={{ alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 18 }}>
+            <div className="login-logo" style={{
+              width: 116, height: 116, borderRadius: 26, overflow: 'hidden',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: '#0c0a08', animation: 'lx-float 5s ease-in-out infinite, lx-ring 4s ease-in-out infinite',
+            }}>
+              <img src="/logo.jpeg" alt="Celestile-TaskManager" width={116} height={116}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
 
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase', color: '#E8B873', marginBottom: 14 }}>
-                Celestile · TaskManager
-              </div>
-              <h2 style={{
-                margin: '0 0 14px', fontSize: 30, lineHeight: 1.15, fontWeight: 800,
-                background: 'linear-gradient(90deg,#fff,#E8B873,#fff)', backgroundSize: '200% auto',
-                WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
-                animation: 'lx-sheen 6s linear infinite',
-              }}>
-                Operations,<br />elevated.
-              </h2>
-              <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.7, color: '#a99e8e', maxWidth: 300 }}>
-                Delegations, daily reports and team performance — beautifully managed, backed live by Google Sheets.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-              {['Tasks & Delegations', 'Daily Reports & Leaves', 'Live Team Performance'].map((f) => (
-                <div className="lx-feat" key={f}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                  {f}
-                </div>
-              ))}
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase', color: '#E8B873' }}>
+              Celestile · TaskManager
             </div>
           </aside>
 
