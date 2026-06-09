@@ -9,9 +9,9 @@ export async function GET(req) {
   }
   try {
     await ensureSchema();
-    const hash = await bcrypt.hash('Manpur@123', 10);
+    const hash = await bcrypt.hash('Celestile@123', 10);
     await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, 'U001']);
-    return NextResponse.json({ ok: true, email: 'admin@manpur.com', password: 'Manpur@123' });
+    return NextResponse.json({ ok: true, email: 'admin@celestile.com', password: 'Celestile@123' });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

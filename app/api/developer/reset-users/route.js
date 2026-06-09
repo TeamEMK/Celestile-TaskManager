@@ -11,7 +11,7 @@ function checkSecret(req) {
 const NEW_ADMIN = {
   id:       'U001',
   name:     'Admin',
-  email:    'admin@manpurpetrolpump.com',
+  email:    'admin@celestile.com',
   password: 'Admin@1234',
   roles:    'Admin',
 };
