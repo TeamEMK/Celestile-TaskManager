@@ -48,7 +48,8 @@ export default function LoginPage() {
           from { opacity: 0; transform: translateY(-20px) scale(0.95); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .login-logo { animation: none; }
+        .login-logo { animation: float 4s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .login-logo { animation: none; } }
         .login-card { animation: fadeSlide 0.5s cubic-bezier(0.16,1,0.3,1) both; }
         .login-input:focus { border-color: #C4714A !important; box-shadow: 0 0 0 3px rgba(196,113,74,0.12); }
       `}</style>
