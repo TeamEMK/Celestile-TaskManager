@@ -104,7 +104,7 @@ export default function LoginPage() {
               }}>
                 <img
                   src="/logo.jpeg"
-                  alt="Manpur Petrol Pump"
+                  alt="Celestile-TaskManager"
                   width={120}
                   height={120}
                   style={{ objectFit: 'contain', borderRadius: '1.5rem', width: '120px', height: '120px' }}

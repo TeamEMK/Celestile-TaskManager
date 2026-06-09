@@ -91,7 +91,7 @@ export default function Sidebar() {
         </div>
         {/* Brand name — fades in when sidebar expands */}
         <div className="leading-tight min-w-0 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-          <div className="text-[13px] font-semibold tracking-tight" style={{ color: '#f4f4f5' }}>Manpur Petrol Pump</div>
+          <div className="text-[13px] font-semibold tracking-tight" style={{ color: '#f4f4f5' }}>Celestile-TaskManager</div>
         </div>
       </div>
 

@@ -227,7 +227,7 @@ export default function DeveloperPage() {
             </div>
 
             <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>
-              Client: <strong style={{ color: '#0f172a' }}>Manpur Petrol Pump</strong>
+              Client: <strong style={{ color: '#0f172a' }}>Celestile-TaskManager</strong>
             </p>
 
             {/* Suspend / Restore */}
