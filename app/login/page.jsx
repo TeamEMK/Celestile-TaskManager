@@ -103,7 +103,7 @@ export default function LoginPage() {
                 justifyContent: 'center',
               }}>
                 <img
-                  src="/logo.png"
+                  src="/logo.jpeg"
                   alt="Manpur Petrol Pump"
                   width={120}
                   height={120}

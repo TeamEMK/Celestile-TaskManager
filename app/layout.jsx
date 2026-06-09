@@ -7,7 +7,7 @@ import { isAccessEnabled } from '@/lib/access';
 export const metadata = {
   title: 'Celestile-TaskManager',
   description: 'FMS & Checklist Operations Platform',
-  icons: { icon: '/logo.png', apple: '/logo.png' },
+  icons: { icon: '/logo.jpeg', apple: '/logo.jpeg' },
 };
 
 export default async function RootLayout({ children }) {

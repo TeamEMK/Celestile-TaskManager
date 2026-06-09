@@ -85,7 +85,7 @@ export default function Sidebar() {
         style={{ borderBottom: '1px solid #1c1c1f' }}>
         {/* Single logo icon — always visible */}
         <div className="relative w-9 h-9 rounded-lg shrink-0 overflow-hidden grid place-items-center bg-white">
-          <img src="/logo.png" alt="IA" className="w-9 h-9 object-contain" />
+          <img src="/logo.jpeg" alt="IA" className="w-9 h-9 object-contain" />
           <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2"
             style={{ background: '#34d399', borderColor: '#09090b' }}></span>
         </div>
