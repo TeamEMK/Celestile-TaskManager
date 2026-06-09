@@ -29,6 +29,10 @@ function nowDateTime() {
   });
   const sheets = google.sheets({ version: 'v4', auth });
 
+  // show current state before wiping
+  const before = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'users!A1:K100' });
+  console.log('BEFORE: users rows =', Math.max(0, (before.data.values || []).length - 1));
+
   // 1) clear every tab's data rows (keep header row 1)
   await sheets.spreadsheets.values.batchClear({
     spreadsheetId: SPREADSHEET_ID,
@@ -46,5 +50,11 @@ function nowDateTime() {
     requestBody: { values: [row] },
   });
   console.log('Created admin: admin@celestile.com / admin123');
+
+  // verify
+  const after = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'users!A1:K100' });
+  const rows = (after.data.values || []).slice(1).filter(r => r.some(c => c !== ''));
+  console.log('AFTER: users rows =', rows.length);
+  rows.forEach(r => console.log('  ->', r[0], '|', r[2], '| active=', r[6], '| hash?', r[7] ? 'yes' : 'NO'));
   console.log('Done. Database now has exactly one user.');
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });
