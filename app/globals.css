@@ -6,13 +6,21 @@
 
 @layer base {
   html, body {
-    background: radial-gradient(ellipse at 25% 60%, #F5C97A 0%, #FDEBC8 35%, #FDF6ED 65%, #FFFBF5 100%) fixed;
+    background: radial-gradient(ellipse at 25% 60%, #FBE9C7 0%, #FDF1DD 38%, #FEF8EE 68%, #FFFBF5 100%) fixed;
     color: #1e293b;
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     font-size: 13.5px;
     -webkit-font-smoothing: antialiased;
   }
 }
+
+/* ── Light "aurora" backdrop for the app shell (matches login, lighter) ── */
+@keyframes app-drift1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(60px,40px) scale(1.18); } }
+@keyframes app-drift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-50px,-35px) scale(1.22); } }
+@keyframes app-drift3 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(40px,-45px) scale(1.12); } }
+.app-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.app-bg .orb { position: absolute; border-radius: 50%; filter: blur(90px); }
+@media (prefers-reduced-motion: reduce) { .app-bg .orb { animation: none !important; } }
 
 @layer components {
   .card        { @apply bg-white rounded-xl border border-slate-200 shadow-sm; }
