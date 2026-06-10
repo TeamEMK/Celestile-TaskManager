@@ -6,7 +6,13 @@
 
 @layer base {
   html, body {
-    background: radial-gradient(ellipse at 25% 60%, #FBE9C7 0%, #FDF1DD 38%, #FEF8EE 68%, #FFFBF5 100%) fixed;
+    background:
+      radial-gradient(circle at 14% 18%, rgba(245,201,122,0.65), transparent 42%),
+      radial-gradient(circle at 88% 12%, rgba(228,150,90,0.42), transparent 45%),
+      radial-gradient(circle at 78% 88%, rgba(245,214,168,0.60), transparent 50%),
+      radial-gradient(circle at 26% 92%, rgba(250,206,140,0.50), transparent 48%),
+      linear-gradient(135deg, #FEF7EC 0%, #FFFBF5 100%);
+    background-attachment: fixed;
     color: #1e293b;
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     font-size: 13.5px;
