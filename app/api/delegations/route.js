@@ -2,6 +2,28 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { sendWhatsApp, delegationMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+
+// Fire a WhatsApp "task delegated" notice to the doer (best-effort).
+async function notifyDelegation({ doerUser, delegatedById, del }) {
+  try {
+    if (!isWhatsappConfigured() || !doerUser?.phone) return;
+    let byName = '';
+    if (delegatedById) {
+      const [b] = await pool.query('SELECT name FROM users WHERE id = ?', [delegatedById]);
+      byName = b[0]?.name || '';
+    }
+    const msg = delegationMessage({
+      doerName: doerUser.name || del.doer,
+      byName,
+      dueDate: del.due_date || del.dueDate,
+      priority: del.priority,
+      approval: del.approval,
+      description: del.description,
+    });
+    await sendWhatsApp(doerUser.phone, msg);
+  } catch (e) { console.error('[notifyDelegation]', e.message); }
+}
 
 function normDate(s) {
   if (!s) return null;
@@ -92,13 +114,14 @@ export async function POST(req) {
         const dueDate = normDate(row.due_date || row.dueDate);
         const desc    = (row.description || '').trim();
         if (!email || !dueDate || !desc) { errors.push(`Row ${i+1}: missing fields`); continue; }
-        const [users] = await pool.query('SELECT id, name FROM users WHERE LOWER(email) = ?', [email]);
+        const [users] = await pool.query('SELECT id, name, phone FROM users WHERE LOWER(email) = ?', [email]);
         if (!users.length) { errors.push(`Row ${i+1}: no user ${email}`); continue; }
-        await insertOne({
+        const del = await insertOne({
           description: desc, doerId: users[0].id, doerName: users[0].name,
           delegatedBy: body.delegatedBy, dueDate,
           priority: row.priority, approval: resolvedApproval, url: row.url, remarks: row.remarks,
         });
+        await notifyDelegation({ doerUser: users[0], delegatedById: body.delegatedBy, del });
         inserted++;
       }
       return NextResponse.json({ success: true, inserted, errors }, { status: 201 });
@@ -114,6 +137,7 @@ export async function POST(req) {
       client: body.client, priority: body.priority, approval: resolvedApproval,
       url: body.url, remarks: body.remarks,
     });
+    await notifyDelegation({ doerUser: users[0], delegatedById: body.delegatedBy, del: row });
     return NextResponse.json(row, { status: 201 });
   } catch (err) {
     console.error(err);
