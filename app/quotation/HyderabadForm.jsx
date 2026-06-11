@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { CELESTILE_LOGO } from '@/lib/celestile-logo';
+import { fileToThumbnail } from './imageThumb';
 
 const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
 const UNIT_OPTIONS = ['','Piece','Module','SFT','RFT','BAG','KG','GMS','LITER'];
@@ -89,6 +90,11 @@ export default function HyderabadForm() {
   const setStone = (i, k, v) => setStoneRows((rs) => rs.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
   const addStone = () => setStoneRows((rs) => [...rs, blankStone()]);
   const delStone = (i) => setStoneRows((rs) => rs.length === 1 ? [blankStone()] : rs.filter((_, idx) => idx !== i));
+  async function handleImg(i, file, inputEl) {
+    if (!file) return;
+    try { setStone(i, 'img', await fileToThumbnail(file)); } catch { /* ignore */ }
+    if (inputEl) inputEl.value = '';
+  }
   /* fixing rows */
   const setFix = (i, k, v) => setFixRows((rs) => rs.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
   const addFix = () => setFixRows((rs) => [...rs, { desc:'', mat:'', size:'', unit:'', price:'', qty:'' }]);
@@ -217,7 +223,7 @@ export default function HyderabadForm() {
         <div className="overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-[12px]">
             <thead className="bg-slate-900 text-white">
-              <tr>{['#','Description','Area','Size Wt','Size Ht','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
+              <tr>{['#','Image','Description','Area','Size Wt','Size Ht','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
                 <th key={i} className="px-2 py-2 text-left font-semibold whitespace-nowrap">{h}</th>)}</tr>
             </thead>
             <tbody>
@@ -226,6 +232,12 @@ export default function HyderabadForm() {
                 return (
                   <tr key={i} className="border-t border-slate-100">
                     <td className="px-2 py-1 text-slate-400">{i + 1}</td>
+                    <td className="px-1 py-1">
+                      <label className="cursor-pointer flex items-center justify-center w-10 h-10 rounded border border-dashed border-slate-300 overflow-hidden hover:border-slate-400">
+                        {r.img ? <img src={r.img} alt="" className="w-10 h-10 object-cover" /> : <span className="text-slate-400 text-lg leading-none">+</span>}
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
+                      </label>
+                    </td>
                     <td className="px-1 py-1 min-w-[140px]"><input className="input !py-1" value={r.desc} onChange={(e) => setStone(i, 'desc', e.target.value)} placeholder="Description" /></td>
                     <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.area} onChange={(e) => setStone(i, 'area', e.target.value)} placeholder="Area" /></td>
                     <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.sizeWt} onChange={(e) => setStone(i, 'sizeWt', e.target.value)} placeholder="Wt" /></td>

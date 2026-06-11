@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { CELESTILE_LOGO } from '@/lib/celestile-logo';
+import { fileToThumbnail } from './imageThumb';
 
 /* ── constants (ported from IndexBng) ─────────────────────────────────── */
 const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
@@ -120,6 +121,11 @@ export default function BangaloreForm() {
   const setRow = (i, k, v) => setRows((rs) => rs.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
   const addRow = () => setRows((rs) => [...rs, blankRow()]);
   const delRow = (i) => setRows((rs) => rs.length === 1 ? [blankRow()] : rs.filter((_, idx) => idx !== i));
+  async function handleImg(i, file, inputEl) {
+    if (!file) return;
+    try { setRow(i, 'img', await fileToThumbnail(file)); } catch { /* ignore */ }
+    if (inputEl) inputEl.value = '';
+  }
 
   /* totals ops */
   const setTotal = (id, patch) => setTotals((ts) => ts.map((t) => t.id === id ? { ...t, ...patch } : t));
@@ -256,7 +262,7 @@ export default function BangaloreForm() {
           <table className="w-full text-[12px]">
             <thead className="bg-slate-900 text-white">
               <tr>
-                {['#','Description','Area','Size','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
+                {['#','Image','Description','Area','Size','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
                   <th key={i} className="px-2 py-2 text-left font-semibold whitespace-nowrap">{h}</th>)}
               </tr>
             </thead>
@@ -266,6 +272,12 @@ export default function BangaloreForm() {
                 return (
                   <tr key={i} className="border-t border-slate-100">
                     <td className="px-2 py-1 text-slate-400">{i + 1}</td>
+                    <td className="px-1 py-1">
+                      <label className="cursor-pointer flex items-center justify-center w-10 h-10 rounded border border-dashed border-slate-300 overflow-hidden hover:border-slate-400">
+                        {r.img ? <img src={r.img} alt="" className="w-10 h-10 object-cover" /> : <span className="text-slate-400 text-lg leading-none">+</span>}
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
+                      </label>
+                    </td>
                     <td className="px-1 py-1"><input className="input !py-1" value={r.desc} onChange={(e) => setRow(i, 'desc', e.target.value)} placeholder="Description" /></td>
                     <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.area} onChange={(e) => setRow(i, 'area', e.target.value)} placeholder="—" /></td>
                     <td className="px-1 py-1 w-24"><input className="input !py-1" value={r.size} onChange={(e) => setRow(i, 'size', e.target.value)} placeholder="5×7" /></td>
