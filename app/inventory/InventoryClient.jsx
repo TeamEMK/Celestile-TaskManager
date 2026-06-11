@@ -22,18 +22,13 @@ export default function InventoryClient() {
   useEffect(() => { loadMasters(); loadInv(); }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div className="text-[16px] font-semibold text-slate-900">Inventory</div>
-          <div className="text-[12px] text-slate-500">SK Tiles · slab stock & cutting</div>
-        </div>
-        <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+    <div className="sk-theme space-y-4">
+      <style>{SK_CSS}</style>
+      <div className="sk-topbar">
+        <div className="sk-logo">SK <span>Tiles</span></div>
+        <div className="sk-tabs">
           {[['inward', 'Inward'], ['stock', 'Stock'], ['step2', 'Step 2']].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)}
-              className={`px-4 py-2 text-[13px] font-semibold transition-colors ${tab === id ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
-              {label}
-            </button>
+            <button key={id} onClick={() => setTab(id)} className={`sk-tab ${tab === id ? 'active' : ''}`}>{label}</button>
           ))}
         </div>
       </div>
@@ -44,6 +39,19 @@ export default function InventoryClient() {
     </div>
   );
 }
+
+const SK_CSS = `
+.sk-theme .sk-topbar{background:#1c1b18;border-radius:10px;padding:0 16px;height:48px;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.sk-theme .sk-logo{font-weight:700;font-size:15px;color:#fff;letter-spacing:.06em;text-transform:uppercase}
+.sk-theme .sk-logo span{color:#fb923c}
+.sk-theme .sk-tabs{display:flex;gap:4px}
+.sk-theme .sk-tab{padding:6px 16px;border-radius:6px;font-size:13px;font-weight:600;color:#a09e98;background:transparent;border:1px solid transparent;cursor:pointer;transition:all .12s}
+.sk-theme .sk-tab:hover{color:#fff;background:rgba(255,255,255,.1)}
+.sk-theme .sk-tab.active{color:#1c1b18;background:#fb923c;border-color:#fb923c}
+.sk-theme .btn-warn{background:#c84b00;border-color:#c84b00;color:#fff}
+.sk-theme .btn-warn:hover{background:#a83e00;box-shadow:0 4px 14px rgba(200,75,0,.25)}
+.sk-theme thead.bg-slate-900{background:#1c1b18 !important}
+`;
 
 /* ───────────────────────── INWARD ───────────────────────── */
 function Inward({ masters, reloadMasters, onSaved }) {
@@ -167,6 +175,7 @@ function Stock({ inv, loading, masters, reload }) {
   const [statusF, setStatusF] = useState('All');
   const [search, setSearch] = useState('');
   const [block, setBlock] = useState(null); // {id, orderNo, client, area}
+  const [edit, setEdit] = useState(null);   // {id, slab, material, thickness, sizeL, sizeW, sft, remarks, photo}
 
   const thicknessOpts = useMemo(() => {
     const s = new Set(); inv.forEach((r) => { if (!mat || r.material === mat) { if (r.thickness) s.add(r.thickness); } });
@@ -204,6 +213,13 @@ function Stock({ inv, loading, masters, reload }) {
     await patch({ id: block.id, status: 'Blocked', orderNo: block.orderNo, client: block.client, area: block.area });
     setBlock(null);
   }
+  async function saveEdit() {
+    await patch({ id: edit.id, slab: edit.slab, material: edit.material, thickness: edit.thickness,
+      sizeL: edit.sizeL, sizeW: edit.sizeW, sft: edit.sft, remarks: edit.remarks, slabPhoto: edit.photo });
+    setEdit(null);
+  }
+  async function editPhoto(file) { if (!file) return; try { const url = await fileToThumbnail(file, 220, 0.7); setEdit((x) => ({ ...x, photo: url })); } catch {} }
+  const editThkOpts = (edit && masters.thicknessMap[edit.material]) || [];
 
   function csv() {
     const head = ['Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Status', 'Order', 'Client', 'Area', 'Remarks'];
@@ -250,8 +266,11 @@ function Stock({ inv, loading, masters, reload }) {
                   <td className="px-2 py-1.5">{r.orderNo || '—'}</td><td className="px-2 py-1.5">{r.client || '—'}</td><td className="px-2 py-1.5">{r.area || '—'}</td>
                   <td className="px-2 py-1.5 max-w-[140px] truncate" title={r.remarks}>{r.remarks || '—'}</td>
                   <td className="px-2 py-1.5 whitespace-nowrap">
-                    {r.status === 'Available' && <button className="btn-danger !px-2 !py-1" onClick={() => setBlock({ id: r.id, orderNo: '', client: '', area: '' })}>Block</button>}
-                    {r.status === 'Blocked' && <button className="btn-success !px-2 !py-1" onClick={() => unblock(r)}>Unblock</button>}
+                    <div className="flex gap-1 justify-end">
+                      {r.status === 'Available' && <button className="btn-danger !px-2 !py-1" onClick={() => setBlock({ id: r.id, orderNo: '', client: '', area: '' })}>Block</button>}
+                      {r.status === 'Blocked' && <button className="btn-success !px-2 !py-1" onClick={() => unblock(r)}>Unblock</button>}
+                      <button className="btn-ghost !px-2 !py-1" onClick={() => setEdit({ id: r.id, slab: r.slab, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, remarks: r.remarks, photo: r.slabPhoto })}>Edit</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -266,6 +285,28 @@ function Stock({ inv, loading, masters, reload }) {
           <F label="Client Name"><input className="input" value={block.client} onChange={(e) => setBlock({ ...block, client: e.target.value })} /></F>
           <F label="Area / Project"><input className="input" value={block.area} onChange={(e) => setBlock({ ...block, area: e.target.value })} /></F>
           <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setBlock(null)}>Cancel</button><button className="btn-warn" onClick={confirmBlock}>Block Slab</button></div>
+        </Modal>
+      )}
+
+      {edit && (
+        <Modal title="Edit Slab" onClose={() => setEdit(null)}>
+          <div className="grid grid-cols-2 gap-2">
+            <F label="Slab No."><input className="input" value={edit.slab} onChange={(e) => setEdit({ ...edit, slab: e.target.value })} /></F>
+            <F label="Material"><input className="input" list="inv-mat-edit" value={edit.material} onChange={(e) => setEdit({ ...edit, material: e.target.value, thickness: '' })} /></F>
+            <datalist id="inv-mat-edit">{masters.materials.map((m) => <option key={m} value={m} />)}</datalist>
+            <F label="Thickness"><select className="input" value={edit.thickness} onChange={(e) => setEdit({ ...edit, thickness: e.target.value })}><option value="">{edit.thickness || 'Select'}</option>{editThkOpts.map((t) => <option key={t} value={t}>{t}</option>)}</select></F>
+            <F label="SFT"><input type="number" className="input" value={edit.sft} onChange={(e) => setEdit({ ...edit, sft: e.target.value })} /></F>
+            <F label="Size L"><input type="number" className="input" value={edit.sizeL} onChange={(e) => setEdit({ ...edit, sizeL: e.target.value, sft: String(sftOf(e.target.value, edit.sizeW) || edit.sft) })} /></F>
+            <F label="Size W"><input type="number" className="input" value={edit.sizeW} onChange={(e) => setEdit({ ...edit, sizeW: e.target.value, sft: String(sftOf(edit.sizeL, e.target.value) || edit.sft) })} /></F>
+          </div>
+          <F label="Remarks"><input className="input" value={edit.remarks} onChange={(e) => setEdit({ ...edit, remarks: e.target.value })} /></F>
+          <F label="Photo">
+            <label className="cursor-pointer flex items-center justify-center h-12 rounded border border-dashed border-slate-300 overflow-hidden">
+              {edit.photo ? <img src={edit.photo} alt="" className="h-12 object-cover" /> : <span className="text-[11px] text-slate-400">+ Replace photo</span>}
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => editPhoto(e.target.files[0])} />
+            </label>
+          </F>
+          <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setEdit(null)}>Cancel</button><button className="btn-warn" onClick={saveEdit}>Save</button></div>
         </Modal>
       )}
     </div>
@@ -296,6 +337,15 @@ function Step2({ onDone }) {
   }
   const setC = (id, k, v) => setCut((c) => ({ ...c, [id]: { ...c[id], [k]: v } }));
   async function pick(setter, file) { if (!file) return; try { setter(await fileToThumbnail(file, 300, 0.7)); } catch {} }
+
+  function printReport() {
+    if (!data) return;
+    const html = buildStep2Report(orderNo.trim(), hdr, data.slabs, cut);
+    const w = window.open('', '_blank');
+    if (!w) { setStatus('❌ Popup blocked — allow popups to print.'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 500);
+  }
 
   async function submit() {
     if (!data) return;
@@ -357,7 +407,8 @@ function Step2({ onDone }) {
               </tbody>
             </table>
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button className="btn-secondary" onClick={printReport}>⬇ Cutting Report</button>
             <button className="btn-warn" disabled={saving} onClick={submit}>{saving ? 'Submitting…' : 'Submit Step 2'}</button>
           </div>
           <p className="text-[11.5px] text-slate-400">Cutting "Yes" → slab marked <b>Used</b>, a remnant slab (size − cut) is auto-created as Available, and a WhatsApp update is sent.</p>
@@ -365,6 +416,55 @@ function Step2({ onDone }) {
       )}
     </div>
   );
+}
+
+/* ─── Step 2 cutting report (browser print) ─── */
+function buildStep2Report(orderNo, hdr, slabs, cut) {
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const f2 = (n) => (Number(n) || 0).toFixed(2);
+  let rows = '';
+  (slabs || []).forEach((s, i) => {
+    const c = cut[s.id] || {};
+    const oL = num(s.sizeL), oW = num(s.sizeW), oSft = (oL * oW) / 144;
+    const yes = c.cutting === 'Yes';
+    const uL = num(c.cuttingSizeL), uW = num(c.cuttingSizeW), cSft = (uL * uW) / 144;
+    const rL = Math.max(oL - uL, 0), rW = Math.max(oW - uW, 0), rSft = yes ? (rL * rW) / 144 : 0;
+    rows += `<tr><td>${i + 1}</td><td>${esc(s.slab)}</td><td>${esc(s.material)} ${esc(s.thickness)}</td>
+      <td class="n">${oL} x ${oW}</td><td class="n">${f2(oSft)}</td>
+      <td class="${yes ? 'yes' : 'no'}">${yes ? 'CUT' : '—'}</td>
+      <td class="n">${yes ? uL + ' x ' + uW : '—'}</td><td class="n">${yes ? f2(cSft) : '—'}</td>
+      <td>${esc(c.cuttingReason || '—')}</td>
+      <td class="n">${yes && rL > 0 && rW > 0 ? rL + ' x ' + rW : '—'}</td><td class="n">${yes && rSft > 0 ? f2(rSft) : '—'}</td></tr>`;
+  });
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cutting Report ${esc(orderNo)}</title><style>
+@page{margin:12mm;size:A4 landscape}*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1c1b18}
+.hdr{background:#1c1b18;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-weight:700;font-size:16px;letter-spacing:.06em}.logo span{color:#fb923c}
+.doc{color:#fb923c;font-size:13px;letter-spacing:2px}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 18px;padding:12px 16px;background:#f4f3f0;border-bottom:1px solid #d6d4cc}
+.meta .l{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#6b6a65;display:block}.meta .v{font-weight:700;font-size:12px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th{background:#1c1b18;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:5px 8px;border-bottom:1px solid #e8e6df}td.n{font-variant-numeric:tabular-nums}
+td.yes{color:#c84b00;font-weight:700}td.no{color:#6b6a65}
+tbody tr:nth-child(even){background:#faf9f6}
+.foot{margin-top:14px;padding:8px 16px;font-size:9px;color:#6b6a65;border-top:1px solid #d6d4cc}
+</style></head><body>
+<div class="hdr"><div class="logo">SK <span>Tiles</span></div><div class="doc">CUTTING REPORT</div></div>
+<div class="meta">
+<div><span class="l">Order No.</span><span class="v">${esc(orderNo) || '—'}</span></div>
+<div><span class="l">Material</span><span class="v">${esc(hdr.material) || '—'}</span></div>
+<div><span class="l">All Pieces</span><span class="v">${esc(hdr.allPieces) || '—'}</span></div>
+<div><span class="l">Grain</span><span class="v">${esc(hdr.grain) || '—'}</span></div>
+<div><span class="l">Material Issue</span><span class="v">${esc(hdr.issue) || 'No'}</span></div>
+<div style="grid-column:span 3"><span class="l">Sizes / Packing</span><span class="v">${esc(hdr.sizesPacking) || '—'}</span></div>
+</div>
+<div style="padding:0 16px"><table>
+<thead><tr><th>#</th><th>Slab</th><th>Material</th><th>Orig L×W</th><th>Orig SFT</th><th>Cut?</th><th>Cut L×W</th><th>Cut SFT</th><th>Reason</th><th>Remnant L×W</th><th>Remnant SFT</th></tr></thead>
+<tbody>${rows}</tbody></table></div>
+<div class="foot">SK Tiles · Inventory cutting report · sizes in inches, SFT = (L × W) ÷ 144</div>
+</body></html>`;
 }
 
 /* ─── small shared bits ─── */
