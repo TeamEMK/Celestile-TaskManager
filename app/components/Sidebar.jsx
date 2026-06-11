@@ -37,10 +37,10 @@ const SECTIONS = [
     { href: '/compliance',    label: 'Compliance',    icon: 'compliance',   adminOnly: true, hidden: true },
   ]},
   { title: 'Daily', items: [
-    { href: '/daily-task',    label: 'Daily Task',    icon: 'dailytask', hidden: true },
+    { href: '/daily-task',    label: 'Daily Task',    icon: 'dailytask' },
     { href: '/leave-tracker', label: 'Leave Tracker', icon: 'leave',     hidden: true },
     { href: '/meetings',      label: 'Meetings',      icon: 'meetings',  hidden: true },
-    { href: '/daily-reports', label: 'Daily Reports', icon: 'reports',   hidden: true },
+    { href: '/daily-reports', label: 'Daily Reports', icon: 'reports',   adminOnly: true },
   ]},
   { title: 'Administration', items: [
     { href: '/users',   label: 'Users',   icon: 'users',   adminOnly: true },
