@@ -8,17 +8,28 @@
 -- 1) DAILY TASK (timesheet) ------------------------------------------------
 --    One submission = one or more rows that share the same doer + entry_date.
 CREATE TABLE IF NOT EXISTS daily_tasks (
-  id          TEXT PRIMARY KEY,
-  entry_date  DATE NOT NULL,
-  doer_id     TEXT,
-  doer        TEXT NOT NULL,
-  client      TEXT,
-  department  TEXT,
-  description TEXT,
-  minutes     INTEGER NOT NULL DEFAULT 0,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id           TEXT PRIMARY KEY,
+  entry_date   DATE NOT NULL,
+  doer_id      TEXT,
+  doer         TEXT NOT NULL,
+  client       TEXT,
+  department   TEXT,
+  description  TEXT,
+  minutes      INTEGER NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  order_number TEXT DEFAULT '',
+  area_name    TEXT DEFAULT '',
+  task_type    TEXT DEFAULT '',
+  software     TEXT DEFAULT '',
+  revision     TEXT DEFAULT 'No'
 );
 CREATE INDEX IF NOT EXISTS idx_daily_tasks_doer_date ON daily_tasks (doer_id, entry_date);
+-- For pre-existing installs: add the daily-task columns ported from Apps Script.
+ALTER TABLE daily_tasks ADD COLUMN IF NOT EXISTS order_number TEXT DEFAULT '';
+ALTER TABLE daily_tasks ADD COLUMN IF NOT EXISTS area_name    TEXT DEFAULT '';
+ALTER TABLE daily_tasks ADD COLUMN IF NOT EXISTS task_type    TEXT DEFAULT '';
+ALTER TABLE daily_tasks ADD COLUMN IF NOT EXISTS software     TEXT DEFAULT '';
+ALTER TABLE daily_tasks ADD COLUMN IF NOT EXISTS revision     TEXT DEFAULT 'No';
 
 -- 2) LEAVE TRACKER ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS leaves (

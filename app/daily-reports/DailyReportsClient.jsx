@@ -51,7 +51,9 @@ export default function DailyReportsClient({ isAdmin }) {
     return inWindow.filter((e) =>
       (doer === 'All' || e.doer === doer) &&
       (client === 'All' || e.client === client) &&
-      (!t || (e.doer + e.client + e.description + e.department).toLowerCase().includes(t))
+      (!t || (e.doer + e.client + (e.description || '') + (e.department || '') +
+        (e.taskType || '') + (e.software || '') + (e.areaName || '') + (e.orderNumber || ''))
+        .toLowerCase().includes(t))
     );
   }, [inWindow, q, doer, client]);
 
@@ -66,10 +68,13 @@ export default function DailyReportsClient({ isAdmin }) {
   }, [filtered]);
 
   function downloadCSV() {
-    const head = ['Date', 'Doer', 'Client', 'Department', 'Description', 'Minutes'];
+    const head = ['Date', 'Doer', 'Client', 'Order Number', 'Area Name', 'Task Type', 'Software', 'Revision', 'Minutes'];
+    const csvCell = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
     const lines = filtered.map((e) => [
-      fmt(e.entryDate), e.doer, e.client || '', e.department || '',
-      `"${(e.description || '').replaceAll('"', '""')}"`, e.minutes,
+      fmt(e.entryDate), csvCell(e.doer), csvCell(e.client),
+      csvCell(e.orderNumber), csvCell(e.areaName),
+      csvCell(e.taskType || e.department), csvCell(e.software),
+      e.revision || 'No', e.minutes,
     ].join(','));
     const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
     const a = document.createElement('a');
@@ -172,7 +177,9 @@ export default function DailyReportsClient({ isAdmin }) {
               <table className="w-full">
                 <thead><tr>
                   <th className="table-th">Date</th><th className="table-th">Doer</th><th className="table-th">Client</th>
-                  <th className="table-th">Dept</th><th className="table-th">Description</th><th className="table-th">Min</th>
+                  <th className="table-th">Order #</th><th className="table-th">Area</th>
+                  <th className="table-th">Task Type</th><th className="table-th">Software</th>
+                  <th className="table-th">Rev</th><th className="table-th">Min</th>
                 </tr></thead>
                 <tbody>
                   {filtered.map((e) => (
@@ -180,8 +187,11 @@ export default function DailyReportsClient({ isAdmin }) {
                       <td className="table-td whitespace-nowrap">{fmt(e.entryDate)}</td>
                       <td className="table-td">{e.doer}</td>
                       <td className="table-td">{e.client || '—'}</td>
-                      <td className="table-td">{e.department || '—'}</td>
-                      <td className="table-td max-w-[360px] truncate" title={e.description}>{e.description}</td>
+                      <td className="table-td">{e.orderNumber || '—'}</td>
+                      <td className="table-td max-w-[200px] truncate" title={e.areaName}>{e.areaName || '—'}</td>
+                      <td className="table-td">{e.taskType || e.department || '—'}</td>
+                      <td className="table-td">{e.software || '—'}</td>
+                      <td className="table-td">{e.revision === 'Yes' ? '✅' : '—'}</td>
                       <td className="table-td">{e.minutes}</td>
                     </tr>
                   ))}

@@ -1,11 +1,16 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 
-const blankRow = () => ({ client: '', department: '', description: '', minutes: '' });
+const blankRow = () => ({
+  client: '', orderNumber: '', areaName: '',
+  taskType: '', software: '', revision: false, minutes: '',
+});
 const todayISO = () => new Date().toISOString().split('T')[0];
 const fmt = (iso) => new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-');
 
-export default function DailyTaskClient({ doerId, doer, departments = [], clients = [] }) {
+export default function DailyTaskClient({
+  doerId, doer, clients = [], taskTypes = [], softwares = [],
+}) {
   const [entryDate, setEntryDate] = useState(todayISO());
   const [rows, setRows] = useState([blankRow()]);
   const [saving, setSaving] = useState(false);
@@ -34,8 +39,22 @@ export default function DailyTaskClient({ doerId, doer, departments = [], client
   const delRow = (i) => setRows((rs) => (rs.length === 1 ? [blankRow()] : rs.filter((_, idx) => idx !== i)));
 
   async function submitAll() {
-    const clean = rows.filter((r) => r.description.trim() || r.client || Number(r.minutes) > 0);
+    // a row counts if it has any of the required fields filled
+    const clean = rows
+      .filter((r) => r.client || r.orderNumber || r.areaName || r.taskType || r.software || Number(r.minutes) > 0)
+      .map((r) => ({ ...r, revision: r.revision ? 'Yes' : 'No' }));
+
     if (clean.length === 0) { setMsg('Add at least one task row.'); return; }
+
+    // mirror the Apps Script "all fields required" rule (Revision optional)
+    const incomplete = clean.find(
+      (r) => !r.client || !r.orderNumber || !r.areaName || !r.taskType || !r.software || !r.minutes
+    );
+    if (incomplete) {
+      setMsg('❌ All fields in every row are required (Revision is optional).');
+      return;
+    }
+
     setSaving(true); setMsg('');
     try {
       const res = await fetch('/api/daily-tasks', {
@@ -91,9 +110,12 @@ export default function DailyTaskClient({ doerId, doer, departments = [], client
           <table className="w-full">
             <thead className="bg-slate-900 text-white">
               <tr>
-                <th className="table-th !text-white">Client</th>
-                <th className="table-th !text-white">Department</th>
-                <th className="table-th !text-white">Task Description</th>
+                <th className="table-th !text-white">Client Name</th>
+                <th className="table-th !text-white">Order Number</th>
+                <th className="table-th !text-white">Area Name</th>
+                <th className="table-th !text-white">Task Type</th>
+                <th className="table-th !text-white">Software</th>
+                <th className="table-th !text-white text-center">Revision</th>
                 <th className="table-th !text-white">Time (min)</th>
                 <th className="table-th !text-white text-right pr-3">Actions</th>
               </tr>
@@ -106,17 +128,31 @@ export default function DailyTaskClient({ doerId, doer, departments = [], client
                       value={r.client} onChange={(e) => setRow(i, 'client', e.target.value)} />
                   </td>
                   <td className="table-td">
-                    <select className="input" value={r.department} onChange={(e) => setRow(i, 'department', e.target.value)}>
+                    <input className="input" value={r.orderNumber}
+                      onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
+                  </td>
+                  <td className="table-td">
+                    <input className="input" value={r.areaName}
+                      onChange={(e) => setRow(i, 'areaName', e.target.value)} />
+                  </td>
+                  <td className="table-td">
+                    <select className="input" value={r.taskType} onChange={(e) => setRow(i, 'taskType', e.target.value)}>
                       <option value="">--select--</option>
-                      {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                      {taskTypes.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </td>
                   <td className="table-td">
-                    <textarea className="input min-h-[40px]" rows={1} placeholder="What did you do?"
-                      value={r.description} onChange={(e) => setRow(i, 'description', e.target.value)} />
+                    <select className="input" value={r.software} onChange={(e) => setRow(i, 'software', e.target.value)}>
+                      <option value="">--select--</option>
+                      {softwares.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </td>
+                  <td className="table-td text-center">
+                    <input type="checkbox" className="h-4 w-4 cursor-pointer accent-primary-600"
+                      checked={!!r.revision} onChange={(e) => setRow(i, 'revision', e.target.checked)} />
                   </td>
                   <td className="table-td w-24">
-                    <input type="number" min="0" className="input" value={r.minutes}
+                    <input type="number" min="0" step="0.1" className="input" value={r.minutes}
                       onChange={(e) => setRow(i, 'minutes', e.target.value)} />
                   </td>
                   <td className="table-td">
@@ -165,10 +201,15 @@ export default function DailyTaskClient({ doerId, doer, departments = [], client
                     <span className="pill bg-amber-50 text-amber-600">{dayTotal} min total</span>
                   </div>
                   {entries.map((e) => (
-                    <div key={e.id} className="flex items-start gap-2 text-[12.5px] py-1">
+                    <div key={e.id} className="flex items-center flex-wrap gap-2 text-[12.5px] py-1">
                       {e.client && <span className="pill bg-orange-50 text-orange-600 shrink-0">{e.client}</span>}
-                      {e.department && <span className="pill bg-primary-50 text-primary-700 shrink-0">{e.department}</span>}
-                      <span className="text-slate-700">{e.description}</span>
+                      {e.orderNumber && <span className="pill bg-slate-100 text-slate-600 shrink-0">#{e.orderNumber}</span>}
+                      {e.areaName && <span className="text-slate-700">{e.areaName}</span>}
+                      {e.taskType && <span className="pill bg-primary-50 text-primary-700 shrink-0">{e.taskType}</span>}
+                      {e.software && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.software}</span>}
+                      {(e.revision === 'Yes') && <span className="pill bg-red-50 text-red-600 shrink-0">Revision</span>}
+                      {/* legacy rows (pre-port) only have a description */}
+                      {!e.taskType && e.description && <span className="text-slate-700">{e.description}</span>}
                       <span className="ml-auto pill bg-amber-50 text-amber-600 shrink-0">{e.minutes} min</span>
                     </div>
                   ))}
