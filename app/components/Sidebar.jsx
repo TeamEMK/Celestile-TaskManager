@@ -20,6 +20,7 @@ const Icon = {
   clientmaster: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4 8 4v14M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>,
   race:         (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V4"/><path d="M4 4h13l-2 4 2 4H4"/></svg>,
   compliance:   (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>,
+  quote:        (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>,
 };
 
 const SECTIONS = [
@@ -38,6 +39,7 @@ const SECTIONS = [
   ]},
   { title: 'Daily', items: [
     { href: '/daily-task',    label: 'Daily Task',    icon: 'dailytask' },
+    { href: '/quotation',     label: 'Quotation',     icon: 'quote' },
     { href: '/leave-tracker', label: 'Leave Tracker', icon: 'leave',     hidden: true },
     { href: '/meetings',      label: 'Meetings',      icon: 'meetings',  hidden: true },
     { href: '/daily-reports', label: 'Daily Reports', icon: 'reports',   adminOnly: true },
