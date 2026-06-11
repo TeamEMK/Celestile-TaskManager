@@ -40,7 +40,10 @@ function rowToQuo(r) {
 }
 
 async function loadBranchRows(branch) {
-  const [rows] = await pool.query('SELECT * FROM quotations WHERE branch = ?', [normalizeBranch(branch)]);
+  // branch falsy / "all" → every branch (admin panel); else just that branch
+  const [rows] = (!branch || branch === 'all')
+    ? await pool.query('SELECT * FROM quotations')
+    : await pool.query('SELECT * FROM quotations WHERE branch = ?', [normalizeBranch(branch)]);
   // newest last by created_at (string-sortable ISO); keep stable for same-ts
   return rows.slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
 }
@@ -49,12 +52,18 @@ export async function GET(req) {
   try {
     await ensureSchema();
     const url = new URL(req.url);
-    const branch = normalizeBranch(url.searchParams.get('branch'));
+    const branchParam = url.searchParams.get('branch');
     const ref = url.searchParams.get('ref');
-    const rows = await loadBranchRows(branch);
+    const full = url.searchParams.get('full');
 
+    if (full) {
+      // admin panel: full quotation objects, newest first (all branches if no branch)
+      const rows = await loadBranchRows(branchParam);
+      return NextResponse.json({ quotations: rows.map(rowToQuo).reverse() });
+    }
+
+    const rows = await loadBranchRows(normalizeBranch(branchParam));
     if (ref) {
-      // latest row matching this exact ref
       const match = rows.filter((r) => String(r.ref_no).trim() === String(ref).trim()).pop();
       if (!match) return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
       return NextResponse.json(rowToQuo(match));

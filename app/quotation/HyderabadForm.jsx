@@ -57,7 +57,7 @@ const HEADER_FIELDS = [
   ['boutique','Boutique'], ['paymentTerms','Payment Terms'], ['leadTime','Lead Time'], ['transport','Mode of Transport'],
 ];
 
-export default function HyderabadForm() {
+export default function HyderabadForm({ initialRef = '' }) {
   const [header, setHeader] = useState({
     quoteDate: todayISO(), refNo: '', clientName:'', clientFirm:'', consultant:'', consultantNo:'', consultantEmail:'',
     architect:'', clientContact:'', clientEmail:'', boutique:'Shamshabad, Hyderabad',
@@ -84,6 +84,7 @@ export default function HyderabadForm() {
     fetch('/api/consultants').then((r) => r.json())
       .then((d) => setConsultants(Array.isArray(d?.list) ? d.list : [])).catch(() => {});
     setHeader((h) => ({ ...h, validity: validityFrom(h.quoteDate) }));
+    if (initialRef) loadRef(initialRef);
   }, []);
 
   /* stone rows */
@@ -138,11 +139,12 @@ export default function HyderabadForm() {
       setShowRevise(true);
     } catch { setStatus('❌ Could not load list'); }
   }
-  async function loadSelected() {
-    if (!selRef) return;
+  const loadSelected = () => loadRef(selRef);
+  async function loadRef(ref) {
+    if (!ref) return;
     setShowRevise(false); setStatus('Loading…');
     try {
-      const q = await (await fetch('/api/quotations?branch=hyderabad&ref=' + encodeURIComponent(selRef))).json();
+      const q = await (await fetch('/api/quotations?branch=hyderabad&ref=' + encodeURIComponent(ref))).json();
       if (q.error) throw new Error(q.error);
       setHeader((h) => ({
         ...h, refNo: nextRevRef(q.refNo), clientName: q.clientName || '', clientFirm: q.clientFirm || '',

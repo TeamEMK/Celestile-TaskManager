@@ -89,7 +89,7 @@ const HEADER_FIELDS = [
   ['boutique','Boutique',''], ['leadTime','Lead Time',''],
 ];
 
-export default function BangaloreForm() {
+export default function BangaloreForm({ initialRef = '' }) {
   const [header, setHeader] = useState({
     quoteDate: todayISO(), refNo: '', clientName:'', architectName:'', architectFirm:'',
     consultant:'', consultantNumber:'', consultantEmail:'', clientContact:'', clientEmail:'',
@@ -115,6 +115,7 @@ export default function BangaloreForm() {
     fetch('/api/consultants').then((r) => r.json())
       .then((d) => setConsultants(Array.isArray(d?.list) ? d.list : [])).catch(() => {});
     setHeader((h) => ({ ...h, validity: validityFrom(h.quoteDate) }));
+    if (initialRef) loadRef(initialRef);
   }, []);
 
   /* row ops */
@@ -177,11 +178,12 @@ export default function BangaloreForm() {
       setShowRevise(true);
     } catch { setStatus('❌ Could not load list'); }
   }
-  async function loadSelected() {
-    if (!selRef) return;
+  const loadSelected = () => loadRef(selRef);
+  async function loadRef(ref) {
+    if (!ref) return;
     setShowRevise(false); setStatus('Loading…');
     try {
-      const q = await (await fetch('/api/quotations?branch=bangalore&ref=' + encodeURIComponent(selRef))).json();
+      const q = await (await fetch('/api/quotations?branch=bangalore&ref=' + encodeURIComponent(ref))).json();
       if (q.error) throw new Error(q.error);
       setHeader((h) => ({
         ...h,
