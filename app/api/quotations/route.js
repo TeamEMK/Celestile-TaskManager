@@ -32,6 +32,7 @@ function rowToQuo(r) {
     billingAddress: r.billing_address || '', siteAddress: r.site_address || '',
     grandTotal: r.grand_total || '', discountPct: r.discount_pct || '',
     designFees: r.design_fees || '', installationCharges: r.installation_charges || '',
+    packingCharges: r.packing_charges || '',
     stoneItems: parseJson(r.stone_items), totalsConfig: parseJson(r.totals_config),
     fixingItems: parseJson(r.fixing_items), pdf: r.pdf || '',
     createdAt: r.created_at || '',
@@ -100,9 +101,9 @@ export async function POST(req) {
         (id, ref_no, branch, client_name, client_firm, client_contact, client_email, pan,
          architect_name, architect_firm, architect, consultant, consultant_number, consultant_email,
          boutique, payment_terms, validity, lead_time, transport, billing_address, site_address,
-         grand_total, discount_pct, design_fees, installation_charges,
+         grand_total, discount_pct, design_fees, installation_charges, packing_charges,
          stone_items, totals_config, fixing_items, pdf, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         id, data.refNo, branch, data.clientName || '', data.clientFirm || '', contact, cemail, data.pan || '',
         data.architectName || '', data.architectFirm || '', data.architect || '', data.consultant || '',
@@ -110,6 +111,7 @@ export async function POST(req) {
         data.boutique || '', data.paymentTerms || '', data.validity || '', data.leadTime || '',
         data.transport || '', data.billingAddress || '', data.siteAddress || '',
         data.grandTotal || '', data.discountPct || '', data.designFees || '', data.installationCharges || '',
+        data.packingCharges || '',
         JSON.stringify(data.stoneItems || []), JSON.stringify(data.totalsConfig || []),
         JSON.stringify(data.fixingItems || []), data.pdf || '', createdAt,
       ]

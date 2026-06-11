@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import BangaloreForm from './BangaloreForm';
+import HyderabadForm from './HyderabadForm';
 
 const BRANCHES = [
   { id: 'bangalore', label: 'Bangalore' },
@@ -29,18 +30,7 @@ export default function QuotationClient() {
         </div>
       </div>
 
-      {branch === 'bangalore' ? (
-        <BangaloreForm />
-      ) : (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <div className="text-[13px] font-semibold text-amber-800">Hyderabad form — coming next</div>
-          <div className="text-[12px] text-amber-700/80 mt-1 leading-relaxed">
-            The backend (save / load / revisions / WhatsApp) already supports Hyderabad. The editable
-            Hyderabad form (Client Firm, PAN, Transport, Fixing Items, Design Fees, Installation Charges)
-            will be added once its source is ported — same calculation-faithful approach as Bangalore.
-          </div>
-        </div>
-      )}
+      {branch === 'bangalore' ? <BangaloreForm /> : <HyderabadForm />}
     </div>
   );
 }
