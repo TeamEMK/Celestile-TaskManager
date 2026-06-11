@@ -6,8 +6,17 @@ import bcrypt from 'bcryptjs';
 // Without this, findUser falls back to readStore, which strips password_hash
 // and would force the default password instead of the real one.
 import '@/lib/db';
+import { parseAccess } from '@/lib/pages';
 
 const DEFAULT_PASSWORD = 'India@123';
+
+function rolesFrom(raw) {
+  return Array.isArray(raw)
+    ? raw
+    : typeof raw === 'string'
+    ? raw.split(',').map((r) => r.trim()).filter(Boolean)
+    : ['User'];
+}
 
 async function isAppActive() {
   try {
@@ -45,22 +54,29 @@ async function findUser(email) {
   }
 }
 
-async function getUserForceLogout(userId) {
+// Fresh auth state for a session refresh: force-logout stamp + current roles +
+// current per-page access (so role/access edits apply without a re-login).
+async function getUserAuthState(userId) {
   try {
     const hasMySQL = !!(process.env.DB_HOST);
     if (hasMySQL) {
       const { pool } = await import('@/lib/db');
-      const [rows] = await pool.query('SELECT force_logout_after FROM users WHERE id = ?', [userId]);
-      if (!rows.length) return Date.now(); // user deleted → force logout
-      return rows[0]?.force_logout_after ? new Date(rows[0].force_logout_after).getTime() : 0;
+      const [rows] = await pool.query('SELECT roles, access, force_logout_after FROM users WHERE id = ?', [userId]);
+      if (!rows.length) return { forceLogoutAfter: Date.now() }; // deleted → force logout
+      const r = rows[0];
+      return {
+        forceLogoutAfter: r.force_logout_after ? new Date(r.force_logout_after).getTime() : 0,
+        roles: rolesFrom(r.roles),
+        access: parseAccess(r.access),
+      };
     }
     const { readStore } = await import('@/lib/store');
     const store = await readStore();
     const u = (store.users || []).find(x => x.id === userId);
-    if (!u) return Date.now(); // user deleted → force logout
-    return u?.forceLogoutAfter || 0;
+    if (!u) return { forceLogoutAfter: Date.now() };
+    return { forceLogoutAfter: u.forceLogoutAfter || 0, roles: rolesFrom(u.roles), access: parseAccess(u.access) };
   } catch {
-    return 0;
+    return {};
   }
 }
 
@@ -95,11 +111,8 @@ export const authOptions = {
             email:      user.email,
             phone:      user.phone      || '',
             department: user.department || '',
-            roles: Array.isArray(user.roles)
-              ? user.roles
-              : typeof user.roles === 'string'
-              ? user.roles.split(',').map(r => r.trim()).filter(Boolean)
-              : ['User'],
+            roles:      rolesFrom(user.roles),
+            access:     parseAccess(user.access),
           };
         } catch (err) {
           console.error('[auth] error:', err.message);
@@ -121,13 +134,15 @@ export const authOptions = {
         token.phone      = user.phone;
         token.department = user.department;
         token.roles      = user.roles;
+        token.access     = user.access ?? null;
         token.loginAt    = Date.now();
       } else if (token.id) {
-        // Session refresh — check if admin changed this user's password
-        const forceLogoutAfter = await getUserForceLogout(token.id);
-        // loginAt missing (old session before this feature) → treat as 0 (always before forceLogoutAfter)
+        // Session refresh — pull fresh roles/access + check force-logout
+        const state = await getUserAuthState(token.id);
+        if (state.roles)  token.roles  = state.roles;
+        if ('access' in state) token.access = state.access ?? null;
         const loginAt = token.loginAt || 0;
-        if (forceLogoutAfter && loginAt < forceLogoutAfter) {
+        if (state.forceLogoutAfter && loginAt < state.forceLogoutAfter) {
           token.error = 'ForceLogout';
         }
       }
@@ -140,6 +155,7 @@ export const authOptions = {
       session.user.phone      = token.phone;
       session.user.department = token.department;
       session.user.roles      = token.roles;
+      session.user.access     = token.access ?? null;
       if (token.error) session.error = token.error;
       return session;
     },

@@ -1,10 +1,21 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
+import { canAccess } from '@/lib/pages';
 
 export default withAuth(
   function middleware(req) {
+    const { pathname } = req.nextUrl;
+    const token = req.nextauth?.token;
+
+    // Per-user page access. /developer has its own gate; skip it here.
+    if (token && !pathname.startsWith('/developer')) {
+      if (!canAccess(pathname, token.roles, token.access)) {
+        return NextResponse.redirect(new URL('/', req.url));
+      }
+    }
+
     const res = NextResponse.next();
-    res.headers.set('x-pathname', req.nextUrl.pathname);
+    res.headers.set('x-pathname', pathname);
     return res;
   },
   {
