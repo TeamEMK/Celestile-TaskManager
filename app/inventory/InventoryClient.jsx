@@ -27,7 +27,7 @@ export default function InventoryClient() {
       <div className="sk-topbar">
         <div className="sk-logo">SK <span>Tiles</span></div>
         <div className="sk-tabs">
-          {[['inward', 'Inward'], ['stock', 'Stock'], ['step2', 'Step 2']].map(([id, label]) => (
+          {[['inward', 'Inward'], ['stock', 'Stock'], ['step2', 'Blocking for Jointing']].map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)} className={`sk-tab ${tab === id ? 'active' : ''}`}>{label}</button>
           ))}
         </div>
@@ -356,7 +356,7 @@ function Step2({ onDone }) {
       const res = await fetch('/api/inventory/step2', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed');
-      setStatus('✅ Step 2 saved — slabs marked Used, remnants created.');
+      setStatus('✅ Saved — slabs marked Used, remnants created.');
       setData(null); setCut({}); onDone();
     } catch (e) { setStatus('❌ ' + e.message); }
     finally { setSaving(false); }
@@ -409,7 +409,7 @@ function Step2({ onDone }) {
           </div>
           <div className="flex justify-end gap-2">
             <button className="btn-secondary" onClick={printReport}>⬇ Cutting Report</button>
-            <button className="btn-warn" disabled={saving} onClick={submit}>{saving ? 'Submitting…' : 'Submit Step 2'}</button>
+            <button className="btn-warn" disabled={saving} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
           </div>
           <p className="text-[11.5px] text-slate-400">Cutting "Yes" → slab marked <b>Used</b>, a remnant slab (size − cut) is auto-created as Available, and a WhatsApp update is sent.</p>
         </>

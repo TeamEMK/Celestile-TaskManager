@@ -2,11 +2,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { fileToThumbnail } from '@/app/quotation/imageThumb';
 
 const blank = () => ({
   description: '', doerId: '', dueDate: '',
   priority: 'Low', approval: 'No Approval',
-  url: '', remarks: '',
+  url: '', remarks: '', image: '',
 });
 
 function parseCSV(text) {
@@ -42,6 +43,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
 
   if (!open) return null;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  async function pickImage(f) { if (!f) return; try { set('image', await fileToThumbnail(f, 700, 0.7)); } catch {} }
 
   async function save() {
     if (!form.description.trim() || !form.doerId || !form.dueDate) {
@@ -155,6 +157,17 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
           <div>
             <label className="label">Remarks</label>
             <textarea value={form.remarks} rows={2} onChange={(e) => set('remarks', e.target.value)} className="input resize-none" placeholder="Any remarks..." />
+          </div>
+
+          <div>
+            <label className="label">Photo <span className="text-slate-400 font-normal">(optional)</span></label>
+            <div className="flex items-center gap-3">
+              <label className="cursor-pointer flex items-center justify-center w-16 h-16 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-slate-400 shrink-0">
+                {form.image ? <img src={form.image} alt="" className="w-16 h-16 object-cover" /> : <span className="text-slate-400 text-xl leading-none">+</span>}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => pickImage(e.target.files?.[0])} />
+              </label>
+              {form.image && <button type="button" className="text-[12px] text-red-500" onClick={() => set('image', '')}>Remove</button>}
+            </div>
           </div>
 
           {msg && <div className="text-[12px] text-slate-600">{msg}</div>}
