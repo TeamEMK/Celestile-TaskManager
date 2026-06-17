@@ -8,6 +8,8 @@ const UNIT_OPTIONS = ['','Piece','Module','SFT','RFT','BAG','KG','GMS','LITER'];
 const DEFAULT_GST = 18;
 
 const inr2 = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// SFT (Wt×Ht in inches) rounded UP to the nearest multiple of 6 (e.g. 35 → 36)
+const roundTo6 = (n) => Math.ceil((Number(n) || 0) / 6) * 6;
 const inrNeg = (n) => (Number(n) || 0) === 0 ? '– ₹ 0' : '– ₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
@@ -31,7 +33,7 @@ function compute(stoneRows, fixRows, charges) {
   let stoneSum = 0, grossGst = 0;
   const perStone = stoneRows.map((r) => {
     const p = parseFloat(r.price) || 0;
-    const q = r.module ? (parseFloat(r.sizeWt) || 0) * (parseFloat(r.sizeHt) || 0) : (parseFloat(r.qty) || 0);
+    const q = r.module ? roundTo6((parseFloat(r.sizeWt) || 0) * (parseFloat(r.sizeHt) || 0)) : (parseFloat(r.qty) || 0);
     const gst = parseFloat(r.gst) || 0;
     const amt = p * q; stoneSum += amt; grossGst += amt * gst / 100;
     return { amt, q, hasInput: p > 0 || q > 0 };
@@ -225,7 +227,7 @@ export default function HyderabadForm({ initialRef = '' }) {
         <div className="overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-[12px]">
             <thead className="bg-slate-900 text-white">
-              <tr>{['#','Image','Description','Area','Size Wt','Size Ht','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
+              <tr>{['#','Image','Description','Area','Size Wt (in)','Size Ht (in)','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
                 <th key={i} className="px-2 py-2 text-left font-semibold whitespace-nowrap">{h}</th>)}</tr>
             </thead>
             <tbody>
@@ -380,7 +382,7 @@ function buildPdfHtml(header, charges, stoneRows, fixRows, calc) {
   const stoneItems = stoneRows
     .map((r) => {
       const p = parseFloat(r.price) || 0;
-      const q = r.module ? (parseFloat(r.sizeWt) || 0) * (parseFloat(r.sizeHt) || 0) : (parseFloat(r.qty) || 0);
+      const q = r.module ? roundTo6((parseFloat(r.sizeWt) || 0) * (parseFloat(r.sizeHt) || 0)) : (parseFloat(r.qty) || 0);
       return { ...r, p, q, gst: parseFloat(r.gst) || 0 };
     })
     .filter((it) => it.desc || it.p || it.q);
@@ -453,7 +455,7 @@ table.it td{padding:3px 4px;border-right:1px solid #efe6d4;vertical-align:middle
 </table></div>
 <div class="body">
 <div class="sh"><div class="snum">01</div><div class="slbl">Stone &amp; Tile Items</div><div class="srule"></div></div>
-<table class="it"><thead><tr><th>#</th><th>Img</th><th>Description</th><th>Area</th><th>Size Wt</th><th>Size Ht</th><th>Material</th><th>Thickness</th><th>Unit</th>${hasNonSFT?'<th style="text-align:right">Rate (₹)</th><th style="text-align:right">Qty</th>':''}<th style="text-align:right">GST%</th><th style="text-align:right">Amount</th></tr></thead><tbody>${stoneHtml}</tbody></table>
+<table class="it"><thead><tr><th>#</th><th>Img</th><th>Description</th><th>Area</th><th>Size Wt (in)</th><th>Size Ht (in)</th><th>Material</th><th>Thickness</th><th>Unit</th>${hasNonSFT?'<th style="text-align:right">Rate (₹)</th><th style="text-align:right">Qty</th>':''}<th style="text-align:right">GST%</th><th style="text-align:right">Amount</th></tr></thead><tbody>${stoneHtml}</tbody></table>
 <div class="sh" style="margin-top:8px"><div class="snum">02</div><div class="slbl">Fixing Material</div><div class="srule"></div></div>
 <table class="it"><thead><tr><th>#</th><th>Description</th><th>Material</th><th>Size / Thickness</th><th>Unit</th><th style="text-align:right">Rate (₹)</th><th style="text-align:right">Qty</th><th style="text-align:right">Amount</th></tr></thead><tbody>${fixHtml}</tbody></table>
 <div class="bg"><div class="bp"><div class="bt">Bank Details</div>

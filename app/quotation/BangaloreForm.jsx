@@ -17,6 +17,8 @@ const parseSize = (s) => {
 };
 const inr0 = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const inr2 = (n) => (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// SFT (W×H in inches) rounded UP to the nearest multiple of 6 (e.g. 35 → 36)
+const roundTo6 = (n) => Math.ceil((Number(n) || 0) / 6) * 6;
 
 const blankRow = () => ({ desc:'', area:'', size:'', mat:'', thk:'', unit:'', module:false, price:'', qty:'', gst:DEFAULT_GST, img:'' });
 const defaultTotals = () => ([
@@ -49,7 +51,7 @@ function compute(rows, totals) {
   const rowData = rows.map((r) => {
     const price = parseFloat(r.price) || 0;
     let qty;
-    if (r.module) { const { wt, ht } = parseSize(r.size); qty = wt * ht; }
+    if (r.module) { const { wt, ht } = parseSize(r.size); qty = roundTo6(wt * ht); }
     else qty = parseFloat(r.qty) || 0;
     const gstPct = parseFloat(r.gst) || 0;
     return { gross: price * qty, gstPct, qty, hasInput: price > 0 || qty > 0 };
@@ -264,7 +266,7 @@ export default function BangaloreForm({ initialRef = '' }) {
           <table className="w-full text-[12px]">
             <thead className="bg-slate-900 text-white">
               <tr>
-                {['#','Image','Description','Area','Size','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
+                {['#','Image','Description','Area','Size (in)','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
                   <th key={i} className="px-2 py-2 text-left font-semibold whitespace-nowrap">{h}</th>)}
               </tr>
             </thead>
@@ -408,7 +410,7 @@ function buildPdfHtml(header, rows, totals, calc) {
   const items = rows
     .map((r) => {
       const price = parseFloat(r.price) || 0;
-      const qty = r.module ? (() => { const { wt, ht } = parseSize(r.size); return wt * ht; })() : (parseFloat(r.qty) || 0);
+      const qty = r.module ? roundTo6(parseSize(r.size).wt * parseSize(r.size).ht) : (parseFloat(r.qty) || 0);
       return { ...r, price, qty, gPct: parseFloat(r.gst) || 0, gross: price * qty };
     })
     .filter((it) => it.desc || it.area || it.price || it.qty);
@@ -481,7 +483,7 @@ ${hdr}
 <tr><td><span class="lbl">Client Contact</span><span class="val">${fv('clientContact')||'&mdash;'}</span></td><td><span class="lbl">Validity</span><span class="val">${fv('validity')||'&mdash;'}</span></td><td><span class="lbl">Consultant No.</span><span class="val">${fv('consultantNumber')||'&mdash;'}</span></td><td><span class="lbl">Email</span><span class="val">${fv('clientEmail')||'&mdash;'}</span></td></tr>
 <tr><td><span class="lbl">Site Address</span><span class="val">${fv('siteAddress')||'&mdash;'}</span></td><td><span class="lbl">Lead Time</span><span class="val">${fv('leadTime')}</span></td><td><span class="lbl">Consultant Email</span><span class="val">${fv('consultantEmail')||'&mdash;'}</span></td><td><span class="lbl">Billing Address</span><span class="val">${fv('billingAddress')||'&mdash;'}</span></td></tr>
 </table></div>
-<div class="body"><table class="it"><thead><tr><th>#</th><th>Img</th><th>Description</th><th style="text-align:right">Area</th><th>Size</th><th>Material</th><th>Thk</th><th>Unit</th>${hasNonSFT?'<th style="text-align:right">Rate</th><th style="text-align:right">Qty</th>':''}<th style="text-align:right">GST%</th><th style="text-align:right">Amount</th></tr></thead><tbody>${stoneHtml}</tbody></table>
+<div class="body"><table class="it"><thead><tr><th>#</th><th>Img</th><th>Description</th><th style="text-align:right">Area</th><th>Size (in)</th><th>Material</th><th>Thk</th><th>Unit</th>${hasNonSFT?'<th style="text-align:right">Rate</th><th style="text-align:right">Qty</th>':''}<th style="text-align:right">GST%</th><th style="text-align:right">Amount</th></tr></thead><tbody>${stoneHtml}</tbody></table>
 <div class="bg"><div class="bp"><div class="bt">Bank Details</div><div class="br"><span class="bk">Name</span><span class="bv">Vijayaananth Realtech</span></div><div class="br"><span class="bk">Account No.</span><span class="bv">50200093326161</span></div><div class="br"><span class="bk">Bank</span><span class="bv">HDFC Bank</span></div><div class="br"><span class="bk">IFSC Code</span><span class="bv">HDFC0001755</span></div><div class="pt-title">Payment Terms</div><div class="pt"><span class="pt-pct">60%</span><span class="pt-desc">Advance on order confirmation</span></div><div class="pt"><span class="pt-pct">35%</span><span class="pt-desc">Before delivery of material</span></div><div class="pt"><span class="pt-pct">5%</span><span class="pt-desc">Before completion of installation</span></div></div>
 <div class="tp">${totalsHtml}<div class="tr gd"><span class="l">Grand Total</span><span class="v">${grandStr}</span></div></div></div></div>
 ${ftr}
