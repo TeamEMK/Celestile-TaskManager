@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sendWhatsApp, quotationRevisionMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { normalizeBranch, isRevision, baseRef, buildChangeList } from '@/lib/quotation';
+import { requireUser } from '@/lib/api';
 
 // Per-branch WhatsApp recipient (ported from getBranchNotifyNumber). Configurable
 // via env; falls back to the numbers from the Apps Script.
@@ -49,6 +50,7 @@ async function loadBranchRows(branch) {
 }
 
 export async function GET(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const url = new URL(req.url);
@@ -90,6 +92,7 @@ function findPreviousVersion(rows, refNo) {
 }
 
 export async function POST(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const session = await getServerSession(authOptions);

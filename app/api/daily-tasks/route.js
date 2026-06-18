@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, dailyTaskConfirmationMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+import { requireUser } from '@/lib/api';
 
 const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         client, department, description, minutes, created_at AS createdAt,
@@ -8,6 +9,7 @@ const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         task_type AS taskType, software, revision`;
 
 export async function GET(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const doerId = new URL(req.url).searchParams.get('doerId');
@@ -42,6 +44,7 @@ async function notifyFirstSubmission({ doerId, doer, entryDate }) {
 }
 
 export async function POST(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const body = await req.json();

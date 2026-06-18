@@ -3,6 +3,7 @@ import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { upsertConsultant } from '@/app/api/quotations/route';
+import { requireUser } from '@/lib/api';
 
 async function listConsultants() {
   const [rows] = await pool.query('SELECT name, mobile, email FROM consultants');
@@ -12,6 +13,7 @@ async function listConsultants() {
 }
 
 export async function GET(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const list = await listConsultants();
@@ -32,6 +34,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const { name, mobile, email } = await req.json();

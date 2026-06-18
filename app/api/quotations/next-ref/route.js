@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { normalizeBranch, nextRefNo } from '@/lib/quotation';
+import { requireUser } from '@/lib/api';
 
 export async function GET(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const branch = normalizeBranch(new URL(req.url).searchParams.get('branch'));

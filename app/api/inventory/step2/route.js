@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, isWhatsappConfigured } from '@/lib/whatsapp';
+import { requireUser } from '@/lib/api';
 
 const NOTIFY = () => process.env.INVENTORY_NOTIFY || '918008002121';
 const uid = (p) => p + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
@@ -8,6 +9,7 @@ const num = (v) => parseFloat(v) || 0;
 
 // GET ?orderNo=... → slabs belonging to that order (self-contained: from inventory)
 export async function GET(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const orderNo = (new URL(req.url).searchParams.get('orderNo') || '').trim();
@@ -28,6 +30,7 @@ export async function GET(req) {
 
 // POST submit Step 2: update cutting, mark Used, create remnants, log + WhatsApp
 export async function POST(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const info = await req.json();

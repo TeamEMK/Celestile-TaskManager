@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, slabBlockedMessage, slabReleasedMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+import { requireUser } from '@/lib/api';
 
 const NOTIFY = () => process.env.INVENTORY_NOTIFY || '918008002121';
 const uid = (p) => p + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
@@ -25,6 +26,7 @@ function makeKey(seq) {
 }
 
 export async function GET() {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const [rows] = await pool.query('SELECT * FROM inventory');
@@ -39,6 +41,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const body = await req.json();
@@ -69,6 +72,7 @@ export async function POST(req) {
 }
 
 export async function PATCH(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const e = await req.json();
@@ -111,6 +115,7 @@ export async function PATCH(req) {
 }
 
 export async function DELETE(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const id = new URL(req.url).searchParams.get('id');

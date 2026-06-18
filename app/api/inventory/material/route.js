@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
+import { requireUser } from '@/lib/api';
 
 const uid = () => 'SM' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
 
 export async function GET() {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const [rows] = await pool.query('SELECT material, thickness FROM stone_master');
@@ -24,6 +26,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     let { material, thickness } = await req.json();
