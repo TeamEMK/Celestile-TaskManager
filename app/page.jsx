@@ -48,6 +48,7 @@ export default async function DashboardPage() {
       holidays={store.holidays || []}
       users={store.users || []}
       isAdmin={isAdmin}
+      userName={currentName || ''}
     />
   );
 }
