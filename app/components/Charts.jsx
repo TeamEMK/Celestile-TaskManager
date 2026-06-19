@@ -91,32 +91,30 @@ function HorizBar({ name, value, max, color, gradEnd, unit = '', rank }) {
   const pct = max > 0 ? Math.min((num / max) * 100, 100) : 0;
   const gradId = `bar-grad-${rank}-${color.replace('#','')}`;
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        {/* Rank circle */}
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5">
         <span
-          className="shrink-0 w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold text-white"
-          style={{ background: color, boxShadow: `0 1px 4px ${color}55` }}
+          className="shrink-0 w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold text-white"
+          style={{ background: color }}
         >
           {rank}
         </span>
         <div className="flex items-baseline justify-between flex-1 min-w-0 gap-1">
-          <span className="text-[12px] font-semibold text-slate-700 truncate" title={name}>{name}</span>
-          <span className="text-[12px] font-bold shrink-0 tabular-nums" style={{ color }}>{value}{unit}</span>
+          <span className="text-[11px] font-semibold text-slate-700 truncate" title={name}>{name}</span>
+          <span className="text-[11px] font-bold shrink-0 tabular-nums" style={{ color }}>{value}{unit}</span>
         </div>
       </div>
-      <div className="h-[8px] bg-slate-100 rounded-full overflow-hidden ml-7">
-        <svg width="100%" height="8" style={{ display: 'block' }}>
+      <div className="h-[6px] bg-slate-100 rounded-full overflow-hidden ml-5">
+        <svg width="100%" height="6" style={{ display: 'block' }}>
           <defs>
             <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor={color} />
               <stop offset="100%" stopColor={gradEnd || color} />
             </linearGradient>
           </defs>
-          <rect
-            x={0} y={0} width={`${pct}%`} height={8} rx={4}
+          <rect x={0} y={0} width={`${pct}%`} height={6} rx={3}
             fill={`url(#${gradId})`}
-            style={{ transition: 'width .5s cubic-bezier(.16,1,.3,1)', filter: `drop-shadow(0 1px 2px ${color}44)` }}
+            style={{ transition: 'width .5s cubic-bezier(.16,1,.3,1)' }}
           />
         </svg>
       </div>
@@ -129,32 +127,27 @@ export function HorizBarChart({ title, items = [], valueKey = 'value', color, ic
   const vals = items.map(i => Number(i[valueKey]) || 0);
   const max  = Math.max(...vals, 1);
   return (
-    <div className="card p-5 flex flex-col gap-4">
-      {/* Styled header */}
-      <div className="flex items-start gap-2.5 pb-3 border-b border-slate-100">
+    <div className="card p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
         {icon && (
-          <span
-            className="w-9 h-9 rounded-xl grid place-items-center text-[18px] shrink-0"
-            style={{ background: `${color || PALETTE[0]}15` }}
-          >
+          <span className="w-7 h-7 rounded-lg grid place-items-center text-[14px] shrink-0"
+            style={{ background: `${color || PALETTE[0]}15` }}>
             {icon}
           </span>
         )}
         <div className="flex-1 min-w-0">
-          <div className="text-[13.5px] font-bold text-slate-900">{title}</div>
-          {subtitle && <div className="text-[11px] text-slate-400 mt-0.5">{subtitle}</div>}
+          <div className="text-[12px] font-bold text-slate-900">{title}</div>
+          {subtitle && <div className="text-[10px] text-slate-400 mt-0.5">{subtitle}</div>}
         </div>
-        <span
-          className="text-[10px] font-bold px-2 py-1 rounded-full shrink-0"
-          style={{ background: `${color || PALETTE[0]}15`, color: color || PALETTE[0] }}
-        >
-          {items.length} items
+        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+          style={{ background: `${color || PALETTE[0]}15`, color: color || PALETTE[0] }}>
+          {items.length}
         </span>
       </div>
       {items.length === 0 ? (
-        <div className="text-[12px] text-slate-300 text-center py-5">No data in range</div>
+        <div className="text-[11px] text-slate-300 text-center py-4">No data in range</div>
       ) : (
-        <div className="flex flex-col gap-3.5">
+        <div className="flex flex-col gap-2.5">
           {items.map((item, i) => {
             const barColor = color || PALETTE[i % PALETTE.length];
             const [gradStart, gradEnd] = GRADIENT_PAIRS[i % GRADIENT_PAIRS.length];

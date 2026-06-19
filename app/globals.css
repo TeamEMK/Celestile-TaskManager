@@ -15,7 +15,7 @@
     background-attachment: fixed;
     color: #1e293b;
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-    font-size: 13.5px;
+    font-size: 12px;
     -webkit-font-smoothing: antialiased;
   }
 }
@@ -78,10 +78,10 @@
   .seg-btn-active { @apply bg-white shadow-sm text-slate-800 font-semibold; }
 
   /* Table */
-  .table-th  { @apply text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-500 bg-slate-50/80; }
-  .table-td  { @apply px-3 py-2.5 text-[12.5px] text-slate-600; }
+  .table-th  { @apply text-left px-3 py-1.5 text-[9.5px] uppercase tracking-wider font-semibold text-slate-400 bg-slate-50/80; }
+  .table-td  { @apply px-3 py-2 text-[11.5px] text-slate-600; }
   .table-row { @apply border-t border-slate-100 transition-colors duration-100; }
-  .table-row:hover { background: rgba(59,130,246,0.03); border-left: 2px solid #3b82f6; }
+  .table-row:hover { background: rgba(248,250,252,0.9); }
 
   /* Gradient text utilities */
   .text-gradient-blue {

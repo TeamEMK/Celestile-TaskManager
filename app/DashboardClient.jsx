@@ -112,10 +112,10 @@ export default function DashboardClient({ data, performance, holidays, users = [
       {/* ── Header ───────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[22px] font-bold tracking-tight text-slate-900">
+          <h1 className="text-[18px] font-bold tracking-tight text-slate-900">
             {greeting}, <span className="text-primary-600">{firstName}</span> 👋
           </h1>
-          <p className="text-[12.5px] text-slate-500 mt-0.5 flex items-center gap-2">
+          <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
             <span>{todayLabel}</span>
             {isAdmin && (
               <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-600">
@@ -440,20 +440,19 @@ function Kpi({ label, value, tone = 'blue', icon, sub }) {
   const g = KPI_GRADIENTS[tone] || KPI_GRADIENTS.blue;
   return (
     <div
-      className="rounded-2xl p-5 relative overflow-hidden card-hover cursor-default"
-      style={{ background: g.grad, boxShadow: `0 4px 20px ${g.shadow}` }}
+      className="rounded-xl p-4 relative overflow-hidden card-hover cursor-default"
+      style={{ background: g.grad, boxShadow: `0 4px 16px ${g.shadow}` }}
     >
-      {/* Decorative circles for depth */}
-      <div className="absolute -top-5 -right-5 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.12)' }} />
-      <div className="absolute -bottom-8 -left-4 w-32 h-32 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
+      <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
       <div className="relative z-10 flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</div>
-          <div className="text-[40px] leading-none font-black mt-2 tabular-nums text-white">{value}</div>
-          {sub && <div className="text-[11px] mt-2 font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>{sub}</div>}
+          <div className="text-[9.5px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</div>
+          <div className="text-[30px] leading-none font-black mt-1.5 tabular-nums text-white">{value}</div>
+          {sub && <div className="text-[10px] mt-1.5 font-medium" style={{ color: 'rgba(255,255,255,0.62)' }}>{sub}</div>}
         </div>
-        <div className="w-10 h-10 rounded-xl grid place-items-center shrink-0 mt-0.5" style={{ background: 'rgba(255,255,255,0.2)' }}>
-          <span className="text-white">{icon}</span>
+        <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
+          <span className="text-white text-sm">{icon}</span>
         </div>
       </div>
     </div>
