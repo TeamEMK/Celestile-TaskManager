@@ -47,25 +47,28 @@
 @layer components {
 
   /* Cards */
-  .card        { @apply bg-white rounded-xl border border-slate-200; box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04); }
-  .card-hover  { @apply transition-all duration-200 hover:shadow-md hover:-translate-y-px; }
+  .card        { @apply bg-white rounded-xl border border-slate-200; box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04); transition: box-shadow .2s, transform .2s; }
+  .card:hover  { box-shadow: 0 0 0 1px rgba(59,130,246,0.12), 0 4px 24px rgba(59,130,246,0.08), 0 1px 4px rgba(0,0,0,0.06); }
+  .card-hover  { @apply transition-all duration-200 hover:-translate-y-px; }
   .card-accent {
     @apply bg-white rounded-xl border border-slate-200;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   }
 
   /* Buttons */
-  .btn { @apply inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none; }
-  .btn-primary   { @apply btn bg-primary-600 text-white hover:bg-primary-500 shadow-sm shadow-primary-600/20; }
+  .btn { @apply inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none; }
+  .btn-primary   { @apply btn bg-primary-600 text-white hover:bg-primary-500; box-shadow: 0 0 8px rgba(46,114,181,0.5), 0 2px 8px rgba(46,114,181,0.3); }
+  .btn-primary:hover { box-shadow: 0 0 16px rgba(46,114,181,0.7), 0 4px 16px rgba(46,114,181,0.4); }
   .btn-secondary { @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-sm; }
   .btn-ghost     { @apply btn text-slate-500 hover:bg-slate-100 hover:text-slate-700; }
-  .btn-danger    { @apply btn bg-red-600 text-white hover:bg-red-500 shadow-sm; }
-  .btn-success   { @apply btn bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm; }
-  .btn-warn      { @apply btn bg-amber-500 text-white hover:bg-amber-400 shadow-sm; }
+  .btn-danger    { @apply btn bg-red-600 text-white hover:bg-red-500; box-shadow: 0 0 8px rgba(220,38,38,0.4); }
+  .btn-success   { @apply btn bg-emerald-600 text-white hover:bg-emerald-500; box-shadow: 0 0 8px rgba(16,185,129,0.4); }
+  .btn-warn      { @apply btn bg-amber-500 text-white hover:bg-amber-400; box-shadow: 0 0 8px rgba(245,158,11,0.4); }
 
   /* Form */
   .pill  { @apply inline-flex items-center gap-1 px-2 py-0.5 text-[10.5px] font-medium rounded-full; }
-  .input { @apply w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-[12.5px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition; }
+  .input { @apply w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-[12.5px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary-400 transition; }
+  .input:focus { box-shadow: 0 0 0 3px rgba(59,130,246,0.12), 0 0 12px rgba(59,130,246,0.08); }
   .label { @apply block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1; }
 
   /* Typography helpers */

@@ -441,7 +441,7 @@ function Kpi({ label, value, tone = 'blue', icon, sub }) {
   return (
     <div
       className="rounded-xl p-4 relative overflow-hidden card-hover cursor-default"
-      style={{ background: g.grad, boxShadow: `0 4px 16px ${g.shadow}` }}
+      style={{ background: g.grad, boxShadow: `0 0 0 1px ${g.shadow}44, 0 4px 20px ${g.shadow}, 0 0 40px ${g.shadow}55` }}
     >
       <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
       <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />

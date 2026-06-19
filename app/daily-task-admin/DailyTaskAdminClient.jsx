@@ -254,8 +254,8 @@ export default function DailyTaskAdminClient() {
 function StatCard({ label, value, icon, grad, shadow }) {
   return (
     <div
-      className="rounded-2xl p-5 relative overflow-hidden card-hover cursor-default"
-      style={{ background: grad, boxShadow: `0 4px 20px ${shadow}` }}
+      className="rounded-xl p-4 relative overflow-hidden card-hover cursor-default"
+      style={{ background: grad, boxShadow: `0 0 0 1px ${shadow}44, 0 4px 20px ${shadow}, 0 0 40px ${shadow}55` }}
     >
       {/* Decorative circles */}
       <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.13)' }} />
@@ -265,7 +265,7 @@ function StatCard({ label, value, icon, grad, shadow }) {
           <span className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</span>
           <span className="text-xl leading-none">{icon}</span>
         </div>
-        <div className="text-[32px] font-black tabular-nums text-white leading-none">{value}</div>
+        <div className="text-[28px] font-black tabular-nums text-white leading-none">{value}</div>
       </div>
     </div>
   );
