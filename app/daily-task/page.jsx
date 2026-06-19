@@ -1,29 +1,47 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { readStore, TASK_TYPES, SOFTWARES } from '@/lib/store';
+'use client';
+import { useSession } from 'next-auth/react';
+import { useState } from 'react';
 import DailyTaskClient from './DailyTaskClient';
+import DailyTaskAdminClient from '../daily-task-admin/DailyTaskAdminClient';
 
-export const dynamic = 'force-dynamic';
+function PageTabs({ tabs, active, onChange }) {
+  return (
+    <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: '#f1f5f9' }}>
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => onChange(t.id)}
+          className="px-5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150"
+          style={active === t.id
+            ? { background: '#fff', color: '#0f172a', boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }
+            : { color: '#64748b' }
+          }
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
-export default async function DailyTaskPage() {
-  const session = await getServerSession(authOptions);
-  const store = await readStore();
+export default function DailyTaskPage() {
+  const { data: session } = useSession();
+  const roles = session?.user?.roles || [];
+  const rolesArr = Array.isArray(roles) ? roles : String(roles).split(',').map(r => r.trim());
+  const isAdmin = rolesArr.includes('Admin') || rolesArr.includes('HOD');
 
-  // Unique client names from existing clients + delegations (for the dropdown)
-  const clients = Array.from(
-    new Set([
-      ...(store.clients || []).map((c) => c.name),
-      ...(store.delegations || []).map((d) => d.client),
-    ].filter(Boolean))
-  ).sort();
+  const [tab, setTab] = useState('form');
+
+  const tabs = [
+    { id: 'form',  label: 'Form' },
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin View' }] : []),
+  ];
 
   return (
-    <DailyTaskClient
-      doerId={session?.user?.id || ''}
-      doer={session?.user?.name || ''}
-      clients={clients}
-      taskTypes={TASK_TYPES}
-      softwares={SOFTWARES}
-    />
+    <div className="space-y-4">
+      <PageTabs tabs={tabs} active={tab} onChange={setTab} />
+      {tab === 'form'  && <DailyTaskClient />}
+      {tab === 'admin' && isAdmin && <DailyTaskAdminClient />}
+    </div>
   );
 }

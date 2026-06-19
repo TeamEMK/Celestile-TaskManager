@@ -1,5 +1,9 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
+
+const TASK_TYPES = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
+const SOFTWARES  = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
 
 const blankRow = () => ({
   client: '', orderNumber: '', areaName: '',
@@ -8,14 +12,24 @@ const blankRow = () => ({
 const todayISO = () => new Date().toISOString().split('T')[0];
 const fmt = (iso) => new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-');
 
-export default function DailyTaskClient({
-  doerId, doer, clients = [], taskTypes = [], softwares = [],
-}) {
+export default function DailyTaskClient() {
+  const { data: session } = useSession();
+  const doerId = session?.user?.id || '';
+  const doer   = session?.user?.name || '';
+
   const [entryDate, setEntryDate] = useState(todayISO());
   const [rows, setRows] = useState([blankRow()]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [past, setPast] = useState([]);
+  const [clients, setClients] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/clients')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setClients(Array.isArray(data) ? data.map(c => c.name) : []))
+      .catch(() => {});
+  }, []);
 
   const total = useMemo(
     () => rows.reduce((s, r) => s + (Number(r.minutes) || 0), 0),
@@ -39,14 +53,12 @@ export default function DailyTaskClient({
   const delRow = (i) => setRows((rs) => (rs.length === 1 ? [blankRow()] : rs.filter((_, idx) => idx !== i)));
 
   async function submitAll() {
-    // a row counts if it has any of the required fields filled
     const clean = rows
       .filter((r) => r.client || r.orderNumber || r.areaName || r.taskType || r.software || Number(r.minutes) > 0)
       .map((r) => ({ ...r, revision: r.revision ? 'Yes' : 'No' }));
 
     if (clean.length === 0) { setMsg('Add at least one task row.'); return; }
 
-    // mirror the Apps Script "all fields required" rule (Revision optional)
     const incomplete = clean.find(
       (r) => !r.client || !r.orderNumber || !r.areaName || !r.taskType || !r.software || !r.minutes
     );
@@ -73,7 +85,6 @@ export default function DailyTaskClient({
     }
   }
 
-  // group past entries by date
   const grouped = useMemo(() => {
     const g = {};
     for (const e of past) {
@@ -138,13 +149,13 @@ export default function DailyTaskClient({
                   <td className="table-td">
                     <select className="input" value={r.taskType} onChange={(e) => setRow(i, 'taskType', e.target.value)}>
                       <option value="">--select--</option>
-                      {taskTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+                      {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </td>
                   <td className="table-td">
                     <select className="input" value={r.software} onChange={(e) => setRow(i, 'software', e.target.value)}>
                       <option value="">--select--</option>
-                      {softwares.map((s) => <option key={s} value={s}>{s}</option>)}
+                      {SOFTWARES.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </td>
                   <td className="table-td text-center">
@@ -208,7 +219,6 @@ export default function DailyTaskClient({
                       {e.taskType && <span className="pill bg-primary-50 text-primary-700 shrink-0">{e.taskType}</span>}
                       {e.software && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.software}</span>}
                       {(e.revision === 'Yes') && <span className="pill bg-red-50 text-red-600 shrink-0">Revision</span>}
-                      {/* legacy rows (pre-port) only have a description */}
                       {!e.taskType && e.description && <span className="text-slate-700">{e.description}</span>}
                       <span className="ml-auto pill bg-amber-50 text-amber-600 shrink-0">{e.minutes} min</span>
                     </div>

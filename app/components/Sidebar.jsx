@@ -41,19 +41,16 @@ const SECTIONS = [
     { href: '/compliance',    label: 'Compliance',    icon: 'compliance',   adminOnly: true, hidden: true },
   ]},
   { title: 'Daily', items: [
-    { href: '/daily-task',       label: 'Daily Task',       icon: 'dailytask' },
-    { href: '/daily-task-admin', label: 'Daily Task Admin', icon: 'reports', adminOnly: true },
-    { href: '/quotation',        label: 'Quotation',        icon: 'quote' },
-    { href: '/quotation-admin',  label: 'Quotation Admin',  icon: 'masters', adminOnly: true },
-    { href: '/inventory',        label: 'Stone Inventory Factory', icon: 'inventory' },
-    { href: '/leave-tracker', label: 'Leave Tracker', icon: 'leave',     hidden: true },
-    { href: '/meetings',      label: 'Meetings',      icon: 'meetings',  hidden: true },
-    { href: '/daily-reports', label: 'Daily Reports', icon: 'reports',   adminOnly: true },
+    { href: '/daily-task',    label: 'Daily Task',            icon: 'dailytask' },
+    { href: '/quotation',     label: 'Quotation',             icon: 'quote' },
+    { href: '/inventory',     label: 'Stone Inventory Factory', icon: 'inventory' },
+    { href: '/leave-tracker', label: 'Leave Tracker',         icon: 'leave',    hidden: true },
+    { href: '/meetings',      label: 'Meetings',              icon: 'meetings', hidden: true },
+    { href: '/daily-reports', label: 'Daily Reports',         icon: 'reports',  adminOnly: true },
   ]},
   { title: 'Administration', items: [
-    { href: '/users',   label: 'Users',   icon: 'users',   adminOnly: true },
-    { href: '/access',  label: 'Access',  icon: 'access',  adminOnly: true },
-    { href: '/profile', label: 'Profile', icon: 'profile' },
+    { href: '/users',   label: 'Users & Access', icon: 'users',   adminOnly: true },
+    { href: '/profile', label: 'Profile',        icon: 'profile' },
   ]},
 ];
 

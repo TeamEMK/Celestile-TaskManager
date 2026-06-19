@@ -25,18 +25,35 @@ function normalizeRoles(roles) {
   return ['User'];
 }
 
-export default function UsersClient({ users = [], departments = [] }) {
+const DEPARTMENTS = [
+  'CXO', 'Business Automation', 'Social Media', 'Graphic Designing',
+  'Google Ads', 'SEO', 'Meta Ads', 'Content Writing', 'AI',
+  'Website Design & Development', 'MDO', 'eMarketing Accounts',
+];
+
+export default function UsersClient() {
   const router = useRouter();
   const { data: session } = useSession();
   const roles   = normalizeRoles(session?.user?.roles);
   const isAdmin = roles.includes('Admin') || roles.includes('HOD');
   const { ask, ConfirmUI } = useConfirmToast();
 
+  const [users,     setUsers]     = useState([]);
+  const [loading,   setLoading]   = useState(true);
   const [search,    setSearch]    = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing,   setEditing]   = useState(null);
   const [pwdModal,  setPwdModal]  = useState(false);
   const [pwdUser,   setPwdUser]   = useState(null);
+  const departments = DEPARTMENTS;
+
+  useEffect(() => {
+    fetch('/api/users')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = users
     .slice()
@@ -56,12 +73,21 @@ export default function UsersClient({ users = [], departments = [] }) {
   function openEdit(u)  { setEditing({ ...u, roles: normalizeRoles(u?.roles) }); setModalOpen(true); }
   function openSetPassword(u) { if (!u) return; setPwdUser(u); setPwdModal(true); }
 
+  function reloadUsers() {
+    fetch('/api/users')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }
+
   function deleteUser(id) {
     ask('Delete this user?', async () => {
       await fetch('/api/users?id=' + id, { method: 'DELETE' });
-      router.refresh();
+      reloadUsers();
     });
   }
+
+  if (loading) return <div className="text-[13px] text-slate-400 py-8 text-center">Loading users…</div>;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -155,7 +181,7 @@ export default function UsersClient({ users = [], departments = [] }) {
         onClose={() => setModalOpen(false)}
         user={editing}
         departments={departments}
-        onSaved={() => router.refresh()}
+        onSaved={() => { setModalOpen(false); reloadUsers(); }}
       />
       {ConfirmUI}
       <SetPasswordModal
