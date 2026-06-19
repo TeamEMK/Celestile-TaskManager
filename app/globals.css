@@ -20,7 +20,7 @@
   }
 }
 
-/* ── Light "aurora" backdrop for the app shell (matches login, lighter) ── */
+/* ── App aurora backdrop ────────────────────────────────────────── */
 @keyframes app-drift1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(60px,40px) scale(1.18); } }
 @keyframes app-drift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-50px,-35px) scale(1.22); } }
 @keyframes app-drift3 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(40px,-45px) scale(1.12); } }
@@ -28,40 +28,89 @@
 .app-bg .orb { position: absolute; border-radius: 50%; filter: blur(90px); }
 @media (prefers-reduced-motion: reduce) { .app-bg .orb { animation: none !important; } }
 
+/* ── Skeleton loading pulse ─────────────────────────────────────── */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* ── Spinner ────────────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin .7s linear infinite; }
+
 @layer components {
+
+  /* Cards */
   .card        { @apply bg-white rounded-xl border border-slate-200 shadow-sm; }
   .card-hover  { @apply transition-all duration-200 hover:shadow-md hover:-translate-y-px; }
+  .card-accent {
+    @apply bg-white rounded-xl border border-slate-200;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
 
+  /* Buttons */
   .btn { @apply inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none; }
-  .btn-primary   { @apply btn bg-primary-600 text-white hover:bg-primary-500 shadow-sm; }
+  .btn-primary   { @apply btn bg-primary-600 text-white hover:bg-primary-500 shadow-sm shadow-primary-600/20; }
   .btn-secondary { @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-sm; }
   .btn-ghost     { @apply btn text-slate-500 hover:bg-slate-100 hover:text-slate-700; }
   .btn-danger    { @apply btn bg-red-600 text-white hover:bg-red-500 shadow-sm; }
   .btn-success   { @apply btn bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm; }
   .btn-warn      { @apply btn bg-amber-500 text-white hover:bg-amber-400 shadow-sm; }
 
+  /* Form */
   .pill  { @apply inline-flex items-center gap-1 px-2 py-0.5 text-[10.5px] font-medium rounded-full; }
   .input { @apply w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-[12.5px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition; }
   .label { @apply block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1; }
 
+  /* Typography helpers */
   .page-title { @apply text-[16px] font-semibold tracking-tight text-slate-800; }
   .page-sub   { @apply text-[12px] text-slate-500 mt-0.5; }
 
-  .seg          { @apply inline-flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5; }
-  .seg-btn      { @apply px-3 py-1 rounded-md text-[11.5px] font-medium text-slate-500 transition-all duration-150; }
+  /* Segmented control */
+  .seg            { @apply inline-flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5; }
+  .seg-btn        { @apply px-3 py-1 rounded-md text-[11.5px] font-medium text-slate-500 transition-all duration-150; }
   .seg-btn-active { @apply bg-white shadow-sm text-slate-800 font-semibold; }
 
-  .table-th  { @apply text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-500; }
+  /* Table */
+  .table-th  { @apply text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-500 bg-slate-50/80; }
   .table-td  { @apply px-3 py-2.5 text-[12.5px] text-slate-600; }
-  .table-row { @apply border-t border-slate-100 hover:bg-slate-50 transition-colors; }
+  .table-row { @apply border-t border-slate-100 hover:bg-slate-50/80 transition-colors duration-100; }
 }
 
-/* ── Scrollbar ─────────────────────────────────────────────────── */
-::-webkit-scrollbar       { width: 6px; height: 6px; }
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
-/* sticky table header backdrop */
+/* ── Sticky header backdrops ────────────────────────────────────── */
 .bg-slate-50\/95 { background-color: rgba(248, 250, 252, 0.97); }
 .bg-slate-50\/80 { background-color: rgba(248, 250, 252, 0.80); }
+
+/* ── Card top-accent strip (used in KPI cards) ──────────────────── */
+.card-top-accent { position: relative; overflow: hidden; }
+.card-top-accent::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 3px;
+  border-radius: 12px 12px 0 0;
+  background: var(--accent, #2563eb);
+}
+
+/* ── Fade-in animation ──────────────────────────────────────────── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in-up 0.28s cubic-bezier(.16,1,.3,1) both; }
+
+/* ── Focus ring for accessibility ───────────────────────────────── */
+*:focus-visible { outline: 2px solid #2E72B5; outline-offset: 2px; }

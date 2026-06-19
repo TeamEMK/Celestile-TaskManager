@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { HorizBarChart } from '@/app/components/Charts';
 
 export default function MISClient({ initialRows = [], initialSummary = {}, initialStart, initialEnd, initialType }) {
   const [start,      setStart]      = useState(initialStart);
@@ -95,11 +96,32 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
       {Object.keys(summary).length > 0 && (
         <div className="flex gap-3 flex-wrap">
           {Object.entries(summary).map(([k, v]) => (
-            <div key={k} className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-sm">
+            <div key={k} className="card px-4 py-3 shadow-sm">
               <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{k}</div>
-              <div className="text-lg font-bold text-slate-900 tabular-nums">{v}</div>
+              <div className="text-[22px] font-extrabold text-slate-900 tabular-nums mt-0.5">{v}</div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Score chart */}
+      {rows.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <HorizBarChart
+            title="Completion Score by Employee"
+            subtitle="Higher is better"
+            items={rows.filter(r => r.score >= 0).map(r => ({ name: r.name, value: r.score }))}
+            color="#10b981"
+            icon="🏆"
+            unit="%"
+          />
+          <HorizBarChart
+            title="Tasks Completed"
+            subtitle="Total tasks done in range"
+            items={rows.map(r => ({ name: r.name, value: r.completed })).sort((a, b) => b.value - a.value)}
+            color="#2563eb"
+            icon="✅"
+          />
         </div>
       )}
 

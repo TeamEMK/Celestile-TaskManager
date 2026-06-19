@@ -1,13 +1,11 @@
 'use client';
 import { useMemo, useState, useEffect } from 'react';
-
 import { useRouter } from 'next/navigation';
-import AddMasterModal from './components/AddMasterModal';
+import AddMasterModal   from './components/AddMasterModal';
 import AddDelegateModal from './components/AddDelegateModal';
-import HolidaysModal from './components/HolidaysModal';
+import HolidaysModal    from './components/HolidaysModal';
 import { useConfirmToast } from './components/ConfirmToast';
-import PieChart from './components/PieChart';
-import BarList from './components/BarList';
+import { DonutChart, HorizBarChart } from './components/Charts';
 import { FMS_ENABLED } from '@/lib/config';
 
 export default function DashboardClient({ data, performance, holidays, users = [], isAdmin, userName = '' }) {
@@ -47,17 +45,19 @@ export default function DashboardClient({ data, performance, holidays, users = [
     .slice()
     .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
-  const total     = data.total || 0;
+  const total     = data.total     || 0;
   const completed = data.completed || 0;
-  const pending   = data.pending ?? visibleTasks.length;
+  const pending   = data.pending   ?? visibleTasks.length;
   const rate      = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // greeting
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const hour      = new Date().getHours();
+  const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = (userName || '').split(' ')[0] || 'there';
   const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
+  const overdueCount = visibleTasks.filter((t) => t.overdue).length;
+
+  /* ── handlers (unchanged) ───────────────────────────────────────── */
   async function markDone(task) {
     if (task.type === 'Delegation') {
       await fetch('/api/delegations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: task.id, status: 'done' }) });
@@ -84,9 +84,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
       await fetch('/api/delegations', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: task.id,
-          status: 'revise',
-          _grantRevise: mode === 'grant',
+          id: task.id, status: 'revise', _grantRevise: mode === 'grant',
           remarks: reviseNote || undefined,
           ...(mode !== 'grant' && reviseDate ? { dueDate: reviseDate } : {}),
         }),
@@ -102,10 +100,16 @@ export default function DashboardClient({ data, performance, holidays, users = [
     });
   }
 
+  /* ── Performance data for HorizBarChart ────────────────────────── */
+  const perfTop5    = (performance?.top5    || []).map(p => ({ name: p.name, value: p.completed }));
+  const perfBottom  = (performance?.bottom5 || []).map(p => ({ name: p.name, value: p.pending   }));
+  const perfActive  = (performance?.mostActive || []).map(p => ({ name: p.name, value: p.total   }));
+
+  /* ── render ─────────────────────────────────────────────────────── */
   return (
     <div className="space-y-5 animate-fade-in">
 
-      {/* ── Header ──────────────────────────────────────────────────────── */}
+      {/* ── Header ───────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[22px] font-bold tracking-tight text-slate-900">
@@ -141,16 +145,34 @@ export default function DashboardClient({ data, performance, holidays, users = [
         </div>
       </div>
 
-      {/* ── KPI cards ───────────────────────────────────────────────────── */}
+      {/* ── KPI cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi tone="blue"    label="Total Tasks" value={total}     icon={<IconLayers />} sub={`${isAdmin ? 'All employees' : 'Assigned to you'}`} />
-        <Kpi tone="emerald" label="Completed"   value={completed} icon={<IconCheck />}  sub={`${rate}% completion`} />
-        <Kpi tone="red"     label="Pending"     value={pending}   icon={<IconClock />}  sub={data.revised > 0 ? `${data.revised} in revision` : 'Awaiting action'} subTone={data.revised > 0 ? 'amber' : ''} />
-        <Kpi tone="violet"  label="Completion"  value={`${rate}%`} ring={rate}          sub={`${completed} of ${total} done`} />
+        <Kpi
+          tone="blue" label="Total Tasks" value={total}
+          icon={<IconLayers />}
+          sub={isAdmin ? 'All employees' : 'Assigned to you'}
+        />
+        <Kpi
+          tone="emerald" label="Completed" value={completed}
+          icon={<IconCheck />}
+          sub={`${rate}% completion rate`}
+        />
+        <Kpi
+          tone="red" label="Pending" value={pending}
+          icon={<IconClock />}
+          sub={data.revised > 0 ? `${data.revised} in revision` : 'Awaiting action'}
+          subTone={data.revised > 0 ? 'amber' : ''}
+        />
+        <Kpi
+          tone="violet" label="Overdue" value={overdueCount}
+          icon={<IconAlert />}
+          sub={overdueCount === 0 ? 'None overdue' : `${overdueCount} past due date`}
+          subTone={overdueCount > 0 ? 'red' : ''}
+        />
       </div>
 
-      {/* ── Tasks + Overview ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
+      {/* ── Tasks + Overview ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4">
 
         {/* Tasks card */}
         <div className="card overflow-hidden">
@@ -227,7 +249,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
                       </td>
                       <td className={`table-td whitespace-nowrap text-xs ${t.overdue ? 'text-red-600 font-semibold' : 'text-slate-600'}`}>
                         <span className="inline-flex items-center gap-1">
-                          {t.overdue && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
+                          {t.overdue && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
                           {fmt(t.date)}
                         </span>
                       </td>
@@ -260,43 +282,71 @@ export default function DashboardClient({ data, performance, holidays, users = [
           </div>
         </div>
 
-        {/* Overview card */}
-        <div className="card p-5 flex flex-col gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 grid place-items-center"><IconChart /></div>
-            <div>
-              <h3 className="text-[13.5px] font-semibold text-slate-900">Task Overview</h3>
-              <p className="text-[11.5px] text-slate-500">Overall distribution</p>
+        {/* ── Overview panel ─────────────────────────────────────────── */}
+        <div className="flex flex-col gap-3">
+
+          {/* Completion donut */}
+          <div className="card p-5 flex flex-col items-center gap-4">
+            <div className="w-full flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 grid place-items-center"><IconChart /></div>
+              <div>
+                <h3 className="text-[13.5px] font-semibold text-slate-900">Task Overview</h3>
+                <p className="text-[11.5px] text-slate-500">Overall completion status</p>
+              </div>
+            </div>
+            <DonutChart value={completed} total={total} size={150} strokeColor="#2E72B5" label="Complete" />
+            <div className="w-full grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
+              <Legend dot="#10b981" label="Done"    value={completed} />
+              <Legend dot="#ef4444" label="Pending" value={pending} />
+              <Legend dot="#f59e0b" label="Revised" value={data.revised} />
             </div>
           </div>
-          <div className="flex-1 flex items-center justify-center py-2">
-            <PieChart completed={completed} pending={pending} revised={data.revised} />
-          </div>
-          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
-            <Legend dot="bg-emerald-500" label="Done"    value={completed} />
-            <Legend dot="bg-red-500"     label="Pending" value={pending} />
-            <Legend dot="bg-amber-500"   label="Revised" value={data.revised} />
+
+          {/* Quick stats */}
+          <div className="card p-4 space-y-3">
+            <div className="text-[12px] font-bold text-slate-600 uppercase tracking-wide">Quick Stats</div>
+            <StatRow icon="🗓" label="Holidays" value={holidays.length} color="#7c3aed" />
+            <StatRow icon="👥" label="Team Members" value={users.length} color="#2563eb" />
+            {isAdmin && <StatRow icon="🔴" label="Overdue" value={overdueCount} color={overdueCount > 0 ? '#dc2626' : '#10b981'} />}
           </div>
         </div>
       </div>
 
-      {/* ── Performance — Admin only ────────────────────────────────────── */}
+      {/* ── Performance — Admin only ─────────────────────────────────── */}
       {isAdmin && (
         <div className="card p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 grid place-items-center"><IconTrophy /></div>
               <div>
                 <h2 className="text-[13.5px] font-semibold text-slate-900">Performance &amp; Activity</h2>
-                <p className="text-[11.5px] text-slate-500">Team leaderboard</p>
+                <p className="text-[11.5px] text-slate-500">Team leaderboard — last 30 days</p>
               </div>
             </div>
             <span className="pill bg-primary-50 text-primary-700 border border-primary-100">Last 30 days</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <BarList title="🏆 Top 5 Performers"   items={performance.top5}       valueKey="completed" tone="emerald" icon="★" />
-            <BarList title="📉 Bottom 5 Performers" items={performance.bottom5}    valueKey="pending"   tone="red"    icon="!" />
-            <BarList title="⚡ Top 5 Most Active"   items={performance.mostActive} valueKey="total"     tone="blue"   icon="⚡" />
+            <HorizBarChart
+              title="Top Performers"
+              subtitle="Most tasks completed"
+              items={perfTop5}
+              color="#10b981"
+              icon="🏆"
+            />
+            <HorizBarChart
+              title="Needs Attention"
+              subtitle="Most pending tasks"
+              items={perfBottom}
+              color="#ef4444"
+              icon="📉"
+            />
+            <HorizBarChart
+              title="Most Active"
+              subtitle="Highest total tasks"
+              items={perfActive}
+              color="#2563eb"
+              icon="⚡"
+            />
           </div>
         </div>
       )}
@@ -310,9 +360,9 @@ export default function DashboardClient({ data, performance, holidays, users = [
       {reviseTask && (() => {
         const mode = reviseTask._mode || 'revise';
         const copy = {
-          request: { title: 'Request Revision',       desc: 'This will be sent to admin for approval.',          btn: 'Send Request'   },
-          revise:  { title: 'Confirm Revise',          desc: 'Send this task back to the doer for revision?',     btn: 'Confirm Revise' },
-          grant:   { title: 'Grant Revise Request',    desc: 'Approve this revision request and send task back?', btn: 'Grant Revise'   },
+          request: { title: 'Request Revision',     desc: 'This will be sent to admin for approval.',          btn: 'Send Request'   },
+          revise:  { title: 'Confirm Revise',        desc: 'Send this task back to the doer for revision?',     btn: 'Confirm Revise' },
+          grant:   { title: 'Grant Revise Request',  desc: 'Approve this revision request and send task back?', btn: 'Grant Revise'   },
         }[mode];
         return (
           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !reviseSaving && setReviseTask(null)}>
@@ -333,8 +383,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
                   {mode === 'grant' && reviseTask.date && (
                     <div className="flex items-center gap-1.5 text-xs text-slate-600 pt-2 border-t border-slate-200">
                       <svg className="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                      <span className="text-slate-400">Revise Until:</span>
-                      <b className="text-primary-600">{fmt(reviseTask.date)}</b>
+                      <span className="text-slate-400">Revise Until:</span><b className="text-primary-600">{fmt(reviseTask.date)}</b>
                     </div>
                   )}
                   {mode === 'grant' && (
@@ -358,7 +407,9 @@ export default function DashboardClient({ data, performance, holidays, users = [
                         ? <span className="text-red-500 ml-1">*</span>
                         : <span className="text-slate-400 font-normal ml-1">(optional)</span>}
                     </label>
-                    <textarea rows={3} className="input resize-none" placeholder={mode === 'request' ? 'Explain what needs to be revised (required)' : 'What needs to be corrected?'} value={reviseNote} onChange={(e) => setReviseNote(e.target.value)} />
+                    <textarea rows={3} className="input resize-none"
+                      placeholder={mode === 'request' ? 'Explain what needs to be revised (required)' : 'What needs to be corrected?'}
+                      value={reviseNote} onChange={(e) => setReviseNote(e.target.value)} />
                   </div>
                 )}
               </div>
@@ -376,40 +427,29 @@ export default function DashboardClient({ data, performance, holidays, users = [
   );
 }
 
-/* ── KPI card ──────────────────────────────────────────────────────────── */
+/* ── KPI card ───────────────────────────────────────────────────────────── */
 const TONES = {
-  blue:    { text: 'text-primary-600', soft: 'bg-primary-50 text-primary-600', ring: '#2E72B5' },
-  emerald: { text: 'text-emerald-600', soft: 'bg-emerald-50 text-emerald-600', ring: '#10b981' },
-  red:     { text: 'text-red-500',     soft: 'bg-red-50 text-red-500',         ring: '#ef4444' },
-  violet:  { text: 'text-violet-600',  soft: 'bg-violet-50 text-violet-600',   ring: '#8b5cf6' },
-  amber:   { text: 'text-amber-600',   soft: 'bg-amber-50 text-amber-600',     ring: '#f59e0b' },
+  blue:    { accent: '#2E72B5', soft: 'bg-primary-50 text-primary-600', text: 'text-primary-600', bg: '#EEF4FB' },
+  emerald: { accent: '#10b981', soft: 'bg-emerald-50 text-emerald-600', text: 'text-emerald-600', bg: '#ecfdf5' },
+  red:     { accent: '#ef4444', soft: 'bg-red-50 text-red-500',         text: 'text-red-500',     bg: '#fef2f2' },
+  violet:  { accent: '#8b5cf6', soft: 'bg-violet-50 text-violet-600',   text: 'text-violet-600',  bg: '#f5f3ff' },
+  amber:   { accent: '#f59e0b', soft: 'bg-amber-50 text-amber-600',     text: 'text-amber-600',   bg: '#fffbeb' },
 };
 
-function Kpi({ label, value, tone = 'blue', icon, sub, subTone, ring }) {
+function Kpi({ label, value, tone = 'blue', icon, sub, subTone }) {
   const t = TONES[tone] || TONES.blue;
   return (
     <div className="card card-hover p-4 relative overflow-hidden">
-      <span className="absolute left-0 top-0 bottom-0 w-1 rounded-r" style={{ background: t.ring }} />
-      <div className="flex items-start justify-between gap-2 pl-1.5">
-        <div className="min-w-0">
+      {/* Gradient top accent bar */}
+      <div className="absolute inset-x-0 top-0 h-1 rounded-t-xl" style={{ background: t.accent }} />
+      <div className="flex items-start justify-between gap-2 pt-1">
+        <div className="min-w-0 flex-1">
           <div className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">{label}</div>
-          <div className={`text-[30px] leading-none font-bold mt-2 ${t.text}`}>{value}</div>
+          <div className={`text-[32px] leading-none font-extrabold mt-2 tabular-nums ${t.text}`}>{value}</div>
           {sub && <div className={`text-[11px] mt-2 font-medium ${subTone ? (TONES[subTone]?.text || 'text-slate-400') : 'text-slate-400'}`}>{sub}</div>}
         </div>
-        {ring != null ? (
-          <Ring pct={ring} color={t.ring} />
-        ) : (
-          <div className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${t.soft}`}>{icon}</div>
-        )}
+        <div className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${t.soft}`}>{icon}</div>
       </div>
-    </div>
-  );
-}
-
-function Ring({ pct = 0, color }) {
-  return (
-    <div className="relative w-12 h-12 shrink-0 rounded-full" style={{ background: `conic-gradient(${color} ${pct * 3.6}deg, #eef2f7 0)` }}>
-      <div className="absolute inset-[3px] rounded-full bg-white grid place-items-center text-[10px] font-bold" style={{ color }}>{pct}%</div>
     </div>
   );
 }
@@ -418,16 +458,32 @@ function Legend({ dot, label, value }) {
   return (
     <div className="text-center">
       <div className="flex items-center justify-center gap-1.5">
-        <span className={`w-2 h-2 rounded-full ${dot}`} />
+        <span className="w-2 h-2 rounded-full" style={{ background: dot }} />
         <span className="text-[10.5px] text-slate-500 font-medium">{label}</span>
       </div>
-      <div className="text-[16px] font-bold text-slate-800 mt-0.5">{value}</div>
+      <div className="text-[17px] font-bold text-slate-800 mt-0.5 tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function StatRow({ icon, label, value, color }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+      <div className="flex items-center gap-2">
+        <span className="text-base">{icon}</span>
+        <span className="text-[12px] font-medium text-slate-600">{label}</span>
+      </div>
+      <span className="text-[14px] font-bold tabular-nums" style={{ color }}>{value}</span>
     </div>
   );
 }
 
 function TypePill({ type }) {
-  const map = { Delegation: 'bg-primary-50 text-primary-700', FMS: 'bg-violet-50 text-violet-700', Checklist: 'bg-emerald-50 text-emerald-700' };
+  const map = {
+    Delegation: 'bg-primary-50 text-primary-700',
+    FMS:        'bg-violet-50 text-violet-700',
+    Checklist:  'bg-emerald-50 text-emerald-700',
+  };
   return <span className={`pill ${map[type] || 'bg-slate-100 text-slate-700'}`}>{type}</span>;
 }
 
@@ -443,6 +499,7 @@ function CalIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" 
 function IconLayers() { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>; }
 function IconCheck()  { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>; }
 function IconClock()  { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>; }
+function IconAlert()  { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
 function IconList()   { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>; }
 function IconChart()  { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M21 12A9 9 0 0 0 12 3v9z"/></svg>; }
 function IconTrophy() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4M6 5h12v6a6 6 0 0 1-12 0z"/><path d="M9 21h6M12 17v4"/></svg>; }
