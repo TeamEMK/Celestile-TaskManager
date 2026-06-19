@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
+import { requireUser } from '@/lib/api';
 
 export async function GET(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const url  = new URL(req.url);
@@ -27,6 +29,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const body = await req.json();
@@ -48,6 +51,7 @@ export async function POST(req) {
 }
 
 export async function DELETE(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const id = new URL(req.url).searchParams.get('id');

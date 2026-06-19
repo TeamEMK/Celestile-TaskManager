@@ -3,6 +3,7 @@ import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sendWhatsApp, delegationMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+import { requireUser } from '@/lib/api';
 
 // Fire a WhatsApp "task delegated" notice to the doer (best-effort).
 async function notifyDelegation({ doerUser, delegatedById, del }) {
@@ -35,6 +36,7 @@ function normDate(s) {
 }
 
 export async function GET() {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const [rows] = await pool.query(
@@ -72,38 +74,10 @@ async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, 
 }
 
 export async function POST(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     const body = await req.json();
-
     const resolvedApproval = body.approval || 'No Approval';
-
-    // JSON store fallback when no MySQL
-    if (!process.env.DB_HOST) {
-      const { readStore, writeStore } = await import('@/lib/store');
-      const store = await readStore();
-      const delegations = store.delegations || [];
-
-      const doerUser = (store.users || []).find(u => u.id === body.doerId);
-      const doerName = doerUser?.name || body.doerName || body.doer || '';
-
-      const id = 'DEL' + String(delegations.length + 1).padStart(3, '0');
-
-      const newDel = {
-        id, description: body.description,
-        doerId: body.doerId, doer: doerName,
-        delegatedBy: body.delegatedBy,
-        dueDate: normDate(body.dueDate) || body.dueDate,
-        client: body.client || '', status: 'pending', type: 'delegation',
-        priority: body.priority || 'Low', approval: resolvedApproval,
-        url: body.url || '', remarks: body.remarks || '',
-        createdAt: new Date().toISOString(),
-      };
-      delegations.push(newDel);
-      store.delegations = delegations;
-      await writeStore(store);
-      return NextResponse.json(newDel, { status: 201 });
-    }
-
     await ensureSchema();
 
     // Bulk CSV
@@ -146,59 +120,9 @@ export async function POST(req) {
 }
 
 export async function PATCH(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     const body = await req.json();
-
-    // JSON store fallback when no MySQL
-    if (!process.env.DB_HOST) {
-      const session = await getServerSession(authOptions);
-      const { readStore, writeStore } = await import('@/lib/store');
-      const store = await readStore();
-
-      // Transfer action
-      if (body.action === 'transfer') {
-        const { fromDoer, toDoer, toDoerId, taskIds } = body;
-        if (!fromDoer || !toDoer)
-          return NextResponse.json({ error: 'fromDoer and toDoer required' }, { status: 400 });
-        const transferredBy = session?.user?.name || null;
-        const idSet = taskIds?.length ? new Set(taskIds) : null;
-        store.delegations = (store.delegations || []).map(d => {
-          const match = idSet ? idSet.has(d.id) : (d.doer === fromDoer && d.status !== 'done');
-          return match && d.status !== 'done'
-            ? { ...d, doer: toDoer, doerId: toDoerId || d.doerId, transferredBy, transferredFrom: d.doer }
-            : d;
-        });
-        await writeStore(store);
-        return NextResponse.json({ success: true });
-      }
-
-      const del = (store.delegations || []).find(d => d.id === body.id);
-      if (!del) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-      let newStatus = body.status;
-
-      if (newStatus === 'revise') {
-        if (body._grantRevise) {
-          // Admin explicitly granting someone's revise request
-          del.reviseAction = 'granted';
-        } else {
-          // Everyone (including admin) must request approval
-          newStatus = 'revise_requested';
-          del.reviseAction = 'pending';
-        }
-      } else if (newStatus === 'pending' && body._denyRevise) {
-        del.reviseAction = 'denied';
-      }
-
-      if (newStatus) del.status = newStatus;
-      if (body.dueDate) del.dueDate = body.dueDate;
-      if (body.remarks !== undefined) del.remarks = body.remarks;
-      if (body.approval !== undefined) del.approval = body.approval;
-      if (newStatus === 'done') del.completedAt = new Date().toISOString();
-      await writeStore(store);
-      return NextResponse.json(del);
-    }
-
     await ensureSchema();
 
     // Transfer (all or selective by taskIds)
@@ -272,18 +196,10 @@ export async function PATCH(req) {
 }
 
 export async function DELETE(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-
-    if (!process.env.DB_HOST) {
-      const { readStore, writeStore } = await import('@/lib/store');
-      const store = await readStore();
-      store.delegations = (store.delegations || []).filter((d) => d.id !== id);
-      await writeStore(store);
-      return NextResponse.json({ success: true });
-    }
-
     await ensureSchema();
     await pool.query('DELETE FROM delegations WHERE id = ?', [id]);
     return NextResponse.json({ success: true });

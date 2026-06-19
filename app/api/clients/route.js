@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
+import { requireUser } from '@/lib/api';
 
 export async function GET() {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const [rows] = await pool.query(
@@ -16,6 +18,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const b = await req.json();
@@ -33,6 +36,7 @@ export async function POST(req) {
 }
 
 export async function PATCH(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const b = await req.json();
@@ -57,6 +61,7 @@ export async function PATCH(req) {
 }
 
 export async function DELETE(req) {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const id = new URL(req.url).searchParams.get('id');

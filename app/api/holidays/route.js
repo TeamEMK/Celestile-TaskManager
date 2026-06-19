@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
+import { requireUser, requireAdmin } from '@/lib/api';
 
 function normDate(s) {
   if (!s) return null;
@@ -19,26 +20,6 @@ function nextWorkingDay(dateStr, holidaySet) {
 }
 
 async function rescheduleForHoliday(holidayDate) {
-  const hasDB = !!process.env.DB_HOST;
-
-  if (!hasDB) {
-    const { readStore, writeStore } = await import('@/lib/store');
-    const store = await readStore();
-    const allHolidays = new Set((store.holidays || []).map(h => h.date));
-    const next = nextWorkingDay(holidayDate, allHolidays);
-
-    (store.delegations || []).forEach(d => {
-      const dd = (d.dueDate || d.due_date || '').slice(0, 10);
-      if (dd === holidayDate && d.status !== 'done') d.dueDate = next;
-    });
-    (store.masters || []).forEach(m => {
-      if ((m.startDate || '').slice(0, 10) === holidayDate) m.startDate = next;
-    });
-    await writeStore(store);
-    return;
-  }
-
-  // MySQL
   try {
     const [rows] = await pool.query('SELECT date FROM holidays');
     const allHolidays = new Set(rows.map(r => {
@@ -46,13 +27,10 @@ async function rescheduleForHoliday(holidayDate) {
       return v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
     }));
     const next = nextWorkingDay(holidayDate, allHolidays);
-
     await pool.query(
       `UPDATE delegations SET due_date = ? WHERE due_date = ? AND status != 'done'`,
       [next, holidayDate]
     );
-
-    try { await pool.query('ALTER TABLE masters ADD COLUMN start_date DATE DEFAULT NULL'); } catch {}
     await pool.query(
       `UPDATE masters SET start_date = ? WHERE start_date = ?`,
       [next, holidayDate]
@@ -68,6 +46,7 @@ async function nextId() {
 }
 
 export async function GET() {
+  const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const [rows] = await pool.query('SELECT id, date, name, type FROM holidays ORDER BY date ASC');
@@ -78,6 +57,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const gate = await requireAdmin(); if (gate) return gate;
   try {
     await ensureSchema();
     const b = await req.json();
@@ -112,6 +92,7 @@ export async function POST(req) {
 }
 
 export async function DELETE(req) {
+  const gate = await requireAdmin(); if (gate) return gate;
   try {
     await ensureSchema();
     const id = new URL(req.url).searchParams.get('id');
