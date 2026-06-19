@@ -115,11 +115,11 @@ export default function DailyTaskAdminClient() {
 
       {/* ── KPI stat cards ────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard label="Entries"       value={agg.entries}   icon="📋" color="#2563eb" />
-        <StatCard label="Total Minutes" value={agg.minutes}   icon="⏱" color="#7c3aed" />
-        <StatCard label="Hours Logged"  value={agg.hours}     icon="🕐" color="#0891b2" />
-        <StatCard label="Revisions"     value={agg.revisions} icon="🔄" color="#f59e0b" />
-        <StatCard label="Active Doers"  value={agg.doers}     icon="👤" color="#10b981" />
+        <StatCard label="Entries"       value={agg.entries}   icon="📋" grad="linear-gradient(135deg,#3b82f6,#4f46e5)" shadow="rgba(59,130,246,0.35)" />
+        <StatCard label="Total Minutes" value={agg.minutes}   icon="⏱"  grad="linear-gradient(135deg,#7c3aed,#a855f7)" shadow="rgba(124,58,237,0.35)" />
+        <StatCard label="Hours Logged"  value={agg.hours}     icon="🕐" grad="linear-gradient(135deg,#0891b2,#06b6d4)" shadow="rgba(8,145,178,0.35)"  />
+        <StatCard label="Revisions"     value={agg.revisions} icon="🔄" grad="linear-gradient(135deg,#f59e0b,#f97316)" shadow="rgba(245,158,11,0.35)" />
+        <StatCard label="Active Doers"  value={agg.doers}     icon="👤" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
       </div>
 
       {/* ── Today fill status + fill rate donut ──────────────────────── */}
@@ -251,16 +251,21 @@ export default function DailyTaskAdminClient() {
 }
 
 /* ── Sub-components ─────────────────────────────────────────────────────── */
-function StatCard({ label, value, icon, color }) {
+function StatCard({ label, value, icon, grad, shadow }) {
   return (
-    <div className="card p-4 relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-1 rounded-t-xl" style={{ background: color }} />
-      <div className="pt-1">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">{label}</span>
-          <span className="text-lg leading-none">{icon}</span>
+    <div
+      className="rounded-2xl p-5 relative overflow-hidden card-hover cursor-default"
+      style={{ background: grad, boxShadow: `0 4px 20px ${shadow}` }}
+    >
+      {/* Decorative circles */}
+      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.13)' }} />
+      <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      <div className="relative z-10">
+        <div className="flex items-start justify-between mb-3">
+          <span className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</span>
+          <span className="text-xl leading-none">{icon}</span>
         </div>
-        <div className="text-[28px] font-extrabold tabular-nums" style={{ color }}>{value}</div>
+        <div className="text-[32px] font-black tabular-nums text-white leading-none">{value}</div>
       </div>
     </div>
   );

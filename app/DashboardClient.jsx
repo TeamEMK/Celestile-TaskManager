@@ -294,7 +294,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
                 <p className="text-[11.5px] text-slate-500">Overall completion status</p>
               </div>
             </div>
-            <DonutChart value={completed} total={total} size={150} strokeColor="#2E72B5" label="Complete" />
+            <DonutChart value={completed} total={total} size={160} strokeColor="#2E72B5" label="Complete" />
             <div className="w-full grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
               <Legend dot="#10b981" label="Done"    value={completed} />
               <Legend dot="#ef4444" label="Pending" value={pending} />
@@ -319,7 +319,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 grid place-items-center"><IconTrophy /></div>
               <div>
-                <h2 className="text-[13.5px] font-semibold text-slate-900">Performance &amp; Activity</h2>
+                <h2 className="text-[13.5px] font-bold text-gradient-gold">Performance &amp; Activity</h2>
                 <p className="text-[11.5px] text-slate-500">Team leaderboard — last 30 days</p>
               </div>
             </div>
@@ -428,27 +428,33 @@ export default function DashboardClient({ data, performance, holidays, users = [
 }
 
 /* ── KPI card ───────────────────────────────────────────────────────────── */
-const TONES = {
-  blue:    { accent: '#2E72B5', soft: 'bg-primary-50 text-primary-600', text: 'text-primary-600', bg: '#EEF4FB' },
-  emerald: { accent: '#10b981', soft: 'bg-emerald-50 text-emerald-600', text: 'text-emerald-600', bg: '#ecfdf5' },
-  red:     { accent: '#ef4444', soft: 'bg-red-50 text-red-500',         text: 'text-red-500',     bg: '#fef2f2' },
-  violet:  { accent: '#8b5cf6', soft: 'bg-violet-50 text-violet-600',   text: 'text-violet-600',  bg: '#f5f3ff' },
-  amber:   { accent: '#f59e0b', soft: 'bg-amber-50 text-amber-600',     text: 'text-amber-600',   bg: '#fffbeb' },
+const KPI_GRADIENTS = {
+  blue:    { grad: 'linear-gradient(135deg, #3b82f6 0%, #4f46e5 100%)', shadow: 'rgba(59,130,246,0.35)' },
+  emerald: { grad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', shadow: 'rgba(16,185,129,0.35)' },
+  red:     { grad: 'linear-gradient(135deg, #f97316 0%, #dc2626 100%)', shadow: 'rgba(249,115,22,0.35)'  },
+  violet:  { grad: 'linear-gradient(135deg, #f43f5e 0%, #7c3aed 100%)', shadow: 'rgba(244,63,94,0.35)'  },
+  amber:   { grad: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', shadow: 'rgba(245,158,11,0.35)' },
 };
 
-function Kpi({ label, value, tone = 'blue', icon, sub, subTone }) {
-  const t = TONES[tone] || TONES.blue;
+function Kpi({ label, value, tone = 'blue', icon, sub }) {
+  const g = KPI_GRADIENTS[tone] || KPI_GRADIENTS.blue;
   return (
-    <div className="card card-hover p-4 relative overflow-hidden">
-      {/* Gradient top accent bar */}
-      <div className="absolute inset-x-0 top-0 h-1 rounded-t-xl" style={{ background: t.accent }} />
-      <div className="flex items-start justify-between gap-2 pt-1">
+    <div
+      className="rounded-2xl p-5 relative overflow-hidden card-hover cursor-default"
+      style={{ background: g.grad, boxShadow: `0 4px 20px ${g.shadow}` }}
+    >
+      {/* Decorative circles for depth */}
+      <div className="absolute -top-5 -right-5 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.12)' }} />
+      <div className="absolute -bottom-8 -left-4 w-32 h-32 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      <div className="relative z-10 flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">{label}</div>
-          <div className={`text-[32px] leading-none font-extrabold mt-2 tabular-nums ${t.text}`}>{value}</div>
-          {sub && <div className={`text-[11px] mt-2 font-medium ${subTone ? (TONES[subTone]?.text || 'text-slate-400') : 'text-slate-400'}`}>{sub}</div>}
+          <div className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</div>
+          <div className="text-[40px] leading-none font-black mt-2 tabular-nums text-white">{value}</div>
+          {sub && <div className="text-[11px] mt-2 font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>{sub}</div>}
         </div>
-        <div className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${t.soft}`}>{icon}</div>
+        <div className="w-10 h-10 rounded-xl grid place-items-center shrink-0 mt-0.5" style={{ background: 'rgba(255,255,255,0.2)' }}>
+          <span className="text-white">{icon}</span>
+        </div>
       </div>
     </div>
   );
