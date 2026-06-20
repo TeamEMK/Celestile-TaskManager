@@ -9,13 +9,22 @@ function extractSheetId(url) {
 }
 
 function getSheets() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key   = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-  if (!email || !key) throw new Error('Google credentials not configured in .env');
-  const auth = new google.auth.GoogleAuth({
-    credentials: { client_email: email, private_key: key },
+  const email  = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
+  const rawKey = process.env.GOOGLE_PRIVATE_KEY;
+  if (!email || !rawKey) throw new Error('Google credentials not configured in .env');
+
+  // Normalize key: handle literal \n, strip surrounding quotes, fix double-escaping
+  const key = rawKey
+    .replace(/^["']|["']$/g, '')   // remove surrounding quotes if Hostinger adds them
+    .replace(/\\n/g, '\n');         // literal \n → real newline
+
+  // Use JWT directly — more compatible with Node.js 18+ / OpenSSL 3.0
+  const auth = new google.auth.JWT({
+    email,
+    key,
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
   });
+
   return google.sheets({ version: 'v4', auth });
 }
 
