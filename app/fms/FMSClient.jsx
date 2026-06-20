@@ -41,6 +41,9 @@ export default function FMSClient() {
   const [loadingEntries, setLoadingEntries]= useState(false);
   const [modal,          setModal]         = useState(null);
   const [users,          setUsers]         = useState([]);
+  const [confirm,        setConfirm]       = useState(null); // { msg, onOk }
+
+  const askConfirm = (msg, onOk) => setConfirm({ msg, onOk });
 
   // filters
   const [search,      setSearch]      = useState('');
@@ -124,10 +127,14 @@ export default function FMSClient() {
   }
 
   /* ── delete flow ──────────────────────────────────────────────── */
-  async function deleteFlow(flow) {
-    if (!confirm(`Delete "${flow.name}" and all its ${flow.stats?.total || 0} entries?`)) return;
-    await fetch(`/api/fms/types?id=${flow.id}`, { method: 'DELETE' });
-    loadFlows();
+  function deleteFlow(flow) {
+    askConfirm(
+      `"${flow.name}" aur uski saari ${flow.stats?.total || 0} entries delete ho jaayengi. Confirm karo?`,
+      async () => {
+        await fetch(`/api/fms/types?id=${flow.id}`, { method: 'DELETE' });
+        loadFlows();
+      }
+    );
   }
 
   /* ── save new entry ───────────────────────────────────────────── */
@@ -292,6 +299,7 @@ export default function FMSClient() {
         )}
       </div>
 
+      {confirm && <ConfirmModal msg={confirm.msg} onOk={() => { confirm.onOk(); setConfirm(null); }} onCancel={() => setConfirm(null)} />}
       {/* Modals for hub */}
       {modal === 'addFlow' && (
         <Modal title="New FMS Flow" onClose={() => setModal(null)}>
@@ -449,8 +457,10 @@ export default function FMSClient() {
                               stepName={`Step ${si+1}: ${stepName}`}
                               onClick={() => {
                                 if (status === 'done') {
-                                  if (window.confirm(`Unmark Step ${si+1} for ${entry.client_name || entry.skm_no}?`))
-                                    markStep(entry.id, si, true);
+                                  askConfirm(
+                                    `Step ${si+1} ko "${entry.client_name || entry.skm_no}" ke liye unmark karo?`,
+                                    () => markStep(entry.id, si, true)
+                                  );
                                 } else if (status !== 'future') {
                                   markStep(entry.id, si, false);
                                 }
@@ -468,6 +478,7 @@ export default function FMSClient() {
         )}
       </div>
 
+      {confirm && <ConfirmModal msg={confirm.msg} onOk={() => { confirm.onOk(); setConfirm(null); }} onCancel={() => setConfirm(null)} />}
       {/* Sheet-view modals */}
       {modal === 'addEntry' && (
         <Modal title={`Add Entry — ${activeFlow.name}`} onClose={() => setModal(null)}>
@@ -527,6 +538,26 @@ function StepCell({ status, completedAt, completedBy, stepName, onClick }) {
     <div title={title} onClick={onClick} className={`${base} bg-slate-200 cursor-pointer hover:bg-primary-200`} />
   );
   return <div className={`${base} bg-transparent`} />;
+}
+
+/* ── Confirm Modal ────────────────────────────────────────────────── */
+function ConfirmModal({ msg, onOk, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
+        <div className="w-10 h-10 rounded-xl bg-red-50 grid place-items-center mx-auto mb-4">
+          <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <p className="text-[13px] text-slate-700 text-center leading-relaxed mb-6">{msg}</p>
+        <div className="flex gap-3">
+          <button className="btn-secondary flex-1" onClick={onCancel}>Cancel</button>
+          <button className="flex-1 btn bg-red-600 text-white hover:bg-red-700" onClick={onOk}>Confirm</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ── Modal shell ──────────────────────────────────────────────────── */
