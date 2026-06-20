@@ -42,6 +42,8 @@ export default function FMSClient() {
   const [modal,          setModal]         = useState(null);
   const [users,          setUsers]         = useState([]);
   const [confirm,        setConfirm]       = useState(null); // { msg, onOk }
+  const [stepForm,       setStepForm]      = useState(null); // { entry, stepIdx, stepName }
+  const [stepDoneBy,     setStepDoneBy]    = useState('');
 
   const askConfirm = (msg, onOk) => setConfirm({ msg, onOk });
 
@@ -101,13 +103,24 @@ export default function FMSClient() {
   }
 
   /* ── step interaction ─────────────────────────────────────────── */
-  async function markStep(entryId, stepIdx, undo) {
+  async function markStep(entryId, stepIdx, undo, completedBy) {
     await fetch('/api/fms/entries/step', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entryId, stepIndex: stepIdx, undo }),
+      body: JSON.stringify({ entryId, stepIndex: stepIdx, undo, completedBy: completedBy || '' }),
     });
     loadEntries(activeFlow.id);
+  }
+
+  function openStepForm(entry, stepIdx, stepName) {
+    setStepDoneBy(entry.doer_name || '');
+    setStepForm({ entry, stepIdx, stepName });
+  }
+
+  async function submitStepDone() {
+    if (!stepForm) return;
+    await markStep(stepForm.entry.id, stepForm.stepIdx, false, stepDoneBy);
+    setStepForm(null);
   }
 
   /* ── save new flow ────────────────────────────────────────────── */
@@ -462,7 +475,7 @@ export default function FMSClient() {
                                     () => markStep(entry.id, si, true)
                                   );
                                 } else if (status !== 'future') {
-                                  markStep(entry.id, si, false);
+                                  openStepForm(entry, si, flowSteps[si]);
                                 }
                               }}
                             />
@@ -482,12 +495,36 @@ export default function FMSClient() {
       {/* Sheet-view modals */}
       {modal === 'addEntry' && (
         <Modal title={`Add Entry — ${activeFlow.name}`} onClose={() => setModal(null)}>
-          <AddEntryBody form={entryForm} setForm={setEntryForm} flow={activeFlow} />
+          <AddEntryBody form={entryForm} setForm={setEntryForm} flow={activeFlow} users={users} />
           <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
             <button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button>
             <button className="btn-primary" disabled={saving} onClick={saveEntry}>
               {saving ? 'Saving…' : 'Add Entry'}
             </button>
+          </div>
+        </Modal>
+      )}
+      {stepForm && (
+        <Modal title={`Step ${stepForm.stepIdx + 1} Complete`} onClose={() => setStepForm(null)}>
+          <div className="p-6 space-y-4">
+            <div className="bg-primary-50 rounded-xl px-4 py-3 text-[12px] text-primary-700 font-medium">
+              {stepForm.stepName}
+            </div>
+            <div className="text-[12px] text-slate-500">
+              Client: <span className="font-semibold text-slate-800">{stepForm.entry.client_name}</span>
+              {stepForm.entry.skm_no && <span className="ml-2 text-slate-400">({stepForm.entry.skm_no})</span>}
+            </div>
+            <div>
+              <label className="label">Completed By</label>
+              <select className="input !text-[12px]" value={stepDoneBy} onChange={e => setStepDoneBy(e.target.value)}>
+                <option value="">— Select —</option>
+                {users.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+            <button className="btn-secondary" onClick={() => setStepForm(null)}>Cancel</button>
+            <button className="btn-primary" onClick={submitStepDone}>Mark Complete ✓</button>
           </div>
         </Modal>
       )}
@@ -626,17 +663,21 @@ function AddFlowBody({ form, setForm, users }) {
 }
 
 /* ── Add Entry body ───────────────────────────────────────────────── */
-function AddEntryBody({ form, setForm, flow }) {
+function AddEntryBody({ form, setForm, flow, users }) {
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const TECHS = ['CNC','OVERLAY','INLAY','SLAB','PRINTING','HAND CASTED','SCOOPING','STAMPING','SAND BLASTING'];
   return (
     <div className="p-6 space-y-3">
+      {/* Row 1: SKM + Order */}
       <div className="grid grid-cols-2 gap-3">
         <Field label="SKM No"   value={form.skm_no}   onChange={v => upd('skm_no', v)}   placeholder="e.g. SKM-299" />
         <Field label="Order No" value={form.order_no}  onChange={v => upd('order_no', v)}  placeholder="e.g. B472 or H1663" />
       </div>
+      {/* Row 2: Client */}
       <Field label="Client Name *" value={form.client_name} onChange={v => upd('client_name', v)} placeholder="Client name" />
-      <Field label="Area"          value={form.area}         onChange={v => upd('area', v)}         placeholder="Living Area, Pooja Mandir…" />
+      {/* Row 3: Area */}
+      <Field label="Area" value={form.area} onChange={v => upd('area', v)} placeholder="Living Area, Pooja Mandir…" />
+      {/* Row 4: Tech + SFT */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">Technology</label>
@@ -645,18 +686,30 @@ function AddEntryBody({ form, setForm, flow }) {
             {TECHS.map(t => <option key={t}>{t}</option>)}
           </select>
         </div>
-        <Field label="SFT" value={form.sft} onChange={v => upd('sft', v)} placeholder="Square feet" />
+        <Field label="SFT" value={form.sft} onChange={v => upd('sft', v)} placeholder="Sq ft" />
       </div>
+      {/* Row 5: Dates */}
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Lead Date" value={form.lead_date}     onChange={v => upd('lead_date', v)}     type="date" />
-        <Field label="Planned"   value={form.planned_date}  onChange={v => upd('planned_date', v)}  type="date" />
+        <Field label="Lead Date"    value={form.lead_date}    onChange={v => upd('lead_date', v)}    type="date" />
+        <Field label="Planned Date" value={form.planned_date} onChange={v => upd('planned_date', v)} type="date" />
       </div>
-      <Field label="Doer Name" value={form.doer_name} onChange={v => upd('doer_name', v)} placeholder="Assigned to" />
+      {/* Row 6: Doer dropdown */}
+      <div>
+        <label className="label">Doer (Assigned To)</label>
+        <select className="input !text-[12px]" value={form.doer_name} onChange={e => upd('doer_name', e.target.value)}>
+          <option value="">— Select Doer —</option>
+          {users.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+        </select>
+      </div>
+      {/* Row 7: Current step */}
       {flow.steps.length > 0 && (
         <div>
-          <label className="label">Current Step (already reached)</label>
-          <select className="input !text-[12px]" value={form.current_step_idx || '0'} onChange={e => upd('current_step_idx', e.target.value)}>
-            {flow.steps.map((s, i) => <option key={i} value={i}>Step {i+1} — {s.length > 40 ? s.slice(0,40)+'…' : s}</option>)}
+          <label className="label">Current Step (pehle se complete ho chuka)</label>
+          <select className="input !text-[12px]" value={form.current_step_idx ?? '0'} onChange={e => upd('current_step_idx', e.target.value)}>
+            <option value="0">Step 1 se shuru (koi complete nahi)</option>
+            {flow.steps.map((s, i) => (
+              <option key={i} value={i + 1}>Step {i+1} tak complete — {s.length > 38 ? s.slice(0,38)+'…' : s}</option>
+            ))}
           </select>
         </div>
       )}
