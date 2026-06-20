@@ -12,7 +12,9 @@ function getSheets() {
   // Prefer full JSON credentials (most reliable — JSON.parse handles \n correctly)
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     try {
-      const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+      // Hostinger escapes { → \{ and } → \} in env vars — undo that
+      const raw   = process.env.GOOGLE_SERVICE_ACCOUNT_JSON.replace(/\\([{}])/g, '$1');
+      const creds = JSON.parse(raw);
       const auth  = new google.auth.JWT({
         email:  creds.client_email,
         key:    creds.private_key,
