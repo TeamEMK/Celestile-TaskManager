@@ -9,17 +9,29 @@ function extractSheetId(url) {
 }
 
 function getSheets() {
-  // Prefer full JSON credentials (most reliable — JSON.parse handles \n correctly)
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+  // Base64-encoded JSON — safest: no special chars for Hostinger to mangle
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_B64) {
     try {
-      // Hostinger escapes { → \{ and } → \} — undo those
-      const raw   = process.env.GOOGLE_SERVICE_ACCOUNT_JSON.replace(/\\([{}])/g, '$1');
-      const creds = JSON.parse(raw);
-      // Hostinger may also double-escape \n → \\n inside the private key
-      const key   = (creds.private_key || '').replace(/\\n/g, '\n');
+      const creds = JSON.parse(Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_B64, 'base64').toString('utf8'));
       const auth  = new google.auth.JWT({
         email:  creds.client_email,
-        key,
+        key:    creds.private_key,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+      });
+      return google.sheets({ version: 'v4', auth });
+    } catch (e) {
+      throw new Error('GOOGLE_SERVICE_ACCOUNT_B64 decode error: ' + e.message);
+    }
+  }
+
+  // Fallback: raw JSON (Hostinger may mangle braces/backslashes)
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    try {
+      const raw   = process.env.GOOGLE_SERVICE_ACCOUNT_JSON.replace(/\\([{}])/g, '$1');
+      const creds = JSON.parse(raw);
+      const key   = (creds.private_key || '').replace(/\\n/g, '\n');
+      const auth  = new google.auth.JWT({
+        email: creds.client_email, key,
         scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
       });
       return google.sheets({ version: 'v4', auth });
@@ -28,20 +40,7 @@ function getSheets() {
     }
   }
 
-  // Fallback: individual env vars
-  const email  = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
-  const rawKey = process.env.GOOGLE_PRIVATE_KEY;
-  if (!email || !rawKey) throw new Error('Google credentials not configured in .env');
-
-  const key = rawKey
-    .replace(/^["']|["']$/g, '')
-    .replace(/\\n/g, '\n');
-
-  const auth = new google.auth.JWT({
-    email, key,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-  });
-  return google.sheets({ version: 'v4', auth });
+  throw new Error('Google credentials not configured. Set GOOGLE_SERVICE_ACCOUNT_B64 in env vars.');
 }
 
 function detectCols(headers) {
