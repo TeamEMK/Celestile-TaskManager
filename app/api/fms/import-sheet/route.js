@@ -9,22 +9,34 @@ function extractSheetId(url) {
 }
 
 function getSheets() {
+  // Prefer full JSON credentials (most reliable — JSON.parse handles \n correctly)
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    try {
+      const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+      const auth  = new google.auth.JWT({
+        email:  creds.client_email,
+        key:    creds.private_key,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+      });
+      return google.sheets({ version: 'v4', auth });
+    } catch (e) {
+      throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON: ' + e.message);
+    }
+  }
+
+  // Fallback: individual env vars
   const email  = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
   const rawKey = process.env.GOOGLE_PRIVATE_KEY;
   if (!email || !rawKey) throw new Error('Google credentials not configured in .env');
 
-  // Normalize key: handle literal \n, strip surrounding quotes, fix double-escaping
   const key = rawKey
-    .replace(/^["']|["']$/g, '')   // remove surrounding quotes if Hostinger adds them
-    .replace(/\\n/g, '\n');         // literal \n → real newline
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\n/g, '\n');
 
-  // Use JWT directly — more compatible with Node.js 18+ / OpenSSL 3.0
   const auth = new google.auth.JWT({
-    email,
-    key,
+    email, key,
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
   });
-
   return google.sheets({ version: 'v4', auth });
 }
 
