@@ -12,17 +12,19 @@ function getSheets() {
   // Prefer full JSON credentials (most reliable — JSON.parse handles \n correctly)
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     try {
-      // Hostinger escapes { → \{ and } → \} in env vars — undo that
+      // Hostinger escapes { → \{ and } → \} — undo those
       const raw   = process.env.GOOGLE_SERVICE_ACCOUNT_JSON.replace(/\\([{}])/g, '$1');
       const creds = JSON.parse(raw);
+      // Hostinger may also double-escape \n → \\n inside the private key
+      const key   = (creds.private_key || '').replace(/\\n/g, '\n');
       const auth  = new google.auth.JWT({
         email:  creds.client_email,
-        key:    creds.private_key,
+        key,
         scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
       });
       return google.sheets({ version: 'v4', auth });
     } catch (e) {
-      throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON: ' + e.message);
+      throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON error: ' + e.message);
     }
   }
 
@@ -104,7 +106,9 @@ export async function POST(req) {
     });
     rows = res.data.values || [];
   } catch (err) {
-    return NextResponse.json({ error: `Cannot access sheet: ${err.message}. Make sure the sheet is shared with your service account.` }, { status: 400 });
+    const detail = err.response?.data?.error?.message || err.message;
+    const status = err.response?.status ? `[${err.response.status}] ` : '';
+    return NextResponse.json({ error: `Cannot access sheet: ${status}${detail}` }, { status: 400 });
   }
 
   if (rows.length < 2) return NextResponse.json({ error: 'Sheet has no data rows' }, { status: 400 });
