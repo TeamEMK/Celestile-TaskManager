@@ -214,7 +214,7 @@ export default function FMSClient() {
      HUB VIEW
   ──────────────────────────────────────────────────────────────── */
   if (view === 'hub') return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="flex flex-col gap-4 animate-fade-in" style={{ minHeight: 'calc(100vh - 96px)' }}>
       {/* Header */}
       <div className="card p-4 flex items-center justify-between gap-3 flex-wrap">
         <div>
@@ -228,7 +228,7 @@ export default function FMSClient() {
       </div>
 
       {/* Flow list table */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden flex-1">
         {loadingFlows ? (
           <div className="p-10 text-center text-slate-400 text-[13px]">Loading…</div>
         ) : flows.length === 0 ? (
