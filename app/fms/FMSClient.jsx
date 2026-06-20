@@ -40,6 +40,7 @@ export default function FMSClient() {
   const [loadingFlows,   setLoadingFlows]  = useState(true);
   const [loadingEntries, setLoadingEntries]= useState(false);
   const [modal,          setModal]         = useState(null);
+  const [users,          setUsers]         = useState([]);
 
   // filters
   const [search,      setSearch]      = useState('');
@@ -74,7 +75,12 @@ export default function FMSClient() {
     setLoadingEntries(false);
   }
 
-  useEffect(() => { loadFlows(); }, []);
+  useEffect(() => {
+    loadFlows();
+    fetch('/api/users').then(r => r.json()).then(rows => {
+      setUsers(Array.isArray(rows) ? rows.filter(u => u.active !== 0) : []);
+    }).catch(() => {});
+  }, []);
 
   /* ── navigation ───────────────────────────────────────────────── */
   function openFlow(flow) {
@@ -289,7 +295,7 @@ export default function FMSClient() {
       {/* Modals for hub */}
       {modal === 'addFlow' && (
         <Modal title="New FMS Flow" onClose={() => setModal(null)}>
-          <AddFlowBody form={flowForm} setForm={setFlowForm} />
+          <AddFlowBody form={flowForm} setForm={setFlowForm} users={users} />
           <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
             <button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button>
             <button className="btn-primary" disabled={saving || !flowForm.name.trim()} onClick={saveFlow}>
@@ -539,7 +545,7 @@ function Modal({ title, children, onClose }) {
 }
 
 /* ── Add Flow body ────────────────────────────────────────────────── */
-function AddFlowBody({ form, setForm }) {
+function AddFlowBody({ form, setForm, users }) {
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const addStep = () => setForm(f => ({ ...f, steps: [...f.steps, ''] }));
   const setStep = (i, v) => setForm(f => { const s = [...f.steps]; s[i] = v; return { ...f, steps: s }; });
@@ -548,7 +554,15 @@ function AddFlowBody({ form, setForm }) {
   return (
     <div className="p-6 space-y-4">
       <Field label="FMS Name *" value={form.name} onChange={v => upd('name', v)} placeholder="e.g. Factory O2D, Recruitment FMS…" />
-      <Field label="Process Coordinator" value={form.coordinator} onChange={v => upd('coordinator', v)} placeholder="Name of coordinator" />
+      <div>
+        <label className="label">Process Coordinator</label>
+        <select className="input !text-[12px]" value={form.coordinator} onChange={e => upd('coordinator', e.target.value)}>
+          <option value="">— Select Coordinator —</option>
+          {users.map(u => (
+            <option key={u.id} value={u.name}>{u.name}</option>
+          ))}
+        </select>
+      </div>
       <div>
         <label className="label">Flow Color</label>
         <div className="flex gap-2 flex-wrap">
