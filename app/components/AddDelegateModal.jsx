@@ -39,7 +39,7 @@ function parseCSV(text) {
 
 const Field = ({ label, required, children }) => (
   <div>
-    <label style={{ display:'block', fontSize:11, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5 }}>
+    <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:3 }}>
       {label}{required && <span style={{ color:'#ef4444', marginLeft:2 }}>*</span>}
     </label>
     {children}
@@ -48,9 +48,9 @@ const Field = ({ label, required, children }) => (
 
 const inputStyle = {
   width:'100%', boxSizing:'border-box',
-  padding:'9px 12px', fontSize:13, color:'#1e293b',
+  padding:'6px 10px', fontSize:12.5, color:'#1e293b',
   background:'#f8fafc', border:'1.5px solid #e2e8f0',
-  borderRadius:10, outline:'none', transition:'border-color .15s, box-shadow .15s',
+  borderRadius:8, outline:'none', transition:'border-color .15s, box-shadow .15s',
   fontFamily:'inherit',
 };
 const inputFocus = {
@@ -212,14 +212,14 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
       >
         {/* ── Header ── */}
         <div style={{
-          padding:'18px 22px 16px',
+          padding:'14px 18px 12px',
           borderBottom:'1px solid #f1f5f9',
           background:'linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%)',
           borderRadius:'20px 20px 0 0',
-          display:'flex', alignItems:'center', gap:12,
+          display:'flex', alignItems:'center', gap:10,
         }}>
           <div style={{
-            width:40, height:40, borderRadius:12, flexShrink:0,
+            width:36, height:36, borderRadius:10, flexShrink:0,
             background:'linear-gradient(135deg,#7c3aed,#4f46e5)',
             display:'flex', alignItems:'center', justifyContent:'center',
             boxShadow:'0 4px 12px rgba(124,58,237,0.35)',
@@ -230,8 +230,8 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
             </svg>
           </div>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:15, fontWeight:700, color:'#3730a3' }}>Delegate Task</div>
-            <div style={{ fontSize:11.5, color:'#6d28d9', marginTop:2 }}>Assign new work to a team member</div>
+            <div style={{ fontSize:14, fontWeight:700, color:'#3730a3' }}>Delegate Task</div>
+            <div style={{ fontSize:11, color:'#6d28d9', marginTop:1 }}>Assign new work to a team member</div>
           </div>
           <button
             onClick={onClose}
@@ -242,7 +242,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
         </div>
 
         {/* ── Body ── */}
-        <div className="del-modal-scroll" style={{ padding:'20px 22px', overflowY:'auto', display:'flex', flexDirection:'column', gap:14 }}>
+        <div className="del-modal-scroll" style={{ padding:'14px 18px', overflowY:'auto', display:'flex', flexDirection:'column', gap:10 }}>
 
           {/* Row 1: Doer + Due Date */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -273,86 +273,58 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
 
           {/* Description */}
           <Field label="Description" required>
-            <StyledTextarea value={form.description} rows={3} onChange={(e) => set('description', e.target.value)} placeholder="What needs to be done?" />
+            <StyledTextarea value={form.description} rows={2} onChange={(e) => set('description', e.target.value)} placeholder="What needs to be done?" />
           </Field>
 
-          {/* Client + URL */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          {/* Client + URL + Remarks in 3 cols */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
             <Field label="Client">
-              <StyledInput value={form.client} onChange={(e) => set('client', e.target.value)} placeholder="Client name (optional)" />
+              <StyledInput value={form.client} onChange={(e) => set('client', e.target.value)} placeholder="Client name" />
             </Field>
             <Field label="URL">
               <StyledInput value={form.url} onChange={(e) => set('url', e.target.value)} placeholder="https://..." />
             </Field>
+            <Field label="Remarks">
+              <StyledInput value={form.remarks} onChange={(e) => set('remarks', e.target.value)} placeholder="Notes..." />
+            </Field>
           </div>
 
-          {/* Remarks */}
-          <Field label="Remarks">
-            <StyledTextarea value={form.remarks} rows={2} onChange={(e) => set('remarks', e.target.value)} placeholder="Any additional notes..." />
-          </Field>
+          {/* Attachment + Require File — single compact row */}
+          <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', border:'1.5px solid #e8e4fd', borderRadius:10, background:'#faf9ff' }}>
 
-          {/* Attachment + Require File */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, alignItems:'start' }}>
+            {/* Attachment button */}
+            <label className="del-file-zone" style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 10px', border:'1.5px dashed #c7d2fe', borderRadius:8, cursor:'pointer', background:'#fff', transition:'all .15s', flexShrink:0 }}>
+              <div style={{ width:28, height:28, borderRadius:6, background:'#ede9fe', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
+                {form.image
+                  ? <img src={form.image} alt="" style={{ width:28, height:28, objectFit:'cover' }} />
+                  : form.attachment
+                  ? <span style={{ fontSize:14 }}>📄</span>
+                  : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                }
+              </div>
+              <span style={{ fontSize:11.5, fontWeight:600, color:'#4c1d95', whiteSpace:'nowrap' }}>
+                {hasAttachment ? 'Change' : '+ Attach'}
+              </span>
+              <input type="file" accept="image/*,application/pdf" style={{ display:'none' }} onChange={(e) => pickAttachment(e.target.files?.[0])} />
+            </label>
 
-            {/* Attachment */}
-            <Field label="Photo / PDF">
-              <label
-                className="del-file-zone"
-                style={{
-                  display:'flex', alignItems:'center', gap:10, padding:'10px 12px',
-                  border:'1.5px dashed #c7d2fe', borderRadius:10, cursor:'pointer',
-                  background:'#fafafa', transition:'all .15s',
-                }}
-              >
-                <div style={{
-                  width:38, height:38, borderRadius:8, background:'#ede9fe', flexShrink:0,
-                  display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden',
-                }}>
-                  {form.image
-                    ? <img src={form.image} alt="" style={{ width:38, height:38, objectFit:'cover' }} />
-                    : form.attachment
-                    ? <span style={{ fontSize:20 }}>📄</span>
-                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                  }
-                </div>
-                <div>
-                  <div style={{ fontSize:12, fontWeight:600, color:'#4c1d95' }}>
-                    {hasAttachment ? 'Change file' : 'Attach file'}
-                  </div>
-                  <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:1 }}>Image or PDF</div>
-                </div>
-                <input type="file" accept="image/*,application/pdf" style={{ display:'none' }} onChange={(e) => pickAttachment(e.target.files?.[0])} />
-              </label>
-              {hasAttachment && (
-                <div style={{ display:'flex', gap:8, marginTop:5 }}>
-                  {form.attachment && <a href={form.attachment} target="_blank" rel="noopener noreferrer" style={{ fontSize:11, color:'#4f46e5' }}>View PDF</a>}
-                  <button type="button" onClick={() => { set('image',''); set('attachment',''); }} style={{ fontSize:11, color:'#ef4444', background:'none', border:'none', cursor:'pointer', padding:0 }}>Remove</button>
-                </div>
-              )}
-            </Field>
+            {hasAttachment && (
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                {form.attachment && <a href={form.attachment} target="_blank" rel="noopener noreferrer" style={{ fontSize:11, color:'#4f46e5' }}>View PDF</a>}
+                <button type="button" onClick={() => { set('image',''); set('attachment',''); }} style={{ fontSize:11, color:'#ef4444', background:'none', border:'none', cursor:'pointer', padding:0 }}>✕ Remove</button>
+              </div>
+            )}
 
-            {/* Require File */}
-            <Field label="Completion">
-              <label style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'10px 12px', border:'1.5px solid #e2e8f0', borderRadius:10, cursor:'pointer', background: form.requireFile ? '#fdf4ff' : '#fafafa', transition:'all .15s' }}>
-                <div style={{ position:'relative', width:36, height:20, flexShrink:0, marginTop:1 }}>
+            <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:7, cursor:'pointer' }}>
+                <div style={{ position:'relative', width:32, height:18, flexShrink:0 }}>
                   <input type="checkbox" checked={form.requireFile} onChange={(e) => set('requireFile', e.target.checked)} style={{ opacity:0, width:0, height:0, position:'absolute' }} />
-                  <div style={{
-                    width:36, height:20, borderRadius:10, transition:'background .2s',
-                    background: form.requireFile ? '#7c3aed' : '#cbd5e1',
-                    position:'absolute', inset:0,
-                  }}/>
-                  <div style={{
-                    position:'absolute', top:2, left: form.requireFile ? 18 : 2,
-                    width:16, height:16, borderRadius:8, background:'#fff',
-                    transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,0.25)',
-                  }}/>
+                  <div style={{ width:32, height:18, borderRadius:9, transition:'background .2s', background: form.requireFile ? '#7c3aed' : '#cbd5e1', position:'absolute', inset:0 }}/>
+                  <div style={{ position:'absolute', top:2, left: form.requireFile ? 16 : 2, width:14, height:14, borderRadius:7, background:'#fff', transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,0.25)' }}/>
                 </div>
-                <div>
-                  <div style={{ fontSize:12, fontWeight:600, color: form.requireFile ? '#4c1d95' : '#475569' }}>File required</div>
-                  <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:1 }}>Must upload to mark done</div>
-                </div>
+                <span style={{ fontSize:11.5, fontWeight:600, color: form.requireFile ? '#4c1d95' : '#64748b', whiteSpace:'nowrap' }}>File required</span>
               </label>
-            </Field>
+            </div>
           </div>
 
           {/* Error / success msg */}
@@ -397,7 +369,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
 
         {/* ── Footer ── */}
         <div style={{
-          padding:'14px 22px', borderTop:'1px solid #f1f5f9',
+          padding:'10px 18px', borderTop:'1px solid #f1f5f9',
           display:'flex', justifyContent:'flex-end', gap:8, borderRadius:'0 0 20px 20px',
           background:'#fafafa',
         }}>
