@@ -43,6 +43,7 @@ export async function GET() {
       `SELECT id, description, doer_id AS doerId, doer,
               delegated_by AS delegatedBy, due_date AS dueDate,
               client, status, type, priority, approval, url, remarks, image,
+              require_file AS requireFile, attachment,
               created_at AS createdAt, completed_at AS completedAt
        FROM delegations ORDER BY created_at DESC`
     );
@@ -57,17 +58,18 @@ async function nextDelId() {
   return 'DEL' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
 }
 
-async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, client, priority, approval, url, remarks, image }) {
+async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, client, priority, approval, url, remarks, image, requireFile, attachment }) {
   const id = await nextDelId();
   const initialStatus = 'pending';
   await pool.query(
     `INSERT INTO delegations
       (id, description, doer_id, doer, delegated_by, due_date, client, status, type,
-       priority, approval, url, remarks, image, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'delegation', ?, ?, ?, ?, ?, NOW())`,
+       priority, approval, url, remarks, image, require_file, attachment, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'delegation', ?, ?, ?, ?, ?, ?, ?, NOW())`,
     [id, description, doerId, doerName || '', delegatedBy || null,
      dueDate, client || '', initialStatus,
-     priority || 'Low', approval || 'No Approval', url || '', remarks || '', image || '']
+     priority || 'Low', approval || 'No Approval', url || '', remarks || '', image || '',
+     requireFile ? 1 : 0, attachment || null]
   );
   const [result] = await pool.query('SELECT * FROM delegations WHERE id = ?', [id]);
   return result[0];
@@ -110,6 +112,7 @@ export async function POST(req) {
       delegatedBy: body.delegatedBy, dueDate: normDate(body.dueDate) || body.dueDate,
       client: body.client, priority: body.priority, approval: resolvedApproval,
       url: body.url, remarks: body.remarks, image: body.image,
+      requireFile: body.requireFile, attachment: body.attachment,
     });
     await notifyDelegation({ doerUser: users[0], delegatedById: body.delegatedBy, del: row });
     return NextResponse.json(row, { status: 201 });
@@ -169,20 +172,22 @@ export async function PATCH(req) {
 
     await pool.query(
       `UPDATE delegations SET
-        status        = COALESCE(?, status),
-        description   = COALESCE(?, description),
-        due_date      = COALESCE(?, due_date),
-        client        = COALESCE(?, client),
-        priority      = COALESCE(?, priority),
-        approval      = COALESCE(?, approval),
-        url           = COALESCE(?, url),
-        remarks       = COALESCE(?, remarks),
-        revise_action = COALESCE(?, revise_action),
-        completed_at  = CASE WHEN ? = 'done' THEN NOW() ELSE completed_at END
+        status           = COALESCE(?, status),
+        description      = COALESCE(?, description),
+        due_date         = COALESCE(?, due_date),
+        client           = COALESCE(?, client),
+        priority         = COALESCE(?, priority),
+        approval         = COALESCE(?, approval),
+        url              = COALESCE(?, url),
+        remarks          = COALESCE(?, remarks),
+        revise_action    = COALESCE(?, revise_action),
+        completion_file  = COALESCE(?, completion_file),
+        completed_at     = CASE WHEN ? = 'done' THEN NOW() ELSE completed_at END
        WHERE id = ?`,
       [status ?? null, body.description ?? null, body.dueDate ?? null,
        body.client ?? null, body.priority ?? null, body.approval ?? null,
        body.url ?? null, body.remarks ?? null, reviseAction,
+       body.completionFile ?? null,
        status, body.id]
     );
 

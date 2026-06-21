@@ -8,7 +8,17 @@ const blank = () => ({
   description: '', doerId: '', dueDate: '',
   priority: 'Low', approval: 'No Approval',
   url: '', remarks: '', image: '',
+  attachment: '', requireFile: false,
 });
+
+async function fileToDataUrl(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
 
 function parseCSV(text) {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -43,7 +53,19 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
 
   if (!open) return null;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  async function pickImage(f) { if (!f) return; try { set('image', await fileToThumbnail(f, 700, 0.7)); } catch {} }
+
+  async function pickAttachment(f) {
+    if (!f) return;
+    try {
+      if (f.type === 'application/pdf') {
+        set('attachment', await fileToDataUrl(f));
+        set('image', '');
+      } else {
+        set('image', await fileToThumbnail(f, 700, 0.7));
+        set('attachment', '');
+      }
+    } catch {}
+  }
 
   async function save() {
     if (!form.description.trim() || !form.doerId || !form.dueDate) {
@@ -54,7 +76,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
     try {
       const res = await fetch('/api/delegations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, delegatedBy: session?.user?.id }),
+        body: JSON.stringify({ ...form, requireFile: form.requireFile ? 1 : 0, delegatedBy: session?.user?.id }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
       setForm(blank());
@@ -160,14 +182,37 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
           </div>
 
           <div>
-            <label className="label">Photo <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className="label">Photo / PDF <span className="text-slate-400 font-normal">(optional)</span></label>
             <div className="flex items-center gap-3">
               <label className="cursor-pointer flex items-center justify-center w-16 h-16 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-slate-400 shrink-0">
-                {form.image ? <img src={form.image} alt="" className="w-16 h-16 object-cover" /> : <span className="text-slate-400 text-xl leading-none">+</span>}
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => pickImage(e.target.files?.[0])} />
+                {form.image
+                  ? <img src={form.image} alt="" className="w-16 h-16 object-cover" />
+                  : form.attachment
+                  ? <span className="text-2xl">📄</span>
+                  : <span className="text-slate-400 text-xl leading-none">+</span>}
+                <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => pickAttachment(e.target.files?.[0])} />
               </label>
-              {form.image && <button type="button" className="text-[12px] text-red-500" onClick={() => set('image', '')}>Remove</button>}
+              {(form.image || form.attachment) && (
+                <div className="flex flex-col gap-1">
+                  {form.attachment && (
+                    <a href={form.attachment} target="_blank" rel="noopener noreferrer" className="text-[12px] text-blue-600 hover:underline">View PDF</a>
+                  )}
+                  <button type="button" className="text-[12px] text-red-500" onClick={() => { set('image', ''); set('attachment', ''); }}>Remove</button>
+                </div>
+              )}
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 py-1">
+            <input
+              type="checkbox" id="del-requireFile"
+              checked={form.requireFile}
+              onChange={(e) => set('requireFile', e.target.checked)}
+              className="rounded border-slate-300 accent-violet-600"
+            />
+            <label htmlFor="del-requireFile" className="text-[13px] text-slate-700 cursor-pointer select-none">
+              Require file upload to mark this task done
+            </label>
           </div>
 
           {msg && <div className="text-[12px] text-slate-600">{msg}</div>}

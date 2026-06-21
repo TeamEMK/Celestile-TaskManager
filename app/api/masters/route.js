@@ -45,8 +45,9 @@ export async function POST(req) {
     const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM masters');
     const id  = 'CHK' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
     await pool.query(
-      'INSERT INTO masters (id, task, assigned_to, frequency, start_date, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
-      [id, body.task.trim(), body.assignedTo || '', body.frequency || 'Daily', body.startDate || null]
+      'INSERT INTO masters (id, task, assigned_to, frequency, start_date, require_file, attachment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
+      [id, body.task.trim(), body.assignedTo || '', body.frequency || 'Daily', body.startDate || null,
+       body.requireFile ? 1 : 0, body.attachment || null]
     );
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (err) {

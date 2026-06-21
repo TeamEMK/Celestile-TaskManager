@@ -41,12 +41,26 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
     assignedTo: '', frequency: 'Daily',
     startDate: new Date().toISOString().slice(0, 10),
     endDate: '', task: '', remarks: '',
+    attachment: '', requireFile: false,
   });
   const [saving, setSaving] = useState(false);
   const [file, setFile] = useState(null);
   const [msg, setMsg] = useState('');
 
   if (!open) return null;
+
+  async function pickAttachment(f) {
+    if (!f) return;
+    try {
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(f);
+      });
+      setForm((prev) => ({ ...prev, attachment: dataUrl }));
+    } catch {}
+  }
 
   async function save() {
     if (!form.task.trim()) { alert('Task name is required'); return; }
@@ -59,11 +73,13 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
         task: form.task, assignedTo: form.assignedTo,
         frequency: form.frequency, startDate: form.startDate,
         endDate: form.endDate || null, remarks: form.remarks,
+        requireFile: form.requireFile ? 1 : 0,
+        attachment: form.attachment || null,
       }),
     });
     setSaving(false);
     if (res.ok) {
-      setForm({ assignedTo: '', frequency: 'Daily', startDate: new Date().toISOString().slice(0, 10), endDate: '', task: '', remarks: '' });
+      setForm({ assignedTo: '', frequency: 'Daily', startDate: new Date().toISOString().slice(0, 10), endDate: '', task: '', remarks: '', attachment: '', requireFile: false });
       onClose();
       router.refresh();
     } else {
@@ -170,6 +186,40 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
           <div>
             <label className="label">Remarks</label>
             <input value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} placeholder="Any remarks..." className="input" />
+          </div>
+
+          <div>
+            <label className="label">Photo / PDF <span className="text-slate-400 font-normal">(optional)</span></label>
+            <div className="flex items-center gap-3">
+              <label className="cursor-pointer flex items-center justify-center w-16 h-16 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-slate-400 shrink-0">
+                {form.attachment
+                  ? (form.attachment.startsWith('data:image')
+                    ? <img src={form.attachment} alt="" className="w-16 h-16 object-cover" />
+                    : <span className="text-2xl">📄</span>)
+                  : <span className="text-slate-400 text-xl leading-none">+</span>}
+                <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => pickAttachment(e.target.files?.[0])} />
+              </label>
+              {form.attachment && (
+                <div className="flex flex-col gap-1">
+                  {!form.attachment.startsWith('data:image') && (
+                    <a href={form.attachment} target="_blank" rel="noopener noreferrer" className="text-[12px] text-blue-600 hover:underline">View PDF</a>
+                  )}
+                  <button type="button" className="text-[12px] text-red-500" onClick={() => setForm((p) => ({ ...p, attachment: '' }))}>Remove</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 py-1">
+            <input
+              type="checkbox" id="chk-requireFile"
+              checked={form.requireFile}
+              onChange={(e) => setForm((p) => ({ ...p, requireFile: e.target.checked }))}
+              className="rounded border-slate-300 accent-emerald-600"
+            />
+            <label htmlFor="chk-requireFile" className="text-[13px] text-slate-700 cursor-pointer select-none">
+              Require file upload to mark this task done
+            </label>
           </div>
 
           {/* Bulk CSV */}

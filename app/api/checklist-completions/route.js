@@ -17,15 +17,15 @@ export async function POST(req) {
   const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
-    const { masterId, doer } = await req.json();
+    const { masterId, doer, file } = await req.json();
     if (!masterId) return NextResponse.json({ error: 'masterId required' }, { status: 400 });
 
     const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM checklist_completions');
     const id  = 'CC' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
 
     await pool.query(
-      'INSERT INTO checklist_completions (id, master_id, doer, completed_at, date) VALUES (?, ?, ?, NOW(), CURDATE())',
-      [id, masterId, doer || '']
+      'INSERT INTO checklist_completions (id, master_id, doer, file, completed_at, date) VALUES (?, ?, ?, ?, NOW(), CURDATE())',
+      [id, masterId, doer || '', file || null]
     );
     return NextResponse.json({ success: true });
   } catch (err) {

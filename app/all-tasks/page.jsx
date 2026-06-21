@@ -13,13 +13,14 @@ export default async function AllTasksPage() {
     [delegations, users, masters, completions] = await Promise.all([
       pool.query(`SELECT id, description, doer_id AS doerId, doer, delegated_by AS delegatedBy,
                          due_date AS dueDate, client, status, type, priority, approval, url, remarks, image,
+                         require_file AS requireFile, attachment,
                          transferred_by AS transferredBy, transferred_from AS transferredFrom, created_at AS createdAt
                   FROM delegations WHERE NOT (approval = 'Approval Required' AND status = 'pending')
                   ORDER BY created_at DESC`)
         .then(([r]) => r).catch(() => []),
       pool.query('SELECT id, name, email, department, roles FROM users ORDER BY id')
         .then(([r]) => r).catch(() => []),
-      pool.query('SELECT id, task, assigned_to AS assignedTo, frequency, created_at AS createdAt FROM masters ORDER BY created_at DESC')
+      pool.query('SELECT id, task, assigned_to AS assignedTo, frequency, require_file AS requireFile, attachment, created_at AS createdAt FROM masters ORDER BY created_at DESC')
         .then(([r]) => r).catch(() => []),
       pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()')
         .then(([r]) => r).catch(() => []),
@@ -48,6 +49,7 @@ export default async function AllTasksPage() {
       id: m.id, description: m.task, doer: m.assignedTo, doerId: null,
       dueDate: m.createdAt || null, client: '', status: completedToday.has(m.id) ? 'done' : 'pending',
       type: 'Checklist', frequency: m.frequency, createdAt: m.createdAt,
+      requireFile: m.requireFile || 0, attachment: m.attachment || '',
     })),
   ];
 
