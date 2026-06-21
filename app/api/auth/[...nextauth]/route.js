@@ -68,6 +68,10 @@ async function findUser(email) {
 // Fresh auth state for a session refresh: force-logout stamp + current roles +
 // current per-page access (so role/access edits apply without a re-login).
 async function getUserAuthState(userId) {
+  // Hardcoded admin is not in the DB — return safe defaults so it never force-logs out.
+  if (userId === HARDCODED_ADMIN.id) {
+    return { forceLogoutAfter: 0, roles: HARDCODED_ADMIN.roles, access: HARDCODED_ADMIN.access };
+  }
   try {
     const hasMySQL = !!(process.env.DB_HOST);
     if (hasMySQL) {
