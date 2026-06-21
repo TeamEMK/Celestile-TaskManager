@@ -10,6 +10,17 @@ import { parseAccess } from '@/lib/pages';
 
 const DEFAULT_PASSWORD = 'India@123';
 
+const HARDCODED_ADMIN = {
+  id:         'U000',
+  name:       'Admin',
+  email:      'admin@celestile.com',
+  password:   'Celestile@123',
+  phone:      '',
+  department: 'Administration',
+  roles:      ['Admin'],
+  access:     null,
+};
+
 function rolesFrom(raw) {
   return Array.isArray(raw)
     ? raw
@@ -95,6 +106,21 @@ export const authOptions = {
         try {
           const active = await isAppActive();
           if (!active) return null;
+
+          // Hardcoded admin account
+          if (credentials.email === HARDCODED_ADMIN.email) {
+            if (credentials.password !== HARDCODED_ADMIN.password) return null;
+            return {
+              id:         HARDCODED_ADMIN.id,
+              name:       HARDCODED_ADMIN.name,
+              email:      HARDCODED_ADMIN.email,
+              phone:      HARDCODED_ADMIN.phone,
+              department: HARDCODED_ADMIN.department,
+              roles:      HARDCODED_ADMIN.roles,
+              access:     HARDCODED_ADMIN.access,
+            };
+          }
+
           const { user } = await findUser(credentials.email);
           if (!user) return null;
 
