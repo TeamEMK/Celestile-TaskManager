@@ -3,8 +3,10 @@ node_modules
 .pnp
 .pnp.js
 
-# next
-.next
+# next — commit production build only, skip dev/cache/sourcemaps
+.next/dev
+.next/cache
+.next/**/*.map
 out
 build
 
@@ -26,7 +28,6 @@ migration.sql
 .vscode
 .idea
 node_modules
-.next
 .env
 .env.local
 data/store.json

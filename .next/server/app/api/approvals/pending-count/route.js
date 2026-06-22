@@ -1,0 +1,12 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/approvals/pending-count/route.js")
+R.c("server/chunks/[root-of-the-server]__0272r4b._.js")
+R.c("server/chunks/node_modules_bcryptjs_index_0bjz0ul.js")
+R.c("server/chunks/node_modules_next_dist_0npcise._.js")
+R.c("server/chunks/lib_0c.zusw._.js")
+R.c("server/chunks/[root-of-the-server]__11j~5mn._.js")
+R.c("server/chunks/_07q9hlf._.js")
+R.c("server/chunks/_0ucc3oe._.js")
+R.c("server/chunks/node_modules_next_11synfn._.js")
+R.c("server/chunks/_next-internal_server_app_api_approvals_pending-count_route_actions_0yy4qfj.js")
+R.m(32433)
+module.exports=R.m(32433).exports

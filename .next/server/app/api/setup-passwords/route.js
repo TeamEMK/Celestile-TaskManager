@@ -1,0 +1,10 @@
+var R=require("../../../chunks/[turbopack]_runtime.js")("server/app/api/setup-passwords/route.js")
+R.c("server/chunks/[externals]__0004mlc._.js")
+R.c("server/chunks/node_modules_next_dist_0npcise._.js")
+R.c("server/chunks/node_modules_bcryptjs_index_0bjz0ul.js")
+R.c("server/chunks/node_modules_next_dist_esm_build_templates_app-route_0wkb696.js")
+R.c("server/chunks/[root-of-the-server]__11j~5mn._.js")
+R.c("server/chunks/node_modules_next_11synfn._.js")
+R.c("server/chunks/_next-internal_server_app_api_setup-passwords_route_actions_0v09mha.js")
+R.m(63358)
+module.exports=R.m(63358).exports

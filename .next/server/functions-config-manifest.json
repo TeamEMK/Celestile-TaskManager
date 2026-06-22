@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/mis": {
+      "maxDuration": 30
+    }
+  }
+}
