@@ -332,99 +332,120 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
 
   const initials = (form.name || 'U').split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase() || 'U';
 
+  const headerGrad = user
+    ? 'linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%)'
+    : 'linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%)';
+  const iconGrad = user
+    ? 'linear-gradient(135deg,#059669,#047857)'
+    : 'linear-gradient(135deg,#7c3aed,#4f46e5)';
+  const iconShadow = user
+    ? '0 4px 12px rgba(5,150,105,0.35)'
+    : '0 4px 12px rgba(124,58,237,0.35)';
+  const titleColor  = user ? '#065f46' : '#3730a3';
+  const subtitleColor = user ? '#059669' : '#6d28d9';
+
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[440px] overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div style={{ position:'fixed', inset:0, zIndex:50, display:'flex', alignItems:'center', justifyContent:'center', padding:16, background:'rgba(15,23,42,0.45)', backdropFilter:'blur(6px)' }} onClick={onClose}>
+      <style>{`
+        .um-scroll::-webkit-scrollbar{width:4px}
+        .um-scroll::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:99px}
+        .um-scroll::-webkit-scrollbar-track{background:transparent}
+        .um-inp{width:100%;box-sizing:border-box;padding:6px 10px;font-size:12.5px;color:#1e293b;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;transition:border-color .15s,box-shadow .15s;font-family:inherit}
+        .um-inp:focus{border-color:#818cf8;box-shadow:0 0 0 3px rgba(129,140,248,0.15)}
+        .um-lbl{display:block;font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:3px}
+      `}</style>
+      <div style={{ background:'#fff', borderRadius:20, width:'100%', maxWidth:460, maxHeight:'92vh', display:'flex', flexDirection:'column', boxShadow:'0 24px 80px rgba(0,0,0,0.18)' }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">
-            <svg className="w-4.5 h-4.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ padding:'14px 18px 12px', borderBottom:'1px solid #f1f5f9', background:headerGrad, borderRadius:'20px 20px 0 0', display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:36, height:36, borderRadius:10, flexShrink:0, background:iconGrad, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:iconShadow }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
           </div>
-          <div className="flex-1">
-            <h2 className="text-[15px] font-semibold text-slate-900">{user ? 'Edit User' : 'Add User'}</h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">{user ? 'Update member details' : 'Create a new team member'}</p>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:titleColor }}>{user ? 'Edit User' : 'Add User'}</div>
+            <div style={{ fontSize:11, color:subtitleColor, marginTop:1 }}>{user ? 'Update member details' : 'Create a new team member'}</div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          <button onClick={onClose} style={{ width:30, height:30, borderRadius:8, border:'none', background:'rgba(0,0,0,0.06)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#64748b' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 space-y-3 overflow-y-auto max-h-[calc(90vh-160px)]">
+        <div className="um-scroll" style={{ padding:'14px 18px', overflowY:'auto', display:'flex', flexDirection:'column', gap:10 }}>
 
           {/* Photo picker */}
-          <div className="flex items-center gap-4 pb-1">
-            <div className="shrink-0">
+          <div style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 10px', background:'#f8fafc', borderRadius:10, border:'1px solid #f1f5f9' }}>
+            <div style={{ flexShrink:0 }}>
               {picture ? (
-                <img src={picture} alt="" className="w-14 h-14 rounded-xl object-cover ring-2 ring-slate-100 shadow-sm" />
+                <img src={picture} alt="" style={{ width:48, height:48, borderRadius:10, objectFit:'cover', boxShadow:'0 2px 8px rgba(0,0,0,0.1)' }} />
               ) : (
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 grid place-items-center text-white text-base font-bold ring-2 ring-slate-100 shadow-sm">
+                <div style={{ width:48, height:48, borderRadius:10, background:iconGrad, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:16, fontWeight:700, boxShadow:'0 2px 8px rgba(0,0,0,0.12)' }}>
                   {initials}
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary !py-1.5 !px-3 text-xs">
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <button type="button" onClick={() => fileRef.current?.click()} style={{ padding:'5px 12px', fontSize:12, fontWeight:600, borderRadius:8, border:'1.5px solid #e2e8f0', background:'#fff', cursor:'pointer', color:'#475569' }}>
                 Upload Photo
               </button>
               {picture && (
-                <button type="button" onClick={removePicture} className="text-xs text-red-500 hover:text-red-700 transition">
-                  Remove
-                </button>
+                <button type="button" onClick={removePicture} style={{ fontSize:12, color:'#ef4444', background:'none', border:'none', cursor:'pointer', padding:0 }}>Remove</button>
               )}
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+              <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleFileChange} />
             </div>
           </div>
 
-          {/* Row 1: Name + Email */}
-          <div className="grid grid-cols-2 gap-3">
-            <UField label="Full Name" placeholder="Enter full name" value={form.name || ''} onChange={v => setForm({ ...form, name: v })} autoComplete="off" />
-            <UField label="Email" sublabel="Login" placeholder="Enter login email" type="email" value={form.email || ''} onChange={v => setForm({ ...form, email: v })} autoComplete="off" />
+          {/* Name + Email */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <UFieldC label="Full Name" placeholder="Enter full name" value={form.name||''} onChange={v=>setForm({...form,name:v})} autoComplete="off" />
+            <UFieldC label="Email (Login)" placeholder="Enter login email" type="email" value={form.email||''} onChange={v=>setForm({...form,email:v})} autoComplete="off" />
           </div>
 
-          {/* Row 2: Notification Email + Phone */}
-          <div className="grid grid-cols-2 gap-3">
-            <UField label="Notification Email" sublabel="Real Gmail for task notifications" placeholder="real email for notifications" value={form.notifEmail || ''} onChange={v => setForm({ ...form, notifEmail: v })} autoComplete="off" />
-            <UField label="Phone Number" placeholder="Enter phone number" value={form.phone || ''} onChange={v => setForm({ ...form, phone: v })} autoComplete="off" />
+          {/* Notification Email + Phone */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <UFieldC label="Notification Email" sublabel="Real Gmail for notifications" placeholder="notification email" value={form.notifEmail||''} onChange={v=>setForm({...form,notifEmail:v})} autoComplete="off" />
+            <UFieldC label="Phone Number" placeholder="Enter phone number" value={form.phone||''} onChange={v=>setForm({...form,phone:v})} autoComplete="off" />
           </div>
 
-          {/* Row 3: Department */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Department + Password */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Department</label>
-              <div className="relative">
-                <select
-                  value={form.department || ''}
-                  onChange={e => setForm({ ...form, department: e.target.value })}
-                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[13px] text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition"
-                >
-                  <option value="">e.g. Sales, Production</option>
-                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
+              <label className="um-lbl">Department</label>
+              <div style={{ position:'relative' }}>
+                <select value={form.department||''} onChange={e=>setForm({...form,department:e.target.value})} className="um-inp" style={{ appearance:'none', paddingRight:28, cursor:'pointer',
+                  backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+                  backgroundRepeat:'no-repeat', backgroundPosition:'right 8px center' }}>
+                  <option value="">Select department</option>
+                  {departments.map(d=><option key={d} value={d}>{d}</option>)}
                 </select>
-                <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
               </div>
             </div>
-
-            {/* Password — add mode only */}
             {!user && (
-              <UField label="Password" placeholder="Enter password" type="password" value={form.password || ''} onChange={v => setForm({ ...form, password: v })} />
+              <UFieldC label="Password" placeholder="Enter password" type="password" value={form.password||''} onChange={v=>setForm({...form,password:v})} />
             )}
           </div>
 
           {/* Roles */}
           <div>
-            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Roles</div>
-            <div className="flex gap-2">
+            <label className="um-lbl">Roles</label>
+            <div style={{ display:'flex', gap:8 }}>
               {ROLES.map(r => {
                 const active = normalizeRoles(form.roles).includes(r);
+                const styles = {
+                  Admin: { bg:'#fffbeb', text:'#b45309', border:'#fcd34d', activeBg:'#fef3c7' },
+                  User:  { bg:'#eff6ff', text:'#1d4ed8', border:'#93c5fd', activeBg:'#dbeafe' },
+                  HOD:   { bg:'#faf5ff', text:'#7c3aed', border:'#c4b5fd', activeBg:'#ede9fe' },
+                }[r] || { bg:'#f8fafc', text:'#475569', border:'#e2e8f0', activeBg:'#f1f5f9' };
                 return (
-                  <button key={r} type="button" onClick={() => toggleRole(r)}
-                    className={`flex-1 py-2 text-xs rounded-xl border font-medium transition ${active ? ROLE_STYLE[r] : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300 hover:text-slate-600'}`}>
-                    {r}
-                  </button>
+                  <button key={r} type="button" onClick={()=>toggleRole(r)} style={{
+                    flex:1, padding:'7px 0', fontSize:12.5, fontWeight:600, borderRadius:10, cursor:'pointer', transition:'all .15s',
+                    border:`1.5px solid ${active ? styles.border : '#e2e8f0'}`,
+                    background: active ? styles.activeBg : '#fafafa',
+                    color: active ? styles.text : '#94a3b8',
+                    boxShadow: active ? `0 0 0 3px ${styles.border}40` : 'none',
+                  }}>{r}</button>
                 );
               })}
             </div>
@@ -432,29 +453,30 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
 
           {/* Bulk upload — add mode only */}
           {!user && (
-            <div className="rounded-xl border border-dashed border-slate-200 p-3">
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-2">Bulk Add Users (CSV)</div>
-              <div className="flex flex-wrap items-center gap-2">
-                <input type="file" accept=".csv,text/csv"
-                  onChange={(e) => { setBulkFile(e.target.files?.[0] || null); setBulkMsg(''); }}
-                  className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
-                <button className="btn-success !py-1.5 text-xs" disabled={bulkSaving || !bulkFile} onClick={uploadBulkUsers}>
-                  {bulkSaving ? '⏳ Uploading…' : '⬆ Upload CSV'}
+            <div style={{ borderRadius:10, border:'1.5px dashed #e2e8f0', padding:'10px 12px' }}>
+              <div style={{ fontSize:10, fontWeight:600, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Bulk Add Users (CSV)</div>
+              <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap:8 }}>
+                <input type="file" accept=".csv,text/csv" onChange={(e)=>{setBulkFile(e.target.files?.[0]||null);setBulkMsg('');}}
+                  className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1 file:text-[11px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
+                <button style={{ padding:'5px 12px', fontSize:11.5, fontWeight:600, borderRadius:8, border:'none', cursor:'pointer', background:(!bulkSaving&&bulkFile)?'#059669':'#d1fae5', color:(!bulkSaving&&bulkFile)?'#fff':'#6ee7b7' }}
+                  disabled={bulkSaving||!bulkFile} onClick={uploadBulkUsers}>
+                  {bulkSaving?'⏳ Uploading…':'⬆ Upload CSV'}
                 </button>
-                <button className="btn-secondary !py-1.5 text-xs" onClick={downloadUserSample}>⬇ Sample</button>
+                <button style={{ padding:'5px 12px', fontSize:11.5, fontWeight:600, borderRadius:8, border:'1.5px solid #e2e8f0', cursor:'pointer', background:'#fff', color:'#64748b' }}
+                  onClick={downloadUserSample}>⬇ Sample</button>
               </div>
-              {bulkMsg && <div className="text-[12px] mt-2 text-slate-600">{bulkMsg}</div>}
-              <div className="text-[10px] text-slate-400 mt-1.5">
-                Format: name, email, password, role, user_role, phone, department
-              </div>
+              {bulkMsg && <div style={{ fontSize:12, marginTop:6, color: bulkMsg.startsWith('✅') ? '#16a34a' : '#dc2626' }}>{bulkMsg}</div>}
+              <div style={{ fontSize:10, color:'#94a3b8', marginTop:5 }}>Format: name, email, password, role, user_role, phone, department</div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save'}</button>
+        <div style={{ padding:'10px 18px', borderTop:'1px solid #f1f5f9', display:'flex', justifyContent:'flex-end', gap:8, borderRadius:'0 0 20px 20px', background:'#fafafa' }}>
+          <button onClick={onClose} style={{ padding:'7px 16px', fontSize:13, fontWeight:600, borderRadius:10, border:'1.5px solid #e2e8f0', cursor:'pointer', background:'#fff', color:'#475569' }}>Cancel</button>
+          <button onClick={save} disabled={saving} style={{ padding:'7px 20px', fontSize:13, fontWeight:700, borderRadius:10, border:'none', cursor:'pointer', background:saving?'#a5b4fc':iconGrad, color:'#fff', opacity:saving?.7:1, boxShadow:saving?'none':iconShadow, transition:'all .15s' }}>
+            {saving?'Saving…':'Save'}
+          </button>
         </div>
       </div>
     </div>
@@ -560,6 +582,33 @@ function UField({ label, sublabel, placeholder, value, onChange, type = 'text', 
         placeholder={placeholder}
         autoComplete={autoComplete || (type === 'password' ? 'new-password' : 'off')}
         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[13px] text-slate-800 placeholder:text-slate-400 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition"
+      />
+    </div>
+  );
+}
+
+function UFieldC({ label, sublabel, placeholder, value, onChange, type = 'text', autoComplete }) {
+  const [focus, setFocus] = useState(false);
+  return (
+    <div>
+      <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:3 }}>
+        {label}
+        {sublabel && <span style={{ textTransform:'none', fontWeight:400, color:'#94a3b8', marginLeft:4, fontSize:9.5 }}>({sublabel})</span>}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete || (type === 'password' ? 'new-password' : 'off')}
+        onFocus={() => setFocus(true)}
+        onBlur={() => setFocus(false)}
+        style={{
+          width:'100%', boxSizing:'border-box', padding:'6px 10px', fontSize:12.5,
+          color:'#1e293b', background:'#f8fafc', border:`1.5px solid ${focus ? '#818cf8' : '#e2e8f0'}`,
+          borderRadius:8, outline:'none', fontFamily:'inherit',
+          boxShadow: focus ? '0 0 0 3px rgba(129,140,248,0.15)' : 'none', transition:'border-color .15s,box-shadow .15s',
+        }}
       />
     </div>
   );
