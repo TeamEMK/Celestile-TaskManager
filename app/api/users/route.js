@@ -14,9 +14,20 @@ function parseRoles(role, userRole) {
 
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
-  await ensureSchema();
-  const [rows] = await pool.query('SELECT * FROM users ORDER BY id');
-  return NextResponse.json(rows);
+  try {
+    await ensureSchema();
+    const [rows] = await pool.query('SELECT * FROM users ORDER BY id');
+    // If MySQL has users, return them
+    if (rows.length > 0) return NextResponse.json(rows);
+  } catch {}
+  // Fallback: read from JSON store (used before MySQL was set up)
+  try {
+    const { readStore } = await import('@/lib/store');
+    const store = await readStore();
+    return NextResponse.json(store.users || []);
+  } catch {
+    return NextResponse.json([]);
+  }
 }
 
 export async function POST(req) {
