@@ -6,7 +6,9 @@ import { requireUser } from '@/lib/api';
 const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         client, department, description, minutes, created_at AS createdAt,
         order_number AS orderNumber, area_name AS areaName,
-        task_type AS taskType, software, revision`;
+        task_type AS taskType, software, revision,
+        site_location AS siteLocation, purpose_of_visit AS purposeOfVisit,
+        checks_type AS checksType, kms_travelled AS kmsTravelled`;
 
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
@@ -68,12 +70,15 @@ export async function POST(req) {
       await pool.query(
         `INSERT INTO daily_tasks
            (id, entry_date, doer_id, doer, client, department, description, minutes,
-            order_number, area_name, task_type, software, revision)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            order_number, area_name, task_type, software, revision,
+            site_location, purpose_of_visit, checks_type, kms_travelled)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, body.entryDate, body.doerId || null, body.doer,
          r.client || '', r.department || '', r.description || '', Number(r.minutes) || 0,
          r.orderNumber || '', r.areaName || '', r.taskType || '', r.software || '',
-         r.revision === 'Yes' || r.revision === true ? 'Yes' : 'No']
+         r.revision === 'Yes' || r.revision === true ? 'Yes' : 'No',
+         r.siteLocation || '', r.purposeOfVisit || '', r.checksType || '',
+         Number(r.kmsTravelled) || 0]
       );
     }
 

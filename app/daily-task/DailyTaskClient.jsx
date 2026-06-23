@@ -2,12 +2,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 
-const TASK_TYPES = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
-const SOFTWARES  = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
+const PURPOSE_OPTIONS = [
+  'Measurement',
+  'Handover',
+  'Explanation of electrical work',
+  'Explanation of wood work',
+  'Checks',
+];
+
+const CHECKS_OPTIONS = [
+  'Re-measurement',
+  'Wall condition',
+  'Wood work',
+  'Electrical work',
+  'Finishing',
+  'Installation',
+  'Sealer',
+];
 
 const blankRow = () => ({
-  client: '', orderNumber: '', areaName: '',
-  taskType: '', software: '', revision: false, minutes: '',
+  client: '', orderNumber: '', siteLocation: '', areaName: '',
+  purposeOfVisit: '', checksType: '', kmsTravelled: '', minutes: '',
 });
 const todayISO = () => new Date().toISOString().split('T')[0];
 const fmt = (iso) => new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-');
@@ -53,17 +68,23 @@ export default function DailyTaskClient() {
   const delRow = (i) => setRows((rs) => (rs.length === 1 ? [blankRow()] : rs.filter((_, idx) => idx !== i)));
 
   async function submitAll() {
-    const clean = rows
-      .filter((r) => r.client || r.orderNumber || r.areaName || r.taskType || r.software || Number(r.minutes) > 0)
-      .map((r) => ({ ...r, revision: r.revision ? 'Yes' : 'No' }));
+    const clean = rows.filter(
+      (r) => r.client || r.orderNumber || r.siteLocation || r.areaName || r.purposeOfVisit || Number(r.minutes) > 0
+    );
 
     if (clean.length === 0) { setMsg('Add at least one task row.'); return; }
 
     const incomplete = clean.find(
-      (r) => !r.client || !r.orderNumber || !r.areaName || !r.taskType || !r.software || !r.minutes
+      (r) => !r.client || !r.orderNumber || !r.siteLocation || !r.areaName || !r.purposeOfVisit || !r.minutes
     );
     if (incomplete) {
-      setMsg('❌ All fields in every row are required (Revision is optional).');
+      setMsg('❌ All fields in every row are required.');
+      return;
+    }
+
+    const checksIncomplete = clean.find((r) => r.purposeOfVisit === 'Checks' && !r.checksType);
+    if (checksIncomplete) {
+      setMsg('❌ Please select a Checks type for all "Checks" rows.');
       return;
     }
 
@@ -100,7 +121,7 @@ export default function DailyTaskClient() {
       <div className="card p-5">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
           <div>
-            <div className="text-[15px] font-semibold text-slate-900">Daily Task</div>
+            <div className="text-[15px] font-semibold text-slate-900">Daily Report</div>
             <div className="text-[12px] text-slate-500">Welcome <b>{doer || 'User'}</b></div>
           </div>
           <div className="text-[12px] text-slate-500">{new Date().toLocaleString('en-GB')}</div>
@@ -123,11 +144,11 @@ export default function DailyTaskClient() {
               <tr>
                 <th className="table-th !text-white">Client Name</th>
                 <th className="table-th !text-white">Order Number</th>
-                <th className="table-th !text-white">Area Name</th>
-                <th className="table-th !text-white">Task Type</th>
-                <th className="table-th !text-white">Software</th>
-                <th className="table-th !text-white text-center">Revision</th>
-                <th className="table-th !text-white">Time (min)</th>
+                <th className="table-th !text-white">Site Location</th>
+                <th className="table-th !text-white">Area (Space)</th>
+                <th className="table-th !text-white">Purpose of Visit</th>
+                <th className="table-th !text-white">KMS Travelled</th>
+                <th className="table-th !text-white">Duration (min)</th>
                 <th className="table-th !text-white text-right pr-3">Actions</th>
               </tr>
             </thead>
@@ -143,24 +164,33 @@ export default function DailyTaskClient() {
                       onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
                   </td>
                   <td className="table-td">
+                    <input className="input" value={r.siteLocation}
+                      onChange={(e) => setRow(i, 'siteLocation', e.target.value)} />
+                  </td>
+                  <td className="table-td">
                     <input className="input" value={r.areaName}
                       onChange={(e) => setRow(i, 'areaName', e.target.value)} />
                   </td>
                   <td className="table-td">
-                    <select className="input" value={r.taskType} onChange={(e) => setRow(i, 'taskType', e.target.value)}>
+                    <select className="input" value={r.purposeOfVisit}
+                      onChange={(e) => {
+                        setRow(i, 'purposeOfVisit', e.target.value);
+                        if (e.target.value !== 'Checks') setRow(i, 'checksType', '');
+                      }}>
                       <option value="">--select--</option>
-                      {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                      {PURPOSE_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
                     </select>
+                    {r.purposeOfVisit === 'Checks' && (
+                      <select className="input mt-1" value={r.checksType}
+                        onChange={(e) => setRow(i, 'checksType', e.target.value)}>
+                        <option value="">--select type--</option>
+                        {CHECKS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    )}
                   </td>
-                  <td className="table-td">
-                    <select className="input" value={r.software} onChange={(e) => setRow(i, 'software', e.target.value)}>
-                      <option value="">--select--</option>
-                      {SOFTWARES.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </td>
-                  <td className="table-td text-center">
-                    <input type="checkbox" className="h-4 w-4 cursor-pointer accent-primary-600"
-                      checked={!!r.revision} onChange={(e) => setRow(i, 'revision', e.target.checked)} />
+                  <td className="table-td w-28">
+                    <input type="number" min="0" step="0.1" className="input" value={r.kmsTravelled}
+                      onChange={(e) => setRow(i, 'kmsTravelled', e.target.value)} />
                   </td>
                   <td className="table-td w-24">
                     <input type="number" min="0" step="0.1" className="input" value={r.minutes}
@@ -215,11 +245,16 @@ export default function DailyTaskClient() {
                     <div key={e.id} className="flex items-center flex-wrap gap-2 text-[12.5px] py-1">
                       {e.client && <span className="pill bg-orange-50 text-orange-600 shrink-0">{e.client}</span>}
                       {e.orderNumber && <span className="pill bg-slate-100 text-slate-600 shrink-0">#{e.orderNumber}</span>}
+                      {e.siteLocation && <span className="pill bg-blue-50 text-blue-600 shrink-0">{e.siteLocation}</span>}
                       {e.areaName && <span className="text-slate-700">{e.areaName}</span>}
-                      {e.taskType && <span className="pill bg-primary-50 text-primary-700 shrink-0">{e.taskType}</span>}
-                      {e.software && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.software}</span>}
-                      {(e.revision === 'Yes') && <span className="pill bg-red-50 text-red-600 shrink-0">Revision</span>}
-                      {!e.taskType && e.description && <span className="text-slate-700">{e.description}</span>}
+                      {e.purposeOfVisit && (
+                        <span className="pill bg-primary-50 text-primary-700 shrink-0">
+                          {e.purposeOfVisit}{e.checksType ? ` → ${e.checksType}` : ''}
+                        </span>
+                      )}
+                      {Number(e.kmsTravelled) > 0 && (
+                        <span className="pill bg-green-50 text-green-600 shrink-0">{e.kmsTravelled} km</span>
+                      )}
                       <span className="ml-auto pill bg-amber-50 text-amber-600 shrink-0">{e.minutes} min</span>
                     </div>
                   ))}
