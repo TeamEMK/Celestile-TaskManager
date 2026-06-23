@@ -37,14 +37,24 @@ const blankDesignerRow = () => ({
 const todayISO = () => new Date().toISOString().split('T')[0];
 const fmt = (iso) => new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-');
 
+const FORM_OPTIONS = [
+  { label: 'Designer',      value: 'Designer'      },
+  { label: 'Site Engineer', value: 'Site Engineer' },
+];
+
 export default function DailyTaskClient() {
   const { data: session } = useSession();
   const doerId     = session?.user?.id         || '';
   const doer       = session?.user?.name       || '';
   const department = session?.user?.department || '';
 
-  const isSiteEngineer = department === 'Site Engineer';
-  const blankRow = isSiteEngineer ? blankSiteRow : blankDesignerRow;
+  const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
+
+  const [selectedForm, setSelectedForm] = useState('');
+
+  const activeDept     = isAdmin ? selectedForm : department;
+  const isSiteEngineer = activeDept === 'Site Engineer';
+  const blankRow       = isSiteEngineer ? blankSiteRow : blankDesignerRow;
 
   const [entryDate, setEntryDate] = useState(todayISO());
   const [rows, setRows]           = useState([blankRow()]);
@@ -143,6 +153,25 @@ export default function DailyTaskClient() {
           <div className="text-[12px] text-slate-500">{new Date().toLocaleString('en-GB')}</div>
         </div>
 
+        {/* Admin: form type selector */}
+        {isAdmin && (
+          <div className="mb-4 max-w-xs">
+            <label className="label">Select Form Type</label>
+            <select
+              className="input"
+              value={selectedForm}
+              onChange={(e) => { setSelectedForm(e.target.value); setRows([e.target.value === 'Site Engineer' ? blankSiteRow() : blankDesignerRow()]); setMsg(''); }}
+            >
+              <option value="">-- Select Department Form --</option>
+              {FORM_OPTIONS.map((f) => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Show form only if dept is known */}
+        {(!isAdmin || selectedForm) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 max-w-md">
           <div>
             <label className="label">Entry Date</label>
@@ -280,6 +309,7 @@ export default function DailyTaskClient() {
             {saving ? 'Submitting…' : 'Submit All →'}
           </button>
         </div>
+        )}
       </div>
 
       {/* Past submissions */}
