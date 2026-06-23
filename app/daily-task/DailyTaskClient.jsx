@@ -24,6 +24,12 @@ const CHECKS_OPTIONS = [
 const TASK_TYPES = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
 const SOFTWARES  = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
 
+/* ── Admin form options ──────────────────────────────────────────── */
+const FORM_OPTIONS = [
+  { label: 'Designer',      value: 'Designer'      },
+  { label: 'Site Engineer', value: 'Site Engineer' },
+];
+
 /* ── Blank rows ──────────────────────────────────────────────────── */
 const blankSiteRow = () => ({
   client: '', orderNumber: '', siteLocation: '', areaName: '',
@@ -37,31 +43,33 @@ const blankDesignerRow = () => ({
 const todayISO = () => new Date().toISOString().split('T')[0];
 const fmt = (iso) => new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-');
 
-const FORM_OPTIONS = [
-  { label: 'Designer',      value: 'Designer'      },
-  { label: 'Site Engineer', value: 'Site Engineer' },
-];
-
 export default function DailyTaskClient() {
   const { data: session } = useSession();
   const doerId     = session?.user?.id         || '';
   const doer       = session?.user?.name       || '';
   const department = session?.user?.department || '';
 
-  const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
+  const isAdmin = !!(session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD'));
 
   const [selectedForm, setSelectedForm] = useState('');
+  const [entryDate, setEntryDate]       = useState(todayISO());
+  const [rows, setRows]                 = useState([blankDesignerRow()]);
+  const [saving, setSaving]             = useState(false);
+  const [msg, setMsg]                   = useState('');
+  const [past, setPast]                 = useState([]);
+  const [clients, setClients]           = useState([]);
 
+  // Determine active department: admin picks via dropdown, others use their own dept
   const activeDept     = isAdmin ? selectedForm : department;
   const isSiteEngineer = activeDept === 'Site Engineer';
   const blankRow       = isSiteEngineer ? blankSiteRow : blankDesignerRow;
 
-  const [entryDate, setEntryDate] = useState(todayISO());
-  const [rows, setRows]           = useState([blankRow()]);
-  const [saving, setSaving]       = useState(false);
-  const [msg, setMsg]             = useState('');
-  const [past, setPast]           = useState([]);
-  const [clients, setClients]     = useState([]);
+  // Reset rows when admin switches form type
+  function handleFormSwitch(val) {
+    setSelectedForm(val);
+    setRows([val === 'Site Engineer' ? blankSiteRow() : blankDesignerRow()]);
+    setMsg('');
+  }
 
   useEffect(() => {
     fetch('/api/clients')
@@ -139,15 +147,20 @@ export default function DailyTaskClient() {
     return Object.entries(g).sort((a, b) => b[0].localeCompare(a[0]));
   }, [past]);
 
+  // Admin must pick a form first
+  const formReady = !isAdmin || !!selectedForm;
+
   return (
     <div className="space-y-4">
       <div className="card p-5">
+
+        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
           <div>
             <div className="text-[15px] font-semibold text-slate-900">Daily Report</div>
-            <div className="text-[12px] text-slate-500">
+            <div className="text-[12px] text-slate-500 flex items-center gap-2 flex-wrap">
               Welcome <b>{doer || 'User'}</b>
-              {department && <span className="ml-2 pill bg-slate-100 text-slate-500">{department}</span>}
+              {department && <span className="pill bg-slate-100 text-slate-500">{department}</span>}
             </div>
           </div>
           <div className="text-[12px] text-slate-500">{new Date().toLocaleString('en-GB')}</div>
@@ -155,13 +168,9 @@ export default function DailyTaskClient() {
 
         {/* Admin: form type selector */}
         {isAdmin && (
-          <div className="mb-4 max-w-xs">
+          <div className="mb-5 max-w-xs">
             <label className="label">Select Form Type</label>
-            <select
-              className="input"
-              value={selectedForm}
-              onChange={(e) => { setSelectedForm(e.target.value); setRows([e.target.value === 'Site Engineer' ? blankSiteRow() : blankDesignerRow()]); setMsg(''); }}
-            >
+            <select className="input" value={selectedForm} onChange={(e) => handleFormSwitch(e.target.value)}>
               <option value="">-- Select Department Form --</option>
               {FORM_OPTIONS.map((f) => (
                 <option key={f.value} value={f.value}>{f.label}</option>
@@ -170,145 +179,139 @@ export default function DailyTaskClient() {
           </div>
         )}
 
-        {/* Show form only if dept is known */}
-        {(!isAdmin || selectedForm) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 max-w-md">
-          <div>
-            <label className="label">Entry Date</label>
-            <input type="date" className="input" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Doer</label>
-            <input className="input bg-slate-50" value={doer} disabled />
-          </div>
-        </div>
+        {/* Form body — hidden for admin until they pick a type */}
+        {formReady && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 max-w-md">
+              <div>
+                <label className="label">Entry Date</label>
+                <input type="date" className="input" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Doer</label>
+                <input className="input bg-slate-50" value={doer} disabled />
+              </div>
+            </div>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full">
-            <thead className="bg-slate-900 text-white">
-              <tr>
-                <th className="table-th !text-white">Client Name</th>
-                <th className="table-th !text-white">Order Number</th>
-                {isSiteEngineer && <th className="table-th !text-white">Site Location</th>}
-                <th className="table-th !text-white">{isSiteEngineer ? 'Area (Space)' : 'Area Name'}</th>
-                {isSiteEngineer ? (
-                  <th className="table-th !text-white">Purpose of Visit</th>
-                ) : (
-                  <>
-                    <th className="table-th !text-white">Task Type</th>
-                    <th className="table-th !text-white">Software</th>
-                    <th className="table-th !text-white text-center">Revision</th>
-                  </>
-                )}
-                {isSiteEngineer && <th className="table-th !text-white">KMS Travelled</th>}
-                <th className="table-th !text-white">Duration (min)</th>
-                <th className="table-th !text-white text-right pr-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-t border-slate-100 align-top">
-                  {/* Client */}
-                  <td className="table-td">
-                    <input className="input" list="dt-clients" placeholder="--select--"
-                      value={r.client} onChange={(e) => setRow(i, 'client', e.target.value)} />
-                  </td>
-                  {/* Order Number */}
-                  <td className="table-td">
-                    <input className="input" value={r.orderNumber}
-                      onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
-                  </td>
-                  {/* Site Location (Site Engineer only) */}
-                  {isSiteEngineer && (
-                    <td className="table-td">
-                      <input className="input" value={r.siteLocation}
-                        onChange={(e) => setRow(i, 'siteLocation', e.target.value)} />
-                    </td>
-                  )}
-                  {/* Area */}
-                  <td className="table-td">
-                    <input className="input" value={r.areaName}
-                      onChange={(e) => setRow(i, 'areaName', e.target.value)} />
-                  </td>
-                  {/* Purpose of Visit (Site Engineer) OR Task Type + Software + Revision (Designer) */}
-                  {isSiteEngineer ? (
-                    <td className="table-td">
-                      <select className="input" value={r.purposeOfVisit}
-                        onChange={(e) => {
-                          setRow(i, 'purposeOfVisit', e.target.value);
-                          if (e.target.value !== 'Checks') setRow(i, 'checksType', '');
-                        }}>
-                        <option value="">--select--</option>
-                        {PURPOSE_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                      {r.purposeOfVisit === 'Checks' && (
-                        <select className="input mt-1" value={r.checksType}
-                          onChange={(e) => setRow(i, 'checksType', e.target.value)}>
-                          <option value="">--select type--</option>
-                          {CHECKS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full">
+                <thead className="bg-slate-900 text-white">
+                  <tr>
+                    <th className="table-th !text-white">Client Name</th>
+                    <th className="table-th !text-white">Order Number</th>
+                    {isSiteEngineer && <th className="table-th !text-white">Site Location</th>}
+                    <th className="table-th !text-white">{isSiteEngineer ? 'Area (Space)' : 'Area Name'}</th>
+                    {isSiteEngineer ? (
+                      <th className="table-th !text-white">Purpose of Visit</th>
+                    ) : (
+                      <>
+                        <th className="table-th !text-white">Task Type</th>
+                        <th className="table-th !text-white">Software</th>
+                        <th className="table-th !text-white text-center">Revision</th>
+                      </>
+                    )}
+                    {isSiteEngineer && <th className="table-th !text-white">KMS Travelled</th>}
+                    <th className="table-th !text-white">Duration (min)</th>
+                    <th className="table-th !text-white text-right pr-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={i} className="border-t border-slate-100 align-top">
+                      <td className="table-td">
+                        <input className="input" list="dt-clients" placeholder="--select--"
+                          value={r.client} onChange={(e) => setRow(i, 'client', e.target.value)} />
+                      </td>
+                      <td className="table-td">
+                        <input className="input" value={r.orderNumber}
+                          onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
+                      </td>
+                      {isSiteEngineer && (
+                        <td className="table-td">
+                          <input className="input" value={r.siteLocation}
+                            onChange={(e) => setRow(i, 'siteLocation', e.target.value)} />
+                        </td>
                       )}
-                    </td>
-                  ) : (
-                    <>
                       <td className="table-td">
-                        <select className="input" value={r.taskType} onChange={(e) => setRow(i, 'taskType', e.target.value)}>
-                          <option value="">--select--</option>
-                          {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                        </select>
+                        <input className="input" value={r.areaName}
+                          onChange={(e) => setRow(i, 'areaName', e.target.value)} />
+                      </td>
+                      {isSiteEngineer ? (
+                        <td className="table-td">
+                          <select className="input" value={r.purposeOfVisit}
+                            onChange={(e) => {
+                              setRow(i, 'purposeOfVisit', e.target.value);
+                              if (e.target.value !== 'Checks') setRow(i, 'checksType', '');
+                            }}>
+                            <option value="">--select--</option>
+                            {PURPOSE_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                          {r.purposeOfVisit === 'Checks' && (
+                            <select className="input mt-1" value={r.checksType}
+                              onChange={(e) => setRow(i, 'checksType', e.target.value)}>
+                              <option value="">--select type--</option>
+                              {CHECKS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          )}
+                        </td>
+                      ) : (
+                        <>
+                          <td className="table-td">
+                            <select className="input" value={r.taskType} onChange={(e) => setRow(i, 'taskType', e.target.value)}>
+                              <option value="">--select--</option>
+                              {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                          </td>
+                          <td className="table-td">
+                            <select className="input" value={r.software} onChange={(e) => setRow(i, 'software', e.target.value)}>
+                              <option value="">--select--</option>
+                              {SOFTWARES.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </td>
+                          <td className="table-td text-center">
+                            <input type="checkbox" className="h-4 w-4 cursor-pointer accent-primary-600"
+                              checked={!!r.revision} onChange={(e) => setRow(i, 'revision', e.target.checked)} />
+                          </td>
+                        </>
+                      )}
+                      {isSiteEngineer && (
+                        <td className="table-td w-28">
+                          <input type="number" min="0" step="0.1" className="input" value={r.kmsTravelled}
+                            onChange={(e) => setRow(i, 'kmsTravelled', e.target.value)} />
+                        </td>
+                      )}
+                      <td className="table-td w-24">
+                        <input type="number" min="0" step="0.1" className="input" value={r.minutes}
+                          onChange={(e) => setRow(i, 'minutes', e.target.value)} />
                       </td>
                       <td className="table-td">
-                        <select className="input" value={r.software} onChange={(e) => setRow(i, 'software', e.target.value)}>
-                          <option value="">--select--</option>
-                          {SOFTWARES.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                        <div className="flex gap-1 justify-end">
+                          <button className="btn-success" onClick={() => dupRow(i)}>DUP</button>
+                          <button className="btn-danger"  onClick={() => delRow(i)}>DEL</button>
+                        </div>
                       </td>
-                      <td className="table-td text-center">
-                        <input type="checkbox" className="h-4 w-4 cursor-pointer accent-primary-600"
-                          checked={!!r.revision} onChange={(e) => setRow(i, 'revision', e.target.checked)} />
-                      </td>
-                    </>
-                  )}
-                  {/* KMS Travelled (Site Engineer only) */}
-                  {isSiteEngineer && (
-                    <td className="table-td w-28">
-                      <input type="number" min="0" step="0.1" className="input" value={r.kmsTravelled}
-                        onChange={(e) => setRow(i, 'kmsTravelled', e.target.value)} />
-                    </td>
-                  )}
-                  {/* Duration */}
-                  <td className="table-td w-24">
-                    <input type="number" min="0" step="0.1" className="input" value={r.minutes}
-                      onChange={(e) => setRow(i, 'minutes', e.target.value)} />
-                  </td>
-                  {/* Actions */}
-                  <td className="table-td">
-                    <div className="flex gap-1 justify-end">
-                      <button className="btn-success" onClick={() => dupRow(i)}>DUP</button>
-                      <button className="btn-danger"  onClick={() => delRow(i)}>DEL</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <datalist id="dt-clients">
-            {clients.map((c) => <option key={c} value={c} />)}
-          </datalist>
-        </div>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <datalist id="dt-clients">
+                {clients.map((c) => <option key={c} value={c} />)}
+              </datalist>
+            </div>
 
-        <div className="flex items-center justify-between mt-3 px-3 py-2 bg-slate-50 rounded-lg">
-          <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Total Duration</span>
-          <span className="text-[18px] font-bold text-amber-500">{total} <span className="text-[12px] text-slate-400">min</span></span>
-        </div>
+            <div className="flex items-center justify-between mt-3 px-3 py-2 bg-slate-50 rounded-lg">
+              <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Total Duration</span>
+              <span className="text-[18px] font-bold text-amber-500">{total} <span className="text-[12px] text-slate-400">min</span></span>
+            </div>
 
-        <div className="flex items-center justify-end gap-2 mt-4">
-          {msg && <span className="text-[12px] mr-auto">{msg}</span>}
-          <button className="btn-secondary" onClick={addRow}>+ Add Row</button>
-          <button className="btn-warn" disabled={saving} onClick={submitAll}>
-            {saving ? 'Submitting…' : 'Submit All →'}
-          </button>
-        </div>
+            <div className="flex items-center justify-end gap-2 mt-4">
+              {msg && <span className="text-[12px] mr-auto">{msg}</span>}
+              <button className="btn-secondary" onClick={addRow}>+ Add Row</button>
+              <button className="btn-warn" disabled={saving} onClick={submitAll}>
+                {saving ? 'Submitting…' : 'Submit All →'}
+              </button>
+            </div>
+          </>
         )}
       </div>
 
@@ -332,7 +335,6 @@ export default function DailyTaskClient() {
                     <div key={e.id} className="flex items-center flex-wrap gap-2 text-[12.5px] py-1">
                       {e.client      && <span className="pill bg-orange-50 text-orange-600 shrink-0">{e.client}</span>}
                       {e.orderNumber && <span className="pill bg-slate-100 text-slate-600 shrink-0">#{e.orderNumber}</span>}
-                      {/* Site Engineer specific */}
                       {e.siteLocation && <span className="pill bg-blue-50 text-blue-600 shrink-0">{e.siteLocation}</span>}
                       {e.areaName    && <span className="text-slate-700">{e.areaName}</span>}
                       {e.purposeOfVisit && (
@@ -343,7 +345,6 @@ export default function DailyTaskClient() {
                       {Number(e.kmsTravelled) > 0 && (
                         <span className="pill bg-green-50 text-green-600 shrink-0">{e.kmsTravelled} km</span>
                       )}
-                      {/* Designer specific */}
                       {e.taskType  && <span className="pill bg-primary-50 text-primary-700 shrink-0">{e.taskType}</span>}
                       {e.software  && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.software}</span>}
                       {e.revision === 'Yes' && <span className="pill bg-red-50 text-red-600 shrink-0">Revision</span>}
