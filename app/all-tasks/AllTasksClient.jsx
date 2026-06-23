@@ -591,23 +591,72 @@ function EditTaskModal({ task, users, onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(6px)',
+        animation: 'etm-fadeIn .2s ease',
+      }}
+    >
+      <style>{`
+        @keyframes etm-fadeIn  { from { opacity:0 } to { opacity:1 } }
+        @keyframes etm-slideUp { from { opacity:0; transform:translateY(18px) scale(.98) } to { opacity:1; transform:translateY(0) scale(1) } }
+        .etm-scroll::-webkit-scrollbar { width:4px }
+        .etm-scroll::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:99px }
+        .etm-scroll::-webkit-scrollbar-track { background:transparent }
+      `}</style>
+
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff', borderRadius: 20, width: '100%', maxWidth: 520,
+          maxHeight: '92vh', display: 'flex', flexDirection: 'column',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.06)',
+          animation: 'etm-slideUp .25s cubic-bezier(.16,1,.3,1)',
+        }}
+      >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-[15px] font-semibold text-slate-900">Edit Task</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        <div style={{
+          padding: '14px 18px 12px',
+          borderBottom: '1px solid #f1f5f9',
+          background: 'linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%)',
+          borderRadius: '20px 20px 0 0',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+            background: 'linear-gradient(135deg,#f59e0b,#d97706)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(245,158,11,0.35)',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Edit Task</div>
+            <div style={{ fontSize: 11, color: '#b45309', marginTop: 1 }}>Update task details</div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'rgba(245,158,11,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
+
         {/* Body */}
-        <div className="px-6 py-5 space-y-3 max-h-[70vh] overflow-y-auto">
+        <div className="etm-scroll" style={{ padding: '14px 18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label className="label">Description *</label>
+            <label className="label">Description <span style={{ color: '#ef4444' }}>*</span></label>
             <textarea rows={3} className="input resize-none" value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label className="label">Doer</label>
               <select className="input" value={form.doerId} onChange={(e) => setForm({ ...form, doerId: e.target.value })}>
@@ -621,7 +670,8 @@ function EditTaskModal({ task, users, onClose, onSaved }) {
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label className="label">Priority</label>
               <select className="input" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
@@ -634,21 +684,43 @@ function EditTaskModal({ task, users, onClose, onSaved }) {
                 onChange={(e) => setForm({ ...form, client: e.target.value })} placeholder="Client name" />
             </div>
           </div>
+
           <div>
-            <label className="label">URL <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className="label">
+              URL&nbsp;<span style={{ color: '#94a3b8', fontWeight: 400, textTransform: 'none', fontSize: 10 }}>(optional)</span>
+            </label>
             <input className="input" value={form.url}
               onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://..." />
           </div>
+
           <div>
             <label className="label">Remarks</label>
             <textarea rows={2} className="input resize-none" value={form.remarks}
               onChange={(e) => setForm({ ...form, remarks: e.target.value })} placeholder="Any remarks..." />
           </div>
         </div>
+
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Changes'}</button>
+        <div style={{
+          padding: '10px 18px', borderTop: '1px solid #f1f5f9',
+          display: 'flex', justifyContent: 'flex-end', gap: 8,
+          borderRadius: '0 0 20px 20px', background: '#fafafa',
+        }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 18px', fontSize: 13, fontWeight: 600, borderRadius: 10, border: '1.5px solid #e2e8f0', cursor: 'pointer', background: '#fff', color: '#475569' }}
+          >Cancel</button>
+          <button
+            onClick={save}
+            disabled={saving}
+            style={{
+              padding: '8px 22px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: saving ? '#fcd34d' : 'linear-gradient(135deg,#f59e0b,#d97706)',
+              color: '#fff', opacity: saving ? 0.7 : 1,
+              boxShadow: saving ? 'none' : '0 4px 14px rgba(245,158,11,0.4)',
+              transition: 'all .15s',
+            }}
+          >{saving ? 'Saving…' : '✓ Save Changes'}</button>
         </div>
       </div>
     </div>
