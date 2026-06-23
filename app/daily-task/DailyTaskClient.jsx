@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 
+/* ── Site Engineer constants ─────────────────────────────────────── */
 const PURPOSE_OPTIONS = [
   'Measurement',
   'Handover',
@@ -9,7 +10,6 @@ const PURPOSE_OPTIONS = [
   'Explanation of wood work',
   'Checks',
 ];
-
 const CHECKS_OPTIONS = [
   'Re-measurement',
   'Wall condition',
@@ -20,24 +20,38 @@ const CHECKS_OPTIONS = [
   'Sealer',
 ];
 
-const blankRow = () => ({
+/* ── Designer constants ──────────────────────────────────────────── */
+const TASK_TYPES = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
+const SOFTWARES  = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
+
+/* ── Blank rows ──────────────────────────────────────────────────── */
+const blankSiteRow = () => ({
   client: '', orderNumber: '', siteLocation: '', areaName: '',
   purposeOfVisit: '', checksType: '', kmsTravelled: '', minutes: '',
 });
+const blankDesignerRow = () => ({
+  client: '', orderNumber: '', areaName: '',
+  taskType: '', software: '', revision: false, minutes: '',
+});
+
 const todayISO = () => new Date().toISOString().split('T')[0];
 const fmt = (iso) => new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-');
 
 export default function DailyTaskClient() {
   const { data: session } = useSession();
-  const doerId = session?.user?.id || '';
-  const doer   = session?.user?.name || '';
+  const doerId     = session?.user?.id         || '';
+  const doer       = session?.user?.name       || '';
+  const department = session?.user?.department || '';
+
+  const isSiteEngineer = department === 'Site Engineer';
+  const blankRow = isSiteEngineer ? blankSiteRow : blankDesignerRow;
 
   const [entryDate, setEntryDate] = useState(todayISO());
-  const [rows, setRows] = useState([blankRow()]);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [past, setPast] = useState([]);
-  const [clients, setClients] = useState([]);
+  const [rows, setRows]           = useState([blankRow()]);
+  const [saving, setSaving]       = useState(false);
+  const [msg, setMsg]             = useState('');
+  const [past, setPast]           = useState([]);
+  const [clients, setClients]     = useState([]);
 
   useEffect(() => {
     fetch('/api/clients')
@@ -54,7 +68,7 @@ export default function DailyTaskClient() {
   async function loadPast() {
     if (!doerId) return;
     try {
-      const res = await fetch(`/api/daily-tasks?doerId=${doerId}`);
+      const res  = await fetch(`/api/daily-tasks?doerId=${doerId}`);
       const data = await res.json();
       setPast(Array.isArray(data) ? data : []);
     } catch { /* ignore */ }
@@ -65,27 +79,27 @@ export default function DailyTaskClient() {
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
   const addRow = () => setRows((rs) => [...rs, blankRow()]);
   const dupRow = (i) => setRows((rs) => [...rs.slice(0, i + 1), { ...rs[i] }, ...rs.slice(i + 1)]);
-  const delRow = (i) => setRows((rs) => (rs.length === 1 ? [blankRow()] : rs.filter((_, idx) => idx !== i)));
+  const delRow = (i) => setRows((rs) => rs.length === 1 ? [blankRow()] : rs.filter((_, idx) => idx !== i));
 
   async function submitAll() {
-    const clean = rows.filter(
-      (r) => r.client || r.orderNumber || r.siteLocation || r.areaName || r.purposeOfVisit || Number(r.minutes) > 0
+    const hasData = isSiteEngineer
+      ? (r) => r.client || r.orderNumber || r.siteLocation || r.areaName || r.purposeOfVisit || Number(r.minutes) > 0
+      : (r) => r.client || r.orderNumber || r.areaName || r.taskType || r.software || Number(r.minutes) > 0;
+
+    const clean = rows.filter(hasData).map((r) =>
+      isSiteEngineer ? r : { ...r, revision: r.revision ? 'Yes' : 'No' }
     );
 
-    if (clean.length === 0) { setMsg('Add at least one task row.'); return; }
+    if (clean.length === 0) { setMsg('Add at least one row.'); return; }
 
-    const incomplete = clean.find(
-      (r) => !r.client || !r.orderNumber || !r.siteLocation || !r.areaName || !r.purposeOfVisit || !r.minutes
-    );
-    if (incomplete) {
-      setMsg('❌ All fields in every row are required.');
-      return;
-    }
-
-    const checksIncomplete = clean.find((r) => r.purposeOfVisit === 'Checks' && !r.checksType);
-    if (checksIncomplete) {
-      setMsg('❌ Please select a Checks type for all "Checks" rows.');
-      return;
+    if (isSiteEngineer) {
+      const inc = clean.find((r) => !r.client || !r.orderNumber || !r.siteLocation || !r.areaName || !r.purposeOfVisit || !r.minutes);
+      if (inc) { setMsg('❌ All fields in every row are required.'); return; }
+      const checksInc = clean.find((r) => r.purposeOfVisit === 'Checks' && !r.checksType);
+      if (checksInc) { setMsg('❌ Please select a Checks type for all "Checks" rows.'); return; }
+    } else {
+      const inc = clean.find((r) => !r.client || !r.orderNumber || !r.areaName || !r.taskType || !r.software || !r.minutes);
+      if (inc) { setMsg('❌ All fields in every row are required (Revision is optional).'); return; }
     }
 
     setSaving(true); setMsg('');
@@ -117,12 +131,14 @@ export default function DailyTaskClient() {
 
   return (
     <div className="space-y-4">
-
       <div className="card p-5">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
           <div>
             <div className="text-[15px] font-semibold text-slate-900">Daily Report</div>
-            <div className="text-[12px] text-slate-500">Welcome <b>{doer || 'User'}</b></div>
+            <div className="text-[12px] text-slate-500">
+              Welcome <b>{doer || 'User'}</b>
+              {department && <span className="ml-2 pill bg-slate-100 text-slate-500">{department}</span>}
+            </div>
           </div>
           <div className="text-[12px] text-slate-500">{new Date().toLocaleString('en-GB')}</div>
         </div>
@@ -144,10 +160,18 @@ export default function DailyTaskClient() {
               <tr>
                 <th className="table-th !text-white">Client Name</th>
                 <th className="table-th !text-white">Order Number</th>
-                <th className="table-th !text-white">Site Location</th>
-                <th className="table-th !text-white">Area (Space)</th>
-                <th className="table-th !text-white">Purpose of Visit</th>
-                <th className="table-th !text-white">KMS Travelled</th>
+                {isSiteEngineer && <th className="table-th !text-white">Site Location</th>}
+                <th className="table-th !text-white">{isSiteEngineer ? 'Area (Space)' : 'Area Name'}</th>
+                {isSiteEngineer ? (
+                  <th className="table-th !text-white">Purpose of Visit</th>
+                ) : (
+                  <>
+                    <th className="table-th !text-white">Task Type</th>
+                    <th className="table-th !text-white">Software</th>
+                    <th className="table-th !text-white text-center">Revision</th>
+                  </>
+                )}
+                {isSiteEngineer && <th className="table-th !text-white">KMS Travelled</th>}
                 <th className="table-th !text-white">Duration (min)</th>
                 <th className="table-th !text-white text-right pr-3">Actions</th>
               </tr>
@@ -155,51 +179,84 @@ export default function DailyTaskClient() {
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i} className="border-t border-slate-100 align-top">
+                  {/* Client */}
                   <td className="table-td">
                     <input className="input" list="dt-clients" placeholder="--select--"
                       value={r.client} onChange={(e) => setRow(i, 'client', e.target.value)} />
                   </td>
+                  {/* Order Number */}
                   <td className="table-td">
                     <input className="input" value={r.orderNumber}
                       onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
                   </td>
-                  <td className="table-td">
-                    <input className="input" value={r.siteLocation}
-                      onChange={(e) => setRow(i, 'siteLocation', e.target.value)} />
-                  </td>
+                  {/* Site Location (Site Engineer only) */}
+                  {isSiteEngineer && (
+                    <td className="table-td">
+                      <input className="input" value={r.siteLocation}
+                        onChange={(e) => setRow(i, 'siteLocation', e.target.value)} />
+                    </td>
+                  )}
+                  {/* Area */}
                   <td className="table-td">
                     <input className="input" value={r.areaName}
                       onChange={(e) => setRow(i, 'areaName', e.target.value)} />
                   </td>
-                  <td className="table-td">
-                    <select className="input" value={r.purposeOfVisit}
-                      onChange={(e) => {
-                        setRow(i, 'purposeOfVisit', e.target.value);
-                        if (e.target.value !== 'Checks') setRow(i, 'checksType', '');
-                      }}>
-                      <option value="">--select--</option>
-                      {PURPOSE_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                    {r.purposeOfVisit === 'Checks' && (
-                      <select className="input mt-1" value={r.checksType}
-                        onChange={(e) => setRow(i, 'checksType', e.target.value)}>
-                        <option value="">--select type--</option>
-                        {CHECKS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {/* Purpose of Visit (Site Engineer) OR Task Type + Software + Revision (Designer) */}
+                  {isSiteEngineer ? (
+                    <td className="table-td">
+                      <select className="input" value={r.purposeOfVisit}
+                        onChange={(e) => {
+                          setRow(i, 'purposeOfVisit', e.target.value);
+                          if (e.target.value !== 'Checks') setRow(i, 'checksType', '');
+                        }}>
+                        <option value="">--select--</option>
+                        {PURPOSE_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
                       </select>
-                    )}
-                  </td>
-                  <td className="table-td w-28">
-                    <input type="number" min="0" step="0.1" className="input" value={r.kmsTravelled}
-                      onChange={(e) => setRow(i, 'kmsTravelled', e.target.value)} />
-                  </td>
+                      {r.purposeOfVisit === 'Checks' && (
+                        <select className="input mt-1" value={r.checksType}
+                          onChange={(e) => setRow(i, 'checksType', e.target.value)}>
+                          <option value="">--select type--</option>
+                          {CHECKS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      )}
+                    </td>
+                  ) : (
+                    <>
+                      <td className="table-td">
+                        <select className="input" value={r.taskType} onChange={(e) => setRow(i, 'taskType', e.target.value)}>
+                          <option value="">--select--</option>
+                          {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </td>
+                      <td className="table-td">
+                        <select className="input" value={r.software} onChange={(e) => setRow(i, 'software', e.target.value)}>
+                          <option value="">--select--</option>
+                          {SOFTWARES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </td>
+                      <td className="table-td text-center">
+                        <input type="checkbox" className="h-4 w-4 cursor-pointer accent-primary-600"
+                          checked={!!r.revision} onChange={(e) => setRow(i, 'revision', e.target.checked)} />
+                      </td>
+                    </>
+                  )}
+                  {/* KMS Travelled (Site Engineer only) */}
+                  {isSiteEngineer && (
+                    <td className="table-td w-28">
+                      <input type="number" min="0" step="0.1" className="input" value={r.kmsTravelled}
+                        onChange={(e) => setRow(i, 'kmsTravelled', e.target.value)} />
+                    </td>
+                  )}
+                  {/* Duration */}
                   <td className="table-td w-24">
                     <input type="number" min="0" step="0.1" className="input" value={r.minutes}
                       onChange={(e) => setRow(i, 'minutes', e.target.value)} />
                   </td>
+                  {/* Actions */}
                   <td className="table-td">
                     <div className="flex gap-1 justify-end">
                       <button className="btn-success" onClick={() => dupRow(i)}>DUP</button>
-                      <button className="btn-danger" onClick={() => delRow(i)}>DEL</button>
+                      <button className="btn-danger"  onClick={() => delRow(i)}>DEL</button>
                     </div>
                   </td>
                 </tr>
@@ -243,10 +300,11 @@ export default function DailyTaskClient() {
                   </div>
                   {entries.map((e) => (
                     <div key={e.id} className="flex items-center flex-wrap gap-2 text-[12.5px] py-1">
-                      {e.client && <span className="pill bg-orange-50 text-orange-600 shrink-0">{e.client}</span>}
+                      {e.client      && <span className="pill bg-orange-50 text-orange-600 shrink-0">{e.client}</span>}
                       {e.orderNumber && <span className="pill bg-slate-100 text-slate-600 shrink-0">#{e.orderNumber}</span>}
+                      {/* Site Engineer specific */}
                       {e.siteLocation && <span className="pill bg-blue-50 text-blue-600 shrink-0">{e.siteLocation}</span>}
-                      {e.areaName && <span className="text-slate-700">{e.areaName}</span>}
+                      {e.areaName    && <span className="text-slate-700">{e.areaName}</span>}
                       {e.purposeOfVisit && (
                         <span className="pill bg-primary-50 text-primary-700 shrink-0">
                           {e.purposeOfVisit}{e.checksType ? ` → ${e.checksType}` : ''}
@@ -255,6 +313,10 @@ export default function DailyTaskClient() {
                       {Number(e.kmsTravelled) > 0 && (
                         <span className="pill bg-green-50 text-green-600 shrink-0">{e.kmsTravelled} km</span>
                       )}
+                      {/* Designer specific */}
+                      {e.taskType  && <span className="pill bg-primary-50 text-primary-700 shrink-0">{e.taskType}</span>}
+                      {e.software  && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.software}</span>}
+                      {e.revision === 'Yes' && <span className="pill bg-red-50 text-red-600 shrink-0">Revision</span>}
                       <span className="ml-auto pill bg-amber-50 text-amber-600 shrink-0">{e.minutes} min</span>
                     </div>
                   ))}
