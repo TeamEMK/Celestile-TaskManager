@@ -24,10 +24,21 @@ const CHECKS_OPTIONS = [
 const TASK_TYPES = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
 const SOFTWARES  = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
 
+/* ── Sales constants ─────────────────────────────────────────────── */
+const SALES_TASK_TYPES = [
+  'Physical Presentation',
+  'Virtual Presentation',
+  'Quotation Making',
+  'Quotation Modification',
+  'Follow up call',
+  'Cold calling',
+];
+
 /* ── Admin form options ──────────────────────────────────────────── */
 const FORM_OPTIONS = [
   { label: 'Designer',      value: 'Designer'      },
   { label: 'Site Engineer', value: 'Site Engineer' },
+  { label: 'Sales',         value: 'Sales'         },
 ];
 
 /* ── Blank rows ──────────────────────────────────────────────────── */
@@ -38,6 +49,9 @@ const blankSiteRow = () => ({
 const blankDesignerRow = () => ({
   client: '', orderNumber: '', areaName: '',
   taskType: '', software: '', revision: false, minutes: '',
+});
+const blankSalesRow = () => ({
+  client: '', clientNumber: '', taskType: '', description: '', areaName: '', minutes: '',
 });
 
 const todayISO = () => new Date().toISOString().split('T')[0];
@@ -59,15 +73,16 @@ export default function DailyTaskClient() {
   const [past, setPast]                 = useState([]);
   const [clients, setClients]           = useState([]);
 
-  // Determine active department: admin picks via dropdown, others use their own dept
   const activeDept     = isAdmin ? selectedForm : department;
   const isSiteEngineer = activeDept === 'Site Engineer';
-  const blankRow       = isSiteEngineer ? blankSiteRow : blankDesignerRow;
+  const isSales        = activeDept === 'Sales';
+  const blankRow       = isSiteEngineer ? blankSiteRow : isSales ? blankSalesRow : blankDesignerRow;
 
-  // Reset rows when admin switches form type
   function handleFormSwitch(val) {
     setSelectedForm(val);
-    setRows([val === 'Site Engineer' ? blankSiteRow() : blankDesignerRow()]);
+    if (val === 'Site Engineer') setRows([blankSiteRow()]);
+    else if (val === 'Sales')    setRows([blankSalesRow()]);
+    else                         setRows([blankDesignerRow()]);
     setMsg('');
   }
 
@@ -102,11 +117,15 @@ export default function DailyTaskClient() {
   async function submitAll() {
     const hasData = isSiteEngineer
       ? (r) => r.client || r.orderNumber || r.siteLocation || r.areaName || r.purposeOfVisit || Number(r.minutes) > 0
+      : isSales
+      ? (r) => r.client || r.clientNumber || r.taskType || r.description || r.areaName || Number(r.minutes) > 0
       : (r) => r.client || r.orderNumber || r.areaName || r.taskType || r.software || Number(r.minutes) > 0;
 
-    const clean = rows.filter(hasData).map((r) =>
-      isSiteEngineer ? r : { ...r, revision: r.revision ? 'Yes' : 'No' }
-    );
+    const clean = rows.filter(hasData).map((r) => ({
+      ...r,
+      department: activeDept,
+      ...(!isSiteEngineer && !isSales && { revision: r.revision ? 'Yes' : 'No' }),
+    }));
 
     if (clean.length === 0) { setMsg('Add at least one row.'); return; }
 
@@ -115,6 +134,9 @@ export default function DailyTaskClient() {
       if (inc) { setMsg('❌ All fields in every row are required.'); return; }
       const checksInc = clean.find((r) => r.purposeOfVisit === 'Checks' && !r.checksType);
       if (checksInc) { setMsg('❌ Please select a Checks type for all "Checks" rows.'); return; }
+    } else if (isSales) {
+      const inc = clean.find((r) => !r.client || !r.taskType || !r.minutes);
+      if (inc) { setMsg('❌ Client Name, Type of Task, and Duration are required.'); return; }
     } else {
       const inc = clean.find((r) => !r.client || !r.orderNumber || !r.areaName || !r.taskType || !r.software || !r.minutes);
       if (inc) { setMsg('❌ All fields in every row are required (Revision is optional).'); return; }
@@ -147,7 +169,6 @@ export default function DailyTaskClient() {
     return Object.entries(g).sort((a, b) => b[0].localeCompare(a[0]));
   }, [past]);
 
-  // Admin must pick a form first
   const formReady = !isAdmin || !!selectedForm;
 
   return (
@@ -179,7 +200,6 @@ export default function DailyTaskClient() {
           </div>
         )}
 
-        {/* Form body — hidden for admin until they pick a type */}
         {formReady && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 max-w-md">
@@ -198,18 +218,22 @@ export default function DailyTaskClient() {
                 <thead className="bg-slate-900 text-white">
                   <tr>
                     <th className="table-th !text-white">Client Name</th>
-                    <th className="table-th !text-white">Order Number</th>
+                    {isSales ? (
+                      <th className="table-th !text-white">Client Number</th>
+                    ) : (
+                      <th className="table-th !text-white">Order Number</th>
+                    )}
                     {isSiteEngineer && <th className="table-th !text-white">Site Location</th>}
                     <th className="table-th !text-white">{isSiteEngineer ? 'Area (Space)' : 'Area Name'}</th>
-                    {isSiteEngineer ? (
-                      <th className="table-th !text-white">Purpose of Visit</th>
-                    ) : (
+                    {isSiteEngineer && <th className="table-th !text-white">Purpose of Visit</th>}
+                    {!isSiteEngineer && <th className="table-th !text-white">Type of Task</th>}
+                    {!isSiteEngineer && !isSales && (
                       <>
-                        <th className="table-th !text-white">Task Type</th>
                         <th className="table-th !text-white">Software</th>
                         <th className="table-th !text-white text-center">Revision</th>
                       </>
                     )}
+                    {isSales && <th className="table-th !text-white">Purpose of Task</th>}
                     {isSiteEngineer && <th className="table-th !text-white">KMS Travelled</th>}
                     <th className="table-th !text-white">Duration (min)</th>
                     <th className="table-th !text-white text-right pr-3">Actions</th>
@@ -222,10 +246,17 @@ export default function DailyTaskClient() {
                         <input className="input" list="dt-clients" placeholder="--select--"
                           value={r.client} onChange={(e) => setRow(i, 'client', e.target.value)} />
                       </td>
-                      <td className="table-td">
-                        <input className="input" value={r.orderNumber}
-                          onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
-                      </td>
+                      {isSales ? (
+                        <td className="table-td w-32">
+                          <input type="number" className="input" placeholder="Phone no."
+                            value={r.clientNumber} onChange={(e) => setRow(i, 'clientNumber', e.target.value)} />
+                        </td>
+                      ) : (
+                        <td className="table-td">
+                          <input className="input" value={r.orderNumber}
+                            onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
+                        </td>
+                      )}
                       {isSiteEngineer && (
                         <td className="table-td">
                           <input className="input" value={r.siteLocation}
@@ -255,15 +286,21 @@ export default function DailyTaskClient() {
                           )}
                         </td>
                       ) : (
+                        <td className="table-td">
+                          <select className="input" value={r.taskType}
+                            onChange={(e) => setRow(i, 'taskType', e.target.value)}>
+                            <option value="">--select--</option>
+                            {(isSales ? SALES_TASK_TYPES : TASK_TYPES).map((t) => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </td>
+                      )}
+                      {!isSiteEngineer && !isSales && (
                         <>
                           <td className="table-td">
-                            <select className="input" value={r.taskType} onChange={(e) => setRow(i, 'taskType', e.target.value)}>
-                              <option value="">--select--</option>
-                              {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                          </td>
-                          <td className="table-td">
-                            <select className="input" value={r.software} onChange={(e) => setRow(i, 'software', e.target.value)}>
+                            <select className="input" value={r.software}
+                              onChange={(e) => setRow(i, 'software', e.target.value)}>
                               <option value="">--select--</option>
                               {SOFTWARES.map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
@@ -273,6 +310,12 @@ export default function DailyTaskClient() {
                               checked={!!r.revision} onChange={(e) => setRow(i, 'revision', e.target.checked)} />
                           </td>
                         </>
+                      )}
+                      {isSales && (
+                        <td className="table-td">
+                          <input className="input" placeholder="Purpose of task"
+                            value={r.description} onChange={(e) => setRow(i, 'description', e.target.value)} />
+                        </td>
                       )}
                       {isSiteEngineer && (
                         <td className="table-td w-28">
@@ -333,10 +376,11 @@ export default function DailyTaskClient() {
                   </div>
                   {entries.map((e) => (
                     <div key={e.id} className="flex items-center flex-wrap gap-2 text-[12.5px] py-1">
-                      {e.client      && <span className="pill bg-orange-50 text-orange-600 shrink-0">{e.client}</span>}
-                      {e.orderNumber && <span className="pill bg-slate-100 text-slate-600 shrink-0">#{e.orderNumber}</span>}
+                      {e.client       && <span className="pill bg-orange-50 text-orange-600 shrink-0">{e.client}</span>}
+                      {e.clientNumber && <span className="pill bg-slate-100 text-slate-600 shrink-0">📞 {e.clientNumber}</span>}
+                      {e.orderNumber  && <span className="pill bg-slate-100 text-slate-600 shrink-0">#{e.orderNumber}</span>}
                       {e.siteLocation && <span className="pill bg-blue-50 text-blue-600 shrink-0">{e.siteLocation}</span>}
-                      {e.areaName    && <span className="text-slate-700">{e.areaName}</span>}
+                      {e.areaName     && <span className="text-slate-700">{e.areaName}</span>}
                       {e.purposeOfVisit && (
                         <span className="pill bg-primary-50 text-primary-700 shrink-0">
                           {e.purposeOfVisit}{e.checksType ? ` → ${e.checksType}` : ''}
@@ -345,8 +389,9 @@ export default function DailyTaskClient() {
                       {Number(e.kmsTravelled) > 0 && (
                         <span className="pill bg-green-50 text-green-600 shrink-0">{e.kmsTravelled} km</span>
                       )}
-                      {e.taskType  && <span className="pill bg-primary-50 text-primary-700 shrink-0">{e.taskType}</span>}
-                      {e.software  && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.software}</span>}
+                      {e.taskType    && <span className="pill bg-primary-50 text-primary-700 shrink-0">{e.taskType}</span>}
+                      {e.description && <span className="text-slate-500 shrink-0">{e.description}</span>}
+                      {e.software    && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.software}</span>}
                       {e.revision === 'Yes' && <span className="pill bg-red-50 text-red-600 shrink-0">Revision</span>}
                       <span className="ml-auto pill bg-amber-50 text-amber-600 shrink-0">{e.minutes} min</span>
                     </div>
