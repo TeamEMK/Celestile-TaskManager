@@ -8,7 +8,8 @@ const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         order_number AS orderNumber, area_name AS areaName,
         task_type AS taskType, software, revision,
         site_location AS siteLocation, purpose_of_visit AS purposeOfVisit,
-        checks_type AS checksType, kms_travelled AS kmsTravelled`;
+        checks_type AS checksType, kms_travelled AS kmsTravelled,
+        branch, pre_install_image AS preInstallImage, pre_install_comment AS preInstallComment`;
 
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
@@ -71,14 +72,16 @@ export async function POST(req) {
         `INSERT INTO daily_tasks
            (id, entry_date, doer_id, doer, client, client_number, department, description, minutes,
             order_number, area_name, task_type, software, revision,
-            site_location, purpose_of_visit, checks_type, kms_travelled)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            site_location, purpose_of_visit, checks_type, kms_travelled,
+            branch, pre_install_image, pre_install_comment)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, body.entryDate, body.doerId || null, body.doer,
          r.client || '', r.clientNumber || '', r.department || '', r.description || '', Number(r.minutes) || 0,
          r.orderNumber || '', r.areaName || '', r.taskType || '', r.software || '',
          r.revision === 'Yes' || r.revision === true ? 'Yes' : 'No',
          r.siteLocation || '', r.purposeOfVisit || '', r.checksType || '',
-         Number(r.kmsTravelled) || 0]
+         Number(r.kmsTravelled) || 0,
+         r.branch || 'Bangalore', r.preInstallImage || null, r.preInstallComment || null]
       );
     }
 

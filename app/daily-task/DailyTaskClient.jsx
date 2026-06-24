@@ -2,14 +2,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 
-/* ── Site Engineer constants ─────────────────────────────────────── */
-const PURPOSE_OPTIONS = [
+/* ── Bangalore Site Engineer constants ───────────────────────────────── */
+const BLR_PURPOSE_OPTIONS = [
   'Measurement',
   'Handover',
   'Explanation of electrical work',
   'Explanation of wood work',
   'Checks',
 ];
+
+/* ── Hyderabad Site Engineer constants ───────────────────────────────── */
+const HYD_PURPOSE_OPTIONS = [
+  'Measurement',
+  'Handover',
+  'Explanation of electrical work',
+  'Explanation of wood work',
+  'Checks',
+  'Pre-Installation Check',
+];
+
 const CHECKS_OPTIONS = [
   'Re-measurement',
   'Wall condition',
@@ -20,12 +31,12 @@ const CHECKS_OPTIONS = [
   'Sealer',
 ];
 
-/* ── Designer constants ──────────────────────────────────────────── */
+/* ── Designer constants ──────────────────────────────────────────────── */
 const TASK_TYPES = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
 const SOFTWARES  = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
 
-/* ── Sales constants ─────────────────────────────────────────────── */
-const SALES_TASK_TYPES = [
+/* ── Bangalore Sales constants ───────────────────────────────────────── */
+const BLR_SALES_TASK_TYPES = [
   'Physical Presentation',
   'Virtual Presentation',
   'Quotation Making',
@@ -34,24 +45,38 @@ const SALES_TASK_TYPES = [
   'Cold calling',
 ];
 
-/* ── Admin form options ──────────────────────────────────────────── */
+/* ── Hyderabad Sales constants ───────────────────────────────────────── */
+const HYD_SALES_TASK_TYPES = [
+  'Physical Presentation',
+  'Virtual Presentation',
+  'Quotation Making',
+  'Quotation Modification',
+  'Follow up call',
+  'Cold calling',
+  'Drawing Request',
+  'Material order Request',
+];
+
+/* ── Admin form options ──────────────────────────────────────────────── */
 const FORM_OPTIONS = [
   { label: 'Designer',      value: 'Designer'      },
   { label: 'Site Engineer', value: 'Site Engineer' },
   { label: 'Sales',         value: 'Sales'         },
 ];
 
-/* ── Blank rows ──────────────────────────────────────────────────── */
+/* ── Blank rows ──────────────────────────────────────────────────────── */
 const blankSiteRow = () => ({
   client: '', orderNumber: '', siteLocation: '', areaName: '',
   purposeOfVisit: '', checksType: '', kmsTravelled: '', minutes: '',
+  preInstallImage: '', preInstallComment: '',
 });
 const blankDesignerRow = () => ({
   client: '', orderNumber: '', areaName: '',
   taskType: '', software: '', revision: false, minutes: '',
 });
 const blankSalesRow = () => ({
-  client: '', clientNumber: '', taskType: '', description: '', areaName: '', minutes: '',
+  client: '', clientNumber: '', taskType: '', description: '',
+  areaName: '', siteLocation: '', minutes: '',
 });
 
 const todayISO = () => new Date().toISOString().split('T')[0];
@@ -66,6 +91,7 @@ export default function DailyTaskClient() {
   const isAdmin = !!(session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD'));
 
   const [selectedForm, setSelectedForm] = useState('');
+  const [branch, setBranch]             = useState('Bangalore');
   const [entryDate, setEntryDate]       = useState(todayISO());
   const [rows, setRows]                 = useState([blankDesignerRow()]);
   const [saving, setSaving]             = useState(false);
@@ -76,7 +102,11 @@ export default function DailyTaskClient() {
   const activeDept     = isAdmin ? selectedForm : department;
   const isSiteEngineer = activeDept === 'Site Engineer';
   const isSales        = activeDept === 'Sales';
+  const isHyderabad    = branch === 'Hyderabad';
   const blankRow       = isSiteEngineer ? blankSiteRow : isSales ? blankSalesRow : blankDesignerRow;
+
+  const purposeOptions = isHyderabad ? HYD_PURPOSE_OPTIONS : BLR_PURPOSE_OPTIONS;
+  const salesTaskTypes = isHyderabad ? HYD_SALES_TASK_TYPES : BLR_SALES_TASK_TYPES;
 
   function handleFormSwitch(val) {
     setSelectedForm(val);
@@ -84,6 +114,36 @@ export default function DailyTaskClient() {
     else if (val === 'Sales')    setRows([blankSalesRow()]);
     else                         setRows([blankDesignerRow()]);
     setMsg('');
+  }
+
+  function handleBranchSwitch(val) {
+    setBranch(val);
+    if (isSiteEngineer) setRows([blankSiteRow()]);
+    else if (isSales)   setRows([blankSalesRow()]);
+    setMsg('');
+  }
+
+  function handlePreInstallImage(e, i) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const maxW = 800, maxH = 800;
+      let w = img.width, h = img.height;
+      if (w > maxW || h > maxH) {
+        const ratio = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      setRow(i, 'preInstallImage', canvas.toDataURL('image/jpeg', 0.65));
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+    e.target.value = '';
   }
 
   useEffect(() => {
@@ -124,6 +184,7 @@ export default function DailyTaskClient() {
     const clean = rows.filter(hasData).map((r) => ({
       ...r,
       department: activeDept,
+      branch,
       ...(!isSiteEngineer && !isSales && { revision: r.revision ? 'Yes' : 'No' }),
     }));
 
@@ -189,7 +250,7 @@ export default function DailyTaskClient() {
 
         {/* Admin: form type selector */}
         {isAdmin && (
-          <div className="mb-5 max-w-xs">
+          <div className="mb-4 max-w-xs">
             <label className="label">Select Form Type</label>
             <select className="input" value={selectedForm} onChange={(e) => handleFormSwitch(e.target.value)}>
               <option value="">-- Select Department Form --</option>
@@ -197,6 +258,25 @@ export default function DailyTaskClient() {
                 <option key={f.value} value={f.value}>{f.label}</option>
               ))}
             </select>
+          </div>
+        )}
+
+        {/* Branch selector — only for Site Engineer or Sales */}
+        {formReady && (isSiteEngineer || isSales) && (
+          <div className="mb-4 max-w-xs">
+            <label className="label">Branch</label>
+            <div className="flex gap-2">
+              {['Bangalore', 'Hyderabad'].map((b) => (
+                <button key={b}
+                  onClick={() => handleBranchSwitch(b)}
+                  className={`flex-1 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${
+                    branch === b
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                  }`}
+                >{b}</button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -223,7 +303,10 @@ export default function DailyTaskClient() {
                     ) : (
                       <th className="table-th !text-white">Order Number</th>
                     )}
-                    {isSiteEngineer && <th className="table-th !text-white">Site Location</th>}
+                    {/* Site Location: always for Site Engineer; for Sales only Hyderabad */}
+                    {(isSiteEngineer || (isSales && isHyderabad)) && (
+                      <th className="table-th !text-white">Site Location</th>
+                    )}
                     <th className="table-th !text-white">{isSiteEngineer ? 'Area (Space)' : 'Area Name'}</th>
                     {isSiteEngineer && <th className="table-th !text-white">Purpose of Visit</th>}
                     {!isSiteEngineer && <th className="table-th !text-white">Type of Task</th>}
@@ -242,10 +325,13 @@ export default function DailyTaskClient() {
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={i} className="border-t border-slate-100 align-top">
+                      {/* Client Name */}
                       <td className="table-td">
                         <input className="input" list="dt-clients" placeholder="--select--"
                           value={r.client} onChange={(e) => setRow(i, 'client', e.target.value)} />
                       </td>
+
+                      {/* Client Number (Sales) / Order Number (SE + Designer) */}
                       {isSales ? (
                         <td className="table-td w-32">
                           <input type="number" className="input" placeholder="Phone no."
@@ -257,26 +343,39 @@ export default function DailyTaskClient() {
                             onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
                         </td>
                       )}
-                      {isSiteEngineer && (
+
+                      {/* Site Location — SE always; Sales only Hyderabad */}
+                      {(isSiteEngineer || (isSales && isHyderabad)) && (
                         <td className="table-td">
-                          <input className="input" value={r.siteLocation}
-                            onChange={(e) => setRow(i, 'siteLocation', e.target.value)} />
+                          <input className="input" placeholder="Site location"
+                            value={r.siteLocation || ''} onChange={(e) => setRow(i, 'siteLocation', e.target.value)} />
                         </td>
                       )}
+
+                      {/* Area Name */}
                       <td className="table-td">
                         <input className="input" value={r.areaName}
                           onChange={(e) => setRow(i, 'areaName', e.target.value)} />
                       </td>
+
+                      {/* Purpose of Visit (Site Engineer) */}
                       {isSiteEngineer ? (
-                        <td className="table-td">
+                        <td className="table-td min-w-[180px]">
                           <select className="input" value={r.purposeOfVisit}
                             onChange={(e) => {
-                              setRow(i, 'purposeOfVisit', e.target.value);
-                              if (e.target.value !== 'Checks') setRow(i, 'checksType', '');
+                              const val = e.target.value;
+                              setRow(i, 'purposeOfVisit', val);
+                              if (val !== 'Checks') setRow(i, 'checksType', '');
+                              if (val !== 'Pre-Installation Check') {
+                                setRow(i, 'preInstallImage', '');
+                                setRow(i, 'preInstallComment', '');
+                              }
                             }}>
                             <option value="">--select--</option>
-                            {PURPOSE_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                            {purposeOptions.map((p) => <option key={p} value={p}>{p}</option>)}
                           </select>
+
+                          {/* Checks sub-dropdown */}
                           {r.purposeOfVisit === 'Checks' && (
                             <select className="input mt-1" value={r.checksType}
                               onChange={(e) => setRow(i, 'checksType', e.target.value)}>
@@ -284,18 +383,44 @@ export default function DailyTaskClient() {
                               {CHECKS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
                             </select>
                           )}
+
+                          {/* Pre-Installation Check — Hyderabad only */}
+                          {r.purposeOfVisit === 'Pre-Installation Check' && isHyderabad && (
+                            <div className="mt-1 space-y-1.5">
+                              <input type="file" accept="image/*"
+                                className="input !py-0.5 !text-[11px] cursor-pointer"
+                                onChange={(e) => handlePreInstallImage(e, i)} />
+                              {r.preInstallImage && (
+                                <div className="relative w-24 h-24">
+                                  <img src={r.preInstallImage} alt="Pre-install"
+                                    className="w-24 h-24 object-cover rounded border border-slate-200" />
+                                  <button
+                                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center"
+                                    onClick={() => setRow(i, 'preInstallImage', '')}
+                                  >✕</button>
+                                </div>
+                              )}
+                              <textarea className="input !text-[12px]" rows="2"
+                                placeholder="Comment / notes..."
+                                value={r.preInstallComment || ''}
+                                onChange={(e) => setRow(i, 'preInstallComment', e.target.value)} />
+                            </div>
+                          )}
                         </td>
                       ) : (
+                        /* Type of Task (Designer / Sales) */
                         <td className="table-td">
                           <select className="input" value={r.taskType}
                             onChange={(e) => setRow(i, 'taskType', e.target.value)}>
                             <option value="">--select--</option>
-                            {(isSales ? SALES_TASK_TYPES : TASK_TYPES).map((t) => (
+                            {(isSales ? salesTaskTypes : TASK_TYPES).map((t) => (
                               <option key={t} value={t}>{t}</option>
                             ))}
                           </select>
                         </td>
                       )}
+
+                      {/* Software + Revision (Designer only) */}
                       {!isSiteEngineer && !isSales && (
                         <>
                           <td className="table-td">
@@ -311,22 +436,30 @@ export default function DailyTaskClient() {
                           </td>
                         </>
                       )}
+
+                      {/* Purpose of Task (Sales) */}
                       {isSales && (
                         <td className="table-td">
                           <input className="input" placeholder="Purpose of task"
                             value={r.description} onChange={(e) => setRow(i, 'description', e.target.value)} />
                         </td>
                       )}
+
+                      {/* KMS Travelled (Site Engineer) */}
                       {isSiteEngineer && (
                         <td className="table-td w-28">
                           <input type="number" min="0" step="0.1" className="input" value={r.kmsTravelled}
                             onChange={(e) => setRow(i, 'kmsTravelled', e.target.value)} />
                         </td>
                       )}
+
+                      {/* Duration */}
                       <td className="table-td w-24">
                         <input type="number" min="0" step="0.1" className="input" value={r.minutes}
                           onChange={(e) => setRow(i, 'minutes', e.target.value)} />
                       </td>
+
+                      {/* Actions */}
                       <td className="table-td">
                         <div className="flex gap-1 justify-end">
                           <button className="btn-success" onClick={() => dupRow(i)}>DUP</button>
@@ -369,22 +502,32 @@ export default function DailyTaskClient() {
               const dayTotal = entries.reduce((s, e) => s + (Number(e.minutes) || 0), 0);
               return (
                 <div key={date} className="border border-slate-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="text-[13px] font-semibold text-slate-800">📅 {fmt(date)}</span>
                     <span className="pill bg-slate-100 text-slate-600">{entries.length} task</span>
                     <span className="pill bg-amber-50 text-amber-600">{dayTotal} min total</span>
                   </div>
                   {entries.map((e) => (
-                    <div key={e.id} className="flex items-center flex-wrap gap-2 text-[12.5px] py-1">
+                    <div key={e.id} className="flex items-start flex-wrap gap-2 text-[12.5px] py-1">
+                      {e.branch && e.branch !== 'Bangalore' && (
+                        <span className="pill bg-violet-50 text-violet-700 shrink-0">{e.branch}</span>
+                      )}
                       {e.client       && <span className="pill bg-orange-50 text-orange-600 shrink-0">{e.client}</span>}
                       {e.clientNumber && <span className="pill bg-slate-100 text-slate-600 shrink-0">📞 {e.clientNumber}</span>}
                       {e.orderNumber  && <span className="pill bg-slate-100 text-slate-600 shrink-0">#{e.orderNumber}</span>}
                       {e.siteLocation && <span className="pill bg-blue-50 text-blue-600 shrink-0">{e.siteLocation}</span>}
-                      {e.areaName     && <span className="text-slate-700">{e.areaName}</span>}
+                      {e.areaName     && <span className="text-slate-700 shrink-0">{e.areaName}</span>}
                       {e.purposeOfVisit && (
                         <span className="pill bg-primary-50 text-primary-700 shrink-0">
                           {e.purposeOfVisit}{e.checksType ? ` → ${e.checksType}` : ''}
                         </span>
+                      )}
+                      {e.preInstallImage && (
+                        <img src={e.preInstallImage} alt="Pre-install"
+                          className="w-14 h-14 object-cover rounded border border-slate-200 shrink-0" />
+                      )}
+                      {e.preInstallComment && (
+                        <span className="text-slate-500 italic shrink-0 text-[11.5px]">{e.preInstallComment}</span>
                       )}
                       {Number(e.kmsTravelled) > 0 && (
                         <span className="pill bg-green-50 text-green-600 shrink-0">{e.kmsTravelled} km</span>
