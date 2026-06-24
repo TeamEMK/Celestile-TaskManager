@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['pg', 'pdfmake'],
+  serverExternalPackages: ['pg'],
 };
 export default nextConfig;
