@@ -21,23 +21,13 @@ function genToken() {
   return Array.from({ length: 40 }, () => (Math.random() * 16 | 0).toString(16)).join('');
 }
 
-// Look up phone numbers for branch approvers from the users table.
-// Env vars QUOTATION_APPROVER_BNG / QUOTATION_APPROVER_HYD hold partial name patterns.
-async function getApproverPhones(branch) {
+// Return approver phone numbers from env vars (already configured in Hostinger).
+function getApproverPhones(branch) {
   const b = normalizeBranch(branch);
-  const patterns = b === 'hyderabad'
-    ? (process.env.QUOTATION_APPROVER_HYD || 'Vivek,Vinay').split(',').map(s => s.trim()).filter(Boolean)
-    : [(process.env.QUOTATION_APPROVER_BNG || 'Megha')];
-  const phones = [];
-  for (const p of patterns) {
-    try {
-      const [rows] = await pool.query(
-        'SELECT phone FROM users WHERE name LIKE ? AND active = 1 LIMIT 1', [`%${p}%`]
-      );
-      if (rows[0]?.phone) phones.push(rows[0].phone);
-    } catch { /* ignore */ }
+  if (b === 'hyderabad') {
+    return [process.env.QUOTATION_NOTIFY_HYD, process.env.QUOTATION_NOTIFY_HYD_2].filter(Boolean);
   }
-  return phones;
+  return [process.env.QUOTATION_NOTIFY_BNG].filter(Boolean);
 }
 
 // snake_case DB row → camelCase API object (both `contact`/`clientContact` and
@@ -178,7 +168,7 @@ export async function POST(req) {
           branch, refNo: data.refNo, clientName: data.clientName,
           grandTotal: data.grandTotal, createdBy: creatorName, approvalUrl,
         });
-        const phones = await getApproverPhones(branch);
+        const phones = getApproverPhones(branch);
         for (const phone of phones) {
           await sendWhatsApp(phone, msg);
         }
