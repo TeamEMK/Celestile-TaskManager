@@ -248,33 +248,61 @@ export default function DailyTaskClient() {
           <div className="text-[12px] text-slate-500">{new Date().toLocaleString('en-GB')}</div>
         </div>
 
-        {/* Admin: form type selector */}
+        {/* Admin: Branch first → then Department */}
         {isAdmin && (
-          <div className="mb-4 max-w-xs">
-            <label className="label">Select Form Type</label>
-            <select className="input" value={selectedForm} onChange={(e) => handleFormSwitch(e.target.value)}>
-              <option value="">-- Select Department Form --</option>
-              {FORM_OPTIONS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
+          <div className="mb-5">
+            {/* Step 1: Branch */}
+            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Step 1 — Branch</div>
+            <div className="flex gap-2 mb-4">
+              {[
+                { id: 'Bangalore', label: 'Bangalore', color: 'bg-blue-600 border-blue-600' },
+                { id: 'Hyderabad', label: 'Hyderabad', color: 'bg-violet-600 border-violet-600' },
+              ].map((b) => (
+                <button key={b.id}
+                  onClick={() => { setBranch(b.id); setSelectedForm(''); setRows([blankDesignerRow()]); setMsg(''); }}
+                  className={`px-5 py-2 rounded-lg text-[13px] font-semibold border-2 transition-all ${
+                    branch === b.id
+                      ? b.color + ' text-white shadow-md'
+                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                  }`}
+                >{b.label}</button>
               ))}
-            </select>
+            </div>
+
+            {/* Step 2: Department */}
+            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Step 2 — Department</div>
+            <div className="flex gap-2 flex-wrap">
+              {FORM_OPTIONS.map((f) => (
+                <button key={f.value}
+                  onClick={() => handleFormSwitch(f.value)}
+                  className={`px-4 py-2 rounded-lg text-[13px] font-medium border transition-all ${
+                    selectedForm === f.value
+                      ? 'bg-slate-900 text-white border-slate-900 shadow'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                  }`}
+                >{f.label}</button>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Branch selector — only for Site Engineer or Sales */}
-        {formReady && (isSiteEngineer || isSales) && (
-          <div className="mb-4 max-w-xs">
-            <label className="label">Branch</label>
-            <div className="flex gap-2">
-              {['Bangalore', 'Hyderabad'].map((b) => (
-                <button key={b}
-                  onClick={() => handleBranchSwitch(b)}
-                  className={`flex-1 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${
-                    branch === b
-                      ? 'bg-slate-900 text-white border-slate-900'
+        {/* Non-admin: branch selector for SE/Sales */}
+        {!isAdmin && (isSiteEngineer || isSales) && (
+          <div className="mb-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Branch</div>
+            <div className="flex gap-2 max-w-xs">
+              {[
+                { id: 'Bangalore', color: 'bg-blue-600 border-blue-600' },
+                { id: 'Hyderabad', color: 'bg-violet-600 border-violet-600' },
+              ].map((b) => (
+                <button key={b.id}
+                  onClick={() => handleBranchSwitch(b.id)}
+                  className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all ${
+                    branch === b.id
+                      ? b.color + ' text-white'
                       : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
                   }`}
-                >{b}</button>
+                >{b.id}</button>
               ))}
             </div>
           </div>
