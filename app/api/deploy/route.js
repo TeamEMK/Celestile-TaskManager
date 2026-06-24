@@ -3,17 +3,8 @@ import { execSync } from 'child_process';
 
 const DEPLOY_SECRET = process.env.DEPLOY_SECRET || 'celestile-deploy-2026';
 
-function restartServer() {
-  setTimeout(() => {
-    try { execSync('pm2 restart all', { timeout: 5000 }); } catch {
-      process.exit(0); // PM2 auto-restarts on exit
-    }
-  }, 800);
-}
-
 export async function POST(req) {
   try {
-    // GitHub sends X-GitHub-Event: push — no body secret needed
     const isGitHub = req.headers.get('x-github-event') === 'push';
 
     if (!isGitHub) {
@@ -23,7 +14,6 @@ export async function POST(req) {
       }
     }
 
-    // git pull (best-effort — Hostinger may have already pulled)
     let pullOut = '';
     try {
       pullOut = execSync('git pull origin main', {
@@ -35,7 +25,16 @@ export async function POST(req) {
       pullOut = e.message;
     }
 
-    restartServer();
+    // Graceful reload — new process starts before old one stops (zero downtime)
+    // pm2 reload keeps at least 1 instance alive at all times
+    setTimeout(() => {
+      try {
+        execSync('pm2 reload all --update-env', { timeout: 10000 });
+      } catch {
+        // reload failed — try graceful restart with small overlap window
+        try { execSync('pm2 restart all', { timeout: 5000 }); } catch { /* ignore */ }
+      }
+    }, 500);
 
     return NextResponse.json({ success: true, output: pullOut, restarting: true });
   } catch (err) {
@@ -43,7 +42,6 @@ export async function POST(req) {
   }
 }
 
-// GET: status check
 export async function GET() {
   try {
     const commit = execSync('git log --oneline -1', { cwd: process.cwd(), encoding: 'utf8' }).trim();
