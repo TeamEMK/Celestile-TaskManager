@@ -122,6 +122,7 @@ export default function HyderabadForm({ initialRef = '' }) {
       grandTotal: inr2(calc.grandTotal),
       stoneItems: stoneRows.filter((r) => r.desc || Number(r.price) || Number(r.qty) || r.module),
       fixingItems: fixRows.filter((r) => Number(r.qty) > 0),
+      pdf: buildPdfHtml(header, charges, stoneRows, fixRows, calc),
     };
     try {
       const res = await fetch('/api/quotations', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });

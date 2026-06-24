@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { sendWhatsApp, quotationRevisionMessage, quotationApprovalRequestMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+import { sendWhatsApp, sendWhatsAppDocument, quotationRevisionMessage, quotationApprovalRequestMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { normalizeBranch, isRevision, baseRef, buildChangeList } from '@/lib/quotation';
 import { requireUser } from '@/lib/api';
 
@@ -170,8 +170,11 @@ export async function POST(req) {
           grandTotal: data.grandTotal, createdBy: creatorName, approvalUrl,
         });
         const phones = getApproverPhones(branch);
+        const pdfUrl = `${baseUrl}/api/quotations/pdf?token=${approvalToken}`;
+        const pdfFilename = `Quotation-${data.refNo}.html`;
         for (const phone of phones) {
           await sendWhatsApp(phone, msg);
+          await sendWhatsAppDocument(phone, pdfUrl, pdfFilename, `📄 Quotation ${data.refNo} — ${data.clientName || ''}`);
         }
       } catch (e) { console.error('[quotation new notify]', e.message); }
     }

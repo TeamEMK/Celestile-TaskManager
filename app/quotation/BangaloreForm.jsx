@@ -158,6 +158,7 @@ export default function BangaloreForm({ initialRef = '' }) {
       grandTotal: inr0(calc.grandTotal),
       stoneItems: rows.filter((r) => r.desc || r.area || Number(r.price) || Number(r.qty)),
       totalsConfig: totals,
+      pdf: buildPdfHtml(header, rows, totals, calc),
     };
     try {
       const res = await fetch('/api/quotations', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
