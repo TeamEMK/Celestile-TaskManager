@@ -1,3 +1,0 @@
-module.exports=[5620,a=>{"use strict";a.s(["fileToThumbnail",0,function(a,b=160,c=.7){return new Promise((d,e)=>{if(!a)return d("");let f=new FileReader;f.onload=a=>{let f=new Image;f.onload=()=>{let{width:a,height:g}=f;a>=g&&a>b?(g=Math.round(g*b/a),a=b):g>b&&(a=Math.round(a*b/g),g=b);let h=document.createElement("canvas");h.width=a,h.height=g,h.getContext("2d").drawImage(f,0,0,a,g);try{d(h.toDataURL("image/jpeg",c))}catch(a){e(a)}},f.onerror=e,f.src=a.target.result},f.onerror=e,f.readAsDataURL(a)})}])}];
-
-//# sourceMappingURL=app_quotation_imageThumb_0ulthz_.js.map

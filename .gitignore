@@ -3,10 +3,8 @@ node_modules
 .pnp
 .pnp.js
 
-# next — commit production build only, skip dev/cache/sourcemaps
-.next/dev
-.next/cache
-.next/**/*.map
+# next — Hostinger builds it, no need to commit
+.next
 out
 build
 
