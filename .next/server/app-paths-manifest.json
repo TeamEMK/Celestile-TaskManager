@@ -14,6 +14,7 @@
   "/api/db-test/route": "app/api/db-test/route.js",
   "/api/debug-users/route": "app/api/debug-users/route.js",
   "/api/delegations/route": "app/api/delegations/route.js",
+  "/api/deploy/route": "app/api/deploy/route.js",
   "/api/developer/access/route": "app/api/developer/access/route.js",
   "/api/developer/backups/route": "app/api/developer/backups/route.js",
   "/api/developer/export/route": "app/api/developer/export/route.js",

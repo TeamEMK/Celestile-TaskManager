@@ -123,6 +123,12 @@
       "namedRegex": "^/api/delegations(?:/)?$"
     },
     {
+      "page": "/api/deploy",
+      "regex": "^/api/deploy(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/deploy(?:/)?$"
+    },
+    {
       "page": "/api/developer/access",
       "regex": "^/api/developer/access(?:/)?$",
       "routeKeys": {},

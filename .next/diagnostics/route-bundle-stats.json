@@ -100,11 +100,11 @@
   },
   {
     "route": "/daily-task",
-    "firstLoadUncompressedJsBytes": 592289,
+    "firstLoadUncompressedJsBytes": 595414,
     "firstLoadChunkPaths": [
       ".next\\static\\chunks\\03~.k7eaa8~93.js",
       ".next\\static\\chunks\\0b4qpkzd_nh04.js",
-      ".next\\static\\chunks\\0x7eam8.xunaa.js",
+      ".next\\static\\chunks\\15qyzwm6kseas.js",
       ".next\\static\\chunks\\0bzupvr5gt3k9.js",
       ".next\\static\\chunks\\01c9fv7pqb.bb.js",
       ".next\\static\\chunks\\0smzmhnp.lv3c.js",
