@@ -171,7 +171,7 @@ export async function POST(req) {
         });
         const phones = getApproverPhones(branch);
         const pdfUrl = `${baseUrl}/api/quotations/pdf?token=${approvalToken}`;
-        const pdfFilename = `Quotation-${data.refNo}.html`;
+        const pdfFilename = `Quotation-${data.refNo}.pdf`;
         for (const phone of phones) {
           await sendWhatsApp(phone, msg);
           await sendWhatsAppDocument(phone, pdfUrl, pdfFilename, `📄 Quotation ${data.refNo} — ${data.clientName || ''}`);
