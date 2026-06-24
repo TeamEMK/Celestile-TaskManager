@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { sendWhatsApp, quotationRevisionMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+import { sendWhatsApp, quotationRevisionMessage, quotationApprovalRequestMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { normalizeBranch, isRevision, baseRef, buildChangeList } from '@/lib/quotation';
 import { requireUser } from '@/lib/api';
 
@@ -15,6 +15,30 @@ function branchNotifyNumber(branch) {
 }
 
 const parseJson = (s) => { try { return JSON.parse(s || '[]'); } catch { return []; } };
+
+// Generate a random 40-char hex approval token
+function genToken() {
+  return Array.from({ length: 40 }, () => (Math.random() * 16 | 0).toString(16)).join('');
+}
+
+// Look up phone numbers for branch approvers from the users table.
+// Env vars QUOTATION_APPROVER_BNG / QUOTATION_APPROVER_HYD hold partial name patterns.
+async function getApproverPhones(branch) {
+  const b = normalizeBranch(branch);
+  const patterns = b === 'hyderabad'
+    ? (process.env.QUOTATION_APPROVER_HYD || 'Vivek,Vinay').split(',').map(s => s.trim()).filter(Boolean)
+    : [(process.env.QUOTATION_APPROVER_BNG || 'Megha')];
+  const phones = [];
+  for (const p of patterns) {
+    try {
+      const [rows] = await pool.query(
+        'SELECT phone FROM users WHERE name LIKE ? AND active = 1 LIMIT 1', [`%${p}%`]
+      );
+      if (rows[0]?.phone) phones.push(rows[0].phone);
+    } catch { /* ignore */ }
+  }
+  return phones;
+}
 
 // snake_case DB row → camelCase API object (both `contact`/`clientContact` and
 // `email`/`clientEmail` returned for frontend convenience).
@@ -37,6 +61,10 @@ function rowToQuo(r) {
     stoneItems: parseJson(r.stone_items), totalsConfig: parseJson(r.totals_config),
     fixingItems: parseJson(r.fixing_items), pdf: r.pdf || '',
     createdAt: r.created_at || '',
+    status: r.status || 'pending',
+    createdByName: r.created_by_name || '',
+    approvedBy: r.approved_by || '',
+    approvedAt: r.approved_at || '',
   };
 }
 
@@ -107,6 +135,9 @@ export async function POST(req) {
     const createdAt = new Date().toISOString();
     const contact = data.clientContact || data.contact || '';
     const cemail = data.clientEmail || data.email || '';
+    const approvalToken = genToken();
+    const creatorId = session?.user?.id || null;
+    const creatorName = session?.user?.name || session?.user?.email || 'Unknown';
 
     await pool.query(
       `INSERT INTO quotations
@@ -114,8 +145,9 @@ export async function POST(req) {
          architect_name, architect_firm, architect, consultant, consultant_number, consultant_email,
          boutique, payment_terms, validity, lead_time, transport, billing_address, site_address,
          grand_total, discount_pct, design_fees, installation_charges, packing_charges,
-         stone_items, totals_config, fixing_items, pdf, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         stone_items, totals_config, fixing_items, pdf, created_at,
+         status, created_by_id, created_by_name, approval_token)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         id, data.refNo, branch, data.clientName || '', data.clientFirm || '', contact, cemail, data.pan || '',
         data.architectName || '', data.architectFirm || '', data.architect || '', data.consultant || '',
@@ -126,6 +158,7 @@ export async function POST(req) {
         data.packingCharges || '',
         JSON.stringify(data.stoneItems || []), JSON.stringify(data.totalsConfig || []),
         JSON.stringify(data.fixingItems || []), data.pdf || '', createdAt,
+        'pending', creatorId, creatorName, approvalToken,
       ]
     );
 
@@ -134,6 +167,22 @@ export async function POST(req) {
       try {
         await upsertConsultant(data.consultant, data.consultantNumber || data.consultantNo, data.consultantEmail);
       } catch (e) { console.error('[quotation auto-consultant]', e.message); }
+    }
+
+    // New quotation → WhatsApp approval request to branch approvers
+    if (!isRevision(data.refNo) && isWhatsappConfigured()) {
+      try {
+        const baseUrl = process.env.NEXTAUTH_URL || 'https://celestileoffice.com';
+        const approvalUrl = `${baseUrl}/approve/${approvalToken}`;
+        const msg = quotationApprovalRequestMessage({
+          branch, refNo: data.refNo, clientName: data.clientName,
+          grandTotal: data.grandTotal, createdBy: creatorName, approvalUrl,
+        });
+        const phones = await getApproverPhones(branch);
+        for (const phone of phones) {
+          await sendWhatsApp(phone, msg);
+        }
+      } catch (e) { console.error('[quotation new notify]', e.message); }
     }
 
     // Revision → WhatsApp change-list (best-effort, text-only)

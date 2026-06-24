@@ -24,7 +24,9 @@ export default withAuth(
       // reachable even when the dashboard is suspended — so the Restore button
       // works. Everything else still requires a session.
       authorized: ({ req, token }) =>
-        req.nextUrl.pathname.startsWith('/developer') ? true : !!token,
+        req.nextUrl.pathname.startsWith('/developer') ? true
+        : req.nextUrl.pathname.startsWith('/approve') ? true
+        : !!token,
     },
     pages: { signIn: '/login' },
   }

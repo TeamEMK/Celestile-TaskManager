@@ -163,7 +163,8 @@ export default function BangaloreForm({ initialRef = '' }) {
       const res = await fetch('/api/quotations', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const d = await res.json();
       if (!res.ok || d.status === 'error') throw new Error(d.message || 'Save failed');
-      setStatus('✅ Saved (' + d.refNo + ')');
+      const isRev = String(header.refNo).toUpperCase().includes('-REV');
+      setStatus('✅ Saved (' + d.refNo + ')' + (isRev ? '' : ' — Approval WhatsApp sent'));
       // refresh next ref for a fresh new quotation number
       fetch('/api/quotations/next-ref?branch=bangalore').then((r) => r.json()).then((x) => x.refNo).catch(() => {});
     } catch (e) { setStatus('❌ ' + e.message); }

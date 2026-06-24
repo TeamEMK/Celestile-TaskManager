@@ -127,7 +127,8 @@ export default function HyderabadForm({ initialRef = '' }) {
       const res = await fetch('/api/quotations', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const d = await res.json();
       if (!res.ok || d.status === 'error') throw new Error(d.message || 'Save failed');
-      setStatus('✅ Saved (' + d.refNo + ')');
+      const isRev = String(header.refNo).toUpperCase().includes('-REV');
+      setStatus('✅ Saved (' + d.refNo + ')' + (isRev ? '' : ' — Approval WhatsApp sent'));
     } catch (e) { setStatus('❌ ' + e.message); }
     finally { setSaving(false); }
   }
