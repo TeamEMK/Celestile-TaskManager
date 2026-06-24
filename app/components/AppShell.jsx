@@ -36,10 +36,10 @@ export default function AppShell({ children }) {
 
       <div className="relative z-10">
         <Sidebar />
-        <div className="ml-16 flex flex-col min-h-screen">
+        <div className="ml-16 md:ml-[230px] lg:ml-16 flex flex-col min-h-screen">
           <Topbar />
           <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
-            <div className="max-w-[1600px] mx-auto min-w-[900px]">
+            <div className="max-w-[1600px] mx-auto lg:min-w-[900px]">
               {children}
             </div>
           </main>

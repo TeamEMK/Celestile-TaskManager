@@ -86,7 +86,7 @@ export default function Sidebar() {
     canSee(n.href, roles, access);
 
   return (
-    <aside className="group/sb fixed left-0 top-0 h-screen w-16 hover:w-[230px] transition-[width] duration-200 ease-out flex flex-col z-40 overflow-hidden"
+    <aside className="group/sb fixed left-0 top-0 h-screen w-16 hover:w-[230px] md:w-[230px] lg:w-16 lg:hover:w-[230px] transition-[width] duration-200 ease-out flex flex-col z-40 overflow-hidden"
       style={{ background: '#09090b', borderRight: '1px solid #1c1c1f', boxShadow: '4px 0 24px rgba(0,0,0,0.5)' }}>
 
       {/* Brand */}
@@ -99,7 +99,7 @@ export default function Sidebar() {
             style={{ background: '#34d399', borderColor: '#09090b' }}></span>
         </div>
         {/* Brand name — fades in when sidebar expands */}
-        <div className="leading-tight min-w-0 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+        <div className="leading-tight min-w-0 opacity-0 group-hover/sb:opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
           <div className="text-[13px] font-semibold tracking-tight" style={{ color: '#f4f4f5' }}>Celestile-TaskManager</div>
         </div>
       </div>
@@ -142,7 +142,7 @@ export default function Sidebar() {
                           </span>
                         )}
                       </span>
-                      <span className="whitespace-nowrap opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200">
+                      <span className="whitespace-nowrap opacity-0 group-hover/sb:opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200">
                         {n.label}
                       </span>
                     </Link>
@@ -161,17 +161,17 @@ export default function Sidebar() {
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white font-bold text-[11px] shrink-0">
             {session?.user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
           </div>
-          <div className="min-w-0 flex-1 opacity-0 group-hover/sb:opacity-100 transition-opacity duration-200">
+          <div className="min-w-0 flex-1 opacity-0 group-hover/sb:opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200">
             <div className="text-[12px] font-medium truncate whitespace-nowrap" style={{ color: '#e4e4e7' }}>{session?.user?.name || 'User'}</div>
             <div className="text-[10px] truncate whitespace-nowrap" style={{ color: '#52525b' }}>{session?.user?.roles?.join(' · ') || 'User'}</div>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
             title="Sign out"
-            className="p-1 rounded-md opacity-0 group-hover/sb:opacity-100 transition-all duration-200"
-            style={{ color: '#3f3f46' }}
+            className="p-1 rounded-md opacity-50 group-hover/sb:opacity-100 md:opacity-100 lg:opacity-50 lg:group-hover/sb:opacity-100 transition-all duration-200"
+            style={{ color: '#71717a' }}
             onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#3f3f46'; e.currentTarget.style.background = 'transparent'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#71717a'; e.currentTarget.style.background = 'transparent'; }}
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 
 export default function ProfileClient({ me, notificationEmail }) {
   const router = useRouter();
@@ -126,6 +127,17 @@ export default function ProfileClient({ me, notificationEmail }) {
                 disabled={picSaving}
               >
                 Remove
+              </button>
+            </div>
+            <div className="mt-3">
+              <button
+                className="w-full btn-ghost !py-2 text-xs text-red-600 hover:bg-red-50 border border-red-100 rounded-lg flex items-center justify-center gap-2"
+                onClick={() => signOut({ callbackUrl: '/login' })}
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>
+                </svg>
+                Sign Out
               </button>
               <input
                 ref={fileRef}
