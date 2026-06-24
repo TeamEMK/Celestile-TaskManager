@@ -55,6 +55,7 @@ function rowToQuo(r) {
     createdByName: r.created_by_name || '',
     approvedBy: r.approved_by || '',
     approvedAt: r.approved_at || '',
+    approvalToken: r.approval_token || '',
   };
 }
 

@@ -5,7 +5,6 @@ const numOf = (s) => parseFloat(String(s || '').replace(/[^\d.]/g, '')) || 0;
 const fmtINR = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 const dateOf = (iso) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('en-GB').replaceAll('/', '-'); };
 const ymd = (iso) => (iso ? String(iso).slice(0, 10) : '');
-const curMonth = () => new Date().toISOString().slice(0, 7);
 
 const STATUS_STYLE = {
   approved: 'bg-green-50 text-green-700',
@@ -18,6 +17,8 @@ function StatusPill({ status }) {
   return <span className={`pill whitespace-nowrap ${STATUS_STYLE[s] || STATUS_STYLE.pending}`}>{label}</span>;
 }
 
+const BLANK_MODAL = { open: false, token: '', refNo: '', clientName: '', grandTotal: '', action: '', approverName: '', remarks: '', saving: false, err: '' };
+
 export default function QuotationAdminClient() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +28,7 @@ export default function QuotationAdminClient() {
   const [month, setMonth] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [modal, setModal] = useState(BLANK_MODAL);
 
   useEffect(() => {
     fetch('/api/quotations?full=1').then((r) => r.json())
@@ -50,7 +52,7 @@ export default function QuotationAdminClient() {
       if (t && !((r.refNo + ' ' + r.clientName + ' ' + r.consultant + ' ' + (r.clientFirm || '')).toLowerCase().includes(t))) return false;
       return true;
     });
-  }, [rows, branch, q, win]);
+  }, [rows, branch, q, win, statusFilter]);
 
   const summary = useMemo(() => {
     let total = 0, bng = 0, hyd = 0, approved = 0, pending = 0, rejected = 0;
@@ -63,10 +65,33 @@ export default function QuotationAdminClient() {
     return { count: filtered.length, total, bng, hyd, approved, pending, rejected };
   }, [filtered]);
 
+  function openModal(r, action) {
+    setModal({ ...BLANK_MODAL, open: true, token: r.approvalToken, refNo: r.refNo, clientName: r.clientName, grandTotal: r.grandTotal, action });
+  }
+
+  async function submitApproval() {
+    if (!modal.approverName.trim()) { setModal(m => ({ ...m, err: 'Naam daalo' })); return; }
+    setModal(m => ({ ...m, saving: true, err: '' }));
+    try {
+      const res = await fetch('/api/quotations/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: modal.token, action: modal.action, approverName: modal.approverName.trim(), reason: modal.remarks }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setModal(m => ({ ...m, saving: false, err: d.error || 'Error' })); return; }
+      // update local row status
+      setRows(rs => rs.map(r => r.refNo === modal.refNo ? { ...r, status: modal.action, approvedBy: modal.approverName } : r));
+      setModal(BLANK_MODAL);
+    } catch (e) {
+      setModal(m => ({ ...m, saving: false, err: e.message }));
+    }
+  }
+
   function downloadCSV() {
-    const head = ['Ref', 'Branch', 'Client', 'Firm', 'Consultant', 'Grand Total', 'Date'];
+    const head = ['Ref', 'Branch', 'Client', 'Firm', 'Consultant', 'Grand Total', 'Status', 'Date'];
     const cell = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
-    const lines = filtered.map((r) => [r.refNo, r.branch, cell(r.clientName), cell(r.clientFirm || ''), cell(r.consultant), numOf(r.grandTotal), dateOf(r.createdAt)].join(','));
+    const lines = filtered.map((r) => [r.refNo, r.branch, cell(r.clientName), cell(r.clientFirm || ''), cell(r.consultant), numOf(r.grandTotal), r.status || 'pending', dateOf(r.createdAt)].join(','));
     const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quotations.csv'; a.click();
   }
@@ -74,6 +99,52 @@ export default function QuotationAdminClient() {
 
   return (
     <div className="space-y-4">
+      {/* Approval modal */}
+      {modal.open && (
+        <div className="fixed inset-0 bg-black/50 grid place-items-center z-50 p-4" onClick={() => setModal(BLANK_MODAL)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <div className={`text-[18px] font-bold mb-1 ${modal.action === 'approved' ? 'text-green-700' : 'text-red-600'}`}>
+              {modal.action === 'approved' ? '✅ Approve Quotation' : '❌ Reject Quotation'}
+            </div>
+            <div className="text-[12px] text-slate-500 mb-4">
+              <span className="font-semibold text-slate-700">{modal.refNo}</span> · {modal.clientName || '—'} · {modal.grandTotal || '—'}
+            </div>
+            {modal.err && <div className="text-[12px] text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-3">{modal.err}</div>}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Aapka Naam *</label>
+                <input
+                  className="input w-full"
+                  placeholder="Enter your name"
+                  value={modal.approverName}
+                  onChange={e => setModal(m => ({ ...m, approverName: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Remarks (optional)</label>
+                <textarea
+                  className="input w-full resize-none"
+                  rows="2"
+                  placeholder="Add a comment..."
+                  value={modal.remarks}
+                  onChange={e => setModal(m => ({ ...m, remarks: e.target.value }))}
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={submitApproval}
+                  disabled={modal.saving}
+                  className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-60 ${modal.action === 'approved' ? 'bg-green-600' : 'bg-red-600'}`}
+                >
+                  {modal.saving ? '…' : modal.action === 'approved' ? '✅ Confirm Approve' : '❌ Confirm Reject'}
+                </button>
+                <button className="btn-ghost" onClick={() => setModal(BLANK_MODAL)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="card p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -119,24 +190,44 @@ export default function QuotationAdminClient() {
                 <th key={i} className="px-3 py-2 text-left font-semibold whitespace-nowrap">{h}</th>)}</tr>
             </thead>
             <tbody>
-              {filtered.map((r, i) => (
-                <tr key={r.refNo + i} className="border-t border-slate-100 hover:bg-slate-50">
-                  <td className="px-3 py-2 font-semibold text-slate-800 whitespace-nowrap">{r.refNo}</td>
-                  <td className="px-3 py-2">
-                    <span className={`pill ${r.branch === 'hyderabad' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                      {r.branch === 'hyderabad' ? 'Hyderabad' : 'Bangalore'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">{r.clientName || '—'}{r.clientFirm ? <span className="text-slate-400"> · {r.clientFirm}</span> : ''}</td>
-                  <td className="px-3 py-2">{r.consultant || '—'}</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap font-semibold">{r.grandTotal || '—'}</td>
-                  <td className="px-3 py-2 whitespace-nowrap"><StatusPill status={r.status} /></td>
-                  <td className="px-3 py-2 whitespace-nowrap">{dateOf(r.createdAt)}</td>
-                  <td className="px-3 py-2 text-right">
-                    <a className="btn-secondary !px-3 !py-1" href={`/quotation?branch=${r.branch}&ref=${encodeURIComponent(r.refNo)}`}>Open</a>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((r, i) => {
+                const isPending = (r.status || 'pending') === 'pending';
+                return (
+                  <tr key={r.refNo + i} className="border-t border-slate-100 hover:bg-slate-50">
+                    <td className="px-3 py-2 font-semibold text-slate-800 whitespace-nowrap">{r.refNo}</td>
+                    <td className="px-3 py-2">
+                      <span className={`pill ${r.branch === 'hyderabad' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                        {r.branch === 'hyderabad' ? 'Hyderabad' : 'Bangalore'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">{r.clientName || '—'}{r.clientFirm ? <span className="text-slate-400"> · {r.clientFirm}</span> : ''}</td>
+                    <td className="px-3 py-2">{r.consultant || '—'}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap font-semibold">{r.grandTotal || '—'}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <StatusPill status={r.status} />
+                      {r.approvedBy && <div className="text-[10.5px] text-slate-400 mt-0.5">by {r.approvedBy}</div>}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">{dateOf(r.createdAt)}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5 justify-end">
+                        {isPending && r.approvalToken && (
+                          <>
+                            <button
+                              onClick={() => openModal(r, 'approved')}
+                              className="px-2.5 py-1 rounded-lg text-[11.5px] font-semibold bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 whitespace-nowrap transition-colors"
+                            >✓ Approve</button>
+                            <button
+                              onClick={() => openModal(r, 'rejected')}
+                              className="px-2.5 py-1 rounded-lg text-[11.5px] font-semibold bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 whitespace-nowrap transition-colors"
+                            >✗ Reject</button>
+                          </>
+                        )}
+                        <a className="btn-secondary !px-3 !py-1 whitespace-nowrap" href={`/quotation?branch=${r.branch}&ref=${encodeURIComponent(r.refNo)}`}>Open</a>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
