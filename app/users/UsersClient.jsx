@@ -26,9 +26,9 @@ function normalizeRoles(roles) {
 }
 
 const DEPARTMENTS = [
-  'CXO', 'Business Automation', 'Social Media', 'Graphic Designing',
-  'Google Ads', 'SEO', 'Meta Ads', 'Content Writing', 'AI',
-  'Website Design & Development', 'MDO', 'eMarketing Accounts',
+  'pc', 'sales', 'crm', 'ea', 'accounts',
+  'Business coordinator', 'HOD production',
+  'SC', 'HR', 'runner', 'Dispatch', 'designer',
 ];
 
 export default function UsersClient() {
