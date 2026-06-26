@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
 
@@ -476,7 +476,7 @@ function Kpi({ label, value, tone = 'text-slate-900' }) {
 }
 function Modal({ title, children, onClose }) {
   return (
-    <div className="fixed inset-0 bg-black/40 grid place-items-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={onClose}>
       <div className="bg-white rounded-xl p-5 w-96 max-w-[92%]" onClick={(e) => e.stopPropagation()}>
         <div className="text-[14px] font-semibold mb-3">{title}</div>
         <div className="space-y-2">{children}</div>

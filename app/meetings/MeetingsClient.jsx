@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useMemo, useState } from 'react';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -148,7 +148,7 @@ export default function MeetingsClient({ createdBy, holidays = [], users = [] })
       </div>
 
       {open && (
-        <div className="fixed inset-0 bg-black/40 grid place-items-center z-50 p-4" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setOpen(false)}>
           <div className="card p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="text-[15px] font-semibold mb-1">Schedule Meeting</div>
             <div className="text-[12px] text-slate-500 mb-4">on {fmt(selected)}</div>

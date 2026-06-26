@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useMemo, useState } from 'react';
 
 /* ── helpers ──────────────────────────────────────────────────────── */
@@ -580,7 +580,7 @@ function StepCell({ status, completedAt, completedBy, stepName, onClick }) {
 /* ── Confirm Modal ────────────────────────────────────────────────── */
 function ConfirmModal({ msg, onOk, onCancel }) {
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
         <div className="w-10 h-10 rounded-xl bg-red-50 grid place-items-center mx-auto mb-4">
           <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -600,7 +600,7 @@ function ConfirmModal({ msg, onOk, onCancel }) {
 /* ── Modal shell ──────────────────────────────────────────────────── */
 function Modal({ title, children, onClose }) {
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
           <span className="text-[14px] font-bold text-slate-900">{title}</span>

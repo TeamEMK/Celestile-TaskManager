@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { CELESTILE_LOGO } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
@@ -330,7 +330,7 @@ export default function HyderabadForm({ initialRef = '' }) {
       </div>
 
       {showRevise && (
-        <div className="fixed inset-0 bg-black/40 grid place-items-center z-50" onClick={() => setShowRevise(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setShowRevise(false)}>
           <div className="bg-white rounded-xl p-5 w-80" onClick={(e) => e.stopPropagation()}>
             <div className="text-[14px] font-semibold mb-3">Load Quotation</div>
             <select className="input mb-3" value={selRef} onChange={(e) => setSelRef(e.target.value)}>

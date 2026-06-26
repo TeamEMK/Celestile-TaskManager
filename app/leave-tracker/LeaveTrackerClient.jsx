@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useMemo, useState } from 'react';
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-') : '—');
@@ -133,7 +133,7 @@ export default function LeaveTrackerClient({ userId, userName, canApprove }) {
       </div>
 
       {open && (
-        <div className="fixed inset-0 bg-black/40 grid place-items-center z-50 p-4" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setOpen(false)}>
           <div className="card p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="text-[15px] font-semibold mb-4">Apply for Leave</div>
             <div className="space-y-3">

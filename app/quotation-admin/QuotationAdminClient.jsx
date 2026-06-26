@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useMemo, useState } from 'react';
 
 const numOf = (s) => parseFloat(String(s || '').replace(/[^\d.]/g, '')) || 0;
@@ -101,7 +101,7 @@ export default function QuotationAdminClient() {
     <div className="space-y-4">
       {/* Approval modal */}
       {modal.open && (
-        <div className="fixed inset-0 bg-black/50 grid place-items-center z-50 p-4" onClick={() => setModal(BLANK_MODAL)}>
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setModal(BLANK_MODAL)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
             <div className={`text-[18px] font-bold mb-1 ${modal.action === 'approved' ? 'text-green-700' : 'text-red-600'}`}>
               {modal.action === 'approved' ? '✅ Approve Quotation' : '❌ Reject Quotation'}
