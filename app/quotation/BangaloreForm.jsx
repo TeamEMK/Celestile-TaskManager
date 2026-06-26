@@ -17,8 +17,11 @@ const parseSize = (s) => {
 };
 const inr0 = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const inr2 = (n) => (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-// SFT (W×H in inches) rounded UP to the nearest multiple of 6 (e.g. 35 → 36)
-const roundTo6 = (n) => Math.ceil((Number(n) || 0) / 6) * 6;
+// Round a single dimension up to the nearest multiple of 6
+const roundDim6 = (n) => Math.ceil((Number(n) || 0) / 6) * 6;
+// SFT per module: round each dimension to nearest-6, then convert sq-inches → SFT
+// e.g. 10×10 → 12×12 = 144 sq-in ÷ 144 = 1 SFT
+const moduleQty = (wt, ht) => (roundDim6(wt) * roundDim6(ht)) / 144;
 
 const blankRow = () => ({ desc:'', area:'', size:'', mat:'', thk:'', unit:'', module:false, price:'', qty:'', gst:DEFAULT_GST, img:'' });
 const defaultTotals = () => ([
@@ -51,7 +54,7 @@ function compute(rows, totals) {
   const rowData = rows.map((r) => {
     const price = parseFloat(r.price) || 0;
     let qty;
-    if (r.module) { const { wt, ht } = parseSize(r.size); qty = roundTo6(wt * ht); }
+    if (r.module) { const { wt, ht } = parseSize(r.size); qty = moduleQty(wt, ht); }
     else qty = parseFloat(r.qty) || 0;
     const gstPct = parseFloat(r.gst) || 0;
     return { gross: price * qty, gstPct, qty, hasInput: price > 0 || qty > 0 };
@@ -412,7 +415,8 @@ function buildPdfHtml(header, rows, totals, calc) {
   const items = rows
     .map((r) => {
       const price = parseFloat(r.price) || 0;
-      const qty = r.module ? roundTo6(parseSize(r.size).wt * parseSize(r.size).ht) : (parseFloat(r.qty) || 0);
+      const { wt: pw, ht: ph } = parseSize(r.size);
+    const qty = r.module ? moduleQty(pw, ph) : (parseFloat(r.qty) || 0);
       return { ...r, price, qty, gPct: parseFloat(r.gst) || 0, gross: price * qty };
     })
     .filter((it) => it.desc || it.area || it.price || it.qty);

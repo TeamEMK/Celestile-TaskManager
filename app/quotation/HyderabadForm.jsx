@@ -8,8 +8,8 @@ const UNIT_OPTIONS = ['','Piece','Module','SFT','RFT','BAG','KG','GMS','LITER'];
 const DEFAULT_GST = 18;
 
 const inr2 = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-// SFT (Wt×Ht in inches) rounded UP to the nearest multiple of 6 (e.g. 35 → 36)
-const roundTo6 = (n) => Math.ceil((Number(n) || 0) / 6) * 6;
+const roundDim6 = (n) => Math.ceil((Number(n) || 0) / 6) * 6;
+const moduleQty = (wt, ht) => (roundDim6(wt) * roundDim6(ht)) / 144;
 const inrNeg = (n) => (Number(n) || 0) === 0 ? '– ₹ 0' : '– ₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
@@ -33,7 +33,7 @@ function compute(stoneRows, fixRows, charges) {
   let stoneSum = 0, grossGst = 0;
   const perStone = stoneRows.map((r) => {
     const p = parseFloat(r.price) || 0;
-    const q = r.module ? roundTo6((parseFloat(r.sizeWt) || 0) * (parseFloat(r.sizeHt) || 0)) : (parseFloat(r.qty) || 0);
+    const q = r.module ? moduleQty(parseFloat(r.sizeWt) || 0, parseFloat(r.sizeHt) || 0) : (parseFloat(r.qty) || 0);
     const gst = parseFloat(r.gst) || 0;
     const amt = p * q; stoneSum += amt; grossGst += amt * gst / 100;
     return { amt, q, hasInput: p > 0 || q > 0 };
@@ -384,7 +384,7 @@ function buildPdfHtml(header, charges, stoneRows, fixRows, calc) {
   const stoneItems = stoneRows
     .map((r) => {
       const p = parseFloat(r.price) || 0;
-      const q = r.module ? roundTo6((parseFloat(r.sizeWt) || 0) * (parseFloat(r.sizeHt) || 0)) : (parseFloat(r.qty) || 0);
+      const q = r.module ? moduleQty(parseFloat(r.sizeWt) || 0, parseFloat(r.sizeHt) || 0) : (parseFloat(r.qty) || 0);
       return { ...r, p, q, gst: parseFloat(r.gst) || 0 };
     })
     .filter((it) => it.desc || it.p || it.q);
