@@ -345,7 +345,7 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
   const subtitleColor = user ? '#059669' : '#6d28d9';
 
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:50, display:'flex', alignItems:'center', justifyContent:'center', padding:16, background:'rgba(15,23,42,0.45)', backdropFilter:'blur(6px)' }} onClick={onClose}>
+    <div style={{ position:'fixed', inset:0, zIndex:50, overflowY:'auto', background:'rgba(15,23,42,0.45)', backdropFilter:'blur(6px)' }} onClick={onClose}>
       <style>{`
         .um-scroll::-webkit-scrollbar{width:4px}
         .um-scroll::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:99px}
@@ -354,7 +354,8 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
         .um-inp:focus{border-color:#818cf8;box-shadow:0 0 0 3px rgba(129,140,248,0.15)}
         .um-lbl{display:block;font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:3px}
       `}</style>
-      <div style={{ background:'#fff', borderRadius:20, width:'100%', maxWidth:460, maxHeight:'92vh', display:'flex', flexDirection:'column', boxShadow:'0 24px 80px rgba(0,0,0,0.18)' }} onClick={e => e.stopPropagation()}>
+      <div style={{ minHeight:'100%', display:'flex', alignItems:'flex-start', justifyContent:'center', padding:'40px 16px 24px' }}>
+      <div style={{ background:'#fff', borderRadius:20, width:'100%', maxWidth:460, display:'flex', flexDirection:'column', boxShadow:'0 24px 80px rgba(0,0,0,0.18)' }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div style={{ padding:'14px 18px 12px', borderBottom:'1px solid #f1f5f9', background:headerGrad, borderRadius:'20px 20px 0 0', display:'flex', alignItems:'center', gap:10 }}>
@@ -478,6 +479,7 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
             {saving?'Saving…':'Save'}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
