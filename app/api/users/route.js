@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import bcrypt from 'bcryptjs';
-import { requireUser, requireAdmin } from '@/lib/api';
+import { requireUser, requireAdmin, currentUser } from '@/lib/api';
 
 function parseRoles(role, userRole) {
   const combined = [role, userRole].join(',').toLowerCase();
@@ -14,17 +14,24 @@ function parseRoles(role, userRole) {
 
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
+  const caller = await currentUser();
+  const callerBranch = (caller?.branch || '').toLowerCase();
   try {
     await ensureSchema();
-    const [rows] = await pool.query('SELECT * FROM users ORDER BY id');
-    // If MySQL has users, return them
+    const [rows] = callerBranch
+      ? await pool.query('SELECT * FROM users WHERE LOWER(branch) = ? ORDER BY id', [callerBranch])
+      : await pool.query('SELECT * FROM users ORDER BY id');
     if (rows.length > 0) return NextResponse.json(rows);
   } catch {}
   // Fallback: read from JSON store (used before MySQL was set up)
   try {
     const { readStore } = await import('@/lib/store');
     const store = await readStore();
-    return NextResponse.json(store.users || []);
+    const all = store.users || [];
+    const filtered = callerBranch
+      ? all.filter(u => (u.branch || '').toLowerCase() === callerBranch)
+      : all;
+    return NextResponse.json(filtered);
   } catch {
     return NextResponse.json([]);
   }
@@ -121,6 +128,14 @@ export async function DELETE(req) {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
     await ensureSchema();
+    const caller = await currentUser();
+    const callerBranch = (caller?.branch || '').toLowerCase();
+    if (callerBranch) {
+      const [target] = await pool.query('SELECT branch FROM users WHERE id = ?', [id]);
+      if (target.length && (target[0].branch || '').toLowerCase() !== callerBranch) {
+        return NextResponse.json({ error: 'Cannot delete user from another branch' }, { status: 403 });
+      }
+    }
     await pool.query('DELETE FROM users WHERE id = ?', [id]);
     return NextResponse.json({ success: true });
   } catch (err) {

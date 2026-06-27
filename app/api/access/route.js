@@ -14,16 +14,21 @@ async function requireAdmin() {
 }
 
 export async function GET() {
-  if (!(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const session = await requireAdmin();
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const callerBranch = (session?.user?.branch || '').toLowerCase();
   try {
     let users = [];
     if (hasDB) {
       await ensureSchema();
-      const [rows] = await pool.query('SELECT id, name, email, roles, access FROM users ORDER BY id');
+      const [rows] = callerBranch
+        ? await pool.query('SELECT id, name, email, roles, access FROM users WHERE LOWER(branch) = ? ORDER BY id', [callerBranch])
+        : await pool.query('SELECT id, name, email, roles, access FROM users ORDER BY id');
       users = rows;
     } else {
       const { readStore } = await import('@/lib/store');
-      users = (await readStore()).users || [];
+      const all = (await readStore()).users || [];
+      users = callerBranch ? all.filter(u => (u.branch || '').toLowerCase() === callerBranch) : all;
     }
     const out = users.map((u) => ({
       id: u.id, name: u.name, email: u.email,
@@ -36,10 +41,20 @@ export async function GET() {
 }
 
 export async function POST(req) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const session = await requireAdmin();
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const callerBranch = (session?.user?.branch || '').toLowerCase();
   try {
     const { userId, access } = await req.json();
     if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
+    // If caller is branch-scoped, reject cross-branch access edits
+    if (callerBranch && hasDB) {
+      await ensureSchema();
+      const [target] = await pool.query('SELECT branch FROM users WHERE id = ?', [userId]);
+      if (target.length && (target[0].branch || '').toLowerCase() !== callerBranch) {
+        return NextResponse.json({ error: 'Cannot modify user from another branch' }, { status: 403 });
+      }
+    }
     // null = clear (back to default-all); array = explicit grant
     const valid = new Set(GRANTABLE_PAGES.map((p) => p.key));
     const value = access == null ? null : JSON.stringify((access || []).filter((k) => valid.has(k)));

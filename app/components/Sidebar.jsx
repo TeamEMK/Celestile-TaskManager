@@ -163,7 +163,16 @@ export default function Sidebar() {
           </div>
           <div className="min-w-0 flex-1 opacity-0 group-hover/sb:opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200">
             <div className="text-[12px] font-medium truncate whitespace-nowrap" style={{ color: '#e4e4e7' }}>{session?.user?.name || 'User'}</div>
-            <div className="text-[10px] truncate whitespace-nowrap" style={{ color: '#52525b' }}>{session?.user?.roles?.join(' · ') || 'User'}</div>
+            <div className="text-[10px] truncate whitespace-nowrap" style={{ color: '#52525b' }}>
+              {session?.user?.roles?.join(' · ') || 'User'}
+              {session?.user?.branch && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide"
+                  style={{ background: session.user.branch === 'hyderabad' ? 'rgba(124,58,237,0.2)' : 'rgba(5,150,105,0.2)',
+                           color:      session.user.branch === 'hyderabad' ? '#a78bfa' : '#34d399' }}>
+                  {session.user.branch === 'hyderabad' ? 'HYD' : 'BNG'}
+                </span>
+              )}
+            </div>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}

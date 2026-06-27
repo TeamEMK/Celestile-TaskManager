@@ -70,26 +70,27 @@ async function findUser(email) {
 async function getUserAuthState(userId) {
   // Hardcoded admin is not in the DB — return safe defaults so it never force-logs out.
   if (userId === HARDCODED_ADMIN.id) {
-    return { forceLogoutAfter: 0, roles: HARDCODED_ADMIN.roles, access: HARDCODED_ADMIN.access };
+    return { forceLogoutAfter: 0, roles: HARDCODED_ADMIN.roles, access: HARDCODED_ADMIN.access, branch: '' };
   }
   try {
     const hasMySQL = !!(process.env.DB_HOST);
     if (hasMySQL) {
       const { pool } = await import('@/lib/db');
-      const [rows] = await pool.query('SELECT roles, access, force_logout_after FROM users WHERE id = ?', [userId]);
+      const [rows] = await pool.query('SELECT roles, access, force_logout_after, branch FROM users WHERE id = ?', [userId]);
       if (!rows.length) return { forceLogoutAfter: Date.now() }; // deleted → force logout
       const r = rows[0];
       return {
         forceLogoutAfter: r.force_logout_after ? new Date(r.force_logout_after).getTime() : 0,
         roles: rolesFrom(r.roles),
         access: parseAccess(r.access),
+        branch: r.branch || '',
       };
     }
     const { readStore } = await import('@/lib/store');
     const store = await readStore();
     const u = (store.users || []).find(x => x.id === userId);
     if (!u) return { forceLogoutAfter: Date.now() };
-    return { forceLogoutAfter: u.forceLogoutAfter || 0, roles: rolesFrom(u.roles), access: parseAccess(u.access) };
+    return { forceLogoutAfter: u.forceLogoutAfter || 0, roles: rolesFrom(u.roles), access: parseAccess(u.access), branch: u.branch || '' };
   } catch {
     return {};
   }
@@ -143,6 +144,7 @@ export const authOptions = {
             department: user.department || '',
             roles:      rolesFrom(user.roles),
             access:     parseAccess(user.access),
+            branch:     user.branch     || '',
           };
         } catch (err) {
           console.error('[auth] error:', err.message);
@@ -165,12 +167,14 @@ export const authOptions = {
         token.department = user.department;
         token.roles      = user.roles;
         token.access     = user.access ?? null;
+        token.branch     = user.branch ?? '';
         token.loginAt    = Date.now();
       } else if (token.id) {
-        // Session refresh — pull fresh roles/access + check force-logout
+        // Session refresh — pull fresh roles/access/branch + check force-logout
         const state = await getUserAuthState(token.id);
         if (state.roles)  token.roles  = state.roles;
-        if ('access' in state) token.access = state.access ?? null;
+        if ('access'  in state) token.access  = state.access  ?? null;
+        if ('branch'  in state) token.branch  = state.branch  ?? '';
         const loginAt = token.loginAt || 0;
         if (state.forceLogoutAfter && loginAt < state.forceLogoutAfter) {
           token.error = 'ForceLogout';
@@ -186,6 +190,7 @@ export const authOptions = {
       session.user.department = token.department;
       session.user.roles      = token.roles;
       session.user.access     = token.access ?? null;
+      session.user.branch     = token.branch ?? '';
       if (token.error) session.error = token.error;
       return session;
     },

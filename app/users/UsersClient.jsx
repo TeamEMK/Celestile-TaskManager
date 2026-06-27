@@ -31,6 +31,8 @@ const DEPARTMENTS = [
   'SC', 'HR', 'runner', 'Dispatch', 'designer',
 ];
 
+const PAGE_SIZE = 10;
+
 export default function UsersClient() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -41,6 +43,7 @@ export default function UsersClient() {
   const [users,     setUsers]     = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [search,    setSearch]    = useState('');
+  const [page,      setPage]      = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing,   setEditing]   = useState(null);
   const [pwdModal,  setPwdModal]  = useState(false);
@@ -69,6 +72,12 @@ export default function UsersClient() {
       );
     });
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  function handleSearch(v) { setSearch(v); setPage(1); }
+
   function openAdd()    { setEditing(null); setModalOpen(true); }
   function openEdit(u)  { setEditing({ ...u, roles: normalizeRoles(u?.roles) }); setModalOpen(true); }
   function openSetPassword(u) { if (!u) return; setPwdUser(u); setPwdModal(true); }
@@ -92,21 +101,24 @@ export default function UsersClient() {
   return (
     <div className="space-y-4 animate-fade-in">
 
-      {/* Top bar: search + Add User */}
+      {/* Top bar: search + count + Add User */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 w-72 shadow-sm">
           <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             placeholder="Name, Email, Phone, Department…"
             autoComplete="off"
             className="bg-transparent border-none outline-none text-[13px] text-slate-700 placeholder:text-slate-400 w-full"
           />
         </div>
+        <span className="text-[12px] text-slate-400 shrink-0">
+          {filtered.length} user{filtered.length !== 1 ? 's' : ''}
+        </span>
         {isAdmin && (
-          <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 shrink-0">
+          <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 shrink-0 ml-auto">
             <PlusIcon /> Add User
           </button>
         )}
@@ -114,9 +126,9 @@ export default function UsersClient() {
 
       {/* Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[520px]">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50/80">
+            <thead className="bg-slate-50 sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
               <tr>
                 <th className="table-th">User</th>
                 <th className="table-th">Email</th>
@@ -128,13 +140,13 @@ export default function UsersClient() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paginated.length === 0 ? (
                 <tr>
                   <td colSpan={isAdmin ? 7 : 6} className="table-td text-center text-slate-400 py-10">
                     No users found
                   </td>
                 </tr>
-              ) : filtered.map((u) => (
+              ) : paginated.map((u) => (
                 <tr key={u.id} className="table-row">
                   <td className="table-td">
                     <div className="flex items-center gap-2.5">
@@ -182,6 +194,33 @@ export default function UsersClient() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-100 bg-white">
+            <span className="text-[12px] text-slate-500">
+              Page {safePage} of {totalPages} &mdash; showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <PagBtn onClick={() => setPage(1)}         disabled={safePage === 1}          title="First">&laquo;</PagBtn>
+              <PagBtn onClick={() => setPage(p => p - 1)} disabled={safePage === 1}          title="Prev">&lsaquo;</PagBtn>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                .reduce((acc, p, idx, arr) => {
+                  if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) => p === '…'
+                  ? <span key={`e${i}`} className="px-1 text-[12px] text-slate-400">…</span>
+                  : <PagBtn key={p} onClick={() => setPage(p)} active={p === safePage}>{p}</PagBtn>
+                )
+              }
+              <PagBtn onClick={() => setPage(p => p + 1)} disabled={safePage === totalPages} title="Next">&rsaquo;</PagBtn>
+              <PagBtn onClick={() => setPage(totalPages)}  disabled={safePage === totalPages} title="Last">&raquo;</PagBtn>
+            </div>
+          </div>
+        )}
       </div>
 
       <UserModal
@@ -655,3 +694,24 @@ function Avatar({ name = '', picture }) {
 }
 
 function PlusIcon()   { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
+
+function PagBtn({ onClick, disabled, active, children, title }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="min-w-[28px] h-7 px-1.5 rounded text-[12px] font-medium transition-colors"
+      style={{
+        background: active ? '#2E72B5' : 'transparent',
+        color:      active ? '#fff'    : disabled ? '#cbd5e1' : '#475569',
+        cursor:     disabled ? 'not-allowed' : 'pointer',
+        border:     active ? 'none' : '1px solid #e2e8f0',
+      }}
+      onMouseEnter={e => { if (!disabled && !active) e.currentTarget.style.background = '#f1f5f9'; }}
+      onMouseLeave={e => { if (!disabled && !active) e.currentTarget.style.background = 'transparent'; }}
+    >
+      {children}
+    </button>
+  );
+}

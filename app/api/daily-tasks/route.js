@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, dailyTaskConfirmationMessage, isWhatsappConfigured } from '@/lib/whatsapp';
-import { requireUser } from '@/lib/api';
+import { requireUser, currentUser } from '@/lib/api';
 
 const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         client, client_number AS clientNumber, department, description, minutes, created_at AS createdAt,
@@ -13,14 +13,28 @@ const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
 
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
+  const caller = await currentUser();
+  const callerBranch = (caller?.branch || '').toLowerCase();
   try {
     await ensureSchema();
     const doerId = new URL(req.url).searchParams.get('doerId');
-    const [rows] = doerId
-      ? await pool.query(
-          `SELECT ${SELECT_COLS} FROM daily_tasks WHERE doer_id = ? ORDER BY entry_date DESC, created_at DESC`, [doerId])
-      : await pool.query(
-          `SELECT ${SELECT_COLS} FROM daily_tasks ORDER BY entry_date DESC, created_at DESC`);
+    let rows;
+    if (doerId && callerBranch) {
+      [rows] = await pool.query(
+        `SELECT ${SELECT_COLS} FROM daily_tasks WHERE doer_id = ? AND LOWER(branch) = ? ORDER BY entry_date DESC, created_at DESC`,
+        [doerId, callerBranch]);
+    } else if (doerId) {
+      [rows] = await pool.query(
+        `SELECT ${SELECT_COLS} FROM daily_tasks WHERE doer_id = ? ORDER BY entry_date DESC, created_at DESC`,
+        [doerId]);
+    } else if (callerBranch) {
+      [rows] = await pool.query(
+        `SELECT ${SELECT_COLS} FROM daily_tasks WHERE LOWER(branch) = ? ORDER BY entry_date DESC, created_at DESC`,
+        [callerBranch]);
+    } else {
+      [rows] = await pool.query(
+        `SELECT ${SELECT_COLS} FROM daily_tasks ORDER BY entry_date DESC, created_at DESC`);
+    }
     return NextResponse.json(rows);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
