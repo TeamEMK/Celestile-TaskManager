@@ -26,10 +26,40 @@ function normalizeRoles(roles) {
 }
 
 const DEPARTMENTS = [
-  'pc', 'sales', 'crm', 'ea', 'accounts',
-  'Business coordinator', 'HOD production',
-  'SC', 'HR', 'runner', 'Dispatch', 'designer',
+  { value: 'Process Coordinator',         label: 'Process Coordinator'         },
+  { value: 'Sales Person',                label: 'Sales Person'                },
+  { value: 'Client Relationship Manager', label: 'Client Relationship Manager' },
+  { value: 'Executive Assistant',         label: 'Executive Assistant'         },
+  { value: 'Accounts',                    label: 'Accounts'                    },
+  { value: 'Business Coordinator',        label: 'Business Coordinator'        },
+  { value: 'HOD Production',              label: 'HOD Production'              },
+  { value: 'SC',                          label: 'SC'                          },
+  { value: 'HR',                          label: 'HR'                          },
+  { value: 'Runner',                      label: 'Runner'                      },
+  { value: 'Dispatch',                    label: 'Dispatch'                    },
+  { value: 'Designer',                    label: 'Designer'                    },
 ];
+
+// Maps old stored values (lowercase/shorthand) → full display label
+const DEPT_DISPLAY = {
+  'pc':                   'Process Coordinator',
+  'sales':                'Sales Person',
+  'crm':                  'Client Relationship Manager',
+  'ea':                   'Executive Assistant',
+  'accounts':             'Accounts',
+  'Business coordinator': 'Business Coordinator',
+  'HOD production':       'HOD Production',
+  'SC':                   'SC',
+  'HR':                   'HR',
+  'runner':               'Runner',
+  'Dispatch':             'Dispatch',
+  'designer':             'Designer',
+};
+
+function deptLabel(dept) {
+  if (!dept) return '—';
+  return DEPT_DISPLAY[dept] || dept;
+}
 
 export default function UsersClient() {
   const router = useRouter();
@@ -144,13 +174,13 @@ export default function UsersClient() {
                       <Avatar name={u?.name || ''} picture={u?.picture} />
                       <div>
                         <div className="font-medium text-slate-900">{u?.name || 'Unknown'}</div>
-                        <div className="text-[11px] text-slate-500">{u?.department || '—'}</div>
+                        <div className="text-[11px] text-slate-500">{deptLabel(u?.department)}</div>
                       </div>
                     </div>
                   </td>
                   <td className="table-td text-slate-600">{u?.email || '—'}</td>
                   <td className="table-td text-slate-600">{u?.phone || '—'}</td>
-                  <td className="table-td text-slate-600">{u?.department || '—'}</td>
+                  <td className="table-td text-slate-600">{deptLabel(u?.department)}</td>
                   <td className="table-td">
                     {u?.branch ? (
                       <span className={`pill ${u.branch === 'hyderabad' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>
@@ -432,7 +462,7 @@ function UserModal({ open, onClose, user, departments, defaultBranch, onSaved })
                   backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
                   backgroundRepeat:'no-repeat', backgroundPosition:'right 8px center' }}>
                   <option value="">Select department</option>
-                  {departments.map(d=><option key={d} value={d}>{d}</option>)}
+                  {departments.map(d=><option key={d.value} value={d.value}>{d.label}</option>)}
                 </select>
               </div>
             </div>

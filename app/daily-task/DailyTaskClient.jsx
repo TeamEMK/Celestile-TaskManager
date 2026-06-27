@@ -82,6 +82,17 @@ const blankSalesRow = () => ({
 const todayISO = () => new Date().toISOString().split('T')[0];
 const fmt = (iso) => new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-');
 
+// Maps a user's stored department value (old shorthand OR new full name) to
+// the correct daily-task form type: 'Sales' | 'Site Engineer' | 'Designer'.
+function deptToFormType(dept) {
+  const d = (dept || '').toLowerCase().trim();
+  const SALES  = ['sales', 'sales person', 'crm', 'client relationship manager'];
+  const SITE   = ['sc', 'runner', 'process coordinator', 'pc', 'site engineer'];
+  if (SALES.includes(d))  return 'Sales';
+  if (SITE.includes(d))   return 'Site Engineer';
+  return 'Designer';
+}
+
 export default function DailyTaskClient() {
   const { data: session } = useSession();
   const doerId     = session?.user?.id         || '';
@@ -109,7 +120,7 @@ export default function DailyTaskClient() {
   const [past, setPast]                 = useState([]);
   const [clients, setClients]           = useState([]);
 
-  const activeDept     = isAdmin ? selectedForm : department;
+  const activeDept     = isAdmin ? selectedForm : deptToFormType(department);
   const isSiteEngineer = activeDept === 'Site Engineer';
   const isSales        = activeDept === 'Sales';
   const isHyderabad    = branch === 'Hyderabad';
