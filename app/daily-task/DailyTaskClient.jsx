@@ -90,8 +90,18 @@ export default function DailyTaskClient() {
 
   const isAdmin = !!(session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD'));
 
+  // Branch from user's profile (normalized to title-case: 'Bangalore' or 'Hyderabad').
+  // Empty string means no branch locked — user/admin can switch freely.
+  const rawBranch    = session?.user?.branch || '';
+  const profileBranch = rawBranch ? rawBranch.charAt(0).toUpperCase() + rawBranch.slice(1) : '';
+
   const [selectedForm, setSelectedForm] = useState('');
   const [branch, setBranch]             = useState('Bangalore');
+
+  // Sync branch from profile once session loads
+  useEffect(() => {
+    if (profileBranch) setBranch(profileBranch);
+  }, [profileBranch]);
   const [entryDate, setEntryDate]       = useState(todayISO());
   const [rows, setRows]                 = useState([blankDesignerRow()]);
   const [saving, setSaving]             = useState(false);
@@ -243,6 +253,11 @@ export default function DailyTaskClient() {
             <div className="text-[12px] text-slate-500 flex items-center gap-2 flex-wrap">
               Welcome <b>{doer || 'User'}</b>
               {department && <span className="pill bg-slate-100 text-slate-500">{department}</span>}
+              {profileBranch && (
+                <span className={`pill font-semibold ${profileBranch === 'Hyderabad' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {profileBranch}
+                </span>
+              )}
             </div>
           </div>
           <div className="text-[12px] text-slate-500">{new Date().toLocaleString('en-GB')}</div>
@@ -251,26 +266,30 @@ export default function DailyTaskClient() {
         {/* Admin: Branch first → then Department */}
         {isAdmin && (
           <div className="mb-5">
-            {/* Step 1: Branch */}
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Step 1 — Branch</div>
-            <div className="flex gap-2 mb-4">
-              {[
-                { id: 'Bangalore', label: 'Bangalore', color: 'bg-blue-600 border-blue-600' },
-                { id: 'Hyderabad', label: 'Hyderabad', color: 'bg-violet-600 border-violet-600' },
-              ].map((b) => (
-                <button key={b.id}
-                  onClick={() => { setBranch(b.id); setSelectedForm(''); setRows([blankDesignerRow()]); setMsg(''); }}
-                  className={`px-5 py-2 rounded-lg text-[13px] font-semibold border-2 transition-all ${
-                    branch === b.id
-                      ? b.color + ' text-white shadow-md'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
-                  }`}
-                >{b.label}</button>
-              ))}
-            </div>
+            {/* Step 1: Branch — hidden when profile branch is locked */}
+            {!profileBranch && (
+              <>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Step 1 — Branch</div>
+                <div className="flex gap-2 mb-4">
+                  {[
+                    { id: 'Bangalore', label: 'Bangalore', color: 'bg-blue-600 border-blue-600' },
+                    { id: 'Hyderabad', label: 'Hyderabad', color: 'bg-violet-600 border-violet-600' },
+                  ].map((b) => (
+                    <button key={b.id}
+                      onClick={() => { setBranch(b.id); setSelectedForm(''); setRows([blankDesignerRow()]); setMsg(''); }}
+                      className={`px-5 py-2 rounded-lg text-[13px] font-semibold border-2 transition-all ${
+                        branch === b.id
+                          ? b.color + ' text-white shadow-md'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                      }`}
+                    >{b.label}</button>
+                  ))}
+                </div>
+              </>
+            )}
 
-            {/* Step 2: Department */}
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Step 2 — Department</div>
+            {/* Step 2 (or Step 1 if branch locked): Department */}
+            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">{profileBranch ? 'Step 1' : 'Step 2'} — Department</div>
             <div className="flex gap-2 flex-wrap">
               {FORM_OPTIONS.map((f) => (
                 <button key={f.value}
@@ -286,8 +305,8 @@ export default function DailyTaskClient() {
           </div>
         )}
 
-        {/* Non-admin: branch selector for SE/Sales */}
-        {!isAdmin && (isSiteEngineer || isSales) && (
+        {/* Non-admin: branch selector for SE/Sales — hidden when profile branch is locked */}
+        {!isAdmin && !profileBranch && (isSiteEngineer || isSales) && (
           <div className="mb-4">
             <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Branch</div>
             <div className="flex gap-2 max-w-xs">

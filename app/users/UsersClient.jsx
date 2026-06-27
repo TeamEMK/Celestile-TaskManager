@@ -193,6 +193,7 @@ export default function UsersClient() {
         onClose={() => setModalOpen(false)}
         user={editing}
         departments={departments}
+        defaultBranch={session?.user?.branch || ''}
         onSaved={() => { setModalOpen(false); reloadUsers(); }}
       />
       {ConfirmUI}
@@ -205,7 +206,7 @@ export default function UsersClient() {
   );
 }
 
-function UserModal({ open, onClose, user, departments, onSaved }) {
+function UserModal({ open, onClose, user, departments, defaultBranch, onSaved }) {
   const fileRef    = useRef(null);
   const [form,           setForm]          = useState({});
   const [picture,        setPicture]       = useState(null);
@@ -267,7 +268,7 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
         setForm({ id: user.id, name: user.name || '', email: user.email || '', phone: user.phone || '', department: user.department || '', branch: user.branch || '', roles: normalizeRoles(user.roles), active: user.active !== false, notifEmail: user.notifEmail || '' });
         setPicture(user.picture || null);
       } else {
-        setForm({ name: '', email: '', phone: '', department: '', branch: '', roles: ['User'], password: '', notifEmail: '' });
+        setForm({ name: '', email: '', phone: '', department: '', branch: defaultBranch, roles: ['User'], password: '', notifEmail: '' });
         setPicture(null);
       }
       setPictureChanged(false);
