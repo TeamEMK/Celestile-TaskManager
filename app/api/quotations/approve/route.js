@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import {
-  sendWhatsApp, quotationApprovedMessage, quotationRejectedMessage, isWhatsappConfigured,
+  sendWhatsApp, sendWhatsAppDocument, quotationApprovedMessage, quotationRejectedMessage, isWhatsappConfigured,
 } from '@/lib/whatsapp';
 
 export async function GET(req) {
@@ -38,7 +38,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'invalid action' }, { status: 400 });
 
     const [rows] = await pool.query(
-      `SELECT id, ref_no, branch, client_name, grand_total, status, created_by_id
+      `SELECT id, ref_no, branch, client_name, grand_total, status, created_by_id, approval_token
        FROM quotations WHERE approval_token = ? LIMIT 1`,
       [token]
     );
@@ -54,7 +54,7 @@ export async function POST(req) {
       [action, approverName || 'Unknown', approvedAt, token]
     );
 
-    // Notify creator via WhatsApp
+    // Notify creator via WhatsApp (text + PDF on approval)
     if (isWhatsappConfigured() && q.created_by_id) {
       try {
         const [users] = await pool.query('SELECT phone FROM users WHERE id = ? LIMIT 1', [q.created_by_id]);
@@ -64,6 +64,12 @@ export async function POST(req) {
             ? quotationApprovedMessage({ refNo: q.ref_no, clientName: q.client_name, approvedBy: approverName, grandTotal: q.grand_total })
             : quotationRejectedMessage({ refNo: q.ref_no, clientName: q.client_name, rejectedBy: approverName, reason });
           await sendWhatsApp(phone, msg);
+          if (action === 'approved') {
+            const baseUrl = process.env.NEXTAUTH_URL || 'https://celestileoffice.com';
+            const pdfUrl = `${baseUrl}/api/quotations/pdf?token=${q.approval_token}`;
+            await sendWhatsAppDocument(phone, pdfUrl, `Quotation-${q.ref_no}.pdf`,
+              `✅ Approved Quotation - ${q.ref_no} | ${q.client_name || ''}`);
+          }
         }
       } catch (e) { console.error('[approve notify creator]', e.message); }
     }
