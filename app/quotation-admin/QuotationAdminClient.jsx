@@ -222,6 +222,13 @@ export default function QuotationAdminClient() {
                             >✗ Reject</button>
                           </>
                         )}
+                        {r.approvalToken && (
+                          <a
+                            className="px-2.5 py-1 rounded-lg text-[11.5px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 whitespace-nowrap transition-colors"
+                            href={`/api/quotations/pdf?token=${r.approvalToken}`}
+                            target="_blank" rel="noopener noreferrer"
+                          >📄 PDF</a>
+                        )}
                         <a className="btn-secondary !px-3 !py-1 whitespace-nowrap" href={`/quotation?branch=${r.branch}&ref=${encodeURIComponent(r.refNo)}`}>Open</a>
                       </div>
                     </td>
