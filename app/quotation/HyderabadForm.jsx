@@ -96,7 +96,7 @@ export default function HyderabadForm({ initialRef = '' }) {
   async function handleImg(i, file, inputEl) {
     if (!file) return;
     try { setStone(i, 'img', await fileToThumbnail(file)); } catch { /* ignore */ }
-    if (inputEl) inputEl.value = '';
+    try { if (inputEl) inputEl.value = ''; } catch { /* iOS Safari: file input .value = '' throws */ }
   }
   /* fixing rows */
   const setFix = (i, k, v) => setFixRows((rs) => rs.map((r, idx) => idx === i ? { ...r, [k]: v } : r));

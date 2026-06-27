@@ -72,10 +72,10 @@ export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
-    const url = new URL(req.url);
-    const branchParam = url.searchParams.get('branch');
-    const ref = url.searchParams.get('ref');
-    const full = url.searchParams.get('full');
+    const { searchParams } = req.nextUrl;
+    const branchParam = searchParams.get('branch');
+    const ref = searchParams.get('ref');
+    const full = searchParams.get('full');
 
     if (full) {
       // admin panel: full quotation objects, newest first (all branches if no branch)

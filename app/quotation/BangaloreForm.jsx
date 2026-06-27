@@ -130,7 +130,7 @@ export default function BangaloreForm({ initialRef = '' }) {
   async function handleImg(i, file, inputEl) {
     if (!file) return;
     try { setRow(i, 'img', await fileToThumbnail(file)); } catch { /* ignore */ }
-    if (inputEl) inputEl.value = '';
+    try { if (inputEl) inputEl.value = ''; } catch { /* iOS Safari: file input .value = '' throws */ }
   }
 
   /* totals ops */
