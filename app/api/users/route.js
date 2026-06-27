@@ -68,8 +68,8 @@ export async function POST(req) {
     const roles = body.roles?.length ? body.roles : ['User'];
     const hash = body.password ? await bcrypt.hash(body.password, 10) : null;
     await pool.query(
-      'INSERT INTO users (id, name, email, phone, department, roles, active, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, NOW())',
-      [id, body.name.trim(), body.email.trim(), body.phone || '', body.department || '', roles.join(','), hash]
+      'INSERT INTO users (id, name, email, phone, department, branch, roles, active, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())',
+      [id, body.name.trim(), body.email.trim(), body.phone || '', body.department || '', body.branch || '', roles.join(','), hash]
     );
     if (body.picture) {
       await pool.query('UPDATE users SET picture = ? WHERE id = ?', [body.picture, id]);
@@ -96,11 +96,12 @@ export async function PATCH(req) {
         email      = COALESCE(?, email),
         phone      = COALESCE(?, phone),
         department = COALESCE(?, department),
+        branch     = COALESCE(?, branch),
         roles      = COALESCE(?, roles),
         active     = COALESCE(?, active)
        WHERE id = ?`,
       [body.name ?? null, body.email ?? null, body.phone ?? null,
-       body.department ?? null, roles, body.active ?? null, body.id]
+       body.department ?? null, body.branch ?? null, roles, body.active ?? null, body.id]
     );
     if (body.picture !== undefined) {
       await pool.query('UPDATE users SET picture = ? WHERE id = ?', [body.picture, body.id]);

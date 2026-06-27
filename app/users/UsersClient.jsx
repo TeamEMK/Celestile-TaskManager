@@ -122,6 +122,7 @@ export default function UsersClient() {
                 <th className="table-th">Email</th>
                 <th className="table-th">Phone</th>
                 <th className="table-th">Department</th>
+                <th className="table-th">Branch</th>
                 <th className="table-th">Roles</th>
                 {isAdmin && <th className="table-th">Action</th>}
               </tr>
@@ -129,7 +130,7 @@ export default function UsersClient() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 6 : 5} className="table-td text-center text-slate-400 py-10">
+                  <td colSpan={isAdmin ? 7 : 6} className="table-td text-center text-slate-400 py-10">
                     No users found
                   </td>
                 </tr>
@@ -147,6 +148,13 @@ export default function UsersClient() {
                   <td className="table-td text-slate-600">{u?.email || '—'}</td>
                   <td className="table-td text-slate-600">{u?.phone || '—'}</td>
                   <td className="table-td text-slate-600">{u?.department || '—'}</td>
+                  <td className="table-td">
+                    {u?.branch ? (
+                      <span className={`pill ${u.branch === 'hyderabad' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                        {u.branch === 'hyderabad' ? 'Hyderabad' : 'Bangalore'}
+                      </span>
+                    ) : '—'}
+                  </td>
                   <td className="table-td">
                     <div className="flex flex-wrap gap-1">
                       {normalizeRoles(u?.roles).map((r) => {
@@ -252,10 +260,10 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
   useEffect(() => {
     if (open) {
       if (user) {
-        setForm({ id: user.id, name: user.name || '', email: user.email || '', phone: user.phone || '', department: user.department || '', roles: normalizeRoles(user.roles), active: user.active !== false, notifEmail: user.notifEmail || '' });
+        setForm({ id: user.id, name: user.name || '', email: user.email || '', phone: user.phone || '', department: user.department || '', branch: user.branch || '', roles: normalizeRoles(user.roles), active: user.active !== false, notifEmail: user.notifEmail || '' });
         setPicture(user.picture || null);
       } else {
-        setForm({ name: '', email: '', phone: '', department: '', roles: ['User'], password: '', notifEmail: '' });
+        setForm({ name: '', email: '', phone: '', department: '', branch: '', roles: ['User'], password: '', notifEmail: '' });
         setPicture(null);
       }
       setPictureChanged(false);
@@ -410,7 +418,7 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
             <UFieldC label="Phone Number" placeholder="Enter phone number" value={form.phone||''} onChange={v=>setForm({...form,phone:v})} autoComplete="off" />
           </div>
 
-          {/* Department + Password */}
+          {/* Department + Branch */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
             <div>
               <label className="um-lbl">Department</label>
@@ -423,10 +431,26 @@ function UserModal({ open, onClose, user, departments, onSaved }) {
                 </select>
               </div>
             </div>
-            {!user && (
-              <UFieldC label="Password" placeholder="Enter password" type="password" value={form.password||''} onChange={v=>setForm({...form,password:v})} />
-            )}
+            <div>
+              <label className="um-lbl">Branch</label>
+              <div style={{ position:'relative' }}>
+                <select value={form.branch||''} onChange={e=>setForm({...form,branch:e.target.value})} className="um-inp" style={{ appearance:'none', paddingRight:28, cursor:'pointer',
+                  backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+                  backgroundRepeat:'no-repeat', backgroundPosition:'right 8px center' }}>
+                  <option value="">Select branch</option>
+                  <option value="bangalore">Bangalore</option>
+                  <option value="hyderabad">Hyderabad</option>
+                </select>
+              </div>
+            </div>
           </div>
+
+          {/* Password (new user only) */}
+          {!user && (
+            <div>
+              <UFieldC label="Password" placeholder="Enter password" type="password" value={form.password||''} onChange={v=>setForm({...form,password:v})} />
+            </div>
+          )}
 
           {/* Roles */}
           <div>
