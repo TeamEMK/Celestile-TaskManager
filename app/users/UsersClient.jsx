@@ -38,6 +38,7 @@ const DEPARTMENTS = [
   { value: 'Runner',                      label: 'Runner'                      },
   { value: 'Dispatch',                    label: 'Dispatch'                    },
   { value: 'Designer',                    label: 'Designer'                    },
+  { value: 'Management',                  label: 'Management'                  },
 ];
 
 // Maps old stored values (lowercase/shorthand) → full display label
@@ -54,6 +55,7 @@ const DEPT_DISPLAY = {
   'runner':               'Runner',
   'Dispatch':             'Dispatch',
   'designer':             'Designer',
+  'management':           'Management',
 };
 
 function deptLabel(dept) {
