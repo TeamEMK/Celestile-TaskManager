@@ -29,8 +29,7 @@ export default async function DashboardPage() {
     ...storeWithCompletions,
     delegations: storeWithCompletions.delegations.filter((d) =>
       d.doerId === currentUserId ||
-      d.doer === currentName ||
-      d.delegatedBy === currentUserId
+      d.doer === currentName
     ),
     masters:     storeWithCompletions.masters.filter((m) => m.assignedTo === currentName),
     fms:         (storeWithCompletions.fms || []).filter((f) => f.doer === currentName),
