@@ -19,7 +19,7 @@ const TITLES = {
   '/compliance':     'Compliance',
 };
 
-export default function Topbar() {
+export default function Topbar({ onMenuClick = () => {} }) {
   const pathname = usePathname();
   const title = TITLES[pathname] || '';
   const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -27,7 +27,12 @@ export default function Topbar() {
   return (
     <header className="sticky top-0 z-20 backdrop-blur-sm"
       style={{ background: 'rgba(255,255,255,0.92)', borderBottom: '1px solid #e2e8f0' }}>
-      <div className="px-6 lg:px-8 h-14 flex items-center gap-4">
+      <div className="px-4 lg:px-8 h-14 flex items-center gap-3 lg:gap-4">
+
+        <button onClick={onMenuClick} aria-label="Open menu"
+          className="md:hidden -ml-1 p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition shrink-0">
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </button>
 
         <h1 className="text-[15px] font-semibold tracking-tight truncate whitespace-nowrap text-slate-800">
           {title}

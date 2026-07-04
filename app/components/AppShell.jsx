@@ -1,13 +1,14 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
   const { data: session, update } = useSession();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (session?.error === 'ForceLogout') {
@@ -20,6 +21,9 @@ export default function AppShell({ children }) {
     }, 20000);
     return () => clearInterval(t);
   }, [session, update]);
+
+  // Close the mobile drawer whenever the route changes
+  useEffect(() => { setMobileNavOpen(false); }, [pathname]);
 
   if (pathname === '/login' || pathname.startsWith('/developer')) {
     return <>{children}</>;
@@ -35,9 +39,9 @@ export default function AppShell({ children }) {
       </div>
 
       <div className="relative z-10">
-        <Sidebar />
-        <div className="ml-16 md:ml-[230px] lg:ml-16 flex flex-col min-h-screen">
-          <Topbar />
+        <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+        <div className="md:ml-[230px] lg:ml-16 flex flex-col min-h-screen">
+          <Topbar onMenuClick={() => setMobileNavOpen(true)} />
           <main className="flex-1 p-4 lg:p-6 overflow-x-auto">
             <div className="max-w-[1600px] mx-auto lg:min-w-[900px]">
               {children}

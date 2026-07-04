@@ -54,7 +54,7 @@ const SECTIONS = [
   ]},
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const roles = session?.user?.roles || [];
@@ -86,8 +86,17 @@ export default function Sidebar() {
     canSee(n.href, roles, access);
 
   return (
-    <aside className="group/sb fixed left-0 top-0 h-screen w-16 hover:w-[230px] md:w-[230px] lg:w-16 lg:hover:w-[230px] transition-[width] duration-200 ease-out flex flex-col z-40 overflow-hidden"
-      style={{ background: '#09090b', borderRight: '1px solid #1c1c1f', boxShadow: '4px 0 24px rgba(0,0,0,0.5)' }}>
+    <>
+      {/* Mobile backdrop — tap to close the drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={onClose} aria-hidden="true" />
+      )}
+
+      <aside className={`group/sb fixed left-0 top-0 h-screen flex flex-col z-40 overflow-hidden transition-all duration-200 ease-out
+        w-[230px] ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0 md:w-[230px]
+        lg:w-16 lg:hover:w-[230px]`}
+        style={{ background: '#09090b', borderRight: '1px solid #1c1c1f', boxShadow: '4px 0 24px rgba(0,0,0,0.5)' }}>
 
       {/* Brand */}
       <div className="h-14 px-3 flex items-center gap-2.5 shrink-0"
@@ -99,9 +108,14 @@ export default function Sidebar() {
             style={{ background: '#34d399', borderColor: '#09090b' }}></span>
         </div>
         {/* Brand name — fades in when sidebar expands */}
-        <div className="leading-tight min-w-0 opacity-0 group-hover/sb:opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+        <div className="leading-tight min-w-0 opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
           <div className="text-[13px] font-semibold tracking-tight" style={{ color: '#f4f4f5' }}>Celestile-TaskManager</div>
         </div>
+        {/* Close button — mobile drawer only */}
+        <button onClick={onClose} aria-label="Close menu"
+          className="md:hidden ml-auto p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition shrink-0">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
       </div>
 
       {/* Nav */}
@@ -117,7 +131,7 @@ export default function Sidebar() {
                   const IconComp = Icon[n.icon];
 
                   return (
-                    <Link key={n.href} href={n.href} title={n.label}
+                    <Link key={n.href} href={n.href} title={n.label} onClick={onClose}
                       className={`group/item flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] relative transition-colors duration-150 ${active ? 'font-bold' : 'font-medium'}`}
                       style={{
                         background: active ? 'rgba(46,114,181,0.18)' : 'transparent',
@@ -142,7 +156,7 @@ export default function Sidebar() {
                           </span>
                         )}
                       </span>
-                      <span className="whitespace-nowrap opacity-0 group-hover/sb:opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200">
+                      <span className="whitespace-nowrap opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200">
                         {n.label}
                       </span>
                     </Link>
@@ -161,7 +175,7 @@ export default function Sidebar() {
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white font-bold text-[11px] shrink-0">
             {session?.user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
           </div>
-          <div className="min-w-0 flex-1 opacity-0 group-hover/sb:opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200">
+          <div className="min-w-0 flex-1 opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200">
             <div className="text-[12px] font-medium truncate whitespace-nowrap" style={{ color: '#e4e4e7' }}>{session?.user?.name || 'User'}</div>
             <div className="text-[10px] truncate whitespace-nowrap" style={{ color: '#52525b' }}>
               {session?.user?.roles?.join(' · ') || 'User'}
@@ -177,7 +191,8 @@ export default function Sidebar() {
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
             title="Sign out"
-            className="p-1 rounded-md opacity-50 group-hover/sb:opacity-100 md:opacity-100 lg:opacity-50 lg:group-hover/sb:opacity-100 transition-all duration-200"
+            aria-label="Sign out"
+            className="p-1 rounded-md opacity-100 md:opacity-100 lg:opacity-50 lg:group-hover/sb:opacity-100 transition-all duration-200"
             style={{ color: '#71717a' }}
             onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; }}
             onMouseLeave={e => { e.currentTarget.style.color = '#71717a'; e.currentTarget.style.background = 'transparent'; }}
@@ -189,5 +204,6 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }
