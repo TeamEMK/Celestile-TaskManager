@@ -227,28 +227,39 @@ export default function BangaloreForm({ initialRef = '' }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       <datalist id="bq-mat">{MATERIAL_LIST.map((m) => <option key={m} value={m} />)}</datalist>
       <datalist id="bq-unit">{UNIT_OPTIONS.map((u) => <option key={u} value={u} />)}</datalist>
       <datalist id="bq-consult">{consultants.map((c) => <option key={c.name} value={c.name} />)}</datalist>
 
       {/* toolbar */}
       <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div className="text-[15px] font-semibold text-slate-900">Quotation — Bangalore</div>
-          <div className="text-[12px] text-slate-500">Ref: <b>{header.refNo || '—'}</b></div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+            <IconDoc className="w-[18px] h-[18px]" />
+          </div>
+          <div className="min-w-0">
+            <div className="font-display text-[15px] font-semibold tracking-tight text-slate-900">Quotation — Bangalore</div>
+            <div className="text-[11.5px] text-slate-500">Ref: <b className="text-slate-700">{header.refNo || '—'}</b></div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {status && <span className="text-[12px] mr-2">{status}</span>}
+        <div className="flex items-center gap-2 flex-wrap">
+          {status && <span className="text-[12px] text-slate-600 mr-1">{status}</span>}
           <button className="btn-ghost" onClick={reset}>↺ Reset</button>
           <button className="btn-secondary" onClick={openRevise}>Revise</button>
           <button className="btn-secondary" onClick={printPdf}>⬇ PDF</button>
-          <button className="btn-warn" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
+          <button className="btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
         </div>
       </div>
 
       {/* header info */}
       <div className="card p-5">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+            <IconInfo className="w-4 h-4" />
+          </div>
+          <h2 className="section-title">Client &amp; Project Details</h2>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Field label="Date" type="date" value={header.quoteDate}
             onChange={(v) => setHeader((h) => ({ ...h, quoteDate: v, validity: validityFrom(v) }))} />
@@ -265,59 +276,73 @@ export default function BangaloreForm({ initialRef = '' }) {
       </div>
 
       {/* selections table */}
-      <div className="card p-5">
-        <div className="text-[13px] font-semibold text-slate-800 mb-2">Selections</div>
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full text-[12px]">
-            <thead className="bg-slate-900 text-white">
-              <tr>
-                {['#','Image','Description','Area','Size (in)','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
-                  <th key={i} className="px-2 py-2 text-left font-semibold whitespace-nowrap">{h}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => {
-                const eff = calc.rowData[i] || { gross: 0, qty: 0, hasInput: false };
-                return (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-2 py-1 text-slate-400">{i + 1}</td>
-                    <td className="px-1 py-1">
-                      <label className="cursor-pointer flex items-center justify-center w-10 h-10 rounded border border-dashed border-slate-300 overflow-hidden hover:border-slate-400">
-                        {r.img ? <img src={r.img} alt="" className="w-10 h-10 object-cover" /> : <span className="text-slate-400 text-lg leading-none">+</span>}
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
-                      </label>
-                    </td>
-                    <td className="px-1 py-1"><input className="input !py-1" value={r.desc} onChange={(e) => setRow(i, 'desc', e.target.value)} placeholder="Description" /></td>
-                    <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.area} onChange={(e) => setRow(i, 'area', e.target.value)} placeholder="—" /></td>
-                    <td className="px-1 py-1 w-24"><input className="input !py-1" value={r.size} onChange={(e) => setRow(i, 'size', e.target.value)} placeholder="5×7" /></td>
-                    <td className="px-1 py-1 w-28"><input className="input !py-1" list="bq-mat" value={r.mat} onChange={(e) => setRow(i, 'mat', e.target.value)} placeholder="Material" /></td>
-                    <td className="px-1 py-1 w-20"><input className="input !py-1" value={r.thk} onChange={(e) => setRow(i, 'thk', e.target.value)} placeholder="18MM" /></td>
-                    <td className="px-1 py-1 w-20"><input className="input !py-1" list="bq-unit" value={r.unit} onChange={(e) => setRow(i, 'unit', e.target.value)} placeholder="—" /></td>
-                    <td className="px-1 py-1 text-center" title="Rate per SFT (qty = size W×H)">
-                      <input type="checkbox" className="h-4 w-4 accent-slate-700" checked={r.module} onChange={(e) => setRow(i, 'module', e.target.checked)} />
-                    </td>
-                    <td className="px-1 py-1 w-20"><input type="number" min="0" className="input !py-1" value={r.price} onChange={(e) => setRow(i, 'price', e.target.value)} /></td>
-                    <td className="px-1 py-1 w-16">
-                      <input type="number" min="0" className={`input !py-1 ${r.module ? 'bg-slate-100 text-slate-500' : ''}`}
-                        value={r.module ? (eff.qty ? +Number(eff.qty).toFixed(2) : '') : r.qty}
-                        readOnly={r.module} onChange={(e) => setRow(i, 'qty', e.target.value)} />
-                    </td>
-                    <td className="px-1 py-1 w-16"><input type="number" min="0" max="100" className="input !py-1" value={r.gst} onChange={(e) => setRow(i, 'gst', e.target.value)} /></td>
-                    <td className="px-2 py-1 text-right whitespace-nowrap font-semibold">{eff.hasInput ? inr0(eff.gross) : ''}</td>
-                    <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delRow(i)}>✕</button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconList /></div>
+            <div>
+              <h2 className="text-[13.5px] font-semibold text-slate-900">Selections</h2>
+              <p className="text-[11.5px] text-slate-500">{rows.length} line{rows.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
         </div>
-        <button className="btn-secondary mt-3" onClick={addRow}>+ Add Item</button>
+        <div className="p-5">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-[12px]">
+              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
+                <tr>
+                  {['#','Image','Description','Area','Size (in)','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
+                    <th key={i} className={`table-th whitespace-nowrap ${i >= 9 && i <= 12 ? 'text-right' : ''}`}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => {
+                  const eff = calc.rowData[i] || { gross: 0, qty: 0, hasInput: false };
+                  return (
+                    <tr key={i} className="table-row">
+                      <td className="px-2 py-1 text-slate-400">{i + 1}</td>
+                      <td className="px-1 py-1">
+                        <label className="cursor-pointer flex items-center justify-center w-10 h-10 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">
+                          {r.img ? <img src={r.img} alt="" className="w-10 h-10 object-cover" /> : <span className="text-slate-400 text-lg leading-none">+</span>}
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
+                        </label>
+                      </td>
+                      <td className="px-1 py-1"><input className="input !py-1" value={r.desc} onChange={(e) => setRow(i, 'desc', e.target.value)} placeholder="Description" /></td>
+                      <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.area} onChange={(e) => setRow(i, 'area', e.target.value)} placeholder="—" /></td>
+                      <td className="px-1 py-1 w-24"><input className="input !py-1" value={r.size} onChange={(e) => setRow(i, 'size', e.target.value)} placeholder="5×7" /></td>
+                      <td className="px-1 py-1 w-28"><input className="input !py-1" list="bq-mat" value={r.mat} onChange={(e) => setRow(i, 'mat', e.target.value)} placeholder="Material" /></td>
+                      <td className="px-1 py-1 w-20"><input className="input !py-1" value={r.thk} onChange={(e) => setRow(i, 'thk', e.target.value)} placeholder="18MM" /></td>
+                      <td className="px-1 py-1 w-20"><input className="input !py-1" list="bq-unit" value={r.unit} onChange={(e) => setRow(i, 'unit', e.target.value)} placeholder="—" /></td>
+                      <td className="px-1 py-1 text-center" title="Rate per SFT (qty = size W×H)">
+                        <input type="checkbox" className="h-4 w-4 accent-primary-600" checked={r.module} onChange={(e) => setRow(i, 'module', e.target.checked)} />
+                      </td>
+                      <td className="px-1 py-1 w-20"><input type="number" min="0" className="input !py-1 text-right tabular-nums" value={r.price} onChange={(e) => setRow(i, 'price', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-16">
+                        <input type="number" min="0" className={`input !py-1 text-right tabular-nums ${r.module ? 'bg-slate-100 text-slate-500' : ''}`}
+                          value={r.module ? (eff.qty ? +Number(eff.qty).toFixed(2) : '') : r.qty}
+                          readOnly={r.module} onChange={(e) => setRow(i, 'qty', e.target.value)} />
+                      </td>
+                      <td className="px-1 py-1 w-16"><input type="number" min="0" max="100" className="input !py-1 text-right tabular-nums" value={r.gst} onChange={(e) => setRow(i, 'gst', e.target.value)} /></td>
+                      <td className="px-2 py-1 text-right whitespace-nowrap font-semibold tabular-nums">{eff.hasInput ? inr0(eff.gross) : ''}</td>
+                      <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delRow(i)}>✕</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <button className="btn-secondary mt-3" onClick={addRow}>+ Add Item</button>
+        </div>
       </div>
 
       {/* totals */}
-      <div className="card p-5 max-w-md ml-auto">
+      <div className="card p-5 max-w-md ml-auto relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-300 via-primary-500 to-primary-700" />
         <div className="flex items-center justify-between mb-2">
-          <div className="text-[13px] font-semibold text-slate-800">Totals</div>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconCalc className="w-3.5 h-3.5" /></div>
+            <div className="text-[13px] font-semibold text-slate-800">Totals</div>
+          </div>
           <button className="btn-ghost !py-1" onClick={addCustom}>+ Add Row</button>
         </div>
         <div className="space-y-1">
@@ -329,20 +354,20 @@ export default function BangaloreForm({ initialRef = '' }) {
               <div key={t.id} className="flex items-center justify-between gap-2 text-[12.5px] py-1">
                 <span className="text-rose-700">Discount</span>
                 <div className="flex items-center gap-1">
-                  <input type="number" min="0" max="100" className="input !py-1 w-16 text-right" value={t.value}
+                  <input type="number" min="0" max="100" className="input !py-1 w-16 text-right tabular-nums" value={t.value}
                     onChange={(e) => setTotal(t.id, { value: e.target.value })} /><span className="text-rose-700">%</span>
-                  <span className="text-rose-700 w-24 text-right">− {inr0(calc.discount)}</span>
+                  <span className="text-rose-700 w-24 text-right tabular-nums">− {inr0(calc.discount)}</span>
                 </div>
               </div>
             );
             if (t.type === 'rate-area') return (
               <div key={t.id} className="flex items-center justify-between gap-2 text-[12.5px] py-1">
-                <span className="text-slate-600">{t.label} <small className="text-amber-700">(₹{t.rate}/unit)</small></span>
+                <span className="text-slate-600">{t.label} <small className="text-primary-700">(₹{t.rate}/unit)</small></span>
                 <div className="flex items-center gap-1">
-                  <input type="number" min="0" className="input !py-1 w-16 text-right" placeholder="Area" value={t.area}
+                  <input type="number" min="0" className="input !py-1 w-16 text-right tabular-nums" placeholder="Area" value={t.area}
                     onChange={(e) => setTotal(t.id, { area: e.target.value })} />
                   <span className="text-slate-400">=</span>
-                  <span className="w-24 text-right font-medium">{inr0((t.rate || 0) * (parseFloat(t.area) || 0))}</span>
+                  <span className="w-24 text-right font-medium tabular-nums">{inr0((t.rate || 0) * (parseFloat(t.area) || 0))}</span>
                 </div>
               </div>
             );
@@ -355,37 +380,77 @@ export default function BangaloreForm({ initialRef = '' }) {
                   : <span className="text-slate-600">{t.label}</span>}
                 <div className="flex items-center gap-1">
                   <span className="text-slate-400">₹</span>
-                  <input type="number" min="0" className="input !py-1 w-24 text-right" value={t.value}
+                  <input type="number" min="0" className="input !py-1 w-24 text-right tabular-nums" value={t.value}
                     onChange={(e) => setTotal(t.id, { value: e.target.value })} />
                   {isCustom && <button className="btn-danger !px-2 !py-0.5" onClick={() => removeTotal(t.id)}>✕</button>}
                 </div>
               </div>
             );
           })}
-          <div className="flex items-center justify-between pt-2 mt-1 border-t-2 border-amber-300">
-            <span className="text-[12px] font-semibold uppercase tracking-wide text-slate-700">Grand Total</span>
-            <span className="text-[18px] font-bold text-slate-900">{inr0(calc.grandTotal)}</span>
+          <div className="flex items-center justify-between mt-2 -mx-5 -mb-5 px-5 py-3 rounded-b-xl bg-gradient-to-r from-primary-50 to-primary-50/40 border-t border-primary-100">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-primary-800">Grand Total</span>
+            <span className="text-[19px] font-bold text-gradient-gold tabular-nums">{inr0(calc.grandTotal)}</span>
           </div>
         </div>
       </div>
 
       {/* revise modal */}
       {showRevise && (
-        <div className="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setShowRevise(false)}>
-          <div className="bg-white rounded-xl p-5 w-80" onClick={(e) => e.stopPropagation()}>
-            <div className="text-[14px] font-semibold mb-3">Load Quotation</div>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setShowRevise(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-5 w-80 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconClock className="w-4 h-4" /></div>
+              <div className="text-[14px] font-semibold text-slate-900">Load Quotation</div>
+            </div>
             <select className="input mb-3" value={selRef} onChange={(e) => setSelRef(e.target.value)}>
               {reviseList.length === 0 && <option value="">No saved quotations</option>}
               {reviseList.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
             <div className="flex gap-2">
-              <button className="btn-warn flex-1" disabled={!selRef} onClick={loadSelected}>Load</button>
+              <button className="btn-primary flex-1" disabled={!selRef} onClick={loadSelected}>Load</button>
               <button className="btn-ghost" onClick={() => setShowRevise(false)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function IconDoc(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" />
+      <path d="M9 13h6" /><path d="M9 17h6" />
+    </svg>
+  );
+}
+function IconInfo(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" /><path d="M12 16v-4" /><path d="M12 8h.01" />
+    </svg>
+  );
+}
+function IconList(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" />
+    </svg>
+  );
+}
+function IconCalc(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="2" /><path d="M8 6h8" /><path d="M8 11h.01" /><path d="M12 11h.01" /><path d="M16 11h.01" /><path d="M8 15h.01" /><path d="M12 15h.01" /><path d="M16 15h.01" /><path d="M8 19h.01" /><path d="M12 19h.01" /><path d="M16 19h.01" />
+    </svg>
+  );
+}
+function IconClock(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
+    </svg>
   );
 }
 
@@ -402,7 +467,7 @@ function Field({ label, value, onChange, onBlur, placeholder, type = 'text', rea
 function Line({ label, value, strong }) {
   return (
     <div className={`flex items-center justify-between text-[12.5px] py-1 ${strong ? 'font-semibold' : ''}`}>
-      <span className="text-slate-600">{label}</span><span>{value}</span>
+      <span className="text-slate-600">{label}</span><span className="tabular-nums">{value}</span>
     </div>
   );
 }

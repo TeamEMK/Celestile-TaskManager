@@ -146,7 +146,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
             <h2 className="text-base font-semibold text-slate-900">+ Add Checklist Task</h2>
             <p className="text-[12px] text-slate-500 mt-0.5">Define a recurring item for the team</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+          <button onClick={onClose} className="btn-ghost w-8 h-8 !p-0 shrink-0">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
@@ -162,9 +162,19 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
 
           <div>
             <label className="label">Frequency</label>
-            <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} className="input">
-              {FREQS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-            </select>
+            <div className="seg flex-wrap gap-1 w-full">
+              {FREQS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  title={f.label}
+                  onClick={() => setForm({ ...form, frequency: f.value })}
+                  className={`seg-btn ${form.frequency === f.value ? 'seg-btn-active' : ''}`}
+                >
+                  {f.value}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -191,7 +201,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
           <div>
             <label className="label">Photo / PDF <span className="text-slate-400 font-normal">(optional)</span></label>
             <div className="flex items-center gap-3">
-              <label className="cursor-pointer flex items-center justify-center w-16 h-16 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-slate-400 shrink-0">
+              <label className="cursor-pointer flex items-center justify-center w-16 h-16 rounded-xl border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors shrink-0">
                 {form.attachment
                   ? (form.attachment.startsWith('data:image')
                     ? <img src={form.attachment} alt="" className="w-16 h-16 object-cover" />
@@ -202,9 +212,9 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
               {form.attachment && (
                 <div className="flex flex-col gap-1">
                   {!form.attachment.startsWith('data:image') && (
-                    <a href={form.attachment} target="_blank" rel="noopener noreferrer" className="text-[12px] text-blue-600 hover:underline">View PDF</a>
+                    <a href={form.attachment} target="_blank" rel="noopener noreferrer" className="text-[12px] text-primary-600 hover:underline">View PDF</a>
                   )}
-                  <button type="button" className="text-[12px] text-red-500" onClick={() => setForm((p) => ({ ...p, attachment: '' }))}>Remove</button>
+                  <button type="button" className="text-[12px] text-red-500 hover:text-red-600 text-left" onClick={() => setForm((p) => ({ ...p, attachment: '' }))}>Remove</button>
                 </div>
               )}
             </div>
@@ -215,15 +225,14 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
               type="checkbox" id="chk-requireFile"
               checked={form.requireFile}
               onChange={(e) => setForm((p) => ({ ...p, requireFile: e.target.checked }))}
-              className="rounded border-slate-300 accent-emerald-600"
+              className="w-4 h-4 rounded border-slate-300 accent-primary-600 cursor-pointer"
             />
             <label htmlFor="chk-requireFile" className="text-[13px] text-slate-700 cursor-pointer select-none">
               Require file upload to mark this task done
             </label>
           </div>
 
-          {/* Bulk CSV */}
-          <div className="rounded-lg border border-dashed border-slate-200 p-3">
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-3">
             <div className="text-center text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-2">or bulk upload CSV</div>
             <div className="flex flex-wrap items-center gap-2">
               <input
@@ -244,7 +253,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
 
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
           <button onClick={onClose} className="btn-secondary">Close</button>
-          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Generate Tasks'}</button>
+          <button onClick={save} disabled={saving} className="btn-success">{saving ? 'Saving…' : 'Generate Tasks'}</button>
         </div>
       </div>
     </div>

@@ -54,6 +54,14 @@ export default function CsvImport({ templateName, columns, sampleRow, parseRow, 
     if (onDone) onDone();
   }
 
+  const reportTone = report
+    ? report.failed > 0
+      ? 'bg-red-50 text-red-700'
+      : report.skipped > 0
+      ? 'bg-amber-50 text-amber-700'
+      : 'bg-emerald-50 text-emerald-700'
+    : '';
+
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <button onClick={downloadTemplate} className="btn-secondary" title="Download CSV template">
@@ -61,21 +69,26 @@ export default function CsvImport({ templateName, columns, sampleRow, parseRow, 
         Template
       </button>
       <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
-      <button onClick={() => fileRef.current?.click()} disabled={busy} className="btn-secondary" title="Upload CSV">
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={busy}
+        title="Upload CSV"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold text-primary-700 bg-white border border-dashed border-primary-200 hover:bg-primary-50 hover:border-primary-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+      >
         {busy ? (
           <>
-            <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+            <svg className="w-3.5 h-3.5 animate-spin text-primary-500" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
             Importing…
           </>
         ) : (
           <>
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+            <svg className="w-3.5 h-3.5 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
             Import CSV
           </>
         )}
       </button>
       {report && (
-        <span className={`pill ${report.failed === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+        <span className={`pill ${reportTone}`}>
           {report.ok}/{report.total} imported{report.failed > 0 ? ` · ${report.failed} failed` : ''}{report.skipped > 0 ? ` · ${report.skipped} skipped` : ''}
         </span>
       )}

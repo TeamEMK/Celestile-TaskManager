@@ -112,8 +112,8 @@ export default function DashboardClient({ data, performance, holidays, users = [
       {/* ── Header ───────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[18px] font-bold tracking-tight text-slate-900">
-            {greeting}, <span className="text-primary-600">{firstName}</span> 👋
+          <h1 className="font-display text-[21px] font-semibold tracking-tight text-slate-900">
+            {greeting}, <span className="text-gradient-gold">{firstName}</span> 👋
           </h1>
           <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
             <span>{todayLabel}</span>
@@ -294,7 +294,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
                 <p className="text-[11.5px] text-slate-500">Overall completion status</p>
               </div>
             </div>
-            <DonutChart value={completed} total={total} size={160} strokeColor="#2E72B5" label="Complete" />
+            <DonutChart value={completed} total={total} size={160} strokeColor="#B96F3D" label="Complete" />
             <div className="w-full grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
               <Legend dot="#10b981" label="Done"    value={completed} />
               <Legend dot="#ef4444" label="Pending" value={pending} />
@@ -429,7 +429,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
 
 /* ── KPI card ───────────────────────────────────────────────────────────── */
 const KPI_GRADIENTS = {
-  blue:    { grad: 'linear-gradient(135deg, #3b82f6 0%, #4f46e5 100%)', shadow: 'rgba(59,130,246,0.35)' },
+  blue:    { grad: 'linear-gradient(135deg, #DDAC6E 0%, #9C5730 100%)', shadow: 'rgba(156,87,48,0.38)' },
   emerald: { grad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', shadow: 'rgba(16,185,129,0.35)' },
   red:     { grad: 'linear-gradient(135deg, #f97316 0%, #dc2626 100%)', shadow: 'rgba(249,115,22,0.35)'  },
   violet:  { grad: 'linear-gradient(135deg, #f43f5e 0%, #7c3aed 100%)', shadow: 'rgba(244,63,94,0.35)'  },

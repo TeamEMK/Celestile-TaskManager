@@ -96,20 +96,25 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         w-[230px] ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 md:w-[230px]
         lg:w-16 lg:hover:w-[230px]`}
-        style={{ background: '#09090b', borderRight: '1px solid #1c1c1f', boxShadow: '4px 0 24px rgba(0,0,0,0.5)' }}>
+        style={{
+          background: 'linear-gradient(180deg, #0D0B08 0%, #14110D 100%)',
+          borderRight: '1px solid rgba(232,200,154,0.10)',
+          boxShadow: '4px 0 32px rgba(0,0,0,0.45)',
+        }}>
 
       {/* Brand */}
       <div className="h-14 px-3 flex items-center gap-2.5 shrink-0"
-        style={{ borderBottom: '1px solid #1c1c1f' }}>
+        style={{ borderBottom: '1px solid rgba(232,200,154,0.10)' }}>
         {/* Single logo icon — always visible */}
         <div className="relative w-9 h-9 rounded-lg shrink-0 overflow-hidden grid place-items-center bg-white">
           <img src="/logo.jpeg" alt="IA" className="w-9 h-9 object-contain" />
           <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2"
-            style={{ background: '#34d399', borderColor: '#09090b' }}></span>
+            style={{ background: '#34d399', borderColor: '#0D0B08' }}></span>
         </div>
         {/* Brand name — fades in when sidebar expands */}
         <div className="leading-tight min-w-0 opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-          <div className="text-[13px] font-semibold tracking-tight" style={{ color: '#f4f4f5' }}>Celestile-TaskManager</div>
+          <div className="font-display text-[13.5px] font-semibold tracking-tight" style={{ color: '#F3E1C8' }}>Celestile</div>
+          <div className="text-[9px] font-medium tracking-wide" style={{ color: '#5E5748' }}>Task Manager</div>
         </div>
         {/* Close button — mobile drawer only */}
         <button onClick={onClose} aria-label="Close menu"
@@ -134,23 +139,23 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
                     <Link key={n.href} href={n.href} title={n.label} onClick={onClose}
                       className={`group/item flex items-center gap-3 h-9 px-2.5 rounded-lg text-[12.5px] relative transition-colors duration-150 ${active ? 'font-bold' : 'font-medium'}`}
                       style={{
-                        background: active ? 'rgba(46,114,181,0.18)' : 'transparent',
-                        color: '#ffffff',
+                        background: active ? 'rgba(185,111,61,0.16)' : 'transparent',
+                        color: active ? '#F3E1C8' : '#D9D2C6',
                       }}
-                      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; } }}
+                      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; } }}
                       onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; } }}
                     >
                       {active && (
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
-                          style={{ background: '#2E72B5' }} />
+                          style={{ background: 'linear-gradient(180deg, #E8C89A, #B96F3D)' }} />
                       )}
                       <span className="relative shrink-0">
                         <IconComp className="w-[17px] h-[17px]"
-                          style={{ color: active ? '#5B9ED7' : 'inherit' }} />
+                          style={{ color: active ? '#DDAC6E' : 'inherit' }} />
                         {n.href === '/approvals' && isAdmin && pendingCount > 0 && (
                           <span
                             className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] rounded-full text-[9px] font-bold text-white flex items-center justify-center"
-                            style={{ background: '#C4714A', boxShadow: '0 0 0 2px #09090b' }}
+                            style={{ background: '#C86A3D', boxShadow: '0 0 0 2px #0D0B08' }}
                           >
                             {pendingCount}
                           </span>
@@ -169,15 +174,16 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
       </nav>
 
       {/* User card */}
-      <div className="px-2 pb-3 pt-2 shrink-0" style={{ borderTop: '1px solid #1c1c1f' }}>
+      <div className="px-2 pb-3 pt-2 shrink-0" style={{ borderTop: '1px solid rgba(232,200,154,0.10)' }}>
         <div className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-lg transition-colors duration-150"
           style={{ cursor: 'default' }}>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white font-bold text-[11px] shrink-0">
+          <div className="w-8 h-8 rounded-full grid place-items-center text-white font-bold text-[11px] shrink-0"
+            style={{ background: 'linear-gradient(135deg, #E8C89A, #B96F3D 60%, #A8542E)' }}>
             {session?.user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
           </div>
           <div className="min-w-0 flex-1 opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200">
-            <div className="text-[12px] font-medium truncate whitespace-nowrap" style={{ color: '#e4e4e7' }}>{session?.user?.name || 'User'}</div>
-            <div className="text-[10px] truncate whitespace-nowrap" style={{ color: '#52525b' }}>
+            <div className="text-[12px] font-medium truncate whitespace-nowrap" style={{ color: '#EDE7DC' }}>{session?.user?.name || 'User'}</div>
+            <div className="text-[10px] truncate whitespace-nowrap" style={{ color: '#5E5748' }}>
               {session?.user?.roles?.join(' · ') || 'User'}
               {session?.user?.branch && (
                 <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide"
@@ -193,9 +199,9 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
             title="Sign out"
             aria-label="Sign out"
             className="p-1 rounded-md opacity-100 md:opacity-100 lg:opacity-50 lg:group-hover/sb:opacity-100 transition-all duration-200"
-            style={{ color: '#71717a' }}
+            style={{ color: '#8F8471' }}
             onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#71717a'; e.currentTarget.style.background = 'transparent'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#8F8471'; e.currentTarget.style.background = 'transparent'; }}
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>

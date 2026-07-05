@@ -39,62 +39,10 @@ function parseCSV(text) {
 
 const Field = ({ label, required, children }) => (
   <div>
-    <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:3 }}>
-      {label}{required && <span style={{ color:'#ef4444', marginLeft:2 }}>*</span>}
-    </label>
+    <label className="label">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
     {children}
   </div>
 );
-
-const inputStyle = {
-  width:'100%', boxSizing:'border-box',
-  padding:'6px 10px', fontSize:12.5, color:'#1e293b',
-  background:'#f8fafc', border:'1.5px solid #e2e8f0',
-  borderRadius:8, outline:'none', transition:'border-color .15s, box-shadow .15s',
-  fontFamily:'inherit',
-};
-const inputFocus = {
-  borderColor:'#818cf8', boxShadow:'0 0 0 3px rgba(129,140,248,0.15)',
-};
-
-function StyledInput(props) {
-  const [focus, setFocus] = useState(false);
-  return (
-    <input
-      {...props}
-      style={{ ...inputStyle, ...(focus ? inputFocus : {}), ...props.style }}
-      onFocus={() => setFocus(true)}
-      onBlur={() => setFocus(false)}
-    />
-  );
-}
-function StyledSelect({ children, ...props }) {
-  const [focus, setFocus] = useState(false);
-  return (
-    <select
-      {...props}
-      style={{ ...inputStyle, ...(focus ? inputFocus : {}), appearance:'none',
-        backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-        backgroundRepeat:'no-repeat', backgroundPosition:'right 10px center',
-        paddingRight:30, cursor:'pointer' }}
-      onFocus={() => setFocus(true)}
-      onBlur={() => setFocus(false)}
-    >
-      {children}
-    </select>
-  );
-}
-function StyledTextarea(props) {
-  const [focus, setFocus] = useState(false);
-  return (
-    <textarea
-      {...props}
-      style={{ ...inputStyle, resize:'none', lineHeight:1.5, ...(focus ? inputFocus : {}), ...props.style }}
-      onFocus={() => setFocus(true)}
-      onBlur={() => setFocus(false)}
-    />
-  );
-}
 
 export default function AddDelegateModal({ open, onClose, users: propUsers = [] }) {
   const router = useRouter();
@@ -185,181 +133,136 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
   return (
     <div
       onClick={onClose}
-      style={{
-        position:'fixed', inset:0, zIndex:50, display:'flex', alignItems:'center', justifyContent:'center',
-        padding:16, background:'rgba(15,23,42,0.45)', backdropFilter:'blur(6px)',
-        animation:'fadeIn .2s ease',
-      }}
+      className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in"
     >
-      <style>{`
-        @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
-        @keyframes slideUp { from { opacity:0; transform:translateY(18px) scale(.98) } to { opacity:1; transform:translateY(0) scale(1) } }
-        .del-modal-scroll::-webkit-scrollbar { width:4px }
-        .del-modal-scroll::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:99px }
-        .del-modal-scroll::-webkit-scrollbar-track { background:transparent }
-        .del-file-zone:hover { border-color:#818cf8 !important; background:#f5f3ff !important; }
-        .del-csv-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-      `}</style>
-
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background:'#fff', borderRadius:20, width:'100%', maxWidth:520,
-          maxHeight:'92vh', display:'flex', flexDirection:'column',
-          boxShadow:'0 24px 80px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.06)',
-          animation:'slideUp .25s cubic-bezier(.16,1,.3,1)',
-        }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-pop-in"
       >
-        {/* ── Header ── */}
-        <div style={{
-          padding:'14px 18px 12px',
-          borderBottom:'1px solid #f1f5f9',
-          background:'linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%)',
-          borderRadius:'20px 20px 0 0',
-          display:'flex', alignItems:'center', gap:10,
-        }}>
-          <div style={{
-            width:36, height:36, borderRadius:10, flexShrink:0,
-            background:'linear-gradient(135deg,#7c3aed,#4f46e5)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:'0 4px 12px rgba(124,58,237,0.35)',
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
               <path d="m17 11 2 2 4-4"/>
             </svg>
           </div>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:14, fontWeight:700, color:'#3730a3' }}>Delegate Task</div>
-            <div style={{ fontSize:11, color:'#6d28d9', marginTop:1 }}>Assign new work to a team member</div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-slate-900">Delegate Task</h2>
+            <p className="text-[12px] text-slate-500 mt-0.5">Assign new work to a team member</p>
           </div>
-          <button
-            onClick={onClose}
-            style={{ width:32, height:32, borderRadius:8, border:'none', background:'rgba(109,40,217,0.08)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#7c3aed' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 shrink-0">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
 
-        {/* ── Body ── */}
-        <div className="del-modal-scroll" style={{ padding:'14px 18px', overflowY:'auto', display:'flex', flexDirection:'column', gap:10 }}>
+        <div className="px-6 py-5 space-y-3.5">
 
-          {/* Row 1: Doer + Due Date */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Assign To" required>
-              <StyledSelect value={form.doerId} onChange={(e) => set('doerId', e.target.value)}>
+              <select className="input" value={form.doerId} onChange={(e) => set('doerId', e.target.value)}>
                 <option value="">Select person</option>
                 {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </StyledSelect>
+              </select>
             </Field>
             <Field label="Due Date" required>
-              <StyledInput type="date" value={form.dueDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => set('dueDate', e.target.value)} />
+              <input type="date" className="input" value={form.dueDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => set('dueDate', e.target.value)} />
             </Field>
           </div>
 
-          {/* Row 2: Priority + Approval */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Priority">
-              <StyledSelect value={form.priority} onChange={(e) => set('priority', e.target.value)}>
-                <option>Low</option><option>Medium</option><option>High</option>
-              </StyledSelect>
+              <div className="seg">
+                {['Low', 'Medium', 'High'].map((p) => (
+                  <button key={p} type="button" onClick={() => set('priority', p)} className={`seg-btn flex-1 ${form.priority === p ? 'seg-btn-active' : ''}`}>{p}</button>
+                ))}
+              </div>
             </Field>
             <Field label="Approval">
-              <StyledSelect value={form.approval} onChange={(e) => set('approval', e.target.value)}>
-                <option>No Approval</option><option>Approval Required</option>
-              </StyledSelect>
+              <div className="seg">
+                {['No Approval', 'Approval Required'].map((a) => (
+                  <button key={a} type="button" onClick={() => set('approval', a)} className={`seg-btn flex-1 ${form.approval === a ? 'seg-btn-active' : ''}`}>{a}</button>
+                ))}
+              </div>
             </Field>
           </div>
 
-          {/* Description */}
           <Field label="Description" required>
-            <StyledTextarea value={form.description} rows={2} onChange={(e) => set('description', e.target.value)} placeholder="What needs to be done?" />
+            <textarea className="input resize-none" value={form.description} rows={2} onChange={(e) => set('description', e.target.value)} placeholder="What needs to be done?" />
           </Field>
 
-          {/* Client + URL + Remarks in 3 cols */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+          <div className="grid grid-cols-3 gap-3">
             <Field label="Client">
-              <StyledInput value={form.client} onChange={(e) => set('client', e.target.value)} placeholder="Client name" />
+              <input className="input" value={form.client} onChange={(e) => set('client', e.target.value)} placeholder="Client name" />
             </Field>
             <Field label="URL">
-              <StyledInput value={form.url} onChange={(e) => set('url', e.target.value)} placeholder="https://..." />
+              <input className="input" value={form.url} onChange={(e) => set('url', e.target.value)} placeholder="https://..." />
             </Field>
             <Field label="Remarks">
-              <StyledInput value={form.remarks} onChange={(e) => set('remarks', e.target.value)} placeholder="Notes..." />
+              <input className="input" value={form.remarks} onChange={(e) => set('remarks', e.target.value)} placeholder="Notes..." />
             </Field>
           </div>
 
-          {/* Attachment + Require File — single compact row */}
-          <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', border:'1.5px solid #e8e4fd', borderRadius:10, background:'#faf9ff' }}>
-
-            {/* Attachment button */}
-            <label className="del-file-zone" style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 10px', border:'1.5px dashed #c7d2fe', borderRadius:8, cursor:'pointer', background:'#fff', transition:'all .15s', flexShrink:0 }}>
-              <div style={{ width:28, height:28, borderRadius:6, background:'#ede9fe', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
+          <div className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50/60">
+            <label className="flex items-center gap-2 px-2.5 py-1.5 border border-dashed border-primary-200 rounded-lg cursor-pointer bg-white hover:bg-primary-50 hover:border-primary-300 transition-colors shrink-0">
+              <div className="w-7 h-7 rounded-md bg-primary-50 grid place-items-center overflow-hidden shrink-0">
                 {form.image
-                  ? <img src={form.image} alt="" style={{ width:28, height:28, objectFit:'cover' }} />
+                  ? <img src={form.image} alt="" className="w-7 h-7 object-cover" />
                   : form.attachment
-                  ? <span style={{ fontSize:14 }}>📄</span>
-                  : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                  ? <span className="text-sm">📄</span>
+                  : <svg className="w-3.5 h-3.5 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                 }
               </div>
-              <span style={{ fontSize:11.5, fontWeight:600, color:'#4c1d95', whiteSpace:'nowrap' }}>
+              <span className="text-[11.5px] font-semibold text-primary-800 whitespace-nowrap">
                 {hasAttachment ? 'Change' : '+ Attach'}
               </span>
-              <input type="file" accept="image/*,application/pdf" style={{ display:'none' }} onChange={(e) => pickAttachment(e.target.files?.[0])} />
+              <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => pickAttachment(e.target.files?.[0])} />
             </label>
 
             {hasAttachment && (
-              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                {form.attachment && <a href={form.attachment} target="_blank" rel="noopener noreferrer" style={{ fontSize:11, color:'#4f46e5' }}>View PDF</a>}
-                <button type="button" onClick={() => { set('image',''); set('attachment',''); }} style={{ fontSize:11, color:'#ef4444', background:'none', border:'none', cursor:'pointer', padding:0 }}>✕ Remove</button>
+              <div className="flex gap-3 items-center">
+                {form.attachment && <a href={form.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline">View PDF</a>}
+                <button type="button" onClick={() => { set('image',''); set('attachment',''); }} className="text-[11px] text-red-500 hover:text-red-600 bg-transparent border-none cursor-pointer p-0">✕ Remove</button>
               </div>
             )}
 
-            <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8 }}>
-              <label style={{ display:'flex', alignItems:'center', gap:7, cursor:'pointer' }}>
-                <div style={{ position:'relative', width:32, height:18, flexShrink:0 }}>
-                  <input type="checkbox" checked={form.requireFile} onChange={(e) => set('requireFile', e.target.checked)} style={{ opacity:0, width:0, height:0, position:'absolute' }} />
-                  <div style={{ width:32, height:18, borderRadius:9, transition:'background .2s', background: form.requireFile ? '#7c3aed' : '#cbd5e1', position:'absolute', inset:0 }}/>
-                  <div style={{ position:'absolute', top:2, left: form.requireFile ? 16 : 2, width:14, height:14, borderRadius:7, background:'#fff', transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,0.25)' }}/>
-                </div>
-                <span style={{ fontSize:11.5, fontWeight:600, color: form.requireFile ? '#4c1d95' : '#64748b', whiteSpace:'nowrap' }}>File required</span>
+            <div className="ml-auto flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <span className="relative inline-flex h-[18px] w-8 shrink-0">
+                  <input type="checkbox" checked={form.requireFile} onChange={(e) => set('requireFile', e.target.checked)} className="sr-only" />
+                  <span className={`absolute inset-0 rounded-full transition-colors ${form.requireFile ? 'bg-primary-600' : 'bg-slate-300'}`} />
+                  <span className={`absolute top-0.5 left-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${form.requireFile ? 'translate-x-3.5' : 'translate-x-0'}`} />
+                </span>
+                <span className={`text-[11.5px] font-semibold whitespace-nowrap ${form.requireFile ? 'text-primary-700' : 'text-slate-500'}`}>File required</span>
               </label>
             </div>
           </div>
 
-          {/* Error / success msg */}
           {msg && (
-            <div style={{ fontSize:12, padding:'8px 12px', borderRadius:8, background: msg.startsWith('❌') ? '#fef2f2' : '#f0fdf4', color: msg.startsWith('❌') ? '#dc2626' : '#16a34a', border:`1px solid ${msg.startsWith('❌') ? '#fecaca' : '#bbf7d0'}` }}>
+            <div className={`text-[12px] px-3 py-2 rounded-lg border ${msg.startsWith('❌') ? 'bg-red-50 text-red-600 border-red-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
               {msg}
             </div>
           )}
 
-          {/* Bulk CSV — collapsible */}
-          <div style={{ borderRadius:10, border:'1.5px dashed #e2e8f0', overflow:'hidden' }}>
+          <div className="rounded-xl border border-dashed border-slate-200 overflow-hidden">
             <button
               type="button"
               onClick={() => setCsvOpen(v => !v)}
-              style={{ width:'100%', padding:'9px 14px', background:'#f8fafc', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:11.5, fontWeight:600, color:'#64748b' }}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border-none cursor-pointer flex items-center justify-between text-[11.5px] font-semibold text-slate-500"
             >
               <span>Bulk Upload via CSV</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: csvOpen ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>
+              <svg className={`w-3 h-3 transition-transform ${csvOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
             </button>
             {csvOpen && (
-              <div style={{ padding:'12px 14px', background:'#fff', borderTop:'1px solid #f1f5f9' }}>
-                <div className="del-csv-row">
+              <div className="p-3.5 bg-white border-t border-slate-100">
+                <div className="flex flex-wrap items-center gap-2">
                   <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    style={{ fontSize:12, flex:1, minWidth:0 }}
-                    className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1 file:text-[11px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
-                  <button
-                    style={{ padding:'6px 12px', fontSize:12, fontWeight:600, borderRadius:8, border:'none', cursor:'pointer', background: (!saving && file) ? '#059669' : '#d1fae5', color: (!saving && file) ? '#fff' : '#6ee7b7', opacity: saving ? .6 : 1 }}
-                    disabled={saving || !file} onClick={uploadCsv}>⬆ Upload</button>
-                  <button
-                    style={{ padding:'6px 12px', fontSize:12, fontWeight:600, borderRadius:8, border:'1.5px solid #e2e8f0', cursor:'pointer', background:'#fff', color:'#64748b' }}
-                    onClick={downloadSample}>⬇ Sample</button>
+                    className="text-[12px] flex-1 min-w-0 file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1 file:text-[11px] file:font-medium file:text-slate-700 hover:file:bg-slate-50 file:transition-colors" />
+                  <button className="btn-success" disabled={saving || !file} onClick={uploadCsv}>⬆ Upload</button>
+                  <button className="btn-secondary" onClick={downloadSample}>⬇ Sample</button>
                 </div>
-                <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:6 }}>
+                <div className="text-[10.5px] text-slate-400 mt-1.5">
                   Format: doer_email, due_date, priority, approval, description, remarks, client_name
                 </div>
               </div>
@@ -367,26 +270,9 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
           </div>
         </div>
 
-        {/* ── Footer ── */}
-        <div style={{
-          padding:'10px 18px', borderTop:'1px solid #f1f5f9',
-          display:'flex', justifyContent:'flex-end', gap:8, borderRadius:'0 0 20px 20px',
-          background:'#fafafa',
-        }}>
-          <button
-            onClick={onClose}
-            style={{ padding:'8px 18px', fontSize:13, fontWeight:600, borderRadius:10, border:'1.5px solid #e2e8f0', cursor:'pointer', background:'#fff', color:'#475569' }}
-          >Cancel</button>
-          <button
-            onClick={save} disabled={saving}
-            style={{
-              padding:'8px 22px', fontSize:13, fontWeight:700, borderRadius:10, border:'none', cursor:'pointer',
-              background: saving ? '#a5b4fc' : 'linear-gradient(135deg,#7c3aed,#4f46e5)',
-              color:'#fff', opacity: saving ? .7 : 1,
-              boxShadow: saving ? 'none' : '0 4px 14px rgba(124,58,237,0.4)',
-              transition:'all .15s',
-            }}
-          >{saving ? 'Assigning…' : '✓ Assign Task'}</button>
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Assigning…' : '✓ Assign Task'}</button>
         </div>
       </div>
     </div>

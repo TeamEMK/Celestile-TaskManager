@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
 
@@ -21,14 +21,21 @@ export default function InventoryClient() {
   }
   useEffect(() => { loadMasters(); loadInv(); }, []);
 
+  const TABS = [['inward', 'Inward'], ['stock', 'Stock'], ['step2', 'Blocking for Jointing']];
+
   return (
-    <div className="sk-theme space-y-4">
-      <style>{SK_CSS}</style>
-      <div className="sk-topbar">
-        <div className="sk-logo">SK <span>Tiles</span></div>
-        <div className="sk-tabs">
-          {[['inward', 'Inward'], ['stock', 'Stock'], ['step2', 'Blocking for Jointing']].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} className={`sk-tab ${tab === id ? 'active' : ''}`}>{label}</button>
+    <div className="space-y-4 animate-fade-in">
+      <div className="card p-4 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconLayers /></div>
+          <div>
+            <div className="section-title">Stone Inventory Factory</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Slab inward, live stock &amp; jointing blocks</div>
+          </div>
+        </div>
+        <div className="seg">
+          {TABS.map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} className={`seg-btn ${tab === id ? 'seg-btn-active' : ''}`}>{label}</button>
           ))}
         </div>
       </div>
@@ -39,19 +46,6 @@ export default function InventoryClient() {
     </div>
   );
 }
-
-const SK_CSS = `
-.sk-theme .sk-topbar{background:#1c1b18;border-radius:10px;padding:0 16px;height:48px;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
-.sk-theme .sk-logo{font-weight:700;font-size:15px;color:#fff;letter-spacing:.06em;text-transform:uppercase}
-.sk-theme .sk-logo span{color:#fb923c}
-.sk-theme .sk-tabs{display:flex;gap:4px}
-.sk-theme .sk-tab{padding:6px 16px;border-radius:6px;font-size:13px;font-weight:600;color:#a09e98;background:transparent;border:1px solid transparent;cursor:pointer;transition:all .12s}
-.sk-theme .sk-tab:hover{color:#fff;background:rgba(255,255,255,.1)}
-.sk-theme .sk-tab.active{color:#1c1b18;background:#fb923c;border-color:#fb923c}
-.sk-theme .btn-warn{background:#c84b00;border-color:#c84b00;color:#fff}
-.sk-theme .btn-warn:hover{background:#a83e00;box-shadow:0 4px 14px rgba(200,75,0,.25)}
-.sk-theme thead.bg-slate-900{background:#1c1b18 !important}
-`;
 
 /* ───────────────────────── INWARD ───────────────────────── */
 function Inward({ masters, reloadMasters, onSaved }) {
@@ -113,15 +107,25 @@ function Inward({ masters, reloadMasters, onSaved }) {
   return (
     <div className="card p-5">
       <datalist id="inv-mat">{masters.materials.map((m) => <option key={m} value={m} />)}</datalist>
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-[13px] font-semibold text-slate-800">Slab Rows <span className="text-slate-400 font-normal">(row 1 material/thickness applies to all)</span></div>
-        <button className="btn-ghost" onClick={() => setShowAddMat(true)}>+ Material</button>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div>
+          <div className="text-[13px] font-semibold text-slate-800">Slab Rows</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Row 1 material &amp; thickness applies to all rows</div>
+        </div>
+        <button className="btn-ghost" onClick={() => setShowAddMat(true)}>
+          <IconPlus /> Material
+        </button>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {rows.map((r, i) => (
-          <div key={i} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 items-end border border-slate-200 rounded-lg p-3 relative">
-            <span className="absolute -top-2 left-2 text-[10px] font-bold bg-amber-500 text-white px-1.5 rounded">Row {i + 1}</span>
+          <div key={i} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 items-end border border-slate-200 rounded-xl p-3 relative bg-white/60 transition-colors hover:border-primary-200">
+            <span
+              className="absolute -top-2 left-2 text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full shadow-sm"
+              style={{ background: 'linear-gradient(135deg, #DDAC6E 0%, #B96F3D 100%)' }}
+            >
+              Row {i + 1}
+            </span>
             <F label="Slab No.*"><input className="input !py-1" value={r.slab} onChange={(e) => set(i, 'slab', e.target.value)} placeholder="SB-001" /></F>
             <F label="Material*">
               {i === 0
@@ -135,9 +139,9 @@ function Inward({ masters, reloadMasters, onSaved }) {
             </F>
             <F label="Size L (in)*"><input type="number" className="input !py-1" value={r.sizeL} onChange={(e) => setSize(i, 'sizeL', e.target.value)} placeholder="102" /></F>
             <F label="Size W (in)*"><input type="number" className="input !py-1" value={r.sizeW} onChange={(e) => setSize(i, 'sizeW', e.target.value)} placeholder="48" /></F>
-            <F label="SFT*"><input type="number" className="input !py-1" value={r.sft} onChange={(e) => set(i, 'sft', e.target.value)} placeholder="auto" /></F>
+            <F label="SFT*"><input type="number" className="input !py-1 tabular-nums" value={r.sft} onChange={(e) => set(i, 'sft', e.target.value)} placeholder="auto" /></F>
             <F label="Photo">
-              <label className="cursor-pointer flex items-center justify-center h-9 rounded border border-dashed border-slate-300 overflow-hidden hover:border-slate-400">
+              <label className="cursor-pointer flex items-center justify-center h-9 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 hover:bg-primary-50/30 transition-colors">
                 {r.photo ? <img src={r.photo} alt="" className="h-9 object-cover" /> : <span className="text-slate-400 text-[11px]">+ Photo</span>}
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => pickPhoto(i, e.target.files[0])} />
               </label>
@@ -148,10 +152,10 @@ function Inward({ masters, reloadMasters, onSaved }) {
         ))}
       </div>
 
-      <div className="flex items-center justify-between mt-4">
+      <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
         <button className="btn-secondary" onClick={addRow}>+ Add Row</button>
         <div className="flex items-center gap-2">
-          {status && <span className="text-[12px]">{status}</span>}
+          {status && <span className="text-[12px] text-slate-600">{status}</span>}
           <button className="btn-warn" disabled={saving} onClick={submitAll}>{saving ? 'Saving…' : 'Submit All'}</button>
         </div>
       </div>
@@ -229,7 +233,11 @@ function Stock({ inv, loading, masters, reload }) {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stock.csv'; a.click();
   }
 
-  const badge = (s) => ({ Available: 'bg-emerald-50 text-emerald-700', Blocked: 'bg-rose-50 text-rose-700', Used: 'bg-slate-100 text-slate-500' }[s] || 'bg-slate-100 text-slate-600');
+  const badge = (s) => ({
+    Available: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+    Blocked: 'bg-red-50 text-red-700 border border-red-100',
+    Used: 'bg-slate-100 text-slate-500 border border-slate-200',
+  }[s] || 'bg-slate-100 text-slate-600 border border-slate-200');
 
   return (
     <div className="space-y-4">
@@ -238,45 +246,72 @@ function Stock({ inv, loading, masters, reload }) {
         <F label="Material"><select className="input !py-1 w-40" value={mat} onChange={(e) => { setMat(e.target.value); setThk(''); }}><option value="">All</option>{masters.materials.map((m) => <option key={m} value={m}>{m}</option>)}</select></F>
         <F label="Thickness"><select className="input !py-1 w-32" value={thk} onChange={(e) => setThk(e.target.value)}><option value="">All</option>{thicknessOpts.map((t) => <option key={t} value={t}>{t}</option>)}</select></F>
         <F label="Status"><select className="input !py-1 w-32" value={statusF} onChange={(e) => setStatusF(e.target.value)}>{['All', 'Available', 'Blocked', 'Used'].map((s) => <option key={s}>{s}</option>)}</select></F>
-        <input className="input !py-1 flex-1 min-w-[180px]" placeholder="🔍 slab / client / order…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <button className="btn-secondary" onClick={csv}>⬇ CSV</button>
+        <div className="relative flex-1 min-w-[180px]">
+          <label className="label">Search</label>
+          <svg className="absolute left-2.5 top-1/2 mt-[3px] -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+          <input className="input !py-1 pl-8 w-full" placeholder="slab / client / order…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <button className="btn-secondary" onClick={csv}>⬇ Export CSV</button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Kpi label="Available" value={stats.avail} tone="text-emerald-600" />
-        <Kpi label="Blocked" value={stats.blocked} tone="text-rose-600" />
-        <Kpi label="Used" value={stats.used} tone="text-slate-500" />
-        <Kpi label="Available SFT" value={stats.availSft} />
+        <Kpi label="Available" value={stats.avail} tone="emerald" icon={<IconCheck />} />
+        <Kpi label="Blocked" value={stats.blocked} tone="red" icon={<IconLock />} />
+        <Kpi label="Used" value={stats.used} tone="stone" icon={<IconArchive />} />
+        <Kpi label="Available SFT" value={stats.availSft} tone="gold" icon={<IconRuler />} />
       </div>
 
-      <div className="card p-0 overflow-x-auto">
-        {loading ? <div className="p-5 text-[12.5px] text-slate-400">Loading…</div> : filtered.length === 0 ? (
-          <div className="p-5 text-[12.5px] text-slate-400">No slabs.</div>
-        ) : (
-          <table className="w-full text-[12px]">
-            <thead className="bg-slate-900 text-white"><tr>{['#', 'Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Status', 'Order', 'Client', 'Area', 'Remarks', ''].map((h, i) => <th key={i} className="px-2 py-2 text-left font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
-            <tbody>
-              {filtered.map((r, i) => (
-                <tr key={r.id} className="border-t border-slate-100 hover:bg-slate-50">
-                  <td className="px-2 py-1.5 text-slate-400">{i + 1}</td>
-                  <td className="px-2 py-1.5 font-medium text-slate-800 whitespace-nowrap">{r.slab}{r.slabPhoto ? <img src={r.slabPhoto} alt="" className="inline-block w-6 h-6 object-cover rounded ml-1 align-middle" /> : ''}</td>
-                  <td className="px-2 py-1.5">{r.material}</td><td className="px-2 py-1.5">{r.thickness}</td>
-                  <td className="px-2 py-1.5">{r.sizeL}</td><td className="px-2 py-1.5">{r.sizeW}</td><td className="px-2 py-1.5">{r.sft}</td>
-                  <td className="px-2 py-1.5"><span className={`pill ${badge(r.status)}`}>{r.status}</span></td>
-                  <td className="px-2 py-1.5">{r.orderNo || '—'}</td><td className="px-2 py-1.5">{r.client || '—'}</td><td className="px-2 py-1.5">{r.area || '—'}</td>
-                  <td className="px-2 py-1.5 max-w-[140px] truncate" title={r.remarks}>{r.remarks || '—'}</td>
-                  <td className="px-2 py-1.5 whitespace-nowrap">
-                    <div className="flex gap-1 justify-end">
-                      {r.status === 'Available' && <button className="btn-danger !px-2 !py-1" onClick={() => setBlock({ id: r.id, orderNo: '', client: '', area: '' })}>Block</button>}
-                      {r.status === 'Blocked' && <button className="btn-success !px-2 !py-1" onClick={() => unblock(r)}>Unblock</button>}
-                      <button className="btn-ghost !px-2 !py-1" onClick={() => setEdit({ id: r.id, slab: r.slab, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, remarks: r.remarks, photo: r.slabPhoto })}>Edit</button>
-                    </div>
-                  </td>
+      <div className="card p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="p-10 text-center text-slate-400 text-[12.5px]">Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div className="p-14 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
+                <IconBox className="w-6 h-6 text-primary-500" />
+              </div>
+              <div className="text-[13.5px] font-semibold text-slate-700">No slabs found</div>
+              <div className="text-[12px] text-slate-500 mt-0.5">Try adjusting your filters, or add new stock from the Inward tab.</div>
+            </div>
+          ) : (
+            <table className="w-full text-[12px]">
+              <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
+                <tr>
+                  {['#', 'Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Status', 'Order', 'Client', 'Area', 'Remarks', ''].map((h, i) => (
+                    <th key={i} className={`table-th whitespace-nowrap ${['L', 'W', 'SFT'].includes(h) ? 'text-right' : ''}`}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {filtered.map((r, i) => (
+                  <tr key={r.id} className="table-row">
+                    <td className="table-td text-slate-400">{i + 1}</td>
+                    <td className="table-td font-medium text-slate-800 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span>{r.slab}</span>
+                        {r.slabPhoto ? <img src={r.slabPhoto} alt="" className="w-6 h-6 object-cover rounded" /> : null}
+                      </div>
+                    </td>
+                    <td className="table-td">{r.material}</td><td className="table-td">{r.thickness}</td>
+                    <td className="table-td text-right tabular-nums">{r.sizeL}</td>
+                    <td className="table-td text-right tabular-nums">{r.sizeW}</td>
+                    <td className="table-td text-right tabular-nums font-semibold text-slate-700">{r.sft}</td>
+                    <td className="table-td"><span className={`pill ${badge(r.status)}`}>{r.status}</span></td>
+                    <td className="table-td">{r.orderNo || '—'}</td><td className="table-td">{r.client || '—'}</td><td className="table-td">{r.area || '—'}</td>
+                    <td className="table-td max-w-[140px] truncate" title={r.remarks}>{r.remarks || '—'}</td>
+                    <td className="table-td whitespace-nowrap">
+                      <div className="flex gap-1 justify-end">
+                        {r.status === 'Available' && <button className="btn-danger !px-2 !py-1" onClick={() => setBlock({ id: r.id, orderNo: '', client: '', area: '' })}>Block</button>}
+                        {r.status === 'Blocked' && <button className="btn-success !px-2 !py-1" onClick={() => unblock(r)}>Unblock</button>}
+                        <button className="btn-ghost !px-2 !py-1" onClick={() => setEdit({ id: r.id, slab: r.slab, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, remarks: r.remarks, photo: r.slabPhoto })}>Edit</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {block && (
@@ -301,7 +336,7 @@ function Stock({ inv, loading, masters, reload }) {
           </div>
           <F label="Remarks"><input className="input" value={edit.remarks} onChange={(e) => setEdit({ ...edit, remarks: e.target.value })} /></F>
           <F label="Photo">
-            <label className="cursor-pointer flex items-center justify-center h-12 rounded border border-dashed border-slate-300 overflow-hidden">
+            <label className="cursor-pointer flex items-center justify-center h-12 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">
               {edit.photo ? <img src={edit.photo} alt="" className="h-12 object-cover" /> : <span className="text-[11px] text-slate-400">+ Replace photo</span>}
               <input type="file" accept="image/*" className="hidden" onChange={(e) => editPhoto(e.target.files[0])} />
             </label>
@@ -362,17 +397,43 @@ function Step2({ onDone }) {
     finally { setSaving(false); }
   }
 
+  const hasSlabs = !!(data && data.slabs?.length > 0);
+
   return (
     <div className="space-y-4">
+      <div className="card p-4">
+        <Stepper current={hasSlabs ? 1 : 0} />
+      </div>
+
       <div className="card p-5">
         <div className="flex items-end gap-2 flex-wrap">
           <F label="Order No."><input className="input" value={orderNo} onChange={(e) => setOrderNo(e.target.value)} placeholder="ORD-2026-001" /></F>
           <button className="btn-warn" onClick={load}>Load Order</button>
-          {status && <span className="text-[12px] ml-2">{status}</span>}
+          {status && <span className="text-[12px] text-slate-600 ml-2">{status}</span>}
         </div>
       </div>
 
-      {data && data.slabs?.length > 0 && (
+      {!data && (
+        <div className="card p-14 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
+            <IconSearch className="w-6 h-6 text-primary-500" />
+          </div>
+          <div className="text-[13.5px] font-semibold text-slate-700">No order loaded yet</div>
+          <div className="text-[12px] text-slate-500 mt-0.5">Enter an order number above and click "Load Order" to begin blocking for jointing.</div>
+        </div>
+      )}
+
+      {data && !hasSlabs && (
+        <div className="card p-14 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 grid place-items-center mx-auto mb-3">
+            <IconAlertCircle className="w-6 h-6 text-amber-500" />
+          </div>
+          <div className="text-[13.5px] font-semibold text-slate-700">No slabs for this order</div>
+          <div className="text-[12px] text-slate-500 mt-0.5">Block slabs to this order first from the Stock tab.</div>
+        </div>
+      )}
+
+      {hasSlabs && (
         <>
           <div className="card p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <F label="Material"><input className="input" value={hdr.material} onChange={(e) => setHdr({ ...hdr, material: e.target.value })} /></F>
@@ -381,37 +442,47 @@ function Step2({ onDone }) {
             <F label="Material Issue"><input className="input" value={hdr.issue} onChange={(e) => setHdr({ ...hdr, issue: e.target.value })} placeholder="No / describe" /></F>
             <F label="Sizes / Packing"><input className="input" value={hdr.sizesPacking} onChange={(e) => setHdr({ ...hdr, sizesPacking: e.target.value })} /></F>
             <div className="flex gap-3">
-              <F label="Grain Photo"><label className="cursor-pointer flex items-center justify-center h-9 px-2 rounded border border-dashed border-slate-300 overflow-hidden">{hdr.grainImg ? <img src={hdr.grainImg} className="h-9" alt="" /> : <span className="text-[11px] text-slate-400">+ Grain</span>}<input type="file" accept="image/*" className="hidden" onChange={(e) => pick((v) => setHdr((h) => ({ ...h, grainImg: v })), e.target.files[0])} /></label></F>
-              <F label="Material Photo"><label className="cursor-pointer flex items-center justify-center h-9 px-2 rounded border border-dashed border-slate-300 overflow-hidden">{hdr.matImg ? <img src={hdr.matImg} className="h-9" alt="" /> : <span className="text-[11px] text-slate-400">+ Mat</span>}<input type="file" accept="image/*" className="hidden" onChange={(e) => pick((v) => setHdr((h) => ({ ...h, matImg: v })), e.target.files[0])} /></label></F>
+              <F label="Grain Photo"><label className="cursor-pointer flex items-center justify-center h-9 px-2 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">{hdr.grainImg ? <img src={hdr.grainImg} className="h-9" alt="" /> : <span className="text-[11px] text-slate-400">+ Grain</span>}<input type="file" accept="image/*" className="hidden" onChange={(e) => pick((v) => setHdr((h) => ({ ...h, grainImg: v })), e.target.files[0])} /></label></F>
+              <F label="Material Photo"><label className="cursor-pointer flex items-center justify-center h-9 px-2 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">{hdr.matImg ? <img src={hdr.matImg} className="h-9" alt="" /> : <span className="text-[11px] text-slate-400">+ Mat</span>}<input type="file" accept="image/*" className="hidden" onChange={(e) => pick((v) => setHdr((h) => ({ ...h, matImg: v })), e.target.files[0])} /></label></F>
             </div>
           </div>
 
-          <div className="card p-0 overflow-x-auto">
-            <table className="w-full text-[12px]">
-              <thead className="bg-slate-900 text-white"><tr>{['Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Cutting?', 'Reason', 'Cut L', 'Cut W'].map((h, i) => <th key={i} className="px-2 py-2 text-left font-semibold">{h}</th>)}</tr></thead>
-              <tbody>
-                {data.slabs.map((s) => {
-                  const c = cut[s.id] || {};
-                  return (
-                    <tr key={s.id} className="border-t border-slate-100">
-                      <td className="px-2 py-1.5 font-medium">{s.slab}</td>
-                      <td className="px-2 py-1.5">{s.material}</td><td className="px-2 py-1.5">{s.thickness}</td>
-                      <td className="px-2 py-1.5">{s.sizeL}</td><td className="px-2 py-1.5">{s.sizeW}</td><td className="px-2 py-1.5">{s.sft}</td>
-                      <td className="px-2 py-1.5"><select className="input !py-1" value={c.cutting} onChange={(e) => setC(s.id, 'cutting', e.target.value)}><option>No</option><option>Yes</option></select></td>
-                      <td className="px-2 py-1.5"><input className="input !py-1" value={c.cuttingReason} onChange={(e) => setC(s.id, 'cuttingReason', e.target.value)} disabled={c.cutting !== 'Yes'} /></td>
-                      <td className="px-2 py-1.5 w-16"><input type="number" className="input !py-1" value={c.cuttingSizeL} onChange={(e) => setC(s.id, 'cuttingSizeL', e.target.value)} disabled={c.cutting !== 'Yes'} /></td>
-                      <td className="px-2 py-1.5 w-16"><input type="number" className="input !py-1" value={c.cuttingSizeW} onChange={(e) => setC(s.id, 'cuttingSizeW', e.target.value)} disabled={c.cutting !== 'Yes'} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="card p-0 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12px]">
+                <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
+                  <tr>
+                    {['Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Cutting?', 'Reason', 'Cut L', 'Cut W'].map((h, i) => (
+                      <th key={i} className={`table-th whitespace-nowrap ${['L', 'W', 'SFT', 'Cut L', 'Cut W'].includes(h) ? 'text-right' : ''}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.slabs.map((s) => {
+                    const c = cut[s.id] || {};
+                    return (
+                      <tr key={s.id} className="table-row">
+                        <td className="table-td font-medium text-slate-800">{s.slab}</td>
+                        <td className="table-td">{s.material}</td><td className="table-td">{s.thickness}</td>
+                        <td className="table-td text-right tabular-nums">{s.sizeL}</td>
+                        <td className="table-td text-right tabular-nums">{s.sizeW}</td>
+                        <td className="table-td text-right tabular-nums font-semibold text-slate-700">{s.sft}</td>
+                        <td className="table-td"><select className="input !py-1" value={c.cutting} onChange={(e) => setC(s.id, 'cutting', e.target.value)}><option>No</option><option>Yes</option></select></td>
+                        <td className="table-td"><input className="input !py-1" value={c.cuttingReason} onChange={(e) => setC(s.id, 'cuttingReason', e.target.value)} disabled={c.cutting !== 'Yes'} /></td>
+                        <td className="table-td w-16"><input type="number" className="input !py-1 text-right" value={c.cuttingSizeL} onChange={(e) => setC(s.id, 'cuttingSizeL', e.target.value)} disabled={c.cutting !== 'Yes'} /></td>
+                        <td className="table-td w-16"><input type="number" className="input !py-1 text-right" value={c.cuttingSizeW} onChange={(e) => setC(s.id, 'cuttingSizeW', e.target.value)} disabled={c.cutting !== 'Yes'} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button className="btn-secondary" onClick={printReport}>⬇ Cutting Report</button>
             <button className="btn-warn" disabled={saving} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
           </div>
-          <p className="text-[11.5px] text-slate-400">Cutting "Yes" → slab marked <b>Used</b>, a remnant slab (size − cut) is auto-created as Available, and a WhatsApp update is sent.</p>
+          <p className="text-[11.5px] text-slate-500">Cutting "Yes" → slab marked <b className="text-slate-700">Used</b>, a remnant slab (size − cut) is auto-created as Available, and a WhatsApp update is sent.</p>
         </>
       )}
     </div>
@@ -438,18 +509,18 @@ function buildStep2Report(orderNo, hdr, slabs, cut) {
   });
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cutting Report ${esc(orderNo)}</title><style>
 @page{margin:12mm;size:A4 landscape}*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1c1b18}
-.hdr{background:#1c1b18;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
-.logo{font-weight:700;font-size:16px;letter-spacing:.06em}.logo span{color:#fb923c}
-.doc{color:#fb923c;font-size:13px;letter-spacing:2px}
-.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 18px;padding:12px 16px;background:#f4f3f0;border-bottom:1px solid #d6d4cc}
-.meta .l{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#6b6a65;display:block}.meta .v{font-weight:700;font-size:12px}
+body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#26221C}
+.hdr{background:#26221C;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-weight:700;font-size:16px;letter-spacing:.06em}.logo span{color:#DDAC6E}
+.doc{color:#DDAC6E;font-size:13px;letter-spacing:2px}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 18px;padding:12px 16px;background:#F3EFE8;border-bottom:1px solid #D3C9B8}
+.meta .l{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#8A8071;display:block}.meta .v{font-weight:700;font-size:12px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
-th{background:#1c1b18;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
-td{padding:5px 8px;border-bottom:1px solid #e8e6df}td.n{font-variant-numeric:tabular-nums}
-td.yes{color:#c84b00;font-weight:700}td.no{color:#6b6a65}
-tbody tr:nth-child(even){background:#faf9f6}
-.foot{margin-top:14px;padding:8px 16px;font-size:9px;color:#6b6a65;border-top:1px solid #d6d4cc}
+th{background:#26221C;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:5px 8px;border-bottom:1px solid #E7E0D4}td.n{font-variant-numeric:tabular-nums}
+td.yes{color:#9C5730;font-weight:700}td.no{color:#8A8071}
+tbody tr:nth-child(even){background:#FAF8F5}
+.foot{margin-top:14px;padding:8px 16px;font-size:9px;color:#8A8071;border-top:1px solid #D3C9B8}
 </style></head><body>
 <div class="hdr"><div class="logo">SK <span>Tiles</span></div><div class="doc">CUTTING REPORT</div></div>
 <div class="meta">
@@ -471,16 +542,81 @@ tbody tr:nth-child(even){background:#faf9f6}
 function F({ label, children, wide }) {
   return <div className={wide ? 'sm:col-span-2 lg:col-span-2' : ''}><label className="label">{label}</label>{children}</div>;
 }
-function Kpi({ label, value, tone = 'text-slate-900' }) {
-  return <div className="rounded-lg border border-slate-200 bg-slate-50 p-3"><div className="text-[11px] text-slate-500 uppercase tracking-wide">{label}</div><div className={`text-[18px] font-bold mt-0.5 ${tone}`}>{value}</div></div>;
-}
-function Modal({ title, children, onClose }) {
+
+const KPI_TONES = {
+  emerald: { grad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', shadow: 'rgba(16,185,129,0.35)' },
+  red:     { grad: 'linear-gradient(135deg, #f87171 0%, #dc2626 100%)', shadow: 'rgba(220,38,38,0.32)' },
+  stone:   { grad: 'linear-gradient(135deg, #ABA08C 0%, #6B6357 100%)', shadow: 'rgba(107,99,87,0.30)' },
+  gold:    { grad: 'linear-gradient(135deg, #DDAC6E 0%, #9C5730 100%)', shadow: 'rgba(156,87,48,0.38)' },
+};
+
+function Kpi({ label, value, tone = 'gold', icon }) {
+  const g = KPI_TONES[tone] || KPI_TONES.gold;
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={onClose}>
-      <div className="bg-white rounded-xl p-5 w-96 max-w-[92%]" onClick={(e) => e.stopPropagation()}>
-        <div className="text-[14px] font-semibold mb-3">{title}</div>
-        <div className="space-y-2">{children}</div>
+    <div
+      className="rounded-xl p-3.5 relative overflow-hidden card-hover cursor-default"
+      style={{ background: g.grad, boxShadow: `0 0 0 1px ${g.shadow}44, 0 4px 18px ${g.shadow}` }}
+    >
+      <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
+      <div className="relative z-10 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[9.5px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</div>
+          <div className="text-[22px] leading-none font-black mt-1.5 tabular-nums text-white">{value}</div>
+        </div>
+        <div className="w-7 h-7 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
+          <span className="text-white">{icon}</span>
+        </div>
       </div>
     </div>
   );
 }
+
+function Stepper({ current }) {
+  const steps = ['Load Order', 'Cutting & Submit'];
+  return (
+    <div className="flex items-center gap-3 px-1">
+      {steps.map((label, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <div key={label} className={`flex items-center gap-3 ${i < steps.length - 1 ? 'flex-1' : ''}`}>
+            <div className="flex items-center gap-2 shrink-0">
+              <div
+                className={`w-7 h-7 rounded-full grid place-items-center text-[11px] font-bold shrink-0 transition-all duration-200 ${done || active ? 'text-white' : 'bg-slate-100 text-slate-400'}`}
+                style={done || active ? { background: 'linear-gradient(135deg, #DDAC6E 0%, #B96F3D 100%)', boxShadow: '0 2px 8px rgba(156,87,48,0.35)' } : undefined}
+              >
+                {done ? <IconCheckSmall /> : i + 1}
+              </div>
+              <span className={`text-[12px] font-semibold whitespace-nowrap ${active ? 'text-slate-900' : done ? 'text-primary-600' : 'text-slate-400'}`}>{label}</span>
+            </div>
+            {i < steps.length - 1 && (
+              <div className="flex-1 h-0.5 rounded-full transition-colors" style={{ background: done ? 'linear-gradient(90deg, #DDAC6E, #B96F3D)' : '#E7E0D4' }} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Modal({ title, children, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl p-5 w-96 max-w-[92%]" onClick={(e) => e.stopPropagation()}>
+        <div className="text-[14px] font-semibold text-slate-900 font-display mb-3">{title}</div>
+        <div className="space-y-2.5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function IconPlus()      { return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>; }
+function IconLayers()    { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z" /><path d="m3 12 9 5 9-5" /><path d="m3 17 9 5 9-5" /></svg>; }
+function IconCheck()     { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m9 11 3 3L22 4" /></svg>; }
+function IconCheckSmall(){ return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>; }
+function IconLock()      { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>; }
+function IconArchive()   { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" /><path d="M10 13h4" /></svg>; }
+function IconRuler()     { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 5 5-13 13-5-5z" /><path d="m14.5 4.5 1.5 1.5M11.5 7.5 13 9M8.5 10.5 10 12M5.5 13.5 7 15" /></svg>; }
+function IconBox()       { return <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5M12 22V12" /></svg>; }
+function IconSearch()    { return <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>; }
+function IconAlertCircle() { return <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 16h.01" /></svg>; }

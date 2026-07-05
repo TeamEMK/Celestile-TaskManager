@@ -189,27 +189,38 @@ export default function HyderabadForm({ initialRef = '' }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       <datalist id="bq-mat">{MATERIAL_LIST.map((m) => <option key={m} value={m} />)}</datalist>
       <datalist id="bq-consult">{consultants.map((c) => <option key={c.name} value={c.name} />)}</datalist>
       <datalist id="bq-consult-email">{consultants.map((c) => c.email && <option key={c.email} value={c.email} />)}</datalist>
 
       <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div className="text-[15px] font-semibold text-slate-900">Quotation — Hyderabad</div>
-          <div className="text-[12px] text-slate-500">Ref: <b>{header.refNo || '—'}</b></div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+            <IconDoc className="w-[18px] h-[18px]" />
+          </div>
+          <div className="min-w-0">
+            <div className="font-display text-[15px] font-semibold tracking-tight text-slate-900">Quotation — Hyderabad</div>
+            <div className="text-[11.5px] text-slate-500">Ref: <b className="text-slate-700">{header.refNo || '—'}</b></div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {status && <span className="text-[12px] mr-2">{status}</span>}
+        <div className="flex items-center gap-2 flex-wrap">
+          {status && <span className="text-[12px] text-slate-600 mr-1">{status}</span>}
           <button className="btn-ghost" onClick={reset}>↺ Reset</button>
           <button className="btn-secondary" onClick={openRevise}>Revise</button>
           <button className="btn-secondary" onClick={printPdf}>⬇ PDF</button>
-          <button className="btn-warn" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
+          <button className="btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
         </div>
       </div>
 
       {/* header */}
       <div className="card p-5">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+            <IconInfo className="w-4 h-4" />
+          </div>
+          <h2 className="section-title">Client &amp; Project Details</h2>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Field label="Date" type="date" value={header.quoteDate}
             onChange={(v) => setHeader((h) => ({ ...h, quoteDate: v, validity: validityFrom(v) }))} />
@@ -224,95 +235,121 @@ export default function HyderabadForm({ initialRef = '' }) {
       </div>
 
       {/* stone items */}
-      <div className="card p-5">
-        <div className="text-[13px] font-semibold text-slate-800 mb-2">Stone &amp; Tile Items</div>
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full text-[12px]">
-            <thead className="bg-slate-900 text-white">
-              <tr>{['#','Image','Description','Area','Size Wt (in)','Size Ht (in)','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
-                <th key={i} className="px-2 py-2 text-left font-semibold whitespace-nowrap">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {stoneRows.map((r, i) => {
-                const eff = calc.perStone[i] || { amt: 0, q: 0, hasInput: false };
-                return (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-2 py-1 text-slate-400">{i + 1}</td>
-                    <td className="px-1 py-1">
-                      <label className="cursor-pointer flex items-center justify-center w-10 h-10 rounded border border-dashed border-slate-300 overflow-hidden hover:border-slate-400">
-                        {r.img ? <img src={r.img} alt="" className="w-10 h-10 object-cover" /> : <span className="text-slate-400 text-lg leading-none">+</span>}
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
-                      </label>
-                    </td>
-                    <td className="px-1 py-1 min-w-[140px]"><input className="input !py-1" value={r.desc} onChange={(e) => setStone(i, 'desc', e.target.value)} placeholder="Description" /></td>
-                    <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.area} onChange={(e) => setStone(i, 'area', e.target.value)} placeholder="Area" /></td>
-                    <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.sizeWt} onChange={(e) => setStone(i, 'sizeWt', e.target.value)} placeholder="Wt" /></td>
-                    <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.sizeHt} onChange={(e) => setStone(i, 'sizeHt', e.target.value)} placeholder="Ht" /></td>
-                    <td className="px-1 py-1 w-28"><input className="input !py-1" list="bq-mat" value={r.mat} onChange={(e) => setStone(i, 'mat', e.target.value)} placeholder="Material" /></td>
-                    <td className="px-1 py-1 w-20"><input className="input !py-1" value={r.thk} onChange={(e) => setStone(i, 'thk', e.target.value)} placeholder="Thk" /></td>
-                    <td className="px-1 py-1 w-20">
-                      <select className="input !py-1" value={r.unit} onChange={(e) => setStone(i, 'unit', e.target.value)}>
-                        {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u || '—'}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-1 py-1 text-center" title="SFT: qty = Wt × Ht">
-                      <input type="checkbox" className="h-4 w-4 accent-slate-700" checked={r.module} onChange={(e) => setStone(i, 'module', e.target.checked)} />
-                    </td>
-                    <td className="px-1 py-1 w-20"><input type="number" min="0" className="input !py-1" value={r.price} onChange={(e) => setStone(i, 'price', e.target.value)} /></td>
-                    <td className="px-1 py-1 w-16"><input type="number" min="0" className={`input !py-1 ${r.module ? 'bg-slate-100 text-slate-500' : ''}`}
-                      value={r.module ? (eff.q ? +Number(eff.q).toFixed(2) : '') : r.qty} readOnly={r.module} onChange={(e) => setStone(i, 'qty', e.target.value)} /></td>
-                    <td className="px-1 py-1 w-16"><input type="number" min="0" max="100" className="input !py-1" value={r.gst} onChange={(e) => setStone(i, 'gst', e.target.value)} /></td>
-                    <td className="px-2 py-1 text-right whitespace-nowrap font-semibold">{eff.hasInput ? inr2(eff.amt) : ''}</td>
-                    <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delStone(i)}>✕</button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconList /></div>
+            <div>
+              <h2 className="text-[13.5px] font-semibold text-slate-900">Stone &amp; Tile Items</h2>
+              <p className="text-[11.5px] text-slate-500">{stoneRows.length} line{stoneRows.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
         </div>
-        <button className="btn-secondary mt-3" onClick={addStone}>+ Add Stone Item</button>
+        <div className="p-5">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-[12px]">
+              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
+                <tr>{['#','Image','Description','Area','Size Wt (in)','Size Ht (in)','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
+                  <th key={i} className={`table-th whitespace-nowrap ${i >= 10 && i <= 13 ? 'text-right' : ''}`}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {stoneRows.map((r, i) => {
+                  const eff = calc.perStone[i] || { amt: 0, q: 0, hasInput: false };
+                  return (
+                    <tr key={i} className="table-row">
+                      <td className="px-2 py-1 text-slate-400">{i + 1}</td>
+                      <td className="px-1 py-1">
+                        <label className="cursor-pointer flex items-center justify-center w-10 h-10 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">
+                          {r.img ? <img src={r.img} alt="" className="w-10 h-10 object-cover" /> : <span className="text-slate-400 text-lg leading-none">+</span>}
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
+                        </label>
+                      </td>
+                      <td className="px-1 py-1 min-w-[140px]"><input className="input !py-1" value={r.desc} onChange={(e) => setStone(i, 'desc', e.target.value)} placeholder="Description" /></td>
+                      <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.area} onChange={(e) => setStone(i, 'area', e.target.value)} placeholder="Area" /></td>
+                      <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.sizeWt} onChange={(e) => setStone(i, 'sizeWt', e.target.value)} placeholder="Wt" /></td>
+                      <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.sizeHt} onChange={(e) => setStone(i, 'sizeHt', e.target.value)} placeholder="Ht" /></td>
+                      <td className="px-1 py-1 w-28"><input className="input !py-1" list="bq-mat" value={r.mat} onChange={(e) => setStone(i, 'mat', e.target.value)} placeholder="Material" /></td>
+                      <td className="px-1 py-1 w-20"><input className="input !py-1" value={r.thk} onChange={(e) => setStone(i, 'thk', e.target.value)} placeholder="Thk" /></td>
+                      <td className="px-1 py-1 w-20">
+                        <select className="input !py-1" value={r.unit} onChange={(e) => setStone(i, 'unit', e.target.value)}>
+                          {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u || '—'}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-1 py-1 text-center" title="SFT: qty = Wt × Ht">
+                        <input type="checkbox" className="h-4 w-4 accent-primary-600" checked={r.module} onChange={(e) => setStone(i, 'module', e.target.checked)} />
+                      </td>
+                      <td className="px-1 py-1 w-20"><input type="number" min="0" className="input !py-1 text-right tabular-nums" value={r.price} onChange={(e) => setStone(i, 'price', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-16"><input type="number" min="0" className={`input !py-1 text-right tabular-nums ${r.module ? 'bg-slate-100 text-slate-500' : ''}`}
+                        value={r.module ? (eff.q ? +Number(eff.q).toFixed(2) : '') : r.qty} readOnly={r.module} onChange={(e) => setStone(i, 'qty', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-16"><input type="number" min="0" max="100" className="input !py-1 text-right tabular-nums" value={r.gst} onChange={(e) => setStone(i, 'gst', e.target.value)} /></td>
+                      <td className="px-2 py-1 text-right whitespace-nowrap font-semibold tabular-nums">{eff.hasInput ? inr2(eff.amt) : ''}</td>
+                      <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delStone(i)}>✕</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <button className="btn-secondary mt-3" onClick={addStone}>+ Add Stone Item</button>
+        </div>
       </div>
 
       {/* fixing items */}
-      <div className="card p-5">
-        <div className="text-[13px] font-semibold text-slate-800 mb-2">Fixing Material</div>
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full text-[12px]">
-            <thead className="bg-slate-700 text-white">
-              <tr>{['#','Description','Material','Size / Thickness','Unit','Rate ₹','Qty','Amount',''].map((h, i) =>
-                <th key={i} className="px-2 py-2 text-left font-semibold whitespace-nowrap">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {fixRows.map((r, i) => {
-                const amt = (parseFloat(r.price) || 0) * (parseFloat(r.qty) || 0);
-                return (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-2 py-1 text-slate-400">{i + 1}</td>
-                    <td className="px-1 py-1"><input className="input !py-1" value={r.desc} onChange={(e) => setFix(i, 'desc', e.target.value)} /></td>
-                    <td className="px-1 py-1"><input className="input !py-1" value={r.mat} onChange={(e) => setFix(i, 'mat', e.target.value)} /></td>
-                    <td className="px-1 py-1 w-24"><input className="input !py-1" value={r.size} onChange={(e) => setFix(i, 'size', e.target.value)} /></td>
-                    <td className="px-1 py-1 w-20"><input className="input !py-1" value={r.unit} onChange={(e) => setFix(i, 'unit', e.target.value)} /></td>
-                    <td className="px-1 py-1 w-20"><input type="number" min="0" className="input !py-1" value={r.price} onChange={(e) => setFix(i, 'price', e.target.value)} /></td>
-                    <td className="px-1 py-1 w-16"><input type="number" min="0" className="input !py-1" value={r.qty} onChange={(e) => setFix(i, 'qty', e.target.value)} /></td>
-                    <td className="px-2 py-1 text-right whitespace-nowrap">{amt ? inr2(amt) : '₹ 0'}</td>
-                    <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delFix(i)}>✕</button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconLayers /></div>
+            <div>
+              <h2 className="text-[13.5px] font-semibold text-slate-900">Fixing Material</h2>
+              <p className="text-[11.5px] text-slate-500">{fixRows.length} line{fixRows.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
         </div>
-        <button className="btn-secondary mt-3" onClick={addFix}>+ Add Fixing Item</button>
+        <div className="p-5">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-[12px]">
+              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
+                <tr>{['#','Description','Material','Size / Thickness','Unit','Rate ₹','Qty','Amount',''].map((h, i) =>
+                  <th key={i} className={`table-th whitespace-nowrap ${i >= 5 && i <= 7 ? 'text-right' : ''}`}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {fixRows.map((r, i) => {
+                  const amt = (parseFloat(r.price) || 0) * (parseFloat(r.qty) || 0);
+                  return (
+                    <tr key={i} className="table-row">
+                      <td className="px-2 py-1 text-slate-400">{i + 1}</td>
+                      <td className="px-1 py-1"><input className="input !py-1" value={r.desc} onChange={(e) => setFix(i, 'desc', e.target.value)} /></td>
+                      <td className="px-1 py-1"><input className="input !py-1" value={r.mat} onChange={(e) => setFix(i, 'mat', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-24"><input className="input !py-1" value={r.size} onChange={(e) => setFix(i, 'size', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-20"><input className="input !py-1" value={r.unit} onChange={(e) => setFix(i, 'unit', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-20"><input type="number" min="0" className="input !py-1 text-right tabular-nums" value={r.price} onChange={(e) => setFix(i, 'price', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-16"><input type="number" min="0" className="input !py-1 text-right tabular-nums" value={r.qty} onChange={(e) => setFix(i, 'qty', e.target.value)} /></td>
+                      <td className="px-2 py-1 text-right whitespace-nowrap tabular-nums">{amt ? inr2(amt) : '₹ 0'}</td>
+                      <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delFix(i)}>✕</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <button className="btn-secondary mt-3" onClick={addFix}>+ Add Fixing Item</button>
+        </div>
       </div>
 
       {/* charges + totals */}
-      <div className="card p-5 max-w-md ml-auto space-y-2">
-        <div className="text-[13px] font-semibold text-slate-800 mb-1">Charges &amp; Totals</div>
-        <ChargeInput label="Discount %" value={charges.discountPct} onChange={(v) => setC('discountPct', v)} suffix="%" />
-        <ChargeInput label="Design Fees" value={charges.designFees} onChange={(v) => setC('designFees', v)} />
-        <ChargeInput label="Installation Charges" value={charges.installationCharges} onChange={(v) => setC('installationCharges', v)} />
-        <ChargeInput label="Packing Charges" value={charges.packingCharges} onChange={(v) => setC('packingCharges', v)} />
-        <div className="border-t border-slate-200 pt-2 space-y-1">
+      <div className="card p-5 max-w-md ml-auto relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-300 via-primary-500 to-primary-700" />
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-7 h-7 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconCalc className="w-3.5 h-3.5" /></div>
+          <div className="text-[13px] font-semibold text-slate-800">Charges &amp; Totals</div>
+        </div>
+        <div className="space-y-2">
+          <ChargeInput label="Discount %" value={charges.discountPct} onChange={(v) => setC('discountPct', v)} suffix="%" />
+          <ChargeInput label="Design Fees" value={charges.designFees} onChange={(v) => setC('designFees', v)} />
+          <ChargeInput label="Installation Charges" value={charges.installationCharges} onChange={(v) => setC('installationCharges', v)} />
+          <ChargeInput label="Packing Charges" value={charges.packingCharges} onChange={(v) => setC('packingCharges', v)} />
+        </div>
+        <div className="border-t border-slate-200 pt-2 mt-2 space-y-1">
           <Line label="Basic Sale Value (Stone)" value={inr2(calc.stoneSum)} />
           {calc.discAmt > 0 && <Line label={`Discount @ ${calc.discPct}%`} value={inrNeg(calc.discAmt)} />}
           {calc.discAmt > 0 && <Line label="Net Stone Value" value={inr2(calc.netStone)} />}
@@ -322,29 +359,76 @@ export default function HyderabadForm({ initialRef = '' }) {
           <Line label="Fixing Material Total" value={inr2(calc.fixSum)} />
           <Line label="Installation Charges" value={inr2(calc.installation)} />
           {calc.packing > 0 && <Line label="Packing Charges" value={inr2(calc.packing)} />}
-          <div className="flex items-center justify-between pt-2 mt-1 border-t-2 border-amber-300">
-            <span className="text-[12px] font-semibold uppercase tracking-wide text-slate-700">Grand Total</span>
-            <span className="text-[18px] font-bold text-slate-900">{inr2(calc.grandTotal)}</span>
+          <div className="flex items-center justify-between mt-2 -mx-5 -mb-5 px-5 py-3 rounded-b-xl bg-gradient-to-r from-primary-50 to-primary-50/40 border-t border-primary-100">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-primary-800">Grand Total</span>
+            <span className="text-[19px] font-bold text-gradient-gold tabular-nums">{inr2(calc.grandTotal)}</span>
           </div>
         </div>
       </div>
 
       {showRevise && (
-        <div className="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setShowRevise(false)}>
-          <div className="bg-white rounded-xl p-5 w-80" onClick={(e) => e.stopPropagation()}>
-            <div className="text-[14px] font-semibold mb-3">Load Quotation</div>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setShowRevise(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-5 w-80 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconClock className="w-4 h-4" /></div>
+              <div className="text-[14px] font-semibold text-slate-900">Load Quotation</div>
+            </div>
             <select className="input mb-3" value={selRef} onChange={(e) => setSelRef(e.target.value)}>
               {reviseList.length === 0 && <option value="">No saved quotations</option>}
               {reviseList.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
             <div className="flex gap-2">
-              <button className="btn-warn flex-1" disabled={!selRef} onClick={loadSelected}>Load</button>
+              <button className="btn-primary flex-1" disabled={!selRef} onClick={loadSelected}>Load</button>
               <button className="btn-ghost" onClick={() => setShowRevise(false)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function IconDoc(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" />
+      <path d="M9 13h6" /><path d="M9 17h6" />
+    </svg>
+  );
+}
+function IconInfo(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" /><path d="M12 16v-4" /><path d="M12 8h.01" />
+    </svg>
+  );
+}
+function IconList(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" />
+    </svg>
+  );
+}
+function IconLayers(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m12 2 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5" /><path d="m3 17 9 5 9-5" />
+    </svg>
+  );
+}
+function IconCalc(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="2" /><path d="M8 6h8" /><path d="M8 11h.01" /><path d="M12 11h.01" /><path d="M16 11h.01" /><path d="M8 15h.01" /><path d="M12 15h.01" /><path d="M16 15h.01" /><path d="M8 19h.01" /><path d="M12 19h.01" /><path d="M16 19h.01" />
+    </svg>
+  );
+}
+function IconClock(props) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
+    </svg>
   );
 }
 
@@ -363,7 +447,7 @@ function ChargeInput({ label, value, onChange, suffix }) {
       <span className="text-slate-600">{label}</span>
       <div className="flex items-center gap-1">
         {!suffix && <span className="text-slate-400">₹</span>}
-        <input type="number" min="0" className="input !py-1 w-28 text-right" value={value} onChange={(e) => onChange(e.target.value)} />
+        <input type="number" min="0" className="input !py-1 w-28 text-right tabular-nums" value={value} onChange={(e) => onChange(e.target.value)} />
         {suffix && <span className="text-slate-400">{suffix}</span>}
       </div>
     </div>
@@ -372,7 +456,7 @@ function ChargeInput({ label, value, onChange, suffix }) {
 function Line({ label, value, strong }) {
   return (
     <div className={`flex items-center justify-between text-[12.5px] py-0.5 ${strong ? 'font-semibold' : ''}`}>
-      <span className="text-slate-600">{label}</span><span>{value}</span>
+      <span className="text-slate-600">{label}</span><span className="tabular-nums">{value}</span>
     </div>
   );
 }

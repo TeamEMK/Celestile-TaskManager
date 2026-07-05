@@ -50,7 +50,11 @@ export default function MastersClient({ masters, users = [] }) {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
-<div className="flex items-center gap-2 flex-wrap">
+        <div>
+          <h1 className="page-title">Checklist Masters</h1>
+          <p className="page-sub">Recurring tasks assigned to your team, by frequency.</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
           <CsvImport
             templateName="checklist_template.csv"
             columns={['task', 'assignedTo', 'frequency']}
@@ -82,52 +86,62 @@ export default function MastersClient({ masters, users = [] }) {
           ))}
         </div>
         <div className="flex-1" />
-        <div className="relative">
+        <div className="relative w-full sm:w-72">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search tasks or assignees"
-            className="input pl-9 w-72"
+            className="input pl-9 w-full"
           />
         </div>
       </div>
 
       <div className="card overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><IconChecklist /></div>
+          <div>
+            <h2 className="text-[13.5px] font-semibold text-slate-900">Checklist Tasks</h2>
+            <p className="text-[11.5px] text-slate-500">{filtered.length} of {masters.length} shown</p>
+          </div>
+        </div>
+
         {filtered.length === 0 ? (
           <EmptyState onAdd={() => setOpen(true)} />
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50/80">
-              <tr>
-                <th className="table-th w-24">ID</th>
-                <th className="table-th">Task</th>
-                <th className="table-th">Assigned To</th>
-                <th className="table-th w-40">Frequency</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((m) => (
-                <tr key={m.id} className="table-row">
-                  <td className="table-td font-mono text-xs text-slate-500">{m.id}</td>
-                  <td className="table-td font-medium text-slate-800">{m.task}</td>
-                  <td className="table-td">
-                    {m.assignedTo ? (
-                      <div className="flex items-center gap-2">
-                        <Avatar name={m.assignedTo} />
-                        <span className="text-slate-700">{m.assignedTo}</span>
-                      </div>
-                    ) : <span className="text-slate-400">—</span>}
-                  </td>
-                  <td className="table-td">
-                    <span className={`pill border ${FREQ_TONE[m.frequency] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                      {m.frequency}
-                    </span>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
+                <tr>
+                  <th className="table-th w-24">ID</th>
+                  <th className="table-th">Task</th>
+                  <th className="table-th">Assigned To</th>
+                  <th className="table-th w-40">Frequency</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((m) => (
+                  <tr key={m.id} className="table-row">
+                    <td className="table-td font-mono text-xs text-slate-500">{m.id}</td>
+                    <td className="table-td font-medium text-slate-800">{m.task}</td>
+                    <td className="table-td">
+                      {m.assignedTo ? (
+                        <div className="flex items-center gap-2">
+                          <Avatar name={m.assignedTo} />
+                          <span className="text-slate-700">{m.assignedTo}</span>
+                        </div>
+                      ) : <span className="text-slate-400">—</span>}
+                    </td>
+                    <td className="table-td">
+                      <span className={`pill border ${FREQ_TONE[m.frequency] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                        {m.frequency}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -142,8 +156,8 @@ function EmptyState({ onAdd }) {
       <div className="w-14 h-14 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
         <svg className="w-7 h-7 text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>
       </div>
-      <div className="text-sm font-medium text-slate-800">No checklist tasks yet</div>
-      <div className="text-xs text-slate-500 mt-1">Start by adding your first recurring task.</div>
+      <div className="text-[13.5px] font-semibold text-slate-700">No checklist tasks yet</div>
+      <div className="text-[12px] text-slate-500 mt-0.5">Start by adding your first recurring task.</div>
       <button onClick={onAdd} className="btn-primary mt-4">
         <PlusIcon /> Add Checklist Task
       </button>
@@ -153,7 +167,9 @@ function EmptyState({ onAdd }) {
 
 function Avatar({ name = '' }) {
   const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  return <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white grid place-items-center text-[10px] font-bold shrink-0">{ini}</div>;
+  return <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-600 to-primary-800 text-white grid place-items-center text-[10px] font-bold shrink-0">{ini}</div>;
 }
+
+function IconChecklist() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>; }
 
 function PlusIcon() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }

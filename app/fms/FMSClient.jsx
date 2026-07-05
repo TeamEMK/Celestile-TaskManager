@@ -8,8 +8,8 @@ const fmtDt    = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-di
 
 function cityBadge(orderNo) {
   if (!orderNo) return null;
-  if (orderNo.toUpperCase().startsWith('B')) return { label: 'BLR', cls: 'bg-blue-100 text-blue-700' };
-  if (orderNo.toUpperCase().startsWith('H')) return { label: 'HYD', cls: 'bg-purple-100 text-purple-700' };
+  if (orderNo.toUpperCase().startsWith('B')) return { label: 'BLR', cls: 'bg-primary-100 text-primary-700' };
+  if (orderNo.toUpperCase().startsWith('H')) return { label: 'HYD', cls: 'bg-violet-100 text-violet-700' };
   return null;
 }
 
@@ -243,11 +243,14 @@ export default function FMSClient() {
     <div className="flex flex-col gap-4 animate-fade-in" style={{ minHeight: 'calc(100vh - 96px)' }}>
       {/* Header */}
       <div className="card p-4 flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <div className="text-[15px] font-bold text-slate-900">Flow Management System</div>
-          <div className="text-[11px] text-slate-500">{flows.length} flows · Click a row to open</div>
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconLayers /></div>
+          <div>
+            <div className="section-title">Flow Management System</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">{flows.length} flows · Click a row to open</div>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button className="btn-secondary !text-[12px]" onClick={() => setModal('importNew')}>↑ Import from Sheet</button>
           <button className="btn-primary !text-[12px]"  onClick={() => setModal('addFlow')}>+ Add New FMS</button>
         </div>
@@ -259,11 +262,12 @@ export default function FMSClient() {
           <div className="p-10 text-center text-slate-400 text-[13px]">Loading…</div>
         ) : flows.length === 0 ? (
           <div className="p-14 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3 text-2xl">🗂</div>
-            <div className="text-[14px] font-semibold text-slate-700">No FMS flows yet</div>
-            <div className="text-[12px] text-slate-400 mt-1">Click "Add New FMS" or "Import from Sheet" to get started</div>
+            <div className="w-12 h-12 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3 text-2xl">🗂</div>
+            <div className="text-[13.5px] font-semibold text-slate-700">No FMS flows yet</div>
+            <div className="text-[12px] text-slate-500 mt-0.5">Click "Add New FMS" or "Import from Sheet" to get started</div>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr>
@@ -309,13 +313,14 @@ export default function FMSClient() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       {confirm && <ConfirmModal msg={confirm.msg} onOk={() => { confirm.onOk(); setConfirm(null); }} onCancel={() => setConfirm(null)} />}
       {/* Modals for hub */}
       {modal === 'addFlow' && (
-        <Modal title="New FMS Flow" onClose={() => setModal(null)}>
+        <Modal title="New FMS Flow" icon={<IconPlus />} onClose={() => setModal(null)}>
           <AddFlowBody form={flowForm} setForm={setFlowForm} users={users} />
           <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
             <button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button>
@@ -326,7 +331,7 @@ export default function FMSClient() {
         </Modal>
       )}
       {modal === 'importNew' && (
-        <Modal title="Import FMS from Google Sheet" onClose={() => { setModal(null); setImportUrl(''); setImportPreview(null); setImportErr(''); }}>
+        <Modal title="Import FMS from Google Sheet" icon={<IconUpload />} onClose={() => { setModal(null); setImportUrl(''); setImportPreview(null); setImportErr(''); }}>
           <ImportBody
             url={importUrl} setUrl={setImportUrl}
             preview={importPreview} busy={importBusy} err={importErr}
@@ -356,11 +361,18 @@ export default function FMSClient() {
       {/* Top bar */}
       <div className="card p-3 flex items-center gap-2 flex-wrap">
         <button className="btn-ghost !text-[12px]" onClick={backToHub}>← Back</button>
-        <div className="w-px h-5 bg-slate-200" />
-        <div className="w-3 h-3 rounded-full shrink-0" style={{ background: activeFlow.color }} />
-        <span className="text-[14px] font-bold text-slate-900">{activeFlow.name}</span>
-        {activeFlow.coordinator && <span className="text-[11px] text-slate-400">• {activeFlow.coordinator}</span>}
-        <span className="text-[11px] text-slate-400">{entries.length} entries</span>
+        <div className="w-px h-5 bg-slate-200 hidden sm:block" />
+        <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: `${activeFlow.color}1A`, color: activeFlow.color }}>
+          <IconLayers />
+        </div>
+        <div className="min-w-0">
+          <div className="text-[13.5px] font-semibold text-slate-900 font-display truncate">{activeFlow.name}</div>
+          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 flex-wrap">
+            {activeFlow.coordinator && <span>{activeFlow.coordinator}</span>}
+            {activeFlow.coordinator && <span className="text-slate-300">•</span>}
+            <span>{entries.length} entries</span>
+          </div>
+        </div>
         <div className="flex-1" />
         <button className="btn-secondary !text-[12px]" onClick={() => { setModal('importSheet'); setImportUrl(''); setImportPreview(null); setImportErr(''); }}>
           ↑ Import Sheet
@@ -383,7 +395,7 @@ export default function FMSClient() {
           valueMap={['All', ...flowSteps.map((_,i) => String(i))]}
         />
         {/* Legend */}
-        <div className="hidden sm:flex items-center gap-3 text-[10.5px] text-slate-400 ml-1">
+        <div className="hidden sm:flex items-center gap-3 text-[10.5px] text-slate-500 ml-1">
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />Done</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-400 inline-block" />Overdue</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-slate-200 inline-block" />Pending</span>
@@ -395,7 +407,7 @@ export default function FMSClient() {
       {flowSteps.length > 0 && (
         <div className="card p-2.5 flex flex-wrap gap-1.5">
           {flowSteps.map((step, i) => (
-            <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            <span key={i} className="pill bg-primary-50 text-primary-700 text-[10px]">
               <span className="font-bold">S{i+1}</span> — {step.length > 45 ? step.slice(0,45)+'…' : step}
             </span>
           ))}
@@ -407,7 +419,13 @@ export default function FMSClient() {
         {loadingEntries ? (
           <div className="p-10 text-center text-slate-400 text-[13px]">Loading entries…</div>
         ) : filtered.length === 0 ? (
-          <div className="p-10 text-center text-[13px] text-slate-400">No entries found</div>
+          <div className="p-14 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
+              <svg className="w-6 h-6 text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <div className="text-[13.5px] font-semibold text-slate-700">No entries found</div>
+            <div className="text-[12px] text-slate-500 mt-0.5">Try adjusting your filters or search</div>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table style={{ minWidth: tableWidth + 'px' }}>
@@ -494,7 +512,7 @@ export default function FMSClient() {
       {confirm && <ConfirmModal msg={confirm.msg} onOk={() => { confirm.onOk(); setConfirm(null); }} onCancel={() => setConfirm(null)} />}
       {/* Sheet-view modals */}
       {modal === 'addEntry' && (
-        <Modal title={`Add Entry — ${activeFlow.name}`} onClose={() => setModal(null)}>
+        <Modal title={`Add Entry — ${activeFlow.name}`} icon={<IconPlus />} onClose={() => setModal(null)}>
           <AddEntryBody form={entryForm} setForm={setEntryForm} flow={activeFlow} users={users} />
           <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
             <button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button>
@@ -505,7 +523,7 @@ export default function FMSClient() {
         </Modal>
       )}
       {stepForm && (
-        <Modal title={`Step ${stepForm.stepIdx + 1} Complete`} onClose={() => setStepForm(null)}>
+        <Modal title={`Step ${stepForm.stepIdx + 1} Complete`} icon={<IconCheck />} onClose={() => setStepForm(null)}>
           <div className="p-6 space-y-4">
             <div className="bg-primary-50 rounded-xl px-4 py-3 text-[12px] text-primary-700 font-medium">
               {stepForm.stepName}
@@ -529,7 +547,7 @@ export default function FMSClient() {
         </Modal>
       )}
       {modal === 'importSheet' && (
-        <Modal title="Import Entries from Google Sheet" onClose={() => { setModal(null); setImportUrl(''); setImportPreview(null); setImportErr(''); }}>
+        <Modal title="Import Entries from Google Sheet" icon={<IconUpload />} onClose={() => { setModal(null); setImportUrl(''); setImportPreview(null); setImportErr(''); }}>
           <ImportBody
             url={importUrl} setUrl={setImportUrl}
             preview={importPreview} busy={importBusy} err={importErr}
@@ -562,19 +580,19 @@ function StepCell({ status, completedAt, completedBy, stepName, onClick }) {
   const base = 'w-5 h-5 rounded mx-auto flex items-center justify-center transition-all duration-150';
 
   if (status === 'done') return (
-    <div title={title} onClick={onClick} className={`${base} bg-emerald-500 cursor-pointer hover:bg-emerald-600`}>
+    <div title={title} onClick={onClick} className={`${base} bg-emerald-500 cursor-pointer hover:bg-emerald-600 hover:scale-110 shadow-sm`}>
       <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
     </div>
   );
   if (status === 'overdue') return (
-    <div title={title} onClick={onClick} className={`${base} bg-orange-400 cursor-pointer hover:bg-orange-500`}>
+    <div title={title} onClick={onClick} className={`${base} bg-orange-400 cursor-pointer hover:bg-orange-500 hover:scale-110 shadow-sm`}>
       <span className="text-white text-[8px] font-black leading-none">!</span>
     </div>
   );
   if (status === 'pending') return (
-    <div title={title} onClick={onClick} className={`${base} bg-slate-200 cursor-pointer hover:bg-primary-200`} />
+    <div title={title} onClick={onClick} className={`${base} bg-slate-200 cursor-pointer hover:bg-primary-200 hover:scale-110`} />
   );
-  return <div className={`${base} bg-transparent`} />;
+  return <div title={title} className={`${base} bg-transparent border border-dashed border-slate-200`} />;
 }
 
 /* ── Confirm Modal ────────────────────────────────────────────────── */
@@ -590,7 +608,7 @@ function ConfirmModal({ msg, onOk, onCancel }) {
         <p className="text-[13px] text-slate-700 text-center leading-relaxed mb-6">{msg}</p>
         <div className="flex gap-3">
           <button className="btn-secondary flex-1" onClick={onCancel}>Cancel</button>
-          <button className="flex-1 btn bg-red-600 text-white hover:bg-red-700" onClick={onOk}>Confirm</button>
+          <button className="btn-danger flex-1" onClick={onOk}>Confirm</button>
         </div>
       </div>
     </div>
@@ -598,13 +616,16 @@ function ConfirmModal({ msg, onOk, onCancel }) {
 }
 
 /* ── Modal shell ──────────────────────────────────────────────────── */
-function Modal({ title, children, onClose }) {
+function Modal({ title, icon, children, onClose }) {
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-          <span className="text-[14px] font-bold text-slate-900">{title}</span>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 text-[16px]">✕</button>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+            {icon || <IconLayers />}
+          </div>
+          <span className="text-[14px] font-semibold text-slate-900 font-display flex-1">{title}</span>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 text-[16px] shrink-0">✕</button>
         </div>
         <div className="overflow-y-auto flex-1">{children}</div>
       </div>
@@ -721,7 +742,7 @@ function AddEntryBody({ form, setForm, flow, users }) {
 function ImportBody({ url, setUrl, preview, busy, err, onPreview, flowForm, setFlowForm, showFlowFields }) {
   return (
     <div className="p-6 space-y-4">
-      <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-[11.5px] text-blue-700 space-y-1">
+      <div className="bg-primary-50 border border-primary-100 rounded-xl px-4 py-3 text-[11.5px] text-primary-700 space-y-1">
         <div className="font-semibold">How to use:</div>
         <div>1. Share your Google Sheet with the service account email</div>
         <div>2. Paste the sheet URL below and click "Fetch Preview"</div>
@@ -811,3 +832,9 @@ function Select({ value, onChange, options, allLabel, valueMap }) {
     </select>
   );
 }
+
+/* ── Icons ─────────────────────────────────────────────────────────── */
+function IconLayers() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>; }
+function IconPlus()   { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
+function IconCheck()  { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>; }
+function IconUpload() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>; }

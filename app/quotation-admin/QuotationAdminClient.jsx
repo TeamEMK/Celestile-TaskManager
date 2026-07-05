@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useEffect, useMemo, useState } from 'react';
 
 const numOf = (s) => parseFloat(String(s || '').replace(/[^\d.]/g, '')) || 0;
@@ -7,8 +7,8 @@ const dateOf = (iso) => { if (!iso) return ''; const d = new Date(iso); return i
 const ymd = (iso) => (iso ? String(iso).slice(0, 10) : '');
 
 const STATUS_STYLE = {
-  approved: 'bg-green-50 text-green-700',
-  rejected: 'bg-red-50 text-red-700',
+  approved: 'bg-emerald-50 text-emerald-700',
+  rejected: 'bg-red-50 text-red-600',
   pending:  'bg-amber-50 text-amber-700',
 };
 function StatusPill({ status }) {
@@ -97,49 +97,62 @@ export default function QuotationAdminClient() {
   }
   function reset() { setBranch('all'); setStatusFilter('all'); setQ(''); setMonth(''); setFrom(''); setTo(''); }
 
+  const isApprove = modal.action === 'approved';
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       {/* Approval modal */}
       {modal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setModal(BLANK_MODAL)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
-            <div className={`text-[18px] font-bold mb-1 ${modal.action === 'approved' ? 'text-green-700' : 'text-red-600'}`}>
-              {modal.action === 'approved' ? '✅ Approve Quotation' : '❌ Reject Quotation'}
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
+          onClick={() => !modal.saving && setModal(BLANK_MODAL)}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${isApprove ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                {isApprove ? <IconCheck className="w-5 h-5" /> : <IconX className="w-5 h-5" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-[15px] font-semibold text-slate-900">{isApprove ? 'Approve Quotation' : 'Reject Quotation'}</h2>
+                <p className="text-[11.5px] text-slate-500 mt-0.5 truncate">
+                  <span className="font-semibold text-slate-700">{modal.refNo}</span> · {modal.clientName || '—'} · {modal.grandTotal || '—'}
+                </p>
+              </div>
+              <button onClick={() => !modal.saving && setModal(BLANK_MODAL)} disabled={modal.saving} className="btn-ghost w-8 h-8 !p-0 shrink-0">
+                <IconClose className="w-4 h-4" />
+              </button>
             </div>
-            <div className="text-[12px] text-slate-500 mb-4">
-              <span className="font-semibold text-slate-700">{modal.refNo}</span> · {modal.clientName || '—'} · {modal.grandTotal || '—'}
-            </div>
-            {modal.err && <div className="text-[12px] text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-3">{modal.err}</div>}
-            <div className="space-y-3">
+            <div className="p-6 space-y-3">
+              {modal.err && <div className="text-[12px] text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100">{modal.err}</div>}
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Aapka Naam *</label>
+                <label className="label">Aapka Naam *</label>
                 <input
-                  className="input w-full"
+                  className="input"
                   placeholder="Enter your name"
                   value={modal.approverName}
                   onChange={e => setModal(m => ({ ...m, approverName: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Remarks (optional)</label>
+                <label className="label">Remarks (optional)</label>
                 <textarea
-                  className="input w-full resize-none"
+                  className="input resize-none"
                   rows="2"
                   placeholder="Add a comment..."
                   value={modal.remarks}
                   onChange={e => setModal(m => ({ ...m, remarks: e.target.value }))}
                 />
               </div>
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={submitApproval}
-                  disabled={modal.saving}
-                  className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white disabled:opacity-60 ${modal.action === 'approved' ? 'bg-green-600' : 'bg-red-600'}`}
-                >
-                  {modal.saving ? '…' : modal.action === 'approved' ? '✅ Confirm Approve' : '❌ Confirm Reject'}
-                </button>
-                <button className="btn-ghost" onClick={() => setModal(BLANK_MODAL)}>Cancel</button>
-              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+              <button className="btn-secondary" onClick={() => setModal(BLANK_MODAL)} disabled={modal.saving}>Cancel</button>
+              <button
+                onClick={submitApproval}
+                disabled={modal.saving}
+                className={isApprove ? 'btn-success' : 'btn-danger'}
+              >
+                {modal.saving ? 'Saving…' : isApprove ? 'Confirm Approve' : 'Confirm Reject'}
+              </button>
             </div>
           </div>
         </div>
@@ -147,100 +160,147 @@ export default function QuotationAdminClient() {
 
       <div className="card p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <div className="text-[16px] font-semibold text-slate-900">Quotation Admin</div>
-            <div className="text-[12px] text-slate-500">All saved quotations across both branches</div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+              <IconDocument className="w-[18px] h-[18px]" />
+            </div>
+            <div>
+              <div className="font-display text-[16px] font-semibold text-slate-900">Quotation <span className="text-gradient-gold">Admin</span></div>
+              <div className="page-sub !mt-0">All saved quotations across both branches</div>
+            </div>
           </div>
-          <button className="btn-secondary" onClick={downloadCSV}>⬇ CSV</button>
+          <button className="btn-secondary" onClick={downloadCSV}><IconDownload className="w-3.5 h-3.5" /> CSV</button>
         </div>
+
         <div className="flex items-center gap-2 flex-wrap">
-          <select className="input w-auto" value={branch} onChange={(e) => setBranch(e.target.value)}>
+          <select className="input !w-auto" value={branch} onChange={(e) => setBranch(e.target.value)}>
             <option value="all">All Branches</option><option value="bangalore">Bangalore</option><option value="hyderabad">Hyderabad</option>
           </select>
-          <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <select className="input !w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="all">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
           </select>
           <input className="input flex-1 min-w-[200px]" placeholder="🔍 Ref / client / consultant…" value={q} onChange={(e) => setQ(e.target.value)} />
-          <input type="month" className="input w-auto" value={month} onChange={(e) => { setMonth(e.target.value); setFrom(''); setTo(''); }} />
+          <input type="month" className="input !w-auto" value={month} onChange={(e) => { setMonth(e.target.value); setFrom(''); setTo(''); }} />
           <span className="text-[11px] text-slate-400">or</span>
-          <input type="date" className="input w-auto" value={from} onChange={(e) => { setFrom(e.target.value); setMonth(''); }} />
-          <input type="date" className="input w-auto" value={to} onChange={(e) => { setTo(e.target.value); setMonth(''); }} />
+          <input type="date" className="input !w-auto" value={from} onChange={(e) => { setFrom(e.target.value); setMonth(''); }} />
+          <input type="date" className="input !w-auto" value={to} onChange={(e) => { setTo(e.target.value); setMonth(''); }} />
           <button className="btn-ghost" onClick={reset}>↺ Reset</button>
         </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Kpi label="Total" value={summary.count} />
-          <Kpi label="Total Value" value={fmtINR(summary.total)} />
-          <Kpi label="Bangalore" value={summary.bng} />
-          <Kpi label="Hyderabad" value={summary.hyd} />
+          <StatCard label="Total" value={summary.count} icon="📄" grad="linear-gradient(135deg,#3b82f6,#4f46e5)" shadow="rgba(59,130,246,0.35)" />
+          <StatCard label="Total Value" value={fmtINR(summary.total)} icon="💰" grad="linear-gradient(135deg,#DDAC6E,#9C5730)" shadow="rgba(156,87,48,0.35)" />
+          <StatCard label="Bangalore" value={summary.bng} icon="🏢" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
+          <StatCard label="Hyderabad" value={summary.hyd} icon="🏙" grad="linear-gradient(135deg,#7c3aed,#a855f7)" shadow="rgba(124,58,237,0.35)" />
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <Kpi label="⏳ Pending" value={summary.pending} color="text-amber-700" />
-          <Kpi label="✓ Approved" value={summary.approved} color="text-green-700" />
-          <Kpi label="✗ Rejected" value={summary.rejected} color="text-red-700" />
+          <StatCard label="Pending" value={summary.pending} icon="⏳" grad="linear-gradient(135deg,#f59e0b,#f97316)" shadow="rgba(245,158,11,0.35)" />
+          <StatCard label="Approved" value={summary.approved} icon="✓" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
+          <StatCard label="Rejected" value={summary.rejected} icon="✗" grad="linear-gradient(135deg,#ef4444,#dc2626)" shadow="rgba(239,68,68,0.35)" />
         </div>
       </div>
 
-      <div className="card p-0 overflow-x-auto">
-        {loading ? <div className="p-5 text-[12.5px] text-slate-400">Loading…</div> : filtered.length === 0 ? (
-          <div className="p-5 text-[12.5px] text-slate-400">No quotations.</div>
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><IconList className="w-4 h-4" /></div>
+          <div>
+            <h2 className="text-[13.5px] font-semibold text-slate-900">Quotations</h2>
+            <p className="text-[11.5px] text-slate-500">{filtered.length} record{filtered.length === 1 ? '' : 's'}</p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="p-14 text-center text-[12.5px] text-slate-400">Loading…</div>
+        ) : filtered.length === 0 ? (
+          <div className="p-14 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
+              <IconDocument className="w-7 h-7 text-primary-400" />
+            </div>
+            <div className="text-[13.5px] font-semibold text-slate-700">No quotations found</div>
+            <div className="text-[12px] text-slate-500 mt-0.5">Try adjusting your filters or search.</div>
+          </div>
         ) : (
-          <table className="w-full text-[12.5px]">
-            <thead className="bg-slate-900 text-white">
-              <tr>{['Ref', 'Branch', 'Client', 'Consultant', 'Grand Total', 'Status', 'Date', ''].map((h, i) =>
-                <th key={i} className="px-3 py-2 text-left font-semibold whitespace-nowrap">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {filtered.map((r, i) => {
-                const isPending = (r.status || 'pending') === 'pending';
-                return (
-                  <tr key={r.refNo + i} className="border-t border-slate-100 hover:bg-slate-50">
-                    <td className="px-3 py-2 font-semibold text-slate-800 whitespace-nowrap">{r.refNo}</td>
-                    <td className="px-3 py-2">
-                      <span className={`pill ${r.branch === 'hyderabad' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                        {r.branch === 'hyderabad' ? 'Hyderabad' : 'Bangalore'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">{r.clientName || '—'}{r.clientFirm ? <span className="text-slate-400"> · {r.clientFirm}</span> : ''}</td>
-                    <td className="px-3 py-2">{r.consultant || '—'}</td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap font-semibold">{r.grandTotal || '—'}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <StatusPill status={r.status} />
-                      {r.approvedBy && <div className="text-[10.5px] text-slate-400 mt-0.5">by {r.approvedBy}</div>}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">{dateOf(r.createdAt)}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5 justify-end">
-                        {isPending && r.approvalToken && (
-                          <>
-                            <button
-                              onClick={() => openModal(r, 'approved')}
-                              className="px-2.5 py-1 rounded-lg text-[11.5px] font-semibold bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 whitespace-nowrap transition-colors"
-                            >✓ Approve</button>
-                            <button
-                              onClick={() => openModal(r, 'rejected')}
-                              className="px-2.5 py-1 rounded-lg text-[11.5px] font-semibold bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 whitespace-nowrap transition-colors"
-                            >✗ Reject</button>
-                          </>
-                        )}
-                        <a className="btn-secondary !px-3 !py-1 whitespace-nowrap" href={`/quotation?branch=${r.branch}&ref=${encodeURIComponent(r.refNo)}`}>Open</a>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
+            <table className="w-full text-[12.5px]">
+              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
+                <tr>
+                  {['Ref', 'Branch', 'Client', 'Consultant', 'Grand Total', 'Status', 'Date', ''].map((h, i) => (
+                    <th key={i} className={`table-th ${h === 'Grand Total' ? 'text-right' : ''} ${h === '' ? 'text-right pr-4' : ''}`}>{h || 'Action'}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r, i) => {
+                  const isPending = (r.status || 'pending') === 'pending';
+                  return (
+                    <tr key={r.refNo + i} className="table-row">
+                      <td className="table-td font-semibold text-slate-800 whitespace-nowrap">{r.refNo}</td>
+                      <td className="table-td">
+                        <span className={`pill ${r.branch === 'hyderabad' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                          {r.branch === 'hyderabad' ? 'Hyderabad' : 'Bangalore'}
+                        </span>
+                      </td>
+                      <td className="table-td">{r.clientName || '—'}{r.clientFirm ? <span className="text-slate-400"> · {r.clientFirm}</span> : ''}</td>
+                      <td className="table-td">{r.consultant || '—'}</td>
+                      <td className="table-td text-right whitespace-nowrap font-semibold text-slate-800 tabular-nums">{r.grandTotal || '—'}</td>
+                      <td className="table-td whitespace-nowrap">
+                        <StatusPill status={r.status} />
+                        {r.approvedBy && <div className="text-[10.5px] text-slate-400 mt-0.5">by {r.approvedBy}</div>}
+                      </td>
+                      <td className="table-td whitespace-nowrap text-slate-500">{dateOf(r.createdAt)}</td>
+                      <td className="table-td">
+                        <div className="flex items-center gap-1.5 justify-end pr-2">
+                          {isPending && r.approvalToken && (
+                            <>
+                              <button
+                                onClick={() => openModal(r, 'approved')}
+                                className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer whitespace-nowrap"
+                              >Approve</button>
+                              <button
+                                onClick={() => openModal(r, 'rejected')}
+                                className="pill bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer whitespace-nowrap"
+                              >Reject</button>
+                            </>
+                          )}
+                          <a className="btn-secondary !px-2.5 !py-1 !text-[11.5px] whitespace-nowrap" href={`/quotation?branch=${r.branch}&ref=${encodeURIComponent(r.refNo)}`}>Open</a>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-function Kpi({ label, value, color }) {
+function StatCard({ label, value, icon, grad, shadow }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-      <div className="text-[11px] text-slate-500 uppercase tracking-wide">{label}</div>
-      <div className={`text-[18px] font-bold mt-0.5 ${color || 'text-slate-900'}`}>{value}</div>
+    <div
+      className="rounded-xl p-3.5 relative overflow-hidden card-hover cursor-default"
+      style={{ background: grad, boxShadow: `0 0 0 1px ${shadow}44, 0 4px 20px ${shadow}, 0 0 40px ${shadow}55` }}
+    >
+      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.13)' }} />
+      <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      <div className="relative z-10 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-[9.5px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</div>
+          <div className="text-[18px] font-black tabular-nums text-white leading-none mt-1.5 truncate">{value}</div>
+        </div>
+        <div className="w-7 h-7 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
+          <span className="text-white text-[13px] leading-none">{icon}</span>
+        </div>
+      </div>
     </div>
   );
 }
+
+function IconDocument(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>; }
+function IconList(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>; }
+function IconDownload(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>; }
+function IconCheck(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>; }
+function IconX(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>; }
+function IconClose(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>; }

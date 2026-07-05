@@ -33,9 +33,9 @@ export default function AppShell({ children }) {
     <div className="min-h-screen relative">
       {/* Light aurora backdrop (matches the login page, lighter shade) */}
       <div className="app-bg" aria-hidden="true">
-        <div className="orb" style={{ width: 620, height: 620, top: -180, left: -140, background: 'radial-gradient(circle, rgba(244,193,104,0.75), transparent 70%)', animation: 'app-drift1 20s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 560, height: 560, bottom: -200, right: -140, background: 'radial-gradient(circle, rgba(226,142,78,0.60), transparent 70%)', animation: 'app-drift2 24s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 460, height: 460, top: '32%', left: '52%', background: 'radial-gradient(circle, rgba(248,222,170,0.80), transparent 70%)', animation: 'app-drift3 28s ease-in-out infinite' }} />
+        <div className="orb" style={{ width: 620, height: 620, top: -180, left: -140, background: 'radial-gradient(circle, rgba(232,200,154,0.55), transparent 70%)', animation: 'app-drift1 20s ease-in-out infinite' }} />
+        <div className="orb" style={{ width: 560, height: 560, bottom: -200, right: -140, background: 'radial-gradient(circle, rgba(200,138,84,0.42), transparent 70%)', animation: 'app-drift2 24s ease-in-out infinite' }} />
+        <div className="orb" style={{ width: 460, height: 460, top: '32%', left: '52%', background: 'radial-gradient(circle, rgba(248,235,205,0.60), transparent 70%)', animation: 'app-drift3 28s ease-in-out infinite' }} />
       </div>
 
       <div className="relative z-10">

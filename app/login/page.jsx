@@ -140,8 +140,11 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase', color: '#E8B873' }}>
-              Celestile · TaskManager
+            <div className="font-display" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '.01em', color: '#F5E4C3' }}>
+              Celestile
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.28em', textTransform: 'uppercase', color: '#9b9082', marginTop: -8 }}>
+              Task Manager
             </div>
           </aside>
 
@@ -161,7 +164,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <h1 style={{ margin: '0 0 6px', fontSize: 25, fontWeight: 800, color: '#f6efe4' }}>Welcome back 👋</h1>
+                <h1 className="font-display" style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 600, color: '#f6efe4' }}>Welcome back 👋</h1>
                 <p style={{ margin: '0 0 26px', fontSize: 13, color: '#9b9082' }}>Sign in to your Celestile workspace</p>
               </div>
 

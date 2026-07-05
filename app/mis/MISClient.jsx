@@ -61,6 +61,12 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
   return (
     <div className="space-y-5 animate-fade-in">
 
+      {/* Header */}
+      <div>
+        <h1 className="page-title">MIS Report</h1>
+        <p className="page-sub">Performance &amp; completion analytics across employees</p>
+      </div>
+
       {/* Filter bar */}
       <div className="card p-5 space-y-4">
         <div className="flex items-end gap-3 flex-wrap">
@@ -85,21 +91,18 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
         <div className="flex gap-2 flex-wrap pt-2 border-t border-slate-100">
           {TABS.map((t) => (
             <button key={t} onClick={() => { setTab(t); setRows([]); setSummary({}); setModal(null); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${tab === t ? 'bg-primary-50 text-primary-700 border-primary-200' : 'text-slate-600 hover:bg-slate-50 border-slate-200'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${tab === t ? 'bg-primary-50 text-primary-700 border-primary-200' : 'text-slate-600 hover:bg-slate-50 border-slate-200 bg-white'}`}>
               {t}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Summary pills */}
+      {/* Summary KPI cards */}
       {Object.keys(summary).length > 0 && (
-        <div className="flex gap-3 flex-wrap">
-          {Object.entries(summary).map(([k, v]) => (
-            <div key={k} className="card px-4 py-3 shadow-sm">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{k}</div>
-              <div className="text-[22px] font-extrabold text-slate-900 tabular-nums mt-0.5">{v}</div>
-            </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {Object.entries(summary).map(([k, v], i) => (
+            <SummaryKpi key={k} label={k} value={v} tone={SUMMARY_TONES[i % SUMMARY_TONES.length]} />
           ))}
         </div>
       )}
@@ -127,6 +130,13 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
 
       {/* Table */}
       <div className="card overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><IconTable /></div>
+          <div>
+            <h2 className="text-[13.5px] font-semibold text-slate-900">Employee Report</h2>
+            <p className="text-[11.5px] text-slate-500">{rows.length} employee{rows.length === 1 ? '' : 's'} — click a row for task details</p>
+          </div>
+        </div>
         {rows.length === 0 ? (
           <div className="p-14 text-center">
             <div className="w-14 h-14 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
@@ -139,16 +149,16 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50/80 border-b border-slate-200">
+              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
                 <tr>
-                  <th className="text-left px-5 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500">#</th>
-                  <th className="text-left px-5 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500">Name <span className="normal-case font-normal text-slate-400">(click for details)</span></th>
-                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500">Total</th>
-                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500">Pending</th>
-                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500">Completed</th>
-                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500">Revised</th>
-                  <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500">Delayed</th>
-                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500">Score %</th>
+                  <th className="table-th">#</th>
+                  <th className="table-th">Name <span className="normal-case font-normal text-slate-400">(click for details)</span></th>
+                  <th className="table-th text-center">Total</th>
+                  <th className="table-th text-center">Pending</th>
+                  <th className="table-th text-center">Completed</th>
+                  <th className="table-th text-center">Revised</th>
+                  <th className="table-th text-center">Delayed</th>
+                  <th className="table-th">Score %</th>
                 </tr>
               </thead>
               <tbody>
@@ -156,16 +166,15 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
                   const good     = isGood(r.score);
                   const barWidth = Math.min(Math.abs(r.score), 100);
                   return (
-                    <tr key={r.name} onClick={() => openDetail(r)}
-                      className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer transition">
-                      <td className="px-5 py-3.5 text-xs text-slate-400 font-mono">{i + 1}</td>
-                      <td className="px-5 py-3.5 font-medium text-primary-600 hover:text-primary-800">{r.name}</td>
-                      <td className="px-4 py-3.5 text-center font-semibold text-slate-800">{r.total}</td>
-                      <td className="px-4 py-3.5 text-center font-semibold text-orange-500">{r.pending}</td>
-                      <td className="px-4 py-3.5 text-center font-semibold text-emerald-600">{r.completed}</td>
-                      <td className="px-4 py-3.5 text-center font-semibold text-amber-500">{r.revised}</td>
-                      <td className="px-4 py-3.5 text-center font-semibold text-red-500">{r.delayed}</td>
-                      <td className="px-4 py-3.5 min-w-[160px]">
+                    <tr key={r.name} onClick={() => openDetail(r)} className="table-row cursor-pointer">
+                      <td className="table-td text-xs text-slate-400 font-mono">{i + 1}</td>
+                      <td className="table-td font-medium text-primary-600 hover:text-primary-800">{r.name}</td>
+                      <td className="table-td text-center font-semibold text-slate-800">{r.total}</td>
+                      <td className="table-td text-center font-semibold text-orange-500">{r.pending}</td>
+                      <td className="table-td text-center font-semibold text-emerald-600">{r.completed}</td>
+                      <td className="table-td text-center font-semibold text-amber-500">{r.revised}</td>
+                      <td className="table-td text-center font-semibold text-red-500">{r.delayed}</td>
+                      <td className="table-td min-w-[160px]">
                         <div className={`font-bold text-sm ${good ? 'text-emerald-600' : 'text-red-500'}`}>
                           {r.score > 0 ? '+' : ''}{r.score}%
                         </div>
@@ -195,12 +204,14 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
             onClick={(e) => e.stopPropagation()}>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h2 className="text-base font-semibold text-slate-900">
-                {modal.row.name} — {tab}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100">
+              <div className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${isGood(modal.row.score) ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <h2 className="flex-1 text-base font-semibold text-slate-900 font-display">
+                {modal.row.name} <span className="text-slate-400 font-normal">— {tab}</span>
               </h2>
-              <button onClick={() => setModal(null)}
-                className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:bg-slate-100">
+              <button onClick={() => setModal(null)} className="btn-ghost w-8 h-8 !p-0 shrink-0">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
               </button>
             </div>
@@ -237,28 +248,36 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
                 All Tasks in Date Range
               </div>
               {taskLoad ? (
-                <div className="p-8 text-center text-sm text-slate-400">Loading…</div>
+                <div className="p-8 text-center text-sm text-slate-400">
+                  <svg className="w-5 h-5 animate-spin mx-auto mb-2 text-primary-400" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+                  Loading…
+                </div>
               ) : !modal.tasks?.length ? (
-                <div className="p-8 text-center text-sm text-slate-400">No tasks found.</div>
+                <div className="p-10 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 grid place-items-center mx-auto mb-2">
+                    <svg className="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-6"/></svg>
+                  </div>
+                  <div className="text-sm text-slate-400">No tasks found.</div>
+                </div>
               ) : (
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50/80 sticky top-0">
+                  <thead className="sticky top-0 bg-slate-50/95 backdrop-blur">
                     <tr>
-                      <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-400">#</th>
-                      <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-400">Description</th>
-                      <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-400">Assigned By</th>
-                      <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-400">Due Date</th>
-                      <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-400">Status</th>
+                      <th className="table-th">#</th>
+                      <th className="table-th">Description</th>
+                      <th className="table-th">Assigned By</th>
+                      <th className="table-th">Due Date</th>
+                      <th className="table-th">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {modal.tasks.map((t, j) => (
-                      <tr key={j} className="border-t border-slate-100">
-                        <td className="px-4 py-2.5 text-xs text-slate-400">{j + 1}</td>
-                        <td className="px-4 py-2.5 text-slate-700 max-w-[260px]">{t['Description']}</td>
-                        <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">{t['Assigned By'] || t['AssignedBy'] || '—'}</td>
-                        <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">{t['Due Date']}</td>
-                        <td className="px-4 py-2.5">
+                      <tr key={j} className="table-row">
+                        <td className="table-td text-slate-400">{j + 1}</td>
+                        <td className="table-td text-slate-700 max-w-[260px]">{t['Description']}</td>
+                        <td className="table-td text-slate-500 whitespace-nowrap">{t['Assigned By'] || t['AssignedBy'] || '—'}</td>
+                        <td className="table-td text-slate-500 whitespace-nowrap">{t['Due Date']}</td>
+                        <td className="table-td">
                           <span className={`pill text-[10px] ${
                             t['Status'] === 'done'             ? 'bg-emerald-50 text-emerald-700' :
                             t['Status'] === 'pending'          ? 'bg-red-50 text-red-700' :
@@ -286,3 +305,31 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
     </div>
   );
 }
+
+const SUMMARY_TONES = ['blue', 'emerald', 'amber', 'violet', 'red'];
+const SUMMARY_GRADIENTS = {
+  blue:    { grad: 'linear-gradient(135deg, #DDAC6E 0%, #9C5730 100%)', shadow: 'rgba(156,87,48,0.38)' },
+  emerald: { grad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', shadow: 'rgba(16,185,129,0.35)' },
+  amber:   { grad: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', shadow: 'rgba(245,158,11,0.35)' },
+  violet:  { grad: 'linear-gradient(135deg, #f43f5e 0%, #7c3aed 100%)', shadow: 'rgba(244,63,94,0.35)'  },
+  red:     { grad: 'linear-gradient(135deg, #f97316 0%, #dc2626 100%)', shadow: 'rgba(249,115,22,0.35)'  },
+};
+
+function SummaryKpi({ label, value, tone = 'blue' }) {
+  const g = SUMMARY_GRADIENTS[tone] || SUMMARY_GRADIENTS.blue;
+  return (
+    <div
+      className="rounded-xl p-4 relative overflow-hidden card-hover cursor-default"
+      style={{ background: g.grad, boxShadow: `0 0 0 1px ${g.shadow}44, 0 4px 20px ${g.shadow}, 0 0 40px ${g.shadow}55` }}
+    >
+      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
+      <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <div className="relative z-10 min-w-0">
+        <div className="text-[9.5px] font-semibold uppercase tracking-widest truncate" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</div>
+        <div className="text-[26px] leading-none font-black mt-1.5 tabular-nums text-white">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function IconTable() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>; }

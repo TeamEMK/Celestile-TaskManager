@@ -146,9 +146,14 @@ export default function DailyTaskAdminClient() {
       {/* ── Filter bar ───────────────────────────────────────────────── */}
       <div className="card p-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <div className="text-[15px] font-bold text-slate-900">Daily Task Admin</div>
-            <div className="text-[12px] text-slate-500">Everyone&apos;s task submissions</div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+            </div>
+            <div>
+              <div className="font-display text-[16px] font-semibold text-slate-900">Daily Task <span className="text-gradient-gold">Admin</span></div>
+              <div className="page-sub !mt-0">Everyone&apos;s task submissions</div>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1.5">
@@ -169,22 +174,16 @@ export default function DailyTaskAdminClient() {
       </div>
 
       {/* ── Tab switcher ─────────────────────────────────────────────── */}
-      <div className="card px-1 overflow-hidden">
-        <div className="flex border-b border-slate-100">
-          {[['overview', 'Overview'], ['revisions', 'Designer Revisions']].map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={`px-5 py-3 text-[13px] font-semibold border-b-2 -mb-px transition-colors ${
-                activeTab === id
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className="seg">
+        {[['overview', 'Overview'], ['revisions', 'Designer Revisions']].map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={`seg-btn ${activeTab === id ? 'seg-btn-active' : ''}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* ════════════════════════════════════════════════════════════════
@@ -205,8 +204,10 @@ export default function DailyTaskAdminClient() {
           <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
             <div className="card p-5">
               <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">⏰</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 grid place-items-center shrink-0">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                  </div>
                   <div>
                     <div className="text-[13px] font-bold text-slate-900">Today&apos;s Fill Status</div>
                     <div className="text-[11.5px] text-slate-500">{filledCount} of {allDoers.length} filled today</div>
@@ -216,12 +217,13 @@ export default function DailyTaskAdminClient() {
                   <button
                     onClick={sendReminder}
                     disabled={reminding}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11.5px] font-semibold bg-green-500 hover:bg-green-600 text-white transition-colors disabled:opacity-60"
+                    className="btn relative overflow-hidden text-white hover:-translate-y-px !px-3.5 !py-2"
+                    style={{ background: 'linear-gradient(135deg, #34d399 0%, #059669 55%, #047857 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.25) inset, 0 4px 14px rgba(5,150,105,0.35)' }}
                   >
                     {reminding ? (
                       <><div className="w-3 h-3 rounded-full border border-white border-t-transparent animate-spin" /> Sending…</>
                     ) : (
-                      <>📲 Send WA Reminder</>
+                      <><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.004 2.003c-5.514 0-9.997 4.483-9.997 9.997 0 1.762.462 3.484 1.34 5.003l-1.423 5.198 5.325-1.396a9.958 9.958 0 0 0 4.755 1.21h.004c5.514 0 9.997-4.483 9.997-9.997 0-2.67-1.04-5.18-2.927-7.07a9.935 9.935 0 0 0-7.074-2.945zm5.848 15.803a8.264 8.264 0 0 1-4.256 1.17h-.003a8.297 8.297 0 0 1-4.234-1.161l-.304-.18-3.153.826.842-3.075-.198-.315a8.267 8.267 0 0 1-1.267-4.396c0-4.582 3.73-8.311 8.316-8.311a8.26 8.26 0 0 1 5.878 2.442 8.257 8.257 0 0 1 2.432 5.878c0 4.582-3.73 8.312-8.053 8.312z"/></svg> Send WA Reminder</>
                     )}
                   </button>
                 )}
@@ -297,7 +299,13 @@ export default function DailyTaskAdminClient() {
               </div>
             </div>
             {recent.length === 0 ? (
-              <div className="p-10 text-center text-[13px] text-slate-400">No entries in this range</div>
+              <div className="p-14 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 grid place-items-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                </div>
+                <div className="text-[13.5px] font-semibold text-slate-600">No entries in this range</div>
+                <div className="text-[12px] text-slate-400 mt-0.5">Try widening the date filter</div>
+              </div>
             ) : (
               <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
                 <table className="w-full text-[12px]">
@@ -384,7 +392,13 @@ export default function DailyTaskAdminClient() {
               </div>
             </div>
             {agg.revByDoer.length === 0 ? (
-              <div className="p-10 text-center text-[13px] text-slate-400">No revision entries in this date range</div>
+              <div className="p-14 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 grid place-items-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>
+                </div>
+                <div className="text-[13.5px] font-semibold text-slate-600">No revision entries in this date range</div>
+                <div className="text-[12px] text-slate-400 mt-0.5">Nothing to show here yet</div>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-[12px]">
@@ -451,12 +465,14 @@ function StatCard({ label, value, icon, grad, shadow }) {
     >
       <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.13)' }} />
       <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }} />
-      <div className="relative z-10">
-        <div className="flex items-start justify-between mb-3">
-          <span className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</span>
-          <span className="text-xl leading-none">{icon}</span>
+      <div className="relative z-10 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-[9.5px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</div>
+          <div className="text-[28px] font-black tabular-nums text-white leading-none mt-1.5">{value}</div>
         </div>
-        <div className="text-[28px] font-black tabular-nums text-white leading-none">{value}</div>
+        <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
+          <span className="text-white text-sm leading-none">{icon}</span>
+        </div>
       </div>
     </div>
   );

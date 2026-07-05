@@ -214,7 +214,7 @@ export default function AllTasksClient({ grouped, users }) {
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
               Transfer
             </button>
-            <button onClick={() => setChecklistOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition shadow-sm">
+            <button onClick={() => setChecklistOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12.5px] font-medium bg-white text-emerald-600 border border-emerald-200 hover:bg-emerald-50 transition shadow-sm">
               <PlusIcon /> Checklist
             </button>
             <button onClick={() => setDelegateOpen(true)} className="btn-primary">
@@ -408,7 +408,7 @@ export default function AllTasksClient({ grouped, users }) {
                                       </a>
                                     )}
                                     {t.attachment && (
-                                      <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-blue-500 hover:text-blue-700" title="View attachment">
+                                      <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-primary-500 hover:text-primary-700" title="View attachment">
                                         {t.attachment.startsWith('data:image') ? <img src={t.attachment} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" /> : <span>📄</span>}
                                       </a>
                                     )}
@@ -488,7 +488,7 @@ export default function AllTasksClient({ grouped, users }) {
               </div>
             </div>
             <p className="text-[12px] text-slate-600 bg-slate-50 rounded-lg p-3 mb-4 line-clamp-2">{fileTask.description}</p>
-            <label className="block cursor-pointer border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-violet-300 hover:bg-violet-50 transition mb-4">
+            <label className="block cursor-pointer border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-primary-300 hover:bg-primary-50 transition mb-4">
               {completionInput
                 ? <span className="text-sm font-medium text-slate-700">📎 {completionInput.name}</span>
                 : <><span className="text-2xl block mb-1">⬆</span><span className="text-sm text-slate-500">Click to choose Photo or PDF</span></>}
@@ -591,12 +591,18 @@ function EditTaskModal({ task, users, onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-[15px] font-semibold text-slate-900">Edit Task</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 grid place-items-center shrink-0">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <div className="flex-1">
+            <h2 className="text-[15px] font-semibold text-slate-900">Edit Task</h2>
+            <p className="text-[12px] text-slate-500 mt-0.5">Update the task details below</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 shrink-0">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
@@ -712,16 +718,21 @@ function TransferModal({ open, onClose, users, grouped, onDone }) {
   const allSelected = fromTasks.length > 0 && selectedIds.size === fromTasks.length;
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-            <svg className="w-4 h-4 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
-            Transfer Tasks
-          </h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 grid place-items-center text-slate-400">✕</button>
+        <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
+          </div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-slate-900">Transfer Tasks</h2>
+            <p className="text-[12px] text-slate-500 mt-0.5">Move tasks from one employee to another</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 shrink-0">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
 
         {/* User selectors */}
@@ -853,16 +864,21 @@ function MyTransferModal({ open, onClose, users, fromName, grouped, onDone }) {
   const allSelected = myTasks.length > 0 && selectedIds.size === myTasks.length;
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-            <svg className="w-4 h-4 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
-            Transfer My Tasks
-          </h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 grid place-items-center text-slate-400">✕</button>
+        <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H4"/><path d="m7 21-4-4 4-4"/><path d="M3 17h17"/></svg>
+          </div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-slate-900">Transfer My Tasks</h2>
+            <p className="text-[12px] text-slate-500 mt-0.5">Move your tasks to someone else</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 shrink-0">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
 
         {/* To selector */}

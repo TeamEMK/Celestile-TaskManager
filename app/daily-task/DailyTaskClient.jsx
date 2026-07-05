@@ -254,21 +254,24 @@ export default function DailyTaskClient() {
   const formReady = !isAdmin || !!selectedForm;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       <div className="card p-5">
 
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-          <div>
-            <div className="text-[15px] font-semibold text-slate-900">Daily Report</div>
-            <div className="text-[12px] text-slate-500 flex items-center gap-2 flex-wrap">
-              Welcome <b>{doer || 'User'}</b>
-              {department && <span className="pill bg-slate-100 text-slate-500">{department}</span>}
-              {profileBranch && (
-                <span className={`pill font-semibold ${profileBranch === 'Hyderabad' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
-                  {profileBranch}
-                </span>
-              )}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconClipboard /></div>
+            <div>
+              <div className="text-[15px] font-semibold text-slate-900">Daily Report</div>
+              <div className="text-[12px] text-slate-500 flex items-center gap-2 flex-wrap">
+                Welcome <b>{doer || 'User'}</b>
+                {department && <span className="pill bg-slate-100 text-slate-500">{department}</span>}
+                {profileBranch && (
+                  <span className={`pill font-semibold ${profileBranch === 'Hyderabad' ? 'bg-violet-50 text-violet-700' : 'bg-primary-50 text-primary-700'}`}>
+                    {profileBranch}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="text-[12px] text-slate-500">{new Date().toLocaleString('en-GB')}</div>
@@ -281,18 +284,14 @@ export default function DailyTaskClient() {
             {!profileBranch && (
               <>
                 <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Step 1 — Branch</div>
-                <div className="flex gap-2 mb-4">
+                <div className="seg mb-4">
                   {[
-                    { id: 'Bangalore', label: 'Bangalore', color: 'bg-blue-600 border-blue-600' },
-                    { id: 'Hyderabad', label: 'Hyderabad', color: 'bg-violet-600 border-violet-600' },
+                    { id: 'Bangalore', label: 'Bangalore' },
+                    { id: 'Hyderabad', label: 'Hyderabad' },
                   ].map((b) => (
                     <button key={b.id}
                       onClick={() => { setBranch(b.id); setSelectedForm(''); setRows([blankDesignerRow()]); setMsg(''); }}
-                      className={`px-5 py-2 rounded-lg text-[13px] font-semibold border-2 transition-all ${
-                        branch === b.id
-                          ? b.color + ' text-white shadow-md'
-                          : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
-                      }`}
+                      className={`seg-btn ${branch === b.id ? 'seg-btn-active' : ''}`}
                     >{b.label}</button>
                   ))}
                 </div>
@@ -301,15 +300,11 @@ export default function DailyTaskClient() {
 
             {/* Step 2 (or Step 1 if branch locked): Department */}
             <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">{profileBranch ? 'Step 1' : 'Step 2'} — Department</div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="seg flex-wrap">
               {FORM_OPTIONS.map((f) => (
                 <button key={f.value}
                   onClick={() => handleFormSwitch(f.value)}
-                  className={`px-4 py-2 rounded-lg text-[13px] font-medium border transition-all ${
-                    selectedForm === f.value
-                      ? 'bg-slate-900 text-white border-slate-900 shadow'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                  }`}
+                  className={`seg-btn ${selectedForm === f.value ? 'seg-btn-active' : ''}`}
                 >{f.label}</button>
               ))}
             </div>
@@ -320,19 +315,12 @@ export default function DailyTaskClient() {
         {!isAdmin && !profileBranch && (isSiteEngineer || isSales) && (
           <div className="mb-4">
             <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Branch</div>
-            <div className="flex gap-2 max-w-xs">
-              {[
-                { id: 'Bangalore', color: 'bg-blue-600 border-blue-600' },
-                { id: 'Hyderabad', color: 'bg-violet-600 border-violet-600' },
-              ].map((b) => (
-                <button key={b.id}
-                  onClick={() => handleBranchSwitch(b.id)}
-                  className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all ${
-                    branch === b.id
-                      ? b.color + ' text-white'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                  }`}
-                >{b.id}</button>
+            <div className="seg max-w-xs">
+              {['Bangalore', 'Hyderabad'].map((b) => (
+                <button key={b}
+                  onClick={() => handleBranchSwitch(b)}
+                  className={`seg-btn flex-1 ${branch === b ? 'seg-btn-active' : ''}`}
+                >{b}</button>
               ))}
             </div>
           </div>
@@ -351,38 +339,38 @@ export default function DailyTaskClient() {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <div className="overflow-x-auto overflow-y-auto max-h-[520px] rounded-lg border border-slate-200">
               <table className="w-full">
-                <thead className="bg-slate-900 text-white">
+                <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
                   <tr>
-                    <th className="table-th !text-white">Client Name</th>
+                    <th className="table-th">Client Name</th>
                     {isSales ? (
-                      <th className="table-th !text-white">Client Number</th>
+                      <th className="table-th">Client Number</th>
                     ) : (
-                      <th className="table-th !text-white">Order Number</th>
+                      <th className="table-th">Order Number</th>
                     )}
                     {/* Site Location: always for Site Engineer; for Sales only Hyderabad */}
                     {(isSiteEngineer || (isSales && isHyderabad)) && (
-                      <th className="table-th !text-white">Site Location</th>
+                      <th className="table-th">Site Location</th>
                     )}
-                    <th className="table-th !text-white">{isSiteEngineer ? 'Area (Space)' : 'Area Name'}</th>
-                    {isSiteEngineer && <th className="table-th !text-white">Purpose of Visit</th>}
-                    {!isSiteEngineer && <th className="table-th !text-white">Type of Task</th>}
+                    <th className="table-th">{isSiteEngineer ? 'Area (Space)' : 'Area Name'}</th>
+                    {isSiteEngineer && <th className="table-th">Purpose of Visit</th>}
+                    {!isSiteEngineer && <th className="table-th">Type of Task</th>}
                     {!isSiteEngineer && !isSales && (
                       <>
-                        <th className="table-th !text-white">Software</th>
-                        <th className="table-th !text-white text-center">Revision</th>
+                        <th className="table-th">Software</th>
+                        <th className="table-th text-center">Revision</th>
                       </>
                     )}
-                    {isSales && <th className="table-th !text-white">Purpose of Task</th>}
-                    {isSiteEngineer && <th className="table-th !text-white">KMS Travelled</th>}
-                    <th className="table-th !text-white">Duration (min)</th>
-                    <th className="table-th !text-white text-right pr-3">Actions</th>
+                    {isSales && <th className="table-th">Purpose of Task</th>}
+                    {isSiteEngineer && <th className="table-th">KMS Travelled</th>}
+                    <th className="table-th">Duration (min)</th>
+                    <th className="table-th text-right pr-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
-                    <tr key={i} className="border-t border-slate-100 align-top">
+                    <tr key={i} className="table-row align-top">
                       {/* Client Name */}
                       <td className="table-td">
                         <input className="input" list="dt-clients" placeholder="--select--"
@@ -533,12 +521,12 @@ export default function DailyTaskClient() {
               </datalist>
             </div>
 
-            <div className="flex items-center justify-between mt-3 px-3 py-2 bg-slate-50 rounded-lg">
+            <div className="flex items-center justify-between mt-3 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
               <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Total Duration</span>
               <span className="text-[18px] font-bold text-amber-500">{total} <span className="text-[12px] text-slate-400">min</span></span>
             </div>
 
-            <div className="flex items-center justify-end gap-2 mt-4">
+            <div className="flex items-center justify-end gap-2 mt-4 flex-wrap">
               {msg && <span className="text-[12px] mr-auto">{msg}</span>}
               <button className="btn-secondary" onClick={addRow}>+ Add Row</button>
               <button className="btn-warn" disabled={saving} onClick={submitAll}>
@@ -551,15 +539,27 @@ export default function DailyTaskClient() {
 
       {/* Past submissions */}
       <div className="card p-5">
-        <div className="text-[14px] font-semibold text-slate-900 mb-3">📒 My Past Submissions</div>
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconArchive /></div>
+          <div>
+            <h2 className="text-[13.5px] font-semibold text-slate-900">My Past Submissions</h2>
+            <p className="text-[11.5px] text-slate-500">{grouped.length} day{grouped.length === 1 ? '' : 's'} logged</p>
+          </div>
+        </div>
         {grouped.length === 0 ? (
-          <p className="text-[12.5px] text-slate-400">No submissions yet.</p>
+          <div className="p-10 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 grid place-items-center mx-auto mb-3">
+              <IconInbox />
+            </div>
+            <div className="text-[13.5px] font-semibold text-slate-700">No submissions yet</div>
+            <div className="text-[12px] text-slate-500 mt-0.5">Your daily reports will appear here once submitted.</div>
+          </div>
         ) : (
           <div className="space-y-3">
             {grouped.map(([date, entries]) => {
               const dayTotal = entries.reduce((s, e) => s + (Number(e.minutes) || 0), 0);
               return (
-                <div key={date} className="border border-slate-200 rounded-lg p-3">
+                <div key={date} className="border border-slate-200 rounded-lg p-3 card-hover transition-all duration-200">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="text-[13px] font-semibold text-slate-800">📅 {fmt(date)}</span>
                     <span className="pill bg-slate-100 text-slate-600">{entries.length} task</span>
@@ -606,3 +606,7 @@ export default function DailyTaskClient() {
     </div>
   );
 }
+
+function IconClipboard() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg>; }
+function IconArchive()   { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg>; }
+function IconInbox()     { return <svg className="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>; }
