@@ -14,6 +14,7 @@ export async function GET(req) {
               architect_name, architect, consultant, consultant_number,
               boutique, payment_terms, validity, lead_time, transport,
               billing_address, site_address, grand_total,
+              discount_pct, design_fees, installation_charges, packing_charges,
               stone_items, fixing_items, totals_config
        FROM quotations WHERE approval_token = ? LIMIT 1`,
       [token]
