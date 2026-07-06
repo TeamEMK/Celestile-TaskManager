@@ -22,6 +22,7 @@ const BLANK_MODAL = { open: false, token: '', refNo: '', clientName: '', grandTo
 export default function QuotationAdminClient() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [branch, setBranch] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [q, setQ] = useState('');
@@ -30,11 +31,21 @@ export default function QuotationAdminClient() {
   const [to, setTo] = useState('');
   const [modal, setModal] = useState(BLANK_MODAL);
 
-  useEffect(() => {
-    fetch('/api/quotations?full=1').then((r) => r.json())
+  function loadRows() {
+    setRefreshing(true);
+    return fetch('/api/quotations?full=1').then((r) => r.json())
       .then((d) => setRows(Array.isArray(d.quotations) ? d.quotations : []))
       .catch(() => setRows([]))
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); setRefreshing(false); });
+  }
+
+  useEffect(() => {
+    loadRows();
+    // New quotations are created from a different tab/device — refetch when the
+    // admin returns to this tab so newly-saved rows show up without a hard reload.
+    const onFocus = () => loadRows();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
   const win = useMemo(() => {
@@ -169,7 +180,12 @@ export default function QuotationAdminClient() {
               <div className="page-sub !mt-0">All saved quotations across both branches</div>
             </div>
           </div>
-          <button className="btn-secondary" onClick={downloadCSV}><IconDownload className="w-3.5 h-3.5" /> CSV</button>
+          <div className="flex items-center gap-2">
+            <button className="btn-secondary" disabled={refreshing} onClick={loadRows}>
+              <IconRefresh className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} /> {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button className="btn-secondary" onClick={downloadCSV}><IconDownload className="w-3.5 h-3.5" /> CSV</button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -301,6 +317,7 @@ function StatCard({ label, value, icon, grad, shadow }) {
 function IconDocument(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>; }
 function IconList(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>; }
 function IconDownload(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>; }
+function IconRefresh(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 16"/><path d="M8 16H3v5"/></svg>; }
 function IconCheck(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>; }
 function IconX(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>; }
 function IconClose(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>; }
