@@ -1,7 +1,9 @@
 ﻿'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { CELESTILE_LOGO } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
+import { CalcInput } from './calcExpr';
 
 /* ── constants (ported from IndexBng) ─────────────────────────────────── */
 const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
@@ -95,11 +97,15 @@ const HEADER_FIELDS = [
 ];
 
 export default function BangaloreForm({ initialRef = '' }) {
+  const { data: session } = useSession();
+  const roles = session?.user?.roles || [];
+  const isAdmin = roles.includes('Admin') || roles.includes('HOD');
+
   const [header, setHeader] = useState({
     quoteDate: todayISO(), refNo: '', clientName:'', architectName:'', architectFirm:'',
     consultant:'', consultantNumber:'', consultantEmail:'', clientContact:'', clientEmail:'',
     boutique:'Sarjapur Road, Bangalore', validity:'', leadTime:'60 Working Days',
-    billingAddress:'', siteAddress:'',
+    billingAddress:'', siteAddress:'', status:'',
   });
   const [rows, setRows] = useState(() => Array.from({ length: 5 }, blankRow));
   const [totals, setTotals] = useState(defaultTotals);
@@ -161,7 +167,6 @@ export default function BangaloreForm({ initialRef = '' }) {
       grandTotal: inr0(calc.grandTotal),
       stoneItems: rows.filter((r) => r.desc || r.area || Number(r.price) || Number(r.qty)),
       totalsConfig: totals,
-      pdf: buildPdfHtml(header, rows, totals, calc),
     };
     try {
       const res = await fetch('/api/quotations', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
@@ -169,6 +174,7 @@ export default function BangaloreForm({ initialRef = '' }) {
       if (!res.ok || d.status === 'error') throw new Error(d.message || 'Save failed');
       const isRev = String(header.refNo).toUpperCase().includes('-REV');
       setStatus('✅ Saved (' + d.refNo + ')' + (isRev ? '' : ' — Approval WhatsApp sent'));
+      setH('status', 'pending');
       // refresh next ref for a fresh new quotation number
       fetch('/api/quotations/next-ref?branch=bangalore').then((r) => r.json()).then((x) => x.refNo).catch(() => {});
     } catch (e) { setStatus('❌ ' + e.message); }
@@ -200,6 +206,7 @@ export default function BangaloreForm({ initialRef = '' }) {
         clientEmail: q.clientEmail || q.email || '', boutique: q.boutique || h.boutique,
         validity: q.validity || h.validity, leadTime: q.leadTime || h.leadTime,
         billingAddress: q.billingAddress || '', siteAddress: q.siteAddress || '',
+        status: '', // revising always starts a fresh draft that needs its own approval
       }));
       const items = Array.isArray(q.stoneItems) ? q.stoneItems : [];
       setRows(items.length ? items.map((it) => ({ ...blankRow(), ...it, module: !!it.module, gst: it.gst ?? DEFAULT_GST })) : [blankRow()]);
@@ -211,14 +218,16 @@ export default function BangaloreForm({ initialRef = '' }) {
   function reset() {
     setHeader((h) => ({ ...h, clientName:'', architectName:'', architectFirm:'', consultant:'', consultantNumber:'',
       consultantEmail:'', clientContact:'', clientEmail:'', billingAddress:'', siteAddress:'',
-      boutique:'Sarjapur Road, Bangalore', leadTime:'60 Working Days', quoteDate: todayISO(), validity: validityFrom(todayISO()) }));
+      boutique:'Sarjapur Road, Bangalore', leadTime:'60 Working Days', quoteDate: todayISO(), validity: validityFrom(todayISO()), status:'' }));
     setRows(Array.from({ length: 5 }, blankRow));
     setTotals(defaultTotals());
     fetch('/api/quotations/next-ref?branch=bangalore').then((r) => r.json()).then((d) => setH('refNo', d.refNo || '001')).catch(() => {});
     setStatus('');
   }
 
+  const canDownload = isAdmin || header.status === 'approved';
   function printPdf() {
+    if (!canDownload) return;
     const html = buildPdfHtml(header, rows, totals, calc);
     const w = window.open('', '_blank');
     if (!w) { setStatus('❌ Popup blocked — allow popups to print.'); return; }
@@ -247,7 +256,7 @@ export default function BangaloreForm({ initialRef = '' }) {
           {status && <span className="text-[12px] text-slate-600 mr-1">{status}</span>}
           <button className="btn-ghost" onClick={reset}>↺ Reset</button>
           <button className="btn-secondary" onClick={openRevise}>Revise</button>
-          <button className="btn-secondary" onClick={printPdf}>⬇ PDF</button>
+          <button className="btn-secondary" disabled={!canDownload} title={canDownload ? '' : 'Available once an admin approves this quotation'} onClick={printPdf}>⬇ PDF</button>
           <button className="btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
         </div>
       </div>
@@ -316,13 +325,13 @@ export default function BangaloreForm({ initialRef = '' }) {
                       <td className="px-1 py-1 text-center" title="Rate per SFT (qty = size W×H)">
                         <input type="checkbox" className="h-4 w-4 accent-primary-600" checked={r.module} onChange={(e) => setRow(i, 'module', e.target.checked)} />
                       </td>
-                      <td className="px-1 py-1 w-20"><input type="number" min="0" className="input !py-1 text-right tabular-nums" value={r.price} onChange={(e) => setRow(i, 'price', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-20"><CalcInput className="input !py-1 text-right tabular-nums" value={r.price} onChange={(v) => setRow(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
                       <td className="px-1 py-1 w-16">
-                        <input type="number" min="0" className={`input !py-1 text-right tabular-nums ${r.module ? 'bg-slate-100 text-slate-500' : ''}`}
-                          value={r.module ? (eff.qty ? +Number(eff.qty).toFixed(2) : '') : r.qty}
-                          readOnly={r.module} onChange={(e) => setRow(i, 'qty', e.target.value)} />
+                        {r.module
+                          ? <input type="number" className="input !py-1 text-right tabular-nums bg-slate-100 text-slate-500" value={eff.qty ? +Number(eff.qty).toFixed(2) : ''} readOnly />
+                          : <CalcInput className="input !py-1 text-right tabular-nums" value={r.qty} onChange={(v) => setRow(i, 'qty', v)} title="Type a formula, e.g. 2850*45" />}
                       </td>
-                      <td className="px-1 py-1 w-16"><input type="number" min="0" max="100" className="input !py-1 text-right tabular-nums" value={r.gst} onChange={(e) => setRow(i, 'gst', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-16"><CalcInput className="input !py-1 text-right tabular-nums" value={r.gst} onChange={(v) => setRow(i, 'gst', v)} /></td>
                       <td className="px-2 py-1 text-right whitespace-nowrap font-semibold tabular-nums">{eff.hasInput ? inr0(eff.gross) : ''}</td>
                       <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delRow(i)}>✕</button></td>
                     </tr>
@@ -354,8 +363,8 @@ export default function BangaloreForm({ initialRef = '' }) {
               <div key={t.id} className="flex items-center justify-between gap-2 text-[12.5px] py-1">
                 <span className="text-rose-700">Discount</span>
                 <div className="flex items-center gap-1">
-                  <input type="number" min="0" max="100" className="input !py-1 w-16 text-right tabular-nums" value={t.value}
-                    onChange={(e) => setTotal(t.id, { value: e.target.value })} /><span className="text-rose-700">%</span>
+                  <CalcInput className="input !py-1 w-16 text-right tabular-nums" value={t.value}
+                    onChange={(v) => setTotal(t.id, { value: v })} /><span className="text-rose-700">%</span>
                   <span className="text-rose-700 w-24 text-right tabular-nums">− {inr0(calc.discount)}</span>
                 </div>
               </div>
@@ -364,8 +373,8 @@ export default function BangaloreForm({ initialRef = '' }) {
               <div key={t.id} className="flex items-center justify-between gap-2 text-[12.5px] py-1">
                 <span className="text-slate-600">{t.label} <small className="text-primary-700">(₹{t.rate}/unit)</small></span>
                 <div className="flex items-center gap-1">
-                  <input type="number" min="0" className="input !py-1 w-16 text-right tabular-nums" placeholder="Area" value={t.area}
-                    onChange={(e) => setTotal(t.id, { area: e.target.value })} />
+                  <CalcInput className="input !py-1 w-16 text-right tabular-nums" placeholder="Area" value={t.area}
+                    onChange={(v) => setTotal(t.id, { area: v })} />
                   <span className="text-slate-400">=</span>
                   <span className="w-24 text-right font-medium tabular-nums">{inr0((t.rate || 0) * (parseFloat(t.area) || 0))}</span>
                 </div>
@@ -380,8 +389,8 @@ export default function BangaloreForm({ initialRef = '' }) {
                   : <span className="text-slate-600">{t.label}</span>}
                 <div className="flex items-center gap-1">
                   <span className="text-slate-400">₹</span>
-                  <input type="number" min="0" className="input !py-1 w-24 text-right tabular-nums" value={t.value}
-                    onChange={(e) => setTotal(t.id, { value: e.target.value })} />
+                  <CalcInput className="input !py-1 w-24 text-right tabular-nums" value={t.value}
+                    onChange={(v) => setTotal(t.id, { value: v })} />
                   {isCustom && <button className="btn-danger !px-2 !py-0.5" onClick={() => removeTotal(t.id)}>✕</button>}
                 </div>
               </div>

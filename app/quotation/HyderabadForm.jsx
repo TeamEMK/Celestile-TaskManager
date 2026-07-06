@@ -1,7 +1,9 @@
 ﻿'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { CELESTILE_LOGO } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
+import { CalcInput } from './calcExpr';
 
 const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
 const UNIT_OPTIONS = ['','Piece','Module','SFT','RFT','BAG','KG','GMS','LITER'];
@@ -60,11 +62,15 @@ const HEADER_FIELDS = [
 ];
 
 export default function HyderabadForm({ initialRef = '' }) {
+  const { data: session } = useSession();
+  const roles = session?.user?.roles || [];
+  const isAdmin = roles.includes('Admin') || roles.includes('HOD');
+
   const [header, setHeader] = useState({
     quoteDate: todayISO(), refNo: '', clientName:'', clientFirm:'', consultant:'', consultantNo:'', consultantEmail:'',
     architect:'', clientContact:'', clientEmail:'', boutique:'Shamshabad, Hyderabad',
     paymentTerms:'80% Advance, 20% Before Delivery', leadTime:'60 Working Days', transport:'Road',
-    validity:'', billingAddress:'', siteAddress:'',
+    validity:'', billingAddress:'', siteAddress:'', status:'',
   });
   const [charges, setCharges] = useState({ discountPct:'0', designFees:'0', installationCharges:'0', packingCharges:'0' });
   const [stoneRows, setStoneRows] = useState(() => Array.from({ length: 3 }, blankStone));
@@ -122,7 +128,6 @@ export default function HyderabadForm({ initialRef = '' }) {
       grandTotal: inr2(calc.grandTotal),
       stoneItems: stoneRows.filter((r) => r.desc || Number(r.price) || Number(r.qty) || r.module),
       fixingItems: fixRows.filter((r) => Number(r.qty) > 0),
-      pdf: buildPdfHtml(header, charges, stoneRows, fixRows, calc),
     };
     try {
       const res = await fetch('/api/quotations', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
@@ -130,6 +135,7 @@ export default function HyderabadForm({ initialRef = '' }) {
       if (!res.ok || d.status === 'error') throw new Error(d.message || 'Save failed');
       const isRev = String(header.refNo).toUpperCase().includes('-REV');
       setStatus('✅ Saved (' + d.refNo + ')' + (isRev ? '' : ' — Approval WhatsApp sent'));
+      setH('status', 'pending');
     } catch (e) { setStatus('❌ ' + e.message); }
     finally { setSaving(false); }
   }
@@ -157,6 +163,7 @@ export default function HyderabadForm({ initialRef = '' }) {
         boutique: q.boutique || h.boutique, paymentTerms: q.paymentTerms || h.paymentTerms, validity: q.validity || h.validity,
         leadTime: q.leadTime || h.leadTime, transport: q.transport || h.transport,
         billingAddress: q.billingAddress || '', siteAddress: q.siteAddress || '',
+        status: '', // revising always starts a fresh draft that needs its own approval
       }));
       setCharges({ discountPct: q.discountPct || '0', designFees: q.designFees || '0',
         installationCharges: q.installationCharges || '0', packingCharges: q.packingCharges || '0' });
@@ -172,7 +179,7 @@ export default function HyderabadForm({ initialRef = '' }) {
     setHeader((h) => ({ ...h, clientName:'', clientFirm:'', consultant:'', consultantNo:'', consultantEmail:'', architect:'',
       clientContact:'', clientEmail:'', billingAddress:'', siteAddress:'', boutique:'Shamshabad, Hyderabad',
       paymentTerms:'80% Advance, 20% Before Delivery', leadTime:'60 Working Days', transport:'Road',
-      quoteDate: todayISO(), validity: validityFrom(todayISO()) }));
+      quoteDate: todayISO(), validity: validityFrom(todayISO()), status:'' }));
     setCharges({ discountPct:'0', designFees:'0', installationCharges:'0', packingCharges:'0' });
     setStoneRows(Array.from({ length: 3 }, blankStone));
     setFixRows(DEFAULT_FIXING.map((f) => ({ ...f })));
@@ -180,7 +187,9 @@ export default function HyderabadForm({ initialRef = '' }) {
     setStatus('');
   }
 
+  const canDownload = isAdmin || header.status === 'approved';
   function printPdf() {
+    if (!canDownload) return;
     const html = buildPdfHtml(header, charges, stoneRows, fixRows, calc);
     const w = window.open('', '_blank');
     if (!w) { setStatus('❌ Popup blocked — allow popups to print.'); return; }
@@ -208,7 +217,7 @@ export default function HyderabadForm({ initialRef = '' }) {
           {status && <span className="text-[12px] text-slate-600 mr-1">{status}</span>}
           <button className="btn-ghost" onClick={reset}>↺ Reset</button>
           <button className="btn-secondary" onClick={openRevise}>Revise</button>
-          <button className="btn-secondary" onClick={printPdf}>⬇ PDF</button>
+          <button className="btn-secondary" disabled={!canDownload} title={canDownload ? '' : 'Available once an admin approves this quotation'} onClick={printPdf}>⬇ PDF</button>
           <button className="btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
         </div>
       </div>
@@ -278,10 +287,13 @@ export default function HyderabadForm({ initialRef = '' }) {
                       <td className="px-1 py-1 text-center" title="SFT: qty = Wt × Ht">
                         <input type="checkbox" className="h-4 w-4 accent-primary-600" checked={r.module} onChange={(e) => setStone(i, 'module', e.target.checked)} />
                       </td>
-                      <td className="px-1 py-1 w-20"><input type="number" min="0" className="input !py-1 text-right tabular-nums" value={r.price} onChange={(e) => setStone(i, 'price', e.target.value)} /></td>
-                      <td className="px-1 py-1 w-16"><input type="number" min="0" className={`input !py-1 text-right tabular-nums ${r.module ? 'bg-slate-100 text-slate-500' : ''}`}
-                        value={r.module ? (eff.q ? +Number(eff.q).toFixed(2) : '') : r.qty} readOnly={r.module} onChange={(e) => setStone(i, 'qty', e.target.value)} /></td>
-                      <td className="px-1 py-1 w-16"><input type="number" min="0" max="100" className="input !py-1 text-right tabular-nums" value={r.gst} onChange={(e) => setStone(i, 'gst', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-20"><CalcInput className="input !py-1 text-right tabular-nums" value={r.price} onChange={(v) => setStone(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
+                      <td className="px-1 py-1 w-16">
+                        {r.module
+                          ? <input type="number" className="input !py-1 text-right tabular-nums bg-slate-100 text-slate-500" value={eff.q ? +Number(eff.q).toFixed(2) : ''} readOnly />
+                          : <CalcInput className="input !py-1 text-right tabular-nums" value={r.qty} onChange={(v) => setStone(i, 'qty', v)} title="Type a formula, e.g. 2850*45" />}
+                      </td>
+                      <td className="px-1 py-1 w-16"><CalcInput className="input !py-1 text-right tabular-nums" value={r.gst} onChange={(v) => setStone(i, 'gst', v)} /></td>
                       <td className="px-2 py-1 text-right whitespace-nowrap font-semibold tabular-nums">{eff.hasInput ? inr2(eff.amt) : ''}</td>
                       <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delStone(i)}>✕</button></td>
                     </tr>
@@ -322,8 +334,8 @@ export default function HyderabadForm({ initialRef = '' }) {
                       <td className="px-1 py-1"><input className="input !py-1" value={r.mat} onChange={(e) => setFix(i, 'mat', e.target.value)} /></td>
                       <td className="px-1 py-1 w-24"><input className="input !py-1" value={r.size} onChange={(e) => setFix(i, 'size', e.target.value)} /></td>
                       <td className="px-1 py-1 w-20"><input className="input !py-1" value={r.unit} onChange={(e) => setFix(i, 'unit', e.target.value)} /></td>
-                      <td className="px-1 py-1 w-20"><input type="number" min="0" className="input !py-1 text-right tabular-nums" value={r.price} onChange={(e) => setFix(i, 'price', e.target.value)} /></td>
-                      <td className="px-1 py-1 w-16"><input type="number" min="0" className="input !py-1 text-right tabular-nums" value={r.qty} onChange={(e) => setFix(i, 'qty', e.target.value)} /></td>
+                      <td className="px-1 py-1 w-20"><CalcInput className="input !py-1 text-right tabular-nums" value={r.price} onChange={(v) => setFix(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
+                      <td className="px-1 py-1 w-16"><CalcInput className="input !py-1 text-right tabular-nums" value={r.qty} onChange={(v) => setFix(i, 'qty', v)} /></td>
                       <td className="px-2 py-1 text-right whitespace-nowrap tabular-nums">{amt ? inr2(amt) : '₹ 0'}</td>
                       <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delFix(i)}>✕</button></td>
                     </tr>
@@ -447,7 +459,7 @@ function ChargeInput({ label, value, onChange, suffix }) {
       <span className="text-slate-600">{label}</span>
       <div className="flex items-center gap-1">
         {!suffix && <span className="text-slate-400">₹</span>}
-        <input type="number" min="0" className="input !py-1 w-28 text-right tabular-nums" value={value} onChange={(e) => onChange(e.target.value)} />
+        <CalcInput className="input !py-1 w-28 text-right tabular-nums" value={value} onChange={onChange} />
         {suffix && <span className="text-slate-400">{suffix}</span>}
       </div>
     </div>
