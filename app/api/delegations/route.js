@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { sendWhatsApp, delegationMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+import { sendWhatsApp, delegationMessage, taskDoneMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireUser } from '@/lib/api';
 
 // Fire a WhatsApp "task delegated" notice to the doer (best-effort).
@@ -24,6 +24,22 @@ async function notifyDelegation({ doerUser, delegatedById, del }) {
     });
     await sendWhatsApp(doerUser.phone, msg);
   } catch (e) { console.error('[notifyDelegation]', e.message); }
+}
+
+// Fire a WhatsApp "task completed" notice back to whoever delegated it (best-effort).
+async function notifyTaskDone(delegation) {
+  try {
+    if (!isWhatsappConfigured() || !delegation?.delegated_by) return;
+    const [byUsers] = await pool.query('SELECT name, phone FROM users WHERE id = ?', [delegation.delegated_by]);
+    const byUser = byUsers[0];
+    if (!byUser?.phone) return;
+    const msg = taskDoneMessage({
+      byName: byUser.name,
+      doerName: delegation.doer,
+      description: delegation.description,
+    });
+    await sendWhatsApp(byUser.phone, msg);
+  } catch (e) { console.error('[notifyTaskDone]', e.message); }
 }
 
 function normDate(s) {
@@ -193,6 +209,7 @@ export async function PATCH(req) {
 
     const [result] = await pool.query('SELECT * FROM delegations WHERE id = ?', [body.id]);
     if (!result.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (status === 'done') await notifyTaskDone(result[0]);
     return NextResponse.json(result[0]);
   } catch (err) {
     console.error(err);
