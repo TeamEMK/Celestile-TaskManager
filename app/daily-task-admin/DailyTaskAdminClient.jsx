@@ -26,6 +26,7 @@ export default function DailyTaskAdminClient() {
   const [reminding, setReminding] = useState(false);
   const [reminderResult, setReminderResult] = useState(null);
   const [calMonth, setCalMonth] = useState(today().slice(0, 7)); // 'YYYY-MM'
+  const [selectedDay, setSelectedDay] = useState(null); // 'YYYY-MM-DD' clicked in the calendar
 
   useEffect(() => {
     Promise.all([
@@ -146,10 +147,22 @@ export default function DailyTaskAdminClient() {
 
   const calMonthMinutes = round1(Object.values(calDays).reduce((s, d) => s + d.minutes, 0));
 
+  const selectedDayEntries = useMemo(() => {
+    if (!selectedDay) return [];
+    return entries
+      .filter((e) => ymd(e.entryDate) === selectedDay && (doer === 'All' || (e.doer || '') === doer))
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  }, [entries, selectedDay, doer]);
+
   function shiftCalMonth(delta) {
     const [y, m] = calMonth.split('-').map(Number);
     const d = new Date(y, m - 1 + delta, 1);
     setCalMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    setSelectedDay(null);
+  }
+
+  function pickCalDay(date) {
+    setSelectedDay((cur) => (cur === date ? null : date));
   }
 
   function reset() { setFrom(''); setTo(''); setDoer('All'); }
@@ -398,7 +411,7 @@ export default function DailyTaskAdminClient() {
               <button className="btn-ghost !px-2.5 !py-1.5" onClick={() => shiftCalMonth(-1)}>←</button>
               <div className="text-[14px] font-bold text-slate-900 min-w-[150px] text-center">{calMonthLabel}</div>
               <button className="btn-ghost !px-2.5 !py-1.5" onClick={() => shiftCalMonth(1)}>→</button>
-              <button className="btn-ghost !text-[12px]" onClick={() => setCalMonth(today().slice(0, 7))}>Today</button>
+              <button className="btn-ghost !text-[12px]" onClick={() => { setCalMonth(today().slice(0, 7)); setSelectedDay(null); }}>Today</button>
             </div>
             <div className="text-[12px] text-slate-500">
               {doer === 'All' ? 'All employees' : doer} · <span className="font-bold text-slate-800">{calMonthMinutes}</span> min this month
@@ -416,11 +429,16 @@ export default function DailyTaskAdminClient() {
                 if (!date) return <div key={'b' + i} />;
                 const info = calDays[date];
                 const isToday = date === today();
+                const isSelected = date === selectedDay;
                 const dayNum = Number(date.slice(8, 10));
                 return (
-                  <div
+                  <button
                     key={date}
-                    className={`rounded-lg border p-2 min-h-[74px] flex flex-col gap-1 ${isToday ? 'border-primary-300 bg-primary-50/40' : 'border-slate-100'} ${info ? 'bg-emerald-50/30' : ''}`}
+                    type="button"
+                    onClick={() => pickCalDay(date)}
+                    className={`text-left rounded-lg border p-2 min-h-[74px] flex flex-col gap-1 cursor-pointer transition hover:border-primary-300 hover:shadow-sm ${
+                      isSelected ? 'ring-2 ring-primary-500 border-primary-300' : isToday ? 'border-primary-300 bg-primary-50/40' : 'border-slate-100'
+                    } ${info ? 'bg-emerald-50/30' : ''}`}
                   >
                     <div className={`text-[11px] font-semibold ${isToday ? 'text-primary-700' : 'text-slate-500'}`}>{dayNum}</div>
                     {info ? (
@@ -431,11 +449,69 @@ export default function DailyTaskAdminClient() {
                     ) : (
                       <div className="text-[10px] text-slate-300">—</div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
           </div>
+
+          {/* ── Selected day drill-down ─────────────────────────────── */}
+          {selectedDay && (
+            <div className="card overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-primary-50/60 to-transparent flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-primary-100 text-primary-700 grid place-items-center text-base">📅</div>
+                  <div>
+                    <div className="text-[13px] font-bold text-slate-900">{fmtDate(selectedDay)}</div>
+                    <div className="text-[11.5px] text-slate-500">{selectedDayEntries.length} entr{selectedDayEntries.length === 1 ? 'y' : 'ies'}{doer === 'All' ? '' : ` · ${doer}`}</div>
+                  </div>
+                </div>
+                <button className="btn-ghost !text-[12px]" onClick={() => setSelectedDay(null)}>✕ Close</button>
+              </div>
+              {selectedDayEntries.length === 0 ? (
+                <div className="p-10 text-center">
+                  <div className="text-[13px] font-medium text-slate-500">No entries on this day</div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-[360px] overflow-y-auto">
+                  <table className="w-full text-[12px]">
+                    <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
+                      <tr>
+                        {['Doer', 'Client', 'Order #', 'Area', 'Task Type', 'Software', 'Rev', 'Min'].map((h, i) => (
+                          <th key={i} className="table-th whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedDayEntries.map((e) => (
+                        <tr key={e.id} className="table-row">
+                          <td className="table-td">
+                            <div className="flex items-center gap-1.5">
+                              <MiniAvatar name={e.doer} />
+                              <span className="font-medium text-slate-800">{e.doer}</span>
+                            </div>
+                          </td>
+                          <td className="table-td text-slate-600">{e.client || '—'}</td>
+                          <td className="table-td text-slate-600">{e.orderNumber || '—'}</td>
+                          <td className="table-td max-w-[140px] truncate text-slate-600" title={e.areaName}>{e.areaName || '—'}</td>
+                          <td className="table-td text-slate-600">{e.taskType || e.department || '—'}</td>
+                          <td className="table-td text-slate-600">{e.software || '—'}</td>
+                          <td className="table-td text-center">
+                            {String(e.revision).toLowerCase() === 'yes'
+                              ? <span className="pill bg-amber-50 text-amber-700">Rev</span>
+                              : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="table-td">
+                            <span className="font-bold text-primary-600 tabular-nums">{e.minutes}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
