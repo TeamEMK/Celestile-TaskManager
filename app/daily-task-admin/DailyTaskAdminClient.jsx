@@ -419,6 +419,10 @@ export default function DailyTaskAdminClient() {
           </div>
 
           <div className="card p-4">
+            <div className="flex items-center gap-1.5 mb-3 text-[11px] text-slate-400">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              Tap any day to see who logged what
+            </div>
             <div className="grid grid-cols-7 gap-1.5 mb-1.5">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
                 <div key={d} className="text-[10.5px] font-bold text-slate-400 uppercase text-center py-1">{d}</div>
@@ -429,89 +433,79 @@ export default function DailyTaskAdminClient() {
                 if (!date) return <div key={'b' + i} />;
                 const info = calDays[date];
                 const isToday = date === today();
-                const isSelected = date === selectedDay;
                 const dayNum = Number(date.slice(8, 10));
                 return (
                   <button
                     key={date}
                     type="button"
                     onClick={() => pickCalDay(date)}
-                    className={`text-left rounded-lg border p-2 min-h-[74px] flex flex-col gap-1 cursor-pointer transition hover:border-primary-300 hover:shadow-sm ${
-                      isSelected ? 'ring-2 ring-primary-500 border-primary-300' : isToday ? 'border-primary-300 bg-primary-50/40' : 'border-slate-100'
-                    } ${info ? 'bg-emerald-50/30' : ''}`}
+                    className={`group text-left rounded-lg border p-2 min-h-[62px] flex flex-col items-start justify-between gap-1.5 cursor-pointer transition hover:border-primary-300 hover:shadow-md hover:-translate-y-0.5 ${
+                      isToday ? 'border-primary-300 bg-primary-50/40' : 'border-slate-100 bg-white'
+                    }`}
                   >
                     <div className={`text-[11px] font-semibold ${isToday ? 'text-primary-700' : 'text-slate-500'}`}>{dayNum}</div>
                     {info ? (
-                      <>
-                        <div className="text-[13px] font-bold text-slate-800 tabular-nums">{round1(info.minutes)}<span className="text-[10px] font-medium text-slate-400"> min</span></div>
-                        <div className="text-[10px] text-slate-400">{info.count} entr{info.count === 1 ? 'y' : 'ies'}{doer === 'All' ? ` · ${info.doers.size} ppl` : ''}</div>
-                      </>
+                      <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 tabular-nums group-hover:bg-emerald-100">
+                        {round1(info.minutes)}m
+                      </span>
                     ) : (
-                      <div className="text-[10px] text-slate-300">—</div>
+                      <span className="text-[10px] text-slate-300">no entries</span>
                     )}
                   </button>
                 );
               })}
             </div>
           </div>
+        </div>
+      )}
 
-          {/* ── Selected day drill-down ─────────────────────────────── */}
-          {selectedDay && (
-            <div className="card overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-primary-50/60 to-transparent flex items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-primary-100 text-primary-700 grid place-items-center text-base">📅</div>
-                  <div>
-                    <div className="text-[13px] font-bold text-slate-900">{fmtDate(selectedDay)}</div>
-                    <div className="text-[11.5px] text-slate-500">{selectedDayEntries.length} entr{selectedDayEntries.length === 1 ? 'y' : 'ies'}{doer === 'All' ? '' : ` · ${doer}`}</div>
+      {/* ── Calendar day detail modal ───────────────────────────────── */}
+      {activeTab === 'calendar' && selectedDay && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => setSelectedDay(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-700 grid place-items-center text-lg shrink-0">📅</div>
+                <div>
+                  <div className="text-[15px] font-bold text-slate-900">{fmtDate(selectedDay)}</div>
+                  <div className="text-[12px] text-slate-500">
+                    {selectedDayEntries.length} entr{selectedDayEntries.length === 1 ? 'y' : 'ies'}
+                    {doer === 'All' ? '' : ` · ${doer}`}
+                    {selectedDayEntries.length > 0 && ` · ${round1(selectedDayEntries.reduce((s, e) => s + (parseFloat(e.minutes) || 0), 0))} min total`}
                   </div>
                 </div>
-                <button className="btn-ghost !text-[12px]" onClick={() => setSelectedDay(null)}>✕ Close</button>
               </div>
-              {selectedDayEntries.length === 0 ? (
-                <div className="p-10 text-center">
-                  <div className="text-[13px] font-medium text-slate-500">No entries on this day</div>
-                </div>
-              ) : (
-                <div className="overflow-x-auto max-h-[360px] overflow-y-auto">
-                  <table className="w-full text-[12px]">
-                    <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
-                      <tr>
-                        {['Doer', 'Client', 'Order #', 'Area', 'Task Type', 'Software', 'Rev', 'Min'].map((h, i) => (
-                          <th key={i} className="table-th whitespace-nowrap">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedDayEntries.map((e) => (
-                        <tr key={e.id} className="table-row">
-                          <td className="table-td">
-                            <div className="flex items-center gap-1.5">
-                              <MiniAvatar name={e.doer} />
-                              <span className="font-medium text-slate-800">{e.doer}</span>
-                            </div>
-                          </td>
-                          <td className="table-td text-slate-600">{e.client || '—'}</td>
-                          <td className="table-td text-slate-600">{e.orderNumber || '—'}</td>
-                          <td className="table-td max-w-[140px] truncate text-slate-600" title={e.areaName}>{e.areaName || '—'}</td>
-                          <td className="table-td text-slate-600">{e.taskType || e.department || '—'}</td>
-                          <td className="table-td text-slate-600">{e.software || '—'}</td>
-                          <td className="table-td text-center">
-                            {String(e.revision).toLowerCase() === 'yes'
-                              ? <span className="pill bg-amber-50 text-amber-700">Rev</span>
-                              : <span className="text-slate-300">—</span>}
-                          </td>
-                          <td className="table-td">
-                            <span className="font-bold text-primary-600 tabular-nums">{e.minutes}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <button onClick={() => setSelectedDay(null)} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100 shrink-0">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
             </div>
-          )}
+            {selectedDayEntries.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 grid place-items-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                </div>
+                <div className="text-[13.5px] font-semibold text-slate-600">No one logged anything this day</div>
+              </div>
+            ) : (
+              <div className="max-h-[60vh] overflow-y-auto divide-y divide-slate-100">
+                {selectedDayEntries.map((e) => (
+                  <div key={e.id} className="px-6 py-3 flex items-start gap-3">
+                    <MiniAvatar name={e.doer} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-slate-800 text-[13px]">{e.doer}</span>
+                        {String(e.revision).toLowerCase() === 'yes' && <span className="pill bg-amber-50 text-amber-700">Revision</span>}
+                        <span className="ml-auto font-bold text-primary-600 tabular-nums text-[13px]">{e.minutes} min</span>
+                      </div>
+                      <div className="text-[12px] text-slate-500 mt-0.5">
+                        {[e.taskType || e.department, e.software, e.client, e.orderNumber, e.areaName].filter(Boolean).join(' · ') || '—'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
