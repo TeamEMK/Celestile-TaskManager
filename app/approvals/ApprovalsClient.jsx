@@ -1,6 +1,6 @@
 ﻿'use client';
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useConfirmToast } from '../components/ConfirmToast';
 
 const fmt = (iso) => {
@@ -17,7 +17,8 @@ function saveSeen(key, set) {
 
 export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [] }) {
   const router = useRouter();
-  const [tab, setTab] = useState('Revise Requests');
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get('tab') === 'task' ? 'Task Approvals' : 'Revise Requests');
 
   const [seenRevise,    setSeenRevise]    = useState(() => new Set());
   const [seenApprovals, setSeenApprovals] = useState(() => new Set());

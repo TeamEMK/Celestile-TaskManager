@@ -218,6 +218,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
           tone="amber" label="Pending Approval" value={approvalCount}
           icon={<IconApproval />}
           sub={approvalBranchSub}
+          onClick={() => router.push('/approvals?tab=task')}
         />
       </div>
 
@@ -516,11 +517,14 @@ const KPI_GRADIENTS = {
   amber:   { grad: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', shadow: 'rgba(245,158,11,0.35)' },
 };
 
-function Kpi({ label, value, tone = 'blue', icon, sub }) {
+function Kpi({ label, value, tone = 'blue', icon, sub, onClick }) {
   const g = KPI_GRADIENTS[tone] || KPI_GRADIENTS.blue;
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <div
-      className="rounded-xl p-4 relative overflow-hidden card-hover cursor-default"
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`rounded-xl p-4 relative overflow-hidden card-hover text-left w-full ${onClick ? 'cursor-pointer hover:-translate-y-0.5 transition' : 'cursor-default'}`}
       style={{ background: g.grad, boxShadow: `0 0 0 1px ${g.shadow}44, 0 4px 20px ${g.shadow}, 0 0 40px ${g.shadow}55` }}
     >
       <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
@@ -535,7 +539,7 @@ function Kpi({ label, value, tone = 'blue', icon, sub }) {
           <span className="text-white text-sm">{icon}</span>
         </div>
       </div>
-    </div>
+    </Tag>
   );
 }
 

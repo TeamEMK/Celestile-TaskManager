@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 const fmt = (iso) => {
   if (!iso) return '—';
@@ -28,7 +29,8 @@ function EmptyState({ icon: Icon, label }) {
 }
 
 export default function UserApprovalsClient({ myReviseRequests = [], myTaskApprovals = [] }) {
-  const [tab, setTab] = useState('revise');
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get('tab') === 'task' ? 'approval' : 'revise');
 
   const TABS = [
     { key: 'revise',   label: 'Revise Requests',   count: myReviseRequests.length, icon: ReviseIcon },
