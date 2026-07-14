@@ -20,6 +20,9 @@ export default function DashboardClient({ data, performance, holidays, users = [
   const [reviseSaving, setReviseSaving] = useState(false);
   const [subTab,       setSubTab]       = useState('All');
   const [userFilter,   setUserFilter]   = useState('All');
+  const [fileTask,        setFileTask]        = useState(null);
+  const [completionInput, setCompletionInput] = useState(null);
+  const [fileUploading,   setFileUploading]   = useState(false);
   const { ask, ConfirmUI } = useConfirmToast();
 
   const todayISO = new Date().toISOString().split('T')[0];
@@ -68,6 +71,35 @@ export default function DashboardClient({ data, performance, holidays, users = [
       await fetch('/api/fms/step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fmsId, stepIndex }) });
     }
     router.refresh();
+  }
+
+  function handleDoneClick(task) {
+    if (task.requireFile) { setCompletionInput(null); setFileTask(task); }
+    else markDone(task);
+  }
+
+  function fileToDataUrl(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function submitCompletionFile() {
+    if (!fileTask || !completionInput) return;
+    setFileUploading(true);
+    try {
+      const dataUrl = await fileToDataUrl(completionInput);
+      if (fileTask.type === 'Checklist') {
+        await fetch('/api/checklist-completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ masterId: fileTask.id, file: dataUrl }) });
+      } else {
+        await fetch('/api/delegations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: fileTask.id, status: 'done', completionFile: dataUrl }) });
+      }
+      setFileTask(null); setCompletionInput(null);
+      router.refresh();
+    } finally { setFileUploading(false); }
   }
 
   function requestRevise(task) { setReviseNote(''); setReviseDate(''); setReviseTask({ ...task, _mode: 'request' }); }
@@ -266,7 +298,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
                             )
                           ) : (
                             <>
-                              <button onClick={() => markDone(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">✓ Done</button>
+                              <button onClick={() => handleDoneClick(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">✓ Done</button>
                               {t.type === 'Delegation' && (
                                 <button onClick={() => requestRevise(t)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Revise</button>
                               )}
@@ -355,6 +387,36 @@ export default function DashboardClient({ data, performance, holidays, users = [
       <AddMasterModal   open={masterOpen}   onClose={() => setMasterOpen(false)}   users={users} />
       <AddDelegateModal open={delegateOpen} onClose={() => setDelegateOpen(false)} users={users} />
       <HolidaysModal    open={holidayOpen}  onClose={() => setHolidayOpen(false)}  holidays={holidays} />
+
+      {/* File-required completion modal */}
+      {fileTask && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !fileUploading && (setFileTask(null), setCompletionInput(null))}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 grid place-items-center shrink-0">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900 text-sm">Upload Proof of Completion</h3>
+                <p className="text-[12px] text-slate-500 mt-0.5">A file is required to mark this task as done</p>
+              </div>
+            </div>
+            <p className="text-[12px] text-slate-600 bg-slate-50 rounded-lg p-3 mb-4 line-clamp-2">{fileTask.description}</p>
+            <label className="block cursor-pointer border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-violet-300 hover:bg-violet-50 transition mb-4">
+              {completionInput
+                ? <span className="text-sm font-medium text-slate-700">📎 {completionInput.name}</span>
+                : <><span className="text-2xl block mb-1">⬆</span><span className="text-sm text-slate-500">Click to choose Photo or PDF</span></>}
+              <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setCompletionInput(e.target.files?.[0] || null)} />
+            </label>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setFileTask(null); setCompletionInput(null); }} disabled={fileUploading} className="btn-secondary">Cancel</button>
+              <button onClick={submitCompletionFile} disabled={fileUploading || !completionInput} className="btn-primary">
+                {fileUploading ? 'Uploading…' : 'Submit & Mark Done'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Revise modal */}
       {reviseTask && (() => {
