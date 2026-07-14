@@ -79,6 +79,21 @@ function Inward({ masters, reloadMasters, onSaved }) {
     } catch (e) { setStatus('❌ ' + e.message); }
   }
 
+  // Photos are base64 data-URIs, so a single request with many rows can grow
+  // large enough for the hosting proxy/WAF to reject it with a plain-text
+  // (non-JSON) error page. Posting in small batches keeps each request small
+  // and lets earlier batches survive if a later one fails.
+  const SUBMIT_BATCH_SIZE = 3;
+
+  async function postEntriesBatch(entries) {
+    const res = await fetch('/api/inventory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries }) });
+    const text = await res.text();
+    let d;
+    try { d = JSON.parse(text); } catch { throw new Error(text || `Request failed (${res.status})`); }
+    if (!res.ok) throw new Error(d.error || 'Failed');
+    return d;
+  }
+
   async function submitAll() {
     const errs = [];
     rows.forEach((r, i) => {
@@ -91,16 +106,20 @@ function Inward({ masters, reloadMasters, onSaved }) {
     });
     if (errs.length) { setStatus('❌ Required: ' + errs.slice(0, 4).join(', ') + (errs.length > 4 ? '…' : '')); return; }
     setSaving(true); setStatus('Saving…');
+    const entries = rows.map((r) => ({
+      slab: r.slab, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW,
+      sft: r.sft, slabPhoto: r.photo, status: 'Available', remarks: r.remarks,
+    }));
+    let saved = 0;
     try {
-      const entries = rows.map((r) => ({
-        slab: r.slab, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW,
-        sft: r.sft, slabPhoto: r.photo, status: 'Available', remarks: r.remarks,
-      }));
-      const res = await fetch('/api/inventory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries }) });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || 'Failed');
-      setStatus(`✅ ${d.count} slabs added`); setRows([blankRow()]); onSaved();
-    } catch (e) { setStatus('❌ ' + e.message); }
+      for (let i = 0; i < entries.length; i += SUBMIT_BATCH_SIZE) {
+        const batch = entries.slice(i, i + SUBMIT_BATCH_SIZE);
+        setStatus(`Saving ${i + 1}-${Math.min(i + batch.length, entries.length)} of ${entries.length}…`);
+        const d = await postEntriesBatch(batch);
+        saved += d.count || batch.length;
+      }
+      setStatus(`✅ ${saved} slabs added`); setRows([blankRow()]); onSaved();
+    } catch (e) { setStatus(`❌ ${e.message} (${saved} of ${entries.length} saved)`); }
     finally { setSaving(false); }
   }
 
