@@ -125,7 +125,24 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
                   {myTaskApprovals.map((t, i) => (
                     <tr key={t.id} className="table-row">
                       <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
-                      <td className="table-td font-medium text-slate-800 max-w-[280px] truncate">{t.description}</td>
+                      <td className="table-td font-medium text-slate-800 max-w-[280px]">
+                        <div className="truncate">{t.description}</div>
+                        {(t.image || t.attachment || t.url) && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {t.image && (
+                              <a href={t.image} target="_blank" rel="noopener noreferrer" title="View attached photo">
+                                <img src={t.image} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" />
+                              </a>
+                            )}
+                            {t.attachment && (
+                              <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0">📄 View PDF</a>
+                            )}
+                            {t.url && (
+                              <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0" title={t.url}>🔗 Link</a>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.dueDate)}</td>
                       <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.createdAt)}</td>
                       <td className="table-td">

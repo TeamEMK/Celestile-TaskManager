@@ -27,7 +27,7 @@ export default async function ApprovalsPage() {
         [userId]
       ).then(([r]) => r).catch(() => []) : Promise.resolve([]),
       userId ? pool.query(
-        `SELECT id, description, due_date AS dueDate, created_at AS createdAt, priority
+        `SELECT id, description, due_date AS dueDate, created_at AS createdAt, priority, url, image, attachment
          FROM delegations WHERE doer_id = ? AND approval = 'Approval Required' AND status = 'pending'
          ORDER BY created_at DESC`,
         [userId]
@@ -42,7 +42,7 @@ export default async function ApprovalsPage() {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     myTaskApprovals = dels
       .filter(d => d.doerId === userId && d.approval === 'Approval Required' && d.status === 'pending')
-      .map(d => ({ id: d.id, description: d.description, dueDate: d.dueDate, createdAt: d.createdAt, priority: d.priority }))
+      .map(d => ({ id: d.id, description: d.description, dueDate: d.dueDate, createdAt: d.createdAt, priority: d.priority, url: d.url, image: d.image, attachment: d.attachment }))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
@@ -60,7 +60,7 @@ export default async function ApprovalsPage() {
       ).then(([r]) => r).catch(() => []),
       pool.query(
         `SELECT id, description, doer, client, due_date AS dueDate,
-                priority, approval, created_at AS createdAt
+                priority, approval, created_at AS createdAt, url, image, attachment
          FROM delegations WHERE approval = 'Approval Required' AND status = 'pending'
          ORDER BY created_at DESC`
       ).then(([r]) => r).catch(() => []),
@@ -74,7 +74,7 @@ export default async function ApprovalsPage() {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     taskApprovals = dels
       .filter(d => d.approval === 'Approval Required' && d.status === 'pending')
-      .map(d => ({ id: d.id, description: d.description, doer: d.doer, client: d.client, dueDate: d.dueDate, priority: d.priority, approval: d.approval, createdAt: d.createdAt }))
+      .map(d => ({ id: d.id, description: d.description, doer: d.doer, client: d.client, dueDate: d.dueDate, priority: d.priority, approval: d.approval, createdAt: d.createdAt, url: d.url, image: d.image, attachment: d.attachment }))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 

@@ -212,9 +212,26 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                     return (
                     <tr key={t.id} className="table-row" style={unseen ? { background: 'rgba(245,158,11,0.08)', borderLeft: '3px solid #f59e0b' } : {}}>
                       <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
-                      <td className="table-td max-w-[220px] truncate">
-                        <span className={unseen ? 'font-semibold text-amber-800' : 'font-medium text-slate-800'}>{t.description}</span>
-                        {unseen && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400 text-black">NEW</span>}
+                      <td className="table-td max-w-[220px]">
+                        <div className="flex items-start gap-1.5">
+                          <span className={`truncate ${unseen ? 'font-semibold text-amber-800' : 'font-medium text-slate-800'}`}>{t.description}</span>
+                          {unseen && <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400 text-black">NEW</span>}
+                        </div>
+                        {(t.image || t.attachment || t.url) && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {t.image && (
+                              <a href={t.image} target="_blank" rel="noopener noreferrer" title="View attached photo">
+                                <img src={t.image} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" />
+                              </a>
+                            )}
+                            {t.attachment && (
+                              <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0">📄 View PDF</a>
+                            )}
+                            {t.url && (
+                              <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0" title={t.url}>🔗 Link</a>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="table-td">
                         <div className="flex items-center gap-1.5">
