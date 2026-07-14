@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { readStore, computeDashboard, computePerformance } from '@/lib/store';
+import { readStore, computeDashboard, computePerformance, computePendingApprovals } from '@/lib/store';
 import { pool } from '@/lib/db';
 import DashboardClient from './DashboardClient';
 
@@ -39,11 +39,13 @@ export default async function DashboardPage() {
   const to   = new Date();
   const from = new Date(); from.setDate(from.getDate() - 30);
   const performance = computePerformance(store, from.toISOString(), to.toISOString());
+  const pendingApprovals = computePendingApprovals(store, { currentUserId });
 
   return (
     <DashboardClient
       data={data}
       performance={performance}
+      pendingApprovals={pendingApprovals}
       holidays={store.holidays || []}
       users={store.users || []}
       isAdmin={isAdmin}

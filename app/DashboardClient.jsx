@@ -8,7 +8,7 @@ import { useConfirmToast } from './components/ConfirmToast';
 import { DonutChart, HorizBarChart } from './components/Charts';
 import { FMS_ENABLED } from '@/lib/config';
 
-export default function DashboardClient({ data, performance, holidays, users = [], isAdmin, userName = '' }) {
+export default function DashboardClient({ data, performance, pendingApprovals, holidays, users = [], isAdmin, userName = '' }) {
   const router = useRouter();
 
   const [masterOpen,   setMasterOpen]   = useState(false);
@@ -59,6 +59,19 @@ export default function DashboardClient({ data, performance, holidays, users = [
   const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   const overdueCount = visibleTasks.filter((t) => t.overdue).length;
+
+  const pa = pendingApprovals || { total: 0, mine: 0, byBranch: {} };
+  const approvalCount = isAdmin ? pa.total : pa.mine;
+  const approvalBranchSub = useMemo(() => {
+    if (!isAdmin) return 'Awaiting admin';
+    const b = pa.byBranch || {};
+    const parts = [];
+    if (b.bangalore)   parts.push(`BLR ${b.bangalore}`);
+    if (b.hyderabad)   parts.push(`HYD ${b.hyderabad}`);
+    if (b.factory)     parts.push(`Factory ${b.factory}`);
+    if (b.unspecified) parts.push(`Other ${b.unspecified}`);
+    return parts.length ? parts.join(' · ') : 'None pending';
+  }, [isAdmin, pa.byBranch]);
 
   /* ── handlers (unchanged) ───────────────────────────────────────── */
   async function markDone(task) {
@@ -178,7 +191,7 @@ export default function DashboardClient({ data, performance, holidays, users = [
       </div>
 
       {/* ── KPI cards ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <Kpi
           tone="blue" label="Total Tasks" value={total}
           icon={<IconLayers />}
@@ -200,6 +213,11 @@ export default function DashboardClient({ data, performance, holidays, users = [
           icon={<IconAlert />}
           sub={overdueCount === 0 ? 'None overdue' : `${overdueCount} past due date`}
           subTone={overdueCount > 0 ? 'red' : ''}
+        />
+        <Kpi
+          tone="amber" label="Pending Approval" value={approvalCount}
+          icon={<IconApproval />}
+          sub={approvalBranchSub}
         />
       </div>
 
@@ -567,6 +585,7 @@ function IconLayers() { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill
 function IconCheck()  { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>; }
 function IconClock()  { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>; }
 function IconAlert()  { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
+function IconApproval() { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>; }
 function IconList()   { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>; }
 function IconChart()  { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M21 12A9 9 0 0 0 12 3v9z"/></svg>; }
 function IconTrophy() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4M6 5h12v6a6 6 0 0 1-12 0z"/><path d="M9 21h6M12 17v4"/></svg>; }
