@@ -25,6 +25,7 @@ export default function DailyTaskAdminClient() {
   const [activeTab, setActiveTab] = useState('overview');
   const [reminding, setReminding] = useState(false);
   const [reminderResult, setReminderResult] = useState(null);
+  const [calMonth, setCalMonth] = useState(today().slice(0, 7)); // 'YYYY-MM'
 
   useEffect(() => {
     Promise.all([
@@ -113,6 +114,44 @@ export default function DailyTaskAdminClient() {
     inRange.slice().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 50),
     [inRange]);
 
+  // ── Calendar tab: day-wise minute totals for the selected month ──────────
+  // (independent of the From/To range filter above — has its own month nav)
+  const calDays = useMemo(() => {
+    const map = {};
+    entries.forEach((e) => {
+      if (doer !== 'All' && (e.doer || '') !== doer) return;
+      const d = ymd(e.entryDate);
+      if (!d.startsWith(calMonth)) return;
+      if (!map[d]) map[d] = { minutes: 0, count: 0, doers: new Set() };
+      map[d].minutes += parseFloat(e.minutes) || 0;
+      map[d].count += 1;
+      if (e.doer) map[d].doers.add(e.doer);
+    });
+    return map;
+  }, [entries, doer, calMonth]);
+
+  const calGrid = useMemo(() => {
+    const [y, m] = calMonth.split('-').map(Number);
+    const firstDow = new Date(y, m - 1, 1).getDay();
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const cells = Array(firstDow).fill(null);
+    for (let day = 1; day <= daysInMonth; day++) cells.push(`${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+    return cells;
+  }, [calMonth]);
+
+  const calMonthLabel = useMemo(() => {
+    const [y, m] = calMonth.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  }, [calMonth]);
+
+  const calMonthMinutes = round1(Object.values(calDays).reduce((s, d) => s + d.minutes, 0));
+
+  function shiftCalMonth(delta) {
+    const [y, m] = calMonth.split('-').map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    setCalMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+
   function reset() { setFrom(''); setTo(''); setDoer('All'); }
 
   async function sendReminder() {
@@ -175,7 +214,7 @@ export default function DailyTaskAdminClient() {
 
       {/* ── Tab switcher ─────────────────────────────────────────────── */}
       <div className="seg">
-        {[['overview', 'Overview'], ['revisions', 'Designer Revisions']].map(([id, label]) => (
+        {[['overview', 'Overview'], ['calendar', 'Calendar'], ['revisions', 'Designer Revisions']].map(([id, label]) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
@@ -345,6 +384,57 @@ export default function DailyTaskAdminClient() {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════
+          CALENDAR TAB — day-wise minute totals
+          ════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'calendar' && (
+        <div className="space-y-4">
+          <div className="card p-4 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <button className="btn-ghost !px-2.5 !py-1.5" onClick={() => shiftCalMonth(-1)}>←</button>
+              <div className="text-[14px] font-bold text-slate-900 min-w-[150px] text-center">{calMonthLabel}</div>
+              <button className="btn-ghost !px-2.5 !py-1.5" onClick={() => shiftCalMonth(1)}>→</button>
+              <button className="btn-ghost !text-[12px]" onClick={() => setCalMonth(today().slice(0, 7))}>Today</button>
+            </div>
+            <div className="text-[12px] text-slate-500">
+              {doer === 'All' ? 'All employees' : doer} · <span className="font-bold text-slate-800">{calMonthMinutes}</span> min this month
+            </div>
+          </div>
+
+          <div className="card p-4">
+            <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                <div key={d} className="text-[10.5px] font-bold text-slate-400 uppercase text-center py-1">{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {calGrid.map((date, i) => {
+                if (!date) return <div key={'b' + i} />;
+                const info = calDays[date];
+                const isToday = date === today();
+                const dayNum = Number(date.slice(8, 10));
+                return (
+                  <div
+                    key={date}
+                    className={`rounded-lg border p-2 min-h-[74px] flex flex-col gap-1 ${isToday ? 'border-primary-300 bg-primary-50/40' : 'border-slate-100'} ${info ? 'bg-emerald-50/30' : ''}`}
+                  >
+                    <div className={`text-[11px] font-semibold ${isToday ? 'text-primary-700' : 'text-slate-500'}`}>{dayNum}</div>
+                    {info ? (
+                      <>
+                        <div className="text-[13px] font-bold text-slate-800 tabular-nums">{round1(info.minutes)}<span className="text-[10px] font-medium text-slate-400"> min</span></div>
+                        <div className="text-[10px] text-slate-400">{info.count} entr{info.count === 1 ? 'y' : 'ies'}{doer === 'All' ? ` · ${info.doers.size} ppl` : ''}</div>
+                      </>
+                    ) : (
+                      <div className="text-[10px] text-slate-300">—</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

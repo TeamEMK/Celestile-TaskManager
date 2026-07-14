@@ -288,6 +288,7 @@ export default function DailyTaskClient() {
                   {[
                     { id: 'Bangalore', label: 'Bangalore' },
                     { id: 'Hyderabad', label: 'Hyderabad' },
+                    { id: 'Factory',   label: 'Factory'   },
                   ].map((b) => (
                     <button key={b.id}
                       onClick={() => { setBranch(b.id); setSelectedForm(''); setRows([blankDesignerRow()]); setMsg(''); }}
@@ -316,7 +317,7 @@ export default function DailyTaskClient() {
           <div className="mb-4">
             <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Branch</div>
             <div className="seg max-w-xs">
-              {['Bangalore', 'Hyderabad'].map((b) => (
+              {['Bangalore', 'Hyderabad', 'Factory'].map((b) => (
                 <button key={b}
                   onClick={() => handleBranchSwitch(b)}
                   className={`seg-btn flex-1 ${branch === b ? 'seg-btn-active' : ''}`}

@@ -8,7 +8,8 @@ import { requireUser } from '@/lib/api';
 // Fire a WhatsApp "task delegated" notice to the doer (best-effort).
 async function notifyDelegation({ doerUser, delegatedById, del }) {
   try {
-    if (!isWhatsappConfigured() || !doerUser?.phone) return;
+    if (!isWhatsappConfigured()) return;
+    if (!doerUser?.phone) { console.error('[notifyDelegation] skipped — doer has no phone on file:', doerUser?.name || del.doer); return; }
     let byName = '';
     if (delegatedById) {
       const [b] = await pool.query('SELECT name FROM users WHERE id = ?', [delegatedById]);
@@ -29,10 +30,11 @@ async function notifyDelegation({ doerUser, delegatedById, del }) {
 // Fire a WhatsApp "task completed" notice back to whoever delegated it (best-effort).
 async function notifyTaskDone(delegation) {
   try {
-    if (!isWhatsappConfigured() || !delegation?.delegated_by) return;
+    if (!isWhatsappConfigured()) return;
+    if (!delegation?.delegated_by) { console.error('[notifyTaskDone] skipped — delegation has no delegated_by (assignee) id:', delegation?.id); return; }
     const [byUsers] = await pool.query('SELECT name, phone FROM users WHERE id = ?', [delegation.delegated_by]);
     const byUser = byUsers[0];
-    if (!byUser?.phone) return;
+    if (!byUser?.phone) { console.error('[notifyTaskDone] skipped — assignee has no phone on file:', byUser?.name || delegation.delegated_by); return; }
     const msg = taskDoneMessage({
       byName: byUser.name,
       doerName: delegation.doer,

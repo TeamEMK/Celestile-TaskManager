@@ -63,6 +63,15 @@ function deptLabel(dept) {
   return DEPT_DISPLAY[dept] || dept;
 }
 
+const BRANCH_STYLE = {
+  hyderabad: { label: 'Hyderabad', cls: 'bg-violet-50 text-violet-700' },
+  factory:   { label: 'Factory',   cls: 'bg-amber-50 text-amber-700' },
+  bangalore: { label: 'Bangalore', cls: 'bg-emerald-50 text-emerald-700' },
+};
+function branchInfo(branch) {
+  return BRANCH_STYLE[branch] || BRANCH_STYLE.bangalore;
+}
+
 export default function UsersClient() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -200,8 +209,8 @@ export default function UsersClient() {
                   <td className="table-td text-slate-600">{deptLabel(u?.department)}</td>
                   <td className="table-td">
                     {u?.branch ? (
-                      <span className={`pill ${u.branch === 'hyderabad' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                        {u.branch === 'hyderabad' ? 'Hyderabad' : 'Bangalore'}
+                      <span className={`pill ${branchInfo(u.branch).cls}`}>
+                        {branchInfo(u.branch).label}
                       </span>
                     ) : '—'}
                   </td>
@@ -469,6 +478,7 @@ function UserModal({ open, onClose, user, departments, defaultBranch, onSaved })
                 <option value="">Select branch</option>
                 <option value="bangalore">Bangalore</option>
                 <option value="hyderabad">Hyderabad</option>
+                <option value="factory">Factory</option>
               </select>
             </div>
           </div>
