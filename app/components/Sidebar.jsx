@@ -33,7 +33,7 @@ const SECTIONS = [
     { href: '/approvals', label: 'Approvals', icon: 'approve' },
   ]},
   { title: 'Operations', items: [
-    { href: '/fms',           label: 'FMS Master',    icon: 'fms',          flag: 'fms' },
+    { href: '/fms',           label: 'FMS Admin',     icon: 'fms',          flag: 'fms', adminOnly: true },
     { href: '/masters',       label: 'Checklists',    icon: 'masters',      adminOnly: true, hidden: true },
     { href: '/client-master', label: 'Client Master', icon: 'clientmaster', adminOnly: true, hidden: true },
     { href: '/mis',           label: 'MIS Report',    icon: 'mis',          adminOnly: true },
@@ -42,6 +42,7 @@ const SECTIONS = [
   ]},
   { title: 'Daily', items: [
     { href: '/daily-task',    label: 'Daily Task',            icon: 'dailytask' },
+    { href: '/fms-task',      label: 'FMS Task',               icon: 'fms',      flag: 'fms' },
     { href: '/quotation',     label: 'Quotation',             icon: 'quote' },
     { href: '/inventory',     label: 'Stone Inventory Factory', icon: 'inventory' },
     { href: '/leave-tracker', label: 'Leave Tracker',         icon: 'leave',    hidden: true },
