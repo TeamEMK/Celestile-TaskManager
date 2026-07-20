@@ -1,116 +1,310 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
+import FmsDoneModal from '../components/FmsDoneModal';
 
-export default function FmsTaskClient({ tasks }) {
-  const router = useRouter();
-  const [busyId, setBusyId] = useState(null);
+export default function FmsTaskClient() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
 
-  const fmt = (iso) => {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
+  const [fmsList,      setFmsList]      = useState([]);
+  const [loadingList,  setLoadingList]  = useState(true);
+  const [selectedId,   setSelectedId]   = useState('');
+  const [sheet,        setSheet]        = useState(null);
+  const [steps,        setSteps]        = useState([]);
+  const [loadingSteps, setLoadingSteps] = useState(false);
+  const [activeStep,   setActiveStep]   = useState(null);
+  const [rowsData,     setRowsData]     = useState(null);
+  const [loadingRows,  setLoadingRows]  = useState(false);
+  const [doneRow,      setDoneRow]      = useState(null);
+  const [trainSpeed,   setTrainSpeed]   = useState(18);
+  const [trainPaused,  setTrainPaused]  = useState(false);
 
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const isOverdue = (t) => t.dueDate && String(t.dueDate).slice(0, 10) < todayISO;
-  const overdueCount = tasks.filter(isOverdue).length;
+  useEffect(() => { loadList(); }, []);
 
-  async function markDone(t) {
-    setBusyId(t.id);
-    try {
-      await fetch('/api/fms/entries/step', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entryId: t.entryId, stepIndex: t.stepIndex }),
-      });
-      router.refresh();
-    } finally {
-      setBusyId(null);
-    }
+  async function loadList() {
+    setLoadingList(true);
+    const list = await fetch('/api/fms-tasks').then((r) => r.json()).catch(() => []);
+    const arr = Array.isArray(list) ? list : [];
+    setFmsList(arr);
+    setLoadingList(false);
+    if (arr.length === 1) setSelectedId(arr[0].id);
   }
+
+  useEffect(() => {
+    if (!selectedId) { setSheet(null); setSteps([]); setActiveStep(null); setRowsData(null); return; }
+    let cancelled = false;
+    setLoadingSteps(true);
+    setActiveStep(null);
+    setRowsData(null);
+    fetch(`/api/fms-tasks/${selectedId}`).then((r) => r.json()).then((d) => {
+      if (cancelled) return;
+      setSheet(d.sheet || null);
+      setSteps(d.steps || []);
+      setLoadingSteps(false);
+    }).catch(() => { if (!cancelled) setLoadingSteps(false); });
+    return () => { cancelled = true; };
+  }, [selectedId]);
+
+  function selectStep(step) {
+    if (!step.isMyStep) return;
+    setActiveStep(step);
+    setRowsData(null);
+  }
+
+  async function loadRows() {
+    if (!selectedId || !activeStep) return;
+    setLoadingRows(true);
+    const r = await fetch(`/api/fms-tasks/${selectedId}/steps/${activeStep.id}/rows`).then((res) => res.json()).catch((e) => ({ error: e.message }));
+    setLoadingRows(false);
+    setRowsData(r);
+  }
+
+  function afterDone() {
+    setDoneRow(null);
+    loadRows();
+  }
+
+  const trainSteps = useMemo(() => steps, [steps]);
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
-            <IconFms className="w-[18px] h-[18px]" />
-          </div>
-          <div>
-            <h1 className="font-display text-[18px] font-semibold tracking-tight text-slate-900">FMS Task</h1>
-            <p className="text-[11.5px] text-slate-500">Your pending FMS Master steps</p>
-          </div>
+      <style>{`
+        @keyframes fmsTrainScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .fms-train-scroll { animation: fmsTrainScroll var(--train-dur, 18s) linear infinite; }
+        .fms-train-scroll.paused { animation-play-state: paused; }
+        .fms-train-scroll:hover { animation-play-state: paused; }
+      `}</style>
+
+      <div className="flex items-center gap-2.5">
+        <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+          <IconTrain className="w-[18px] h-[18px]" />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="pill bg-primary-50 text-primary-700 border border-primary-100">{tasks.length} pending</span>
-          {overdueCount > 0 && (
-            <span className="pill bg-red-50 text-red-600 border border-red-100">{overdueCount} overdue</span>
-          )}
+        <div>
+          <h1 className="font-display text-[18px] font-semibold tracking-tight text-slate-900">FMS Task</h1>
+          <p className="text-[11.5px] text-slate-500">Pick a flow, click your step, mark rows done</p>
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        {tasks.length === 0 ? (
-          <div className="p-14 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 grid place-items-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-            </div>
-            <div className="text-[13.5px] font-semibold text-slate-700">All caught up!</div>
-            <div className="text-[12px] text-slate-500 mt-0.5">No pending FMS steps assigned to you.</div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[640px]">
-              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
-                <tr>
-                  <th className="table-th">Flow</th>
-                  <th className="table-th">Step</th>
-                  <th className="table-th">Client</th>
-                  <th className="table-th">Due</th>
-                  <th className="table-th text-right pr-4">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map((t) => {
-                  const overdue = isOverdue(t);
-                  return (
-                    <tr key={t.id} className="table-row">
-                      <td className="table-td font-medium text-slate-800">{t.flowName}</td>
-                      <td className="table-td text-slate-700">{t.stepName}</td>
-                      <td className="table-td text-slate-600">{t.client || '—'}</td>
-                      <td className={`table-td whitespace-nowrap text-xs ${overdue ? 'text-red-600 font-semibold' : 'text-slate-600'}`}>
-                        <span className="inline-flex items-center gap-1">
-                          {overdue && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
-                          {fmt(t.dueDate)}
-                        </span>
-                      </td>
-                      <td className="table-td">
-                        <div className="flex justify-end pr-2">
-                          <button
-                            onClick={() => markDone(t)}
-                            disabled={busyId === t.id}
-                            className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {busyId === t.id ? 'Saving…' : '✓ Done'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+      {/* FMS selector */}
+      <div className="card p-4 flex items-center gap-3 flex-wrap">
+        <span className="text-[12.5px] font-semibold text-slate-600 shrink-0">Select FMS</span>
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="input !w-auto min-w-[220px] flex-1"
+          disabled={loadingList}
+        >
+          <option value="">{loadingList ? 'Loading…' : '— Select an FMS —'}</option>
+          {fmsList.map((f) => <option key={f.id} value={f.id}>{f.fms_name || f.sheet_name}</option>)}
+        </select>
+        {selectedId && (
+          <button onClick={() => loadList()} className="btn-secondary !text-[12px]">Refresh List</button>
         )}
+      </div>
+
+      {!loadingList && fmsList.length === 0 && (
+        <div className="card p-14 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 grid place-items-center mx-auto mb-3">
+            <IconTrain className="w-6 h-6 text-slate-400" />
+          </div>
+          <div className="text-[13.5px] font-semibold text-slate-700">No FMS assigned to you yet</div>
+          <div className="text-[12px] text-slate-500 mt-0.5">Ask an admin to add you as a doer on an FMS step.</div>
+        </div>
+      )}
+
+      {/* Train */}
+      {selectedId && (
+        <div>
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Process flow — click a step to view tasks</span>
+            <span className="flex items-center gap-3 text-[11px] text-slate-500">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: 'linear-gradient(135deg,#DDAC6E,#9C5730)' }} /> Your step
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-slate-500 opacity-50" /> Other step
+              </span>
+            </span>
+          </div>
+
+          <div className="rounded-2xl overflow-hidden relative"
+            style={{ background: 'linear-gradient(180deg, #14110D 0%, #0D0B08 100%)', padding: '22px 0 32px' }}>
+            {loadingSteps ? (
+              <div className="text-[12px] text-slate-400 px-6 py-4">Loading steps…</div>
+            ) : (
+              <div className="flex items-end gap-1.5 px-8 w-max fms-train-scroll" style={{ '--train-dur': `${trainSpeed}s` }}>
+                {[0, 1].map((dup) => (
+                  <FmsTrain key={dup} steps={trainSteps} activeId={activeStep?.id} onSelect={selectStep} fmsName={sheet?.fms_name || sheet?.sheet_name} />
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="card !rounded-t-none px-5 py-2.5 flex items-center gap-3 text-[12px] text-slate-500">
+            <span>🐢</span>
+            <input type="range" min="5" max="60" value={trainSpeed} onChange={(e) => setTrainSpeed(Number(e.target.value))}
+              className="flex-1 accent-primary-600" />
+            <span>🐇</span>
+            <span className="text-slate-700 font-semibold">{trainSpeed}s</span>
+          </div>
+        </div>
+      )}
+
+      {/* Step panel */}
+      {activeStep && (
+        <div className="space-y-3">
+          <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Selected step</div>
+              <div className="text-[15px] font-display font-semibold text-slate-900 mt-0.5">{activeStep.step_name}</div>
+              <div className="text-[11.5px] text-slate-500 mt-0.5">👤 {activeStep.doers.map((d) => d.name).join(', ') || '—'}</div>
+            </div>
+            <div className="flex items-center gap-2.5">
+              {rowsData && !rowsData.error && (
+                <span className="pill bg-primary-50 text-primary-700 border border-primary-100">
+                  {rowsData.total ? `${rowsData.total} pending` : 'All done'}
+                </span>
+              )}
+              <button onClick={loadRows} disabled={loadingRows} className="btn-secondary">
+                {loadingRows ? 'Loading…' : rowsData ? 'Refresh' : 'Load Tasks'}
+              </button>
+            </div>
+          </div>
+
+          {rowsData && (
+            <FmsRowsTable
+              rowsData={rowsData}
+              onDone={(row) => setDoneRow(row)}
+            />
+          )}
+        </div>
+      )}
+
+      {doneRow && (
+        <FmsDoneModal
+          row={doneRow}
+          step={activeStep}
+          onClose={() => setDoneRow(null)}
+          onSaved={afterDone}
+          fmsId={selectedId}
+        />
+      )}
+    </div>
+  );
+}
+
+function FmsTrain({ steps, activeId, onSelect, fmsName }) {
+  return (
+    <>
+      <div className="shrink-0 rounded-l-xl rounded-r-md px-4 py-3.5 text-white text-center min-w-[76px]"
+        style={{ background: 'linear-gradient(135deg,#1E1A14,#3C362B)', border: '2px solid #B96F3D' }}>
+        <div className="text-xl">🚂</div>
+        <div className="text-[9px] mt-1 opacity-70 max-w-[70px] mx-auto truncate">{fmsName || ''}</div>
+      </div>
+      <span className="w-5 h-2 bg-slate-600 rounded-sm shrink-0 self-end mb-3.5" />
+      {steps.map((s, i) => {
+        const isMine = s.isMyStep;
+        const isActive = s.id === activeId;
+        return (
+          <div key={s.id} className="flex items-end gap-1.5">
+            <button
+              onClick={() => onSelect(s)}
+              title={isMine ? 'Click to view tasks' : 'Not your step'}
+              className={`shrink-0 rounded-lg px-3.5 py-3 text-left min-w-[150px] max-w-[190px] transition-all duration-200 ${
+                isMine ? 'cursor-pointer hover:-translate-y-1' : 'cursor-not-allowed opacity-55'
+              }`}
+              style={{
+                background: isMine ? 'linear-gradient(135deg,#DDAC6E,#9C5730)' : '#1E1A14',
+                border: isActive ? '2px solid #F3E1C8' : '2px solid transparent',
+                boxShadow: isActive ? '0 0 0 3px rgba(243,225,200,0.25)' : 'none',
+                color: isMine ? '#241408' : '#8F8471',
+              }}
+            >
+              <div className="text-[10px] font-bold uppercase tracking-wide opacity-70">Step {s.step_order}</div>
+              <div className="text-[12px] font-bold leading-snug mt-0.5 break-words">{s.step_name}</div>
+              <div className="text-[10px] mt-1 opacity-75">👤 {s.doers.map((d) => d.name).join(', ') || '—'}</div>
+              <div className="text-[9px] mt-1 opacity-60">{isMine ? '▶ Click to open' : '🔒 Not assigned'}</div>
+            </button>
+            {i < steps.length - 1 && <span className="w-5 h-2 bg-slate-600 rounded-sm shrink-0 self-end mb-3.5" />}
+          </div>
+        );
+      })}
+      <span className="w-8 shrink-0" />
+    </>
+  );
+}
+
+function FmsRowsTable({ rowsData, onDone }) {
+  if (rowsData.error) {
+    return <div className="card p-6 text-center text-[13px] text-red-600">{rowsData.error}</div>;
+  }
+  if (!rowsData.rows || !rowsData.rows.length) {
+    return (
+      <div className="card p-14 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-emerald-50 grid place-items-center mx-auto mb-3">
+          <svg className="w-6 h-6 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m9 11 3 3L22 4" /></svg>
+        </div>
+        <div className="text-[13.5px] font-semibold text-slate-700">
+          {rowsData.filtered ? 'No rows assigned to you in this step!' : 'All done — no pending rows for this step!'}
+        </div>
+      </div>
+    );
+  }
+
+  const colKeys = Object.keys(rowsData.rows[0].data);
+
+  return (
+    <div className="space-y-2">
+      {rowsData.filtered && (
+        <div className="rounded-lg bg-primary-50 border border-primary-100 text-primary-700 px-3.5 py-2.5 text-[12px]">
+          🎯 <b>Showing only your assigned rows</b> — filtered by Col {rowsData.doerColumn} (Doer Name).
+          {rowsData.totalPending > rowsData.total && (
+            <span className="text-slate-500"> {rowsData.totalPending - rowsData.total} other row(s) belong to other doers.</span>
+          )}
+        </div>
+      )}
+      {!rowsData.filtered && rowsData.isAdmin && rowsData.doerColumn && (
+        <div className="rounded-lg bg-amber-50 border border-amber-100 text-amber-800 px-3.5 py-2.5 text-[12px]">
+          👑 <b>Admin view</b> — showing all {rowsData.totalPending} pending rows across all doers (Col {rowsData.doerColumn}).
+        </div>
+      )}
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto max-h-[520px]">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
+              <tr>
+                <th className="table-th">Action</th>
+                {colKeys.map((k) => <th key={k} className="table-th">{k}</th>)}
+                <th className="table-th">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rowsData.rows.map((row, ri) => (
+                <tr key={ri} className="table-row">
+                  <td className="table-td">
+                    <button onClick={() => onDone(row)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">✓ Done</button>
+                  </td>
+                  {colKeys.map((k) => <td key={k} className="table-td text-slate-700">{row.data[k] || '—'}</td>)}
+                  <td className="table-td">
+                    <span className="pill bg-amber-50 text-amber-700">⏳ Pending</span>
+                    {row.rowDoerName && rowsData.isAdmin && (
+                      <div className="text-[10px] text-slate-400 mt-0.5">→ {row.rowDoerName}</div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 }
 
-function IconFms(props) {
+function IconTrain(props) {
   return (
     <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      <path d="M3 10h18M3 14h18M3 6h18M3 18h18" />
     </svg>
   );
 }

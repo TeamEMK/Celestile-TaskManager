@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import AddDelegateModal from '../components/AddDelegateModal';
 import AddMasterModal   from '../components/AddMasterModal';
+import FmsDoneModal     from '../components/FmsDoneModal';
 import { useConfirmToast } from '../components/ConfirmToast';
 import { FMS_ENABLED } from '@/lib/config';
 
@@ -30,6 +31,8 @@ export default function AllTasksClient({ grouped, users }) {
   const [fileTask,         setFileTask]         = useState(null);
   const [completionInput,  setCompletionInput]  = useState(null);
   const [fileUploading,    setFileUploading]    = useState(false);
+  const [fmsDone,          setFmsDone]          = useState(null);
+  const [fmsDoneLoading,   setFmsDoneLoading]   = useState(false);
 
   const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
   const currentUserName = session?.user?.name;
@@ -154,16 +157,23 @@ export default function AllTasksClient({ grouped, users }) {
     window.location.reload();
   }
 
-  async function markFmsStepDone(task) {
-    const parts = task.id.split('-');
-    const stepIndex = parseInt(parts.pop());
-    const entryId = parts.join('-');
-    await fetch('/api/fms/entries/step', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entryId, stepIndex, completedBy: currentUserName }),
-    });
-    window.location.reload();
+  async function openFmsDone(task) {
+    setFmsDoneLoading(true);
+    try {
+      const d = await fetch(`/api/fms-tasks/${task.fmsId}`).then((r) => r.json());
+      const step = (d.steps || []).find((s) => String(s.id) === String(task.stepId));
+      setFmsDone({
+        fmsId: task.fmsId,
+        step: step || { id: task.stepId, extraRows: [] },
+        row: {
+          sheetRowNumber: task.rowNumber,
+          planValue: task.planValue,
+          data: Object.fromEntries((task.details || []).map((x) => [x.header, x.value])),
+        },
+      });
+    } finally {
+      setFmsDoneLoading(false);
+    }
   }
 
   async function undoTask(task) {
@@ -398,8 +408,8 @@ export default function AllTasksClient({ grouped, users }) {
                                       </>
                                     )}
                                     {t.type === 'FMS' && t.status !== 'done' && (
-                                      <button title="Mark Done" onClick={() => markFmsStepDone(t)}
-                                        className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer text-[11px]">Done</button>
+                                      <button title="Mark Done" disabled={fmsDoneLoading} onClick={() => openFmsDone(t)}
+                                        className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer text-[11px] disabled:opacity-50">Done</button>
                                     )}
                                     {t.type === 'Checklist' && t.status !== 'done' && (
                                       <button
@@ -493,6 +503,14 @@ export default function AllTasksClient({ grouped, users }) {
       <MyTransferModal open={myTransferOpen} onClose={() => setMyTransferOpen(false)} users={users} grouped={grouped} fromName={currentUserName} onDone={() => { setMyTransferOpen(false); window.location.reload(); }} />
 
       {ConfirmUI}
+
+      {fmsDone && (
+        <FmsDoneModal
+          fmsId={fmsDone.fmsId} row={fmsDone.row} step={fmsDone.step}
+          onClose={() => setFmsDone(null)}
+          onSaved={() => { setFmsDone(null); router.refresh(); }}
+        />
+      )}
 
       {/* File Upload Modal — shown when task requires proof before marking done */}
       {fileTask && (

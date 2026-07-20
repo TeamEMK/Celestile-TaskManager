@@ -2,6 +2,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { readStore, computeDashboard, computePerformance, computePendingApprovals } from '@/lib/store';
 import { pool } from '@/lib/db';
+import { getMyFmsPendingRows } from '@/lib/fmsSheet';
+import { FMS_ENABLED } from '@/lib/config';
 import DashboardClient from './DashboardClient';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +34,6 @@ export default async function DashboardPage() {
       d.doer === currentName
     ),
     masters:     storeWithCompletions.masters.filter((m) => m.assignedTo === currentName),
-    fms:         (storeWithCompletions.fms || []).filter((f) => f.doer === currentName),
   };
 
   const data = computeDashboard(filteredStore);
@@ -40,6 +41,16 @@ export default async function DashboardPage() {
   const from = new Date(); from.setDate(from.getDate() - 30);
   const performance = computePerformance(store, from.toISOString(), to.toISOString());
   const pendingApprovals = computePendingApprovals(store, { currentUserId });
+
+  if (FMS_ENABLED) {
+    const fmsTasks = await getMyFmsPendingRows({ userId: currentUserId, userName: currentName, isAdmin })
+      .catch(() => []);
+    data.total   += fmsTasks.length;
+    data.pending += fmsTasks.length;
+    data.pendingTasks = [...data.pendingTasks, ...fmsTasks]
+      .sort((a, b) => new Date(b.createdAt || b.date || b.dueDate) - new Date(a.createdAt || a.date || a.dueDate))
+      .slice(0, 50);
+  }
 
   return (
     <DashboardClient

@@ -2,7 +2,7 @@ import AllTasksClient from './AllTasksClient';
 import { pool } from '@/lib/db';
 import { readStore } from '@/lib/store';
 import { FMS_ENABLED } from '@/lib/config';
-import { buildFmsPendingTasks } from '@/lib/fms';
+import { getMyFmsPendingRows } from '@/lib/fmsSheet';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +27,7 @@ export default async function AllTasksPage() {
       pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()')
         .then(([r]) => r).catch(() => []),
     ]);
-    if (FMS_ENABLED) fmsTasks = await buildFmsPendingTasks();
+    if (FMS_ENABLED) fmsTasks = await getMyFmsPendingRows({ isAdmin: true }).catch(() => []);
   } else {
     const store = await readStore();
     delegations = (store.delegations || [])

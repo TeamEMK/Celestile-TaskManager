@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
-import { sendWhatsApp, reminderMessage, checklistReminderMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+import { sendWhatsApp, reminderMessage, checklistReminderMessage, fmsReminderMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+import { getFmsPendingGroupedByDoer } from '@/lib/fmsSheet';
 
 // UTC date helpers (match the engine's CURDATE())
 function todayStr() {
@@ -101,10 +102,26 @@ export async function GET(req) {
     checklistResults.push({ to: user.phone, tasks: tasks.length, ok: !!r.ok });
   }
 
+  // ── FMS reminders (grouped per user, pending steps from live sheets) ─────
+  const fmsResults = [];
+  try {
+    const byDoer = await getFmsPendingGroupedByDoer();
+    for (const [name, tasks] of Object.entries(byDoer)) {
+      const u = usersByName[name.toLowerCase()];
+      if (!u || !u.phone) continue;
+      const msg = fmsReminderMessage(u.name, tasks);
+      const r = await sendWhatsApp(u.phone, msg);
+      fmsResults.push({ to: u.phone, tasks: tasks.length, ok: !!r.ok });
+    }
+  } catch (err) {
+    console.error('[reminders] FMS section failed', err.message);
+  }
+
   return NextResponse.json({
     overdue: dels.length,
     sent: results.filter((r) => r.ok).length,
     results,
     checklist: { users: checklistResults.length, sent: checklistResults.filter((r) => r.ok).length, results: checklistResults },
+    fms: { users: fmsResults.length, sent: fmsResults.filter((r) => r.ok).length, results: fmsResults },
   });
 }
