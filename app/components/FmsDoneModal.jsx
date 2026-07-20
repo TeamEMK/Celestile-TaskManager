@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 
 function isDelayed(planValue) {
   const v = (planValue || '').trim();
@@ -59,7 +60,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
     }
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !saving && onClose()}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
@@ -123,7 +124,8 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
           <button onClick={save} disabled={saving} className="btn-success">{saving ? 'Saving…' : 'Save to Sheet'}</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
