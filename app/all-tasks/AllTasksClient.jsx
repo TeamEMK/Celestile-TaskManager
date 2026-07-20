@@ -396,7 +396,7 @@ export default function AllTasksClient({ grouped, users }) {
                                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                                       </button>
                                     )}
-                                    {t.type !== 'Checklist' && t.type !== 'FMS' && t.status !== 'done' && (
+                                    {t.type !== 'Checklist' && t.type !== 'FMS' && t.status !== 'done' && t.status !== 'approval_pending' && (
                                       <>
                                         <button title="Mark Done"
                                           onClick={() => t.requireFile ? (setCompletionInput(null), setFileTask(t)) : updateStatus(t.id, 'done', t.type)}
@@ -466,11 +466,13 @@ export default function AllTasksClient({ grouped, users }) {
                                 <td className="table-td">
                                   <span className={`pill text-[11px] ${
                                     t.status === 'done'             ? 'bg-emerald-50 text-emerald-700' :
+                                    t.status === 'approval_pending' ? 'bg-violet-50 text-violet-700' :
                                     t.status === 'revise'           ? 'bg-amber-50 text-amber-700' :
                                     t.status === 'revise_requested' ? 'bg-orange-50 text-orange-700' :
                                     'bg-red-50 text-red-600'
                                   }`}>
                                     {t.status === 'done' ? 'Done' :
+                                     t.status === 'approval_pending' ? `⏳ Awaiting ${t.approver || 'Approval'}` :
                                      t.status === 'revise' ? 'Revise' :
                                      t.status === 'revise_requested' ? 'Revise Req.' : 'Pending'}
                                   </span>

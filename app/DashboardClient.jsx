@@ -66,7 +66,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   const pa = pendingApprovals || { total: 0, mine: 0, byBranch: {} };
   const approvalCount = isAdmin ? pa.total : pa.mine;
   const approvalBranchSub = useMemo(() => {
-    if (!isAdmin) return 'Awaiting admin';
+    if (!isAdmin) return 'Awaiting approver';
     const b = pa.byBranch || {};
     const parts = [];
     if (b.bangalore)   parts.push(`BLR ${b.bangalore}`);
@@ -326,7 +326,9 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                       </td>
                       <td className="table-td">
                         <div className="flex gap-1.5 justify-end pr-2">
-                          {t.type === 'Delegation' && t.status === 'revise_requested' ? (
+                          {t.type === 'Delegation' && t.status === 'approval_pending' ? (
+                            <span className="pill bg-violet-50 text-violet-700">⏳ Awaiting {t.approver || 'approval'}</span>
+                          ) : t.type === 'Delegation' && t.status === 'revise_requested' ? (
                             isAdmin ? (
                               <>
                                 <button onClick={() => requestGrant(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Grant</button>

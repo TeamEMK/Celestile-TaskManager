@@ -14,10 +14,11 @@ export default async function AllTasksPage() {
   if (hasDB) {
     [delegations, users, masters, completions] = await Promise.all([
       pool.query(`SELECT id, description, doer_id AS doerId, doer, delegated_by AS delegatedBy,
-                         due_date AS dueDate, client, status, type, priority, approval, url, remarks, image,
+                         due_date AS dueDate, client, status, type, priority, approval,
+                         approver_id AS approverId, approver, url, remarks, image,
                          require_file AS requireFile, attachment,
                          transferred_by AS transferredBy, transferred_from AS transferredFrom, created_at AS createdAt
-                  FROM delegations WHERE NOT (approval = 'Approval Required' AND status = 'pending')
+                  FROM delegations
                   ORDER BY created_at DESC`)
         .then(([r]) => r).catch(() => []),
       pool.query('SELECT id, name, email, department, roles FROM users ORDER BY id')
@@ -31,12 +32,12 @@ export default async function AllTasksPage() {
   } else {
     const store = await readStore();
     delegations = (store.delegations || [])
-      .filter((d) => !(d.approval === 'Approval Required' && d.status === 'pending'))
       .map((d) => ({
         id: d.id, description: d.description, doerId: d.doerId,
         doer: d.doer, delegatedBy: d.delegatedBy, dueDate: d.dueDate,
         client: d.client || '', status: d.status, type: d.type || 'delegation',
-        priority: d.priority, approval: d.approval, url: d.url || '', image: d.image || '',
+        priority: d.priority, approval: d.approval, approverId: d.approverId, approver: d.approver,
+        url: d.url || '', image: d.image || '',
         transferredBy: d.transferredBy || null, transferredFrom: d.transferredFrom || null, createdAt: d.createdAt,
       }));
     users = store.users || [];
