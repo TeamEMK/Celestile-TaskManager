@@ -42,7 +42,6 @@ const SECTIONS = [
   ]},
   { title: 'Daily', items: [
     { href: '/daily-task',    label: 'Daily Task',            icon: 'dailytask' },
-    { href: '/fms-task',      label: 'FMS Task',               icon: 'fms',      flag: 'fms' },
     { href: '/quotation',     label: 'Quotation',             icon: 'quote' },
     { href: '/inventory',     label: 'Stone Inventory Factory', icon: 'inventory' },
     { href: '/leave-tracker', label: 'Leave Tracker',         icon: 'leave',    hidden: true },
