@@ -15,7 +15,7 @@ function saveSeen(key, set) {
   try { localStorage.setItem(key, JSON.stringify([...set])); } catch {}
 }
 
-export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [] }) {
+export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [], myTaskApprovals = [] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState(searchParams.get('tab') === 'task' ? 'Task Approvals' : 'Revise Requests');
@@ -50,8 +50,9 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
   }, [tab, reviseRequests, taskApprovals]);
 
   const TABS = [
-    { key: 'Revise Requests', count: reviseRequests.length, icon: ReviseIcon },
-    { key: 'Task Approvals',  count: taskApprovals.length,  icon: TaskIcon   },
+    { key: 'Revise Requests', count: reviseRequests.length,  icon: ReviseIcon },
+    { key: 'Task Approvals',  count: taskApprovals.length,   icon: TaskIcon   },
+    { key: 'My Submitted',    count: myTaskApprovals.length, icon: SentIcon   },
   ];
 
   async function confirmGrant() {
@@ -76,20 +77,20 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
   }
 
   function approveTask(task) {
-    ask('Approve this task?', async () => {
+    ask('Approve this task as done?', async () => {
       await fetch('/api/delegations', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: task.id, status: 'pending', approval: 'Approved' }),
+        body: JSON.stringify({ id: task.id, status: 'done', _approverAction: 'approve' }),
       });
       router.refresh();
     });
   }
 
   function rejectTask(task) {
-    ask('Reject this task?', async () => {
+    ask('Reject and send back to the doer for revision?', async () => {
       await fetch('/api/delegations', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: task.id, status: 'revise' }),
+        body: JSON.stringify({ id: task.id, status: 'revise', _approverAction: 'reject' }),
       });
       router.refresh();
     });
@@ -190,7 +191,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
             <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><TaskIcon className="w-4 h-4" /></div>
             <div>
               <h2 className="text-[13.5px] font-semibold text-slate-900">Task Approvals</h2>
-              <p className="text-[11.5px] text-slate-500">{taskApprovals.length} awaiting decision</p>
+              <p className="text-[11.5px] text-slate-500">{taskApprovals.length} awaiting your decision</p>
             </div>
           </div>
           {taskApprovals.length === 0 ? <EmptyState icon={TaskIcon} label="Task Approvals" /> : (
@@ -261,6 +262,56 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
         </div>
       )}
 
+      {/* My Submitted — my own tasks currently waiting on someone else's approval */}
+      {tab === 'My Submitted' && (
+        <div className="card overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+            <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 grid place-items-center"><SentIcon className="w-4 h-4" /></div>
+            <div>
+              <h2 className="text-[13.5px] font-semibold text-slate-900">My Submitted</h2>
+              <p className="text-[11.5px] text-slate-500">{myTaskApprovals.length} of your tasks awaiting someone else's approval</p>
+            </div>
+          </div>
+          {myTaskApprovals.length === 0 ? <EmptyState icon={SentIcon} label="Submitted Tasks" /> : (
+            <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
+                  <tr>
+                    <th className="table-th">#</th>
+                    <th className="table-th">Task</th>
+                    <th className="table-th">Approver</th>
+                    <th className="table-th">Due Date</th>
+                    <th className="table-th">Priority</th>
+                    <th className="table-th text-right pr-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myTaskApprovals.map((t, i) => (
+                    <tr key={t.id} className="table-row">
+                      <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
+                      <td className="table-td max-w-[260px] font-medium text-slate-800 truncate">{t.description}</td>
+                      <td className="table-td">
+                        <div className="flex items-center gap-1.5">
+                          <Avatar name={t.approver} />
+                          <span className="text-slate-700">{t.approver || '—'}</span>
+                        </div>
+                      </td>
+                      <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.dueDate)}</td>
+                      <td className="table-td">
+                        <span className={`pill ${t.priority === 'High' ? 'bg-red-50 text-red-600 border border-red-100' : t.priority === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>{t.priority || 'Low'}</span>
+                      </td>
+                      <td className="table-td text-right pr-2">
+                        <span className="pill bg-violet-50 text-violet-700">⏳ Awaiting Approval</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {ConfirmUI}
 
       {/* Grant Revise Popup */}
@@ -312,6 +363,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
 
 function ReviseIcon(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>; }
 function TaskIcon(p)   { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>; }
+function SentIcon(p)   { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>; }
 
 function Avatar({ name = '' }) {
   const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';

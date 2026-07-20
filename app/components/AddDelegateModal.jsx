@@ -6,7 +6,7 @@ import { fileToThumbnail } from '@/app/quotation/imageThumb';
 
 const blank = () => ({
   description: '', doerId: '', dueDate: '', client: '',
-  priority: 'Low', approval: 'No Approval',
+  priority: 'Low', approval: 'No Approval', approverId: '',
   url: '', remarks: '', image: '',
   attachment: '', requireFile: false,
 });
@@ -80,6 +80,10 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
   async function save() {
     if (!form.description.trim() || !form.doerId || !form.dueDate) {
       setMsg('Description, Doer and Due Date are required.');
+      return;
+    }
+    if (form.approval === 'Approval Required' && !form.approverId) {
+      setMsg('Please select an approver.');
       return;
     }
     setSaving(true); setMsg('');
@@ -180,11 +184,21 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
             <Field label="Approval">
               <div className="seg">
                 {['No Approval', 'Approval Required'].map((a) => (
-                  <button key={a} type="button" onClick={() => set('approval', a)} className={`seg-btn flex-1 ${form.approval === a ? 'seg-btn-active' : ''}`}>{a}</button>
+                  <button key={a} type="button" onClick={() => setForm((f) => ({ ...f, approval: a, approverId: a === 'Approval Required' ? f.approverId : '' }))} className={`seg-btn flex-1 ${form.approval === a ? 'seg-btn-active' : ''}`}>{a === 'Approval Required' ? 'Yes Approval' : a}</button>
                 ))}
               </div>
             </Field>
           </div>
+
+          {form.approval === 'Approval Required' && (
+            <Field label="Approver" required>
+              <select className="input" value={form.approverId} onChange={(e) => set('approverId', e.target.value)}>
+                <option value="">Select approver</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+              <p className="text-[10.5px] text-slate-400 mt-1">Task will wait for this person's approval once marked done.</p>
+            </Field>
+          )}
 
           <Field label="Description" required>
             <textarea className="input resize-none" value={form.description} rows={2} onChange={(e) => set('description', e.target.value)} placeholder="What needs to be done?" />
@@ -263,7 +277,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
                   <button className="btn-secondary" onClick={downloadSample}>⬇ Sample</button>
                 </div>
                 <div className="text-[10.5px] text-slate-400 mt-1.5">
-                  Format: doer_email, due_date, priority, approval, description, remarks, client_name
+                  Format: doer_email, approver_email (if approval required), due_date, priority, approval, description, remarks, client_name
                 </div>
               </div>
             )}

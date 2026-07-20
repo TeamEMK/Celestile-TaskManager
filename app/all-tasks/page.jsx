@@ -1,21 +1,24 @@
 import AllTasksClient from './AllTasksClient';
 import { pool } from '@/lib/db';
 import { readStore } from '@/lib/store';
+import { FMS_ENABLED } from '@/lib/config';
+import { getMyFmsPendingRows } from '@/lib/fmsSheet';
 
 export const dynamic = 'force-dynamic';
 
 const hasDB = !!process.env.DB_HOST;
 
 export default async function AllTasksPage() {
-  let delegations = [], users = [], masters = [], completions = [];
+  let delegations = [], users = [], masters = [], completions = [], fmsTasks = [];
 
   if (hasDB) {
     [delegations, users, masters, completions] = await Promise.all([
       pool.query(`SELECT id, description, doer_id AS doerId, doer, delegated_by AS delegatedBy,
-                         due_date AS dueDate, client, status, type, priority, approval, url, remarks, image,
+                         due_date AS dueDate, client, status, type, priority, approval,
+                         approver_id AS approverId, approver, url, remarks, image,
                          require_file AS requireFile, attachment,
                          transferred_by AS transferredBy, transferred_from AS transferredFrom, created_at AS createdAt
-                  FROM delegations WHERE NOT (approval = 'Approval Required' AND status = 'pending')
+                  FROM delegations
                   ORDER BY created_at DESC`)
         .then(([r]) => r).catch(() => []),
       pool.query('SELECT id, name, email, department, roles FROM users ORDER BY id')
@@ -25,15 +28,16 @@ export default async function AllTasksPage() {
       pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()')
         .then(([r]) => r).catch(() => []),
     ]);
+    if (FMS_ENABLED) fmsTasks = await getMyFmsPendingRows({ isAdmin: true }).catch(() => []);
   } else {
     const store = await readStore();
     delegations = (store.delegations || [])
-      .filter((d) => !(d.approval === 'Approval Required' && d.status === 'pending'))
       .map((d) => ({
         id: d.id, description: d.description, doerId: d.doerId,
         doer: d.doer, delegatedBy: d.delegatedBy, dueDate: d.dueDate,
         client: d.client || '', status: d.status, type: d.type || 'delegation',
-        priority: d.priority, approval: d.approval, url: d.url || '', image: d.image || '',
+        priority: d.priority, approval: d.approval, approverId: d.approverId, approver: d.approver,
+        url: d.url || '', image: d.image || '',
         transferredBy: d.transferredBy || null, transferredFrom: d.transferredFrom || null, createdAt: d.createdAt,
       }));
     users = store.users || [];
@@ -51,6 +55,7 @@ export default async function AllTasksPage() {
       type: 'Checklist', frequency: m.frequency, createdAt: m.createdAt,
       requireFile: m.requireFile || 0, attachment: m.attachment || '',
     })),
+    ...fmsTasks,
   ];
 
   const byDoer = {};

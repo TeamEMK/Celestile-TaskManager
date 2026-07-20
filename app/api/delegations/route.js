@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { sendWhatsApp, delegationMessage, taskDoneMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+import { sendWhatsApp, delegationMessage, taskDoneMessage, approvalWaitingMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireUser } from '@/lib/api';
 
 // Fire a WhatsApp "task delegated" notice to the doer (best-effort).
@@ -44,6 +44,23 @@ async function notifyTaskDone(delegation) {
   } catch (e) { console.error('[notifyTaskDone]', e.message); }
 }
 
+// Fire a WhatsApp notice to the chosen approver when a task starts waiting on them.
+async function notifyApprovalWaiting(delegation) {
+  try {
+    if (!isWhatsappConfigured()) return;
+    if (!delegation?.approver_id) { console.error('[notifyApprovalWaiting] skipped — no approver_id:', delegation?.id); return; }
+    const [approvers] = await pool.query('SELECT name, phone FROM users WHERE id = ?', [delegation.approver_id]);
+    const approver = approvers[0];
+    if (!approver?.phone) { console.error('[notifyApprovalWaiting] skipped — approver has no phone on file:', approver?.name || delegation.approver_id); return; }
+    const msg = approvalWaitingMessage({
+      approverName: approver.name,
+      doerName: delegation.doer,
+      description: delegation.description,
+    });
+    await sendWhatsApp(approver.phone, msg);
+  } catch (e) { console.error('[notifyApprovalWaiting]', e.message); }
+}
+
 function normDate(s) {
   if (!s) return null;
   const t = String(s).trim().replaceAll('/', '-');
@@ -76,17 +93,18 @@ async function nextDelId() {
   return 'DEL' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
 }
 
-async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, client, priority, approval, url, remarks, image, requireFile, attachment }) {
+async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, client, priority, approval, approverId, approverName, url, remarks, image, requireFile, attachment }) {
   const id = await nextDelId();
   const initialStatus = 'pending';
   await pool.query(
     `INSERT INTO delegations
       (id, description, doer_id, doer, delegated_by, due_date, client, status, type,
-       priority, approval, url, remarks, image, require_file, attachment, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'delegation', ?, ?, ?, ?, ?, ?, ?, NOW())`,
+       priority, approval, approver_id, approver, url, remarks, image, require_file, attachment, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'delegation', ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
     [id, description, doerId, doerName || '', delegatedBy || null,
      dueDate, client || '', initialStatus,
-     priority || 'Low', approval || 'No Approval', url || '', remarks || '', image || '',
+     priority || 'Low', approval || 'No Approval', approverId || null, approverName || '',
+     url || '', remarks || '', image || '',
      requireFile ? 1 : 0, attachment || null]
   );
   const [result] = await pool.query('SELECT * FROM delegations WHERE id = ?', [id]);
@@ -104,16 +122,24 @@ export async function POST(req) {
     if (Array.isArray(body.bulk)) {
       let inserted = 0; const errors = [];
       for (const [i, row] of body.bulk.entries()) {
-        const email   = (row.doer_email || row.doerEmail || '').trim().toLowerCase();
-        const dueDate = normDate(row.due_date || row.dueDate);
-        const desc    = (row.description || '').trim();
+        const email      = (row.doer_email || row.doerEmail || '').trim().toLowerCase();
+        const dueDate     = normDate(row.due_date || row.dueDate);
+        const desc        = (row.description || '').trim();
+        const rowApproval = row.approval || resolvedApproval;
         if (!email || !dueDate || !desc) { errors.push(`Row ${i+1}: missing fields`); continue; }
         const [users] = await pool.query('SELECT id, name, phone FROM users WHERE LOWER(email) = ?', [email]);
         if (!users.length) { errors.push(`Row ${i+1}: no user ${email}`); continue; }
+        let approverId = '', approverName = '';
+        const approverEmail = (row.approver_email || row.approverEmail || '').trim().toLowerCase();
+        if (rowApproval === 'Approval Required' && approverEmail) {
+          const [approvers] = await pool.query('SELECT id, name FROM users WHERE LOWER(email) = ?', [approverEmail]);
+          if (approvers.length) { approverId = approvers[0].id; approverName = approvers[0].name; }
+        }
         const del = await insertOne({
           description: desc, doerId: users[0].id, doerName: users[0].name,
           delegatedBy: body.delegatedBy, dueDate,
-          priority: row.priority, approval: resolvedApproval, url: row.url, remarks: row.remarks,
+          priority: row.priority, approval: rowApproval, approverId, approverName,
+          url: row.url, remarks: row.remarks,
         });
         await notifyDelegation({ doerUser: users[0], delegatedById: body.delegatedBy, del });
         inserted++;
@@ -124,11 +150,19 @@ export async function POST(req) {
     // Single
     if (!body.description || !body.doerId || !body.dueDate)
       return NextResponse.json({ error: 'description, doerId, dueDate required' }, { status: 400 });
+    if (resolvedApproval === 'Approval Required' && !body.approverId)
+      return NextResponse.json({ error: 'approverId required when approval is required' }, { status: 400 });
     const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [body.doerId]);
+    let approverName = '';
+    if (body.approverId) {
+      const [approvers] = await pool.query('SELECT name FROM users WHERE id = ?', [body.approverId]);
+      approverName = approvers[0]?.name || '';
+    }
     const row = await insertOne({
       description: body.description, doerId: body.doerId, doerName: users[0]?.name,
       delegatedBy: body.delegatedBy, dueDate: normDate(body.dueDate) || body.dueDate,
       client: body.client, priority: body.priority, approval: resolvedApproval,
+      approverId: body.approverId, approverName,
       url: body.url, remarks: body.remarks, image: body.image,
       requireFile: body.requireFile, attachment: body.attachment,
     });
@@ -172,10 +206,27 @@ export async function PATCH(req) {
 
     if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
+    const [existingRows] = await pool.query('SELECT * FROM delegations WHERE id = ?', [body.id]);
+    const current = existingRows[0];
+    if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
     let status = body.status;
     let reviseAction = null;
+    let waitingForApproval = false;
 
-    if (status === 'revise') {
+    if (body._approverAction === 'approve' || body._approverAction === 'reject') {
+      if (current.status !== 'approval_pending')
+        return NextResponse.json({ error: 'Task is not waiting for approval' }, { status: 400 });
+      const session = await getServerSession(authOptions);
+      if (String(session?.user?.id) !== String(current.approver_id))
+        return NextResponse.json({ error: 'Only the assigned approver can decide this task' }, { status: 403 });
+      status = body._approverAction === 'approve' ? 'done' : 'revise';
+      // Direct revise (bypasses the request/grant cycle) — the approver's decision is final.
+    } else if (status === 'done' && current.approval === 'Approval Required' && current.approver_id) {
+      // Doer marking an approval-gated task done — hold it for the chosen approver instead.
+      status = 'approval_pending';
+      waitingForApproval = true;
+    } else if (status === 'revise') {
       if (body._grantRevise) {
         // Admin explicitly granting someone's revise request
         reviseAction = 'granted';
@@ -211,7 +262,8 @@ export async function PATCH(req) {
 
     const [result] = await pool.query('SELECT * FROM delegations WHERE id = ?', [body.id]);
     if (!result.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    if (status === 'done') await notifyTaskDone(result[0]);
+    if (waitingForApproval) await notifyApprovalWaiting(result[0]);
+    else if (status === 'done') await notifyTaskDone(result[0]);
     return NextResponse.json(result[0]);
   } catch (err) {
     console.error(err);

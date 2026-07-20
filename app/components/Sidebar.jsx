@@ -33,7 +33,7 @@ const SECTIONS = [
     { href: '/approvals', label: 'Approvals', icon: 'approve' },
   ]},
   { title: 'Operations', items: [
-    { href: '/fms',           label: 'FMS Master',    icon: 'fms',          flag: 'fms',  adminOnly: true },
+    { href: '/fms',           label: 'FMS Admin',     icon: 'fms',          flag: 'fms', adminOnly: true },
     { href: '/masters',       label: 'Checklists',    icon: 'masters',      adminOnly: true, hidden: true },
     { href: '/client-master', label: 'Client Master', icon: 'clientmaster', adminOnly: true, hidden: true },
     { href: '/mis',           label: 'MIS Report',    icon: 'mis',          adminOnly: true },
@@ -64,7 +64,6 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
-    if (!isAdmin) return;
     const fetchCount = async () => {
       try {
         const res = await fetch('/api/approvals/pending-count');
@@ -76,7 +75,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
     fetchCount();
     const t = setInterval(fetchCount, 15000);
     return () => clearInterval(t);
-  }, [isAdmin]);
+  }, []);
 
   const visible = (n) =>
     !n.hidden &&
@@ -152,7 +151,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
                       <span className="relative shrink-0">
                         <IconComp className="w-[17px] h-[17px]"
                           style={{ color: active ? '#DDAC6E' : 'inherit' }} />
-                        {n.href === '/approvals' && isAdmin && pendingCount > 0 && (
+                        {n.href === '/approvals' && pendingCount > 0 && (
                           <span
                             className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] rounded-full text-[9px] font-bold text-white flex items-center justify-center"
                             style={{ background: '#C86A3D', boxShadow: '0 0 0 2px #0D0B08' }}

@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import AddDelegateModal from '../components/AddDelegateModal';
 import AddMasterModal   from '../components/AddMasterModal';
+import FmsDoneModal     from '../components/FmsDoneModal';
 import { useConfirmToast } from '../components/ConfirmToast';
+import { FMS_ENABLED } from '@/lib/config';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -29,6 +31,8 @@ export default function AllTasksClient({ grouped, users }) {
   const [fileTask,         setFileTask]         = useState(null);
   const [completionInput,  setCompletionInput]  = useState(null);
   const [fileUploading,    setFileUploading]    = useState(false);
+  const [fmsDone,          setFmsDone]          = useState(null);
+  const [fmsDoneLoading,   setFmsDoneLoading]   = useState(false);
 
   const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
   const currentUserName = session?.user?.name;
@@ -43,6 +47,7 @@ export default function AllTasksClient({ grouped, users }) {
   const tabType = {
     'Delegation':     'delegation',
     'Checklist':      'Checklist',
+    'FMS':            'FMS',
     'Delegate by Me': 'delegation',
   };
 
@@ -152,6 +157,25 @@ export default function AllTasksClient({ grouped, users }) {
     window.location.reload();
   }
 
+  async function openFmsDone(task) {
+    setFmsDoneLoading(true);
+    try {
+      const d = await fetch(`/api/fms-tasks/${task.fmsId}`).then((r) => r.json());
+      const step = (d.steps || []).find((s) => String(s.id) === String(task.stepId));
+      setFmsDone({
+        fmsId: task.fmsId,
+        step: step || { id: task.stepId, extraRows: [] },
+        row: {
+          sheetRowNumber: task.rowNumber,
+          planValue: task.planValue,
+          data: Object.fromEntries((task.details || []).map((x) => [x.header, x.value])),
+        },
+      });
+    } finally {
+      setFmsDoneLoading(false);
+    }
+  }
+
   async function undoTask(task) {
     if (task.type === 'Checklist') {
       await fetch('/api/checklist-completions', {
@@ -233,7 +257,7 @@ export default function AllTasksClient({ grouped, users }) {
       <div className="card p-3 flex items-center gap-2 flex-wrap">
         {/* Tab buttons with count badges */}
         <div className="seg">
-          {['Delegation', 'Checklist', 'Delegate by Me'].map((t) => {
+          {['Delegation', 'Checklist', ...(FMS_ENABLED ? ['FMS'] : []), 'Delegate by Me'].map((t) => {
             const count = tabCount(t);
             return (
               <button
@@ -361,17 +385,19 @@ export default function AllTasksClient({ grouped, users }) {
                                 {/* ACTION */}
                                 <td className="table-td">
                                   <div className="flex items-center gap-1">
-                                    {t.type !== 'Checklist' && (
+                                    {t.type !== 'Checklist' && t.type !== 'FMS' && (
                                       <button title="Edit" onClick={() => setEditTask(t)}
                                         className="w-7 h-7 rounded-lg grid place-items-center text-amber-500 hover:bg-amber-50 transition">
                                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                       </button>
                                     )}
-                                    <button title="Delete" onClick={() => deleteTask(t.id, t.type)}
-                                      className="w-7 h-7 rounded-lg grid place-items-center text-red-500 hover:bg-red-50 transition">
-                                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                                    </button>
-                                    {t.type !== 'Checklist' && t.status !== 'done' && (
+                                    {t.type !== 'FMS' && (
+                                      <button title="Delete" onClick={() => deleteTask(t.id, t.type)}
+                                        className="w-7 h-7 rounded-lg grid place-items-center text-red-500 hover:bg-red-50 transition">
+                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                      </button>
+                                    )}
+                                    {t.type !== 'Checklist' && t.type !== 'FMS' && t.status !== 'done' && t.status !== 'approval_pending' && (
                                       <>
                                         {canComplete && (
                                           <button title="Mark Done"
@@ -383,6 +409,10 @@ export default function AllTasksClient({ grouped, users }) {
                                             className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer text-[11px]">Revise</button>
                                         )}
                                       </>
+                                    )}
+                                    {t.type === 'FMS' && t.status !== 'done' && canComplete && (
+                                      <button title="Mark Done" disabled={fmsDoneLoading} onClick={() => openFmsDone(t)}
+                                        className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer text-[11px] disabled:opacity-50">Done</button>
                                     )}
                                     {t.type === 'Checklist' && t.status !== 'done' && canComplete && (
                                       <button
@@ -439,11 +469,13 @@ export default function AllTasksClient({ grouped, users }) {
                                 <td className="table-td">
                                   <span className={`pill text-[11px] ${
                                     t.status === 'done'             ? 'bg-emerald-50 text-emerald-700' :
+                                    t.status === 'approval_pending' ? 'bg-violet-50 text-violet-700' :
                                     t.status === 'revise'           ? 'bg-amber-50 text-amber-700' :
                                     t.status === 'revise_requested' ? 'bg-orange-50 text-orange-700' :
                                     'bg-red-50 text-red-600'
                                   }`}>
                                     {t.status === 'done' ? 'Done' :
+                                     t.status === 'approval_pending' ? `⏳ Awaiting ${t.approver || 'Approval'}` :
                                      t.status === 'revise' ? 'Revise' :
                                      t.status === 'revise_requested' ? 'Revise Req.' : 'Pending'}
                                   </span>
@@ -476,6 +508,14 @@ export default function AllTasksClient({ grouped, users }) {
       <MyTransferModal open={myTransferOpen} onClose={() => setMyTransferOpen(false)} users={users} grouped={grouped} fromName={currentUserName} onDone={() => { setMyTransferOpen(false); window.location.reload(); }} />
 
       {ConfirmUI}
+
+      {fmsDone && (
+        <FmsDoneModal
+          fmsId={fmsDone.fmsId} row={fmsDone.row} step={fmsDone.step}
+          onClose={() => setFmsDone(null)}
+          onSaved={() => { setFmsDone(null); router.refresh(); }}
+        />
+      )}
 
       {/* File Upload Modal — shown when task requires proof before marking done */}
       {fileTask && (
@@ -676,7 +716,7 @@ function TransferModal({ open, onClose, users, grouped, onDone }) {
     const from = users.find((u) => u.id === fromUser);
     if (!from) return [];
     const group = grouped.find((g) => g.doer === from.name);
-    return (group?.tasks || []).filter((t) => t.type !== 'Checklist' && t.status !== 'done');
+    return (group?.tasks || []).filter((t) => t.type !== 'Checklist' && t.type !== 'FMS' && t.status !== 'done');
   }, [fromUser, users, grouped]);
 
   useEffect(() => {
@@ -824,7 +864,7 @@ function MyTransferModal({ open, onClose, users, fromName, grouped, onDone }) {
 
   const myTasks = useMemo(() => {
     const group = grouped.find((g) => g.doer === fromName);
-    return (group?.tasks || []).filter((t) => t.type !== 'Checklist' && t.status !== 'done');
+    return (group?.tasks || []).filter((t) => t.type !== 'Checklist' && t.type !== 'FMS' && t.status !== 'done');
   }, [grouped, fromName]);
 
   useEffect(() => {

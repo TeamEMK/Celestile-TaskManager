@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { requireUser } from '@/lib/api';
+import { getFmsMisRows, getFmsMisDetailRows } from '@/lib/fmsSheet';
 
 export const maxDuration = 30;
 
@@ -125,6 +126,34 @@ export async function GET(req) {
       const summary = {
         'Total Checklists': masters.length, 'Employees': rows.length,
         'Completions': completions.length, 'Period': `${fmtDate(fromDT)} – ${fmtDate(toDT)}`,
+      };
+      return NextResponse.json({ rows, summary, view: 'employee' });
+    }
+
+    // FMS MIS drill-down: single employee
+    if (employee && type === 'FMS MIS') {
+      const detail = await getFmsMisDetailRows(employee, start, end);
+      const rows = detail.map((d, i) => ({
+        '#': i + 1, 'Description': `${d.fmsName} · ${d.stepName}`,
+        'Assigned By': '—', 'Client': '—', 'Due Date': fmtDate(d.dueDate),
+        'Priority': '—', 'Status': d.status,
+      }));
+      return NextResponse.json({ rows, summary: {} });
+    }
+
+    // FMS MIS
+    if (type === 'FMS MIS') {
+      const empRows = await getFmsMisRows(start, end);
+      const rows = empRows.map((e) => ({
+        ...e, score: e.total > 0 ? Math.round(((e.completed / e.total) - 1) * 100 - (e.delayed / e.total) * 50) : 0,
+      }));
+      const totalTasks = empRows.reduce((s, e) => s + e.total, 0);
+      const completed  = empRows.reduce((s, e) => s + e.completed, 0);
+      const summary = {
+        'Total Tasks': totalTasks, 'Employees': rows.length,
+        'Completed': completed, 'Pending': totalTasks - completed,
+        'Delayed': empRows.reduce((s, e) => s + e.delayed, 0),
+        'Period': `${fmtDate(fromDT)} – ${fmtDate(toDT)}`,
       };
       return NextResponse.json({ rows, summary, view: 'employee' });
     }

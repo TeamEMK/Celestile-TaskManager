@@ -6,6 +6,7 @@ import AddDelegateModal from './components/AddDelegateModal';
 import HolidaysModal    from './components/HolidaysModal';
 import { useConfirmToast } from './components/ConfirmToast';
 import { DonutChart, HorizBarChart } from './components/Charts';
+import FmsDoneModal from './components/FmsDoneModal';
 import { FMS_ENABLED } from '@/lib/config';
 
 export default function DashboardClient({ data, performance, pendingApprovals, holidays, users = [], isAdmin, userName = '' }) {
@@ -23,6 +24,8 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   const [fileTask,        setFileTask]        = useState(null);
   const [completionInput, setCompletionInput] = useState(null);
   const [fileUploading,   setFileUploading]   = useState(false);
+  const [fmsDone,         setFmsDone]         = useState(null); // { fmsId, row, step }
+  const [fmsDoneLoading,  setFmsDoneLoading]  = useState(false);
   const { ask, ConfirmUI } = useConfirmToast();
 
   const todayISO = new Date().toISOString().split('T')[0];
@@ -63,7 +66,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   const pa = pendingApprovals || { total: 0, mine: 0, byBranch: {} };
   const approvalCount = isAdmin ? pa.total : pa.mine;
   const approvalBranchSub = useMemo(() => {
-    if (!isAdmin) return 'Awaiting admin';
+    if (!isAdmin) return 'Awaiting approver';
     const b = pa.byBranch || {};
     const parts = [];
     if (b.bangalore)   parts.push(`BLR ${b.bangalore}`);
@@ -79,14 +82,31 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
       await fetch('/api/delegations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: task.id, status: 'done' }) });
     } else if (task.type === 'Checklist') {
       await fetch('/api/checklist-completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ masterId: task.id }) });
-    } else if (task.type === 'FMS') {
-      const parts = task.id.split('-'); const stepIndex = parseInt(parts.pop()); const fmsId = parts.join('-');
-      await fetch('/api/fms/step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fmsId, stepIndex }) });
     }
     router.refresh();
   }
 
+  async function openFmsDone(task) {
+    setFmsDoneLoading(true);
+    try {
+      const d = await fetch(`/api/fms-tasks/${task.fmsId}`).then((r) => r.json());
+      const step = (d.steps || []).find((s) => String(s.id) === String(task.stepId));
+      setFmsDone({
+        fmsId: task.fmsId,
+        step: step || { id: task.stepId, extraRows: [] },
+        row: {
+          sheetRowNumber: task.rowNumber,
+          planValue: task.planValue,
+          data: Object.fromEntries((task.details || []).map((x) => [x.header, x.value])),
+        },
+      });
+    } finally {
+      setFmsDoneLoading(false);
+    }
+  }
+
   function handleDoneClick(task) {
+    if (task.type === 'FMS') { openFmsDone(task); return; }
     if (task.requireFile) { setCompletionInput(null); setFileTask(task); }
     else markDone(task);
   }
@@ -306,7 +326,9 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                       </td>
                       <td className="table-td">
                         <div className="flex gap-1.5 justify-end pr-2">
-                          {t.type === 'Delegation' && t.status === 'revise_requested' ? (
+                          {t.type === 'Delegation' && t.status === 'approval_pending' ? (
+                            <span className="pill bg-violet-50 text-violet-700">⏳ Awaiting {t.approver || 'approval'}</span>
+                          ) : t.type === 'Delegation' && t.status === 'revise_requested' ? (
                             isAdmin ? (
                               <>
                                 <button onClick={() => requestGrant(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Grant</button>
@@ -408,6 +430,13 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
       <AddMasterModal   open={masterOpen}   onClose={() => setMasterOpen(false)}   users={users} />
       <AddDelegateModal open={delegateOpen} onClose={() => setDelegateOpen(false)} users={users} />
       <HolidaysModal    open={holidayOpen}  onClose={() => setHolidayOpen(false)}  holidays={holidays} />
+      {fmsDone && (
+        <FmsDoneModal
+          fmsId={fmsDone.fmsId} row={fmsDone.row} step={fmsDone.step}
+          onClose={() => setFmsDone(null)}
+          onSaved={() => { setFmsDone(null); router.refresh(); }}
+        />
+      )}
 
       {/* File-required completion modal */}
       {fileTask && (

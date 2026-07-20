@@ -17,7 +17,7 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const TABS = ['Delegation MIS', 'Checklist MIS', 'All MIS'];
+  const TABS = ['Delegation MIS', 'Checklist MIS', 'FMS MIS', 'All MIS'];
 
   async function generate() {
     if (!start || !end) { alert('Please select Start Date and End Date first.'); return; }
