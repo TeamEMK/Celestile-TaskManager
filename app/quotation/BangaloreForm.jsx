@@ -502,11 +502,11 @@ function buildPdfHtml(header, rows, totals, calc) {
   items.forEach((it, idx) => {
     const imgH = it.img ? `<img src="${it.img}" style="width:34px;height:34px;object-fit:cover;border-radius:1px"/>` : '';
     const qDisp = it.qty ? (Number.isInteger(it.qty) ? it.qty : (+it.qty).toFixed(2)) : '';
-    const rateQty = hasNonSFT
-      ? (it.module ? '<td colspan="2"></td>'
-        : `<td class="num-c" style="text-align:right">${it.price ? it.price.toLocaleString('en-IN',{minimumFractionDigits:2}) : ''}</td><td class="num-c" style="text-align:right">${qDisp}</td>`)
+    // Rate intentionally omitted from client-facing output — only Qty + line Amount shown.
+    const qtyCell = hasNonSFT
+      ? `<td class="num-c" style="text-align:right">${it.module ? '' : qDisp}</td>`
       : '';
-    stoneHtml += `<tr><td class="num-c" style="text-align:center;color:#7a6e60;font-weight:700">${idx+1}</td><td>${imgH}</td><td>${esc(it.desc)}</td><td class="num-c" style="text-align:right">${esc(it.area)}</td><td>${esc(it.size)}</td><td>${esc(it.mat)}</td><td>${esc(it.thk)}</td><td>${esc(it.unit)}</td>${rateQty}<td class="num-c" style="text-align:right">${it.gPct ? it.gPct.toFixed(2)+'%' : ''}</td><td class="num-c" style="text-align:right;font-weight:600">&#8377; ${inr2(it.gross)}</td></tr>`;
+    stoneHtml += `<tr><td class="num-c" style="text-align:center;color:#7a6e60;font-weight:700">${idx+1}</td><td>${imgH}</td><td>${esc(it.desc)}</td><td class="num-c" style="text-align:right">${esc(it.area)}</td><td>${esc(it.size)}</td><td>${esc(it.mat)}</td><td>${esc(it.thk)}</td><td>${esc(it.unit)}</td>${qtyCell}<td class="num-c" style="text-align:right">${it.gPct ? it.gPct.toFixed(2)+'%' : ''}</td><td class="num-c" style="text-align:right;font-weight:600">&#8377; ${inr2(it.gross)}</td></tr>`;
   });
 
   let totalsHtml = '';
@@ -563,7 +563,7 @@ ${hdr}
 <tr><td><span class="lbl">Client Contact</span><span class="val">${fv('clientContact')||'&mdash;'}</span></td><td><span class="lbl">Validity</span><span class="val">${fv('validity')||'&mdash;'}</span></td><td><span class="lbl">Consultant No.</span><span class="val">${fv('consultantNumber')||'&mdash;'}</span></td><td><span class="lbl">Email</span><span class="val">${fv('clientEmail')||'&mdash;'}</span></td></tr>
 <tr><td><span class="lbl">Site Address</span><span class="val">${fv('siteAddress')||'&mdash;'}</span></td><td><span class="lbl">Lead Time</span><span class="val">${fv('leadTime')}</span></td><td><span class="lbl">Consultant Email</span><span class="val">${fv('consultantEmail')||'&mdash;'}</span></td><td><span class="lbl">Billing Address</span><span class="val">${fv('billingAddress')||'&mdash;'}</span></td></tr>
 </table></div>
-<div class="body"><table class="it"><thead><tr><th>#</th><th>Img</th><th>Description</th><th style="text-align:right">Area</th><th>Size (in)</th><th>Material</th><th>Thk</th><th>Unit</th>${hasNonSFT?'<th style="text-align:right">Rate</th><th style="text-align:right">Qty</th>':''}<th style="text-align:right">GST%</th><th style="text-align:right">Amount</th></tr></thead><tbody>${stoneHtml}</tbody></table>
+<div class="body"><table class="it"><thead><tr><th>#</th><th>Img</th><th>Description</th><th style="text-align:right">Area</th><th>Size (in)</th><th>Material</th><th>Thk</th><th>Unit</th>${hasNonSFT?'<th style="text-align:right">Qty</th>':''}<th style="text-align:right">GST%</th><th style="text-align:right">Amount</th></tr></thead><tbody>${stoneHtml}</tbody></table>
 <div class="bg"><div class="bp"><div class="bt">Bank Details</div><div class="br"><span class="bk">Name</span><span class="bv">Vijayaananth Realtech</span></div><div class="br"><span class="bk">Account No.</span><span class="bv">50200093326161</span></div><div class="br"><span class="bk">Bank</span><span class="bv">HDFC Bank</span></div><div class="br"><span class="bk">IFSC Code</span><span class="bv">HDFC0001755</span></div><div class="pt-title">Payment Terms</div><div class="pt"><span class="pt-pct">60%</span><span class="pt-desc">Advance on order confirmation</span></div><div class="pt"><span class="pt-pct">35%</span><span class="pt-desc">Before delivery of material</span></div><div class="pt"><span class="pt-pct">5%</span><span class="pt-desc">Before completion of installation</span></div></div>
 <div class="tp">${totalsHtml}<div class="tr gd"><span class="l">Grand Total</span><span class="v">${grandStr}</span></div></div></div></div>
 ${ftr}

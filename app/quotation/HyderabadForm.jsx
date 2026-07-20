@@ -490,17 +490,17 @@ function buildPdfHtml(header, charges, stoneRows, fixRows, calc) {
   stoneItems.forEach((it, idx) => {
     const imgH = it.img ? `<img src="${it.img}" style="width:32px;height:32px;object-fit:cover;border-radius:1px">` : '';
     const qDisp = it.q ? (Number.isInteger(it.q) ? it.q : (+it.q).toFixed(2)) : '';
-    const rateQty = hasNonSFT
-      ? (it.module ? '<td colspan="2"></td>'
-        : `<td class="num" style="text-align:right">${it.p ? f2(it.p) : ''}</td><td class="num" style="text-align:right">${qDisp}</td>`) : '';
-    stoneHtml += `<tr><td class="num" style="text-align:center;font-weight:600;color:#7a6e60">${idx+1}</td><td>${imgH}</td><td class="desc-cell">${esc(it.desc)}</td><td>${esc(it.area)}</td><td>${esc(it.sizeWt)}</td><td>${esc(it.sizeHt)}</td><td>${esc(it.mat)}</td><td>${esc(it.thk)}</td><td>${esc(it.unit)}</td>${rateQty}<td class="num" style="text-align:right">${it.gst}%</td><td class="num" style="text-align:right;font-weight:600">₹ ${f2(it.p * it.q)}</td></tr>`;
+    // Rate intentionally omitted from client-facing output — only Qty + line Amount shown.
+    const qtyCell = hasNonSFT
+      ? `<td class="num" style="text-align:right">${it.module ? '' : qDisp}</td>` : '';
+    stoneHtml += `<tr><td class="num" style="text-align:center;font-weight:600;color:#7a6e60">${idx+1}</td><td>${imgH}</td><td class="desc-cell">${esc(it.desc)}</td><td>${esc(it.area)}</td><td>${esc(it.sizeWt)}</td><td>${esc(it.sizeHt)}</td><td>${esc(it.mat)}</td><td>${esc(it.thk)}</td><td>${esc(it.unit)}</td>${qtyCell}<td class="num" style="text-align:right">${it.gst}%</td><td class="num" style="text-align:right;font-weight:600">₹ ${f2(it.p * it.q)}</td></tr>`;
   });
 
   let fixHtml = '', fi = 0;
   fixRows.forEach((r) => {
     const q = parseFloat(r.qty) || 0; if (q <= 0) return;
     const p = parseFloat(r.price) || 0; fi++;
-    fixHtml += `<tr><td class="num" style="text-align:center;font-weight:600;color:#7a6e60">${fi}</td><td>${esc(r.desc)}</td><td>${esc(r.mat)}</td><td>${esc(r.size)}</td><td>${esc(r.unit)}</td><td class="num" style="text-align:right">${f2(p)}</td><td class="num" style="text-align:right">${q}</td><td class="num" style="text-align:right;font-weight:600">₹ ${f2(p * q)}</td></tr>`;
+    fixHtml += `<tr><td class="num" style="text-align:center;font-weight:600;color:#7a6e60">${fi}</td><td>${esc(r.desc)}</td><td>${esc(r.mat)}</td><td>${esc(r.size)}</td><td>${esc(r.unit)}</td><td class="num" style="text-align:right">${q}</td><td class="num" style="text-align:right;font-weight:600">₹ ${f2(p * q)}</td></tr>`;
   });
 
   const discPct = parseFloat(charges.discountPct) || 0;
@@ -553,9 +553,9 @@ table.it td{padding:3px 4px;border-right:1px solid #efe6d4;vertical-align:middle
 </table></div>
 <div class="body">
 <div class="sh"><div class="snum">01</div><div class="slbl">Stone &amp; Tile Items</div><div class="srule"></div></div>
-<table class="it"><thead><tr><th>#</th><th>Img</th><th>Description</th><th>Area</th><th>Size Wt (in)</th><th>Size Ht (in)</th><th>Material</th><th>Thickness</th><th>Unit</th>${hasNonSFT?'<th style="text-align:right">Rate (₹)</th><th style="text-align:right">Qty</th>':''}<th style="text-align:right">GST%</th><th style="text-align:right">Amount</th></tr></thead><tbody>${stoneHtml}</tbody></table>
+<table class="it"><thead><tr><th>#</th><th>Img</th><th>Description</th><th>Area</th><th>Size Wt (in)</th><th>Size Ht (in)</th><th>Material</th><th>Thickness</th><th>Unit</th>${hasNonSFT?'<th style="text-align:right">Qty</th>':''}<th style="text-align:right">GST%</th><th style="text-align:right">Amount</th></tr></thead><tbody>${stoneHtml}</tbody></table>
 <div class="sh" style="margin-top:8px"><div class="snum">02</div><div class="slbl">Fixing Material</div><div class="srule"></div></div>
-<table class="it"><thead><tr><th>#</th><th>Description</th><th>Material</th><th>Size / Thickness</th><th>Unit</th><th style="text-align:right">Rate (₹)</th><th style="text-align:right">Qty</th><th style="text-align:right">Amount</th></tr></thead><tbody>${fixHtml}</tbody></table>
+<table class="it"><thead><tr><th>#</th><th>Description</th><th>Material</th><th>Size / Thickness</th><th>Unit</th><th style="text-align:right">Qty</th><th style="text-align:right">Amount</th></tr></thead><tbody>${fixHtml}</tbody></table>
 <div class="bg"><div class="bp"><div class="bt">Bank Details</div>
 <div class="br"><span class="bk">Name</span><span class="bv">S K Marketing Tiles &amp; Tapz</span></div>
 <div class="br"><span class="bk">Account No.</span><span class="bv num">8008002700</span></div>

@@ -179,7 +179,7 @@ export async function POST(req) {
       } catch (e) { console.error('[quotation new notify]', e.message); }
     }
 
-    // Revision → WhatsApp change-list (best-effort, text-only)
+    // Revision → WhatsApp change-list + the updated PDF
     if (isRevision(data.refNo) && isWhatsappConfigured()) {
       try {
         const prev = prevRow ? rowToQuo(prevRow) : null;
@@ -190,7 +190,12 @@ export async function POST(req) {
           revisedBy: session?.user?.name || session?.user?.email || 'Unknown user',
           dateStr, changes, grandTotal: data.grandTotal,
         });
-        await sendWhatsApp(branchNotifyNumber(branch), msg);
+        const notifyNumber = branchNotifyNumber(branch);
+        await sendWhatsApp(notifyNumber, msg);
+        const baseUrl = process.env.NEXTAUTH_URL || 'https://celestileoffice.com';
+        const pdfUrl = `${baseUrl}/api/quotations/pdf?token=${approvalToken}`;
+        const pdfFilename = `Quotation-${data.refNo}.pdf`;
+        await sendWhatsAppDocument(notifyNumber, pdfUrl, pdfFilename, `📄 Revised Quotation ${data.refNo} — ${data.clientName || ''}`);
       } catch (e) { console.error('[quotation revision notify]', e.message); }
     }
 
