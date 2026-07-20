@@ -86,7 +86,25 @@ export default function UsersClient() {
   const [editing,   setEditing]   = useState(null);
   const [pwdModal,  setPwdModal]  = useState(false);
   const [pwdUser,   setPwdUser]   = useState(null);
-  const departments = DEPARTMENTS;
+  const [customDepartments, setCustomDepartments] = useState([]);
+
+  const departments = [
+    ...DEPARTMENTS,
+    ...customDepartments
+      .filter((name) => !DEPARTMENTS.some((d) => d.value.toLowerCase() === name.toLowerCase()))
+      .map((name) => ({ value: name, label: name })),
+  ];
+
+  function addDepartment(name) {
+    setCustomDepartments((cur) => (cur.some((d) => d.toLowerCase() === name.toLowerCase()) ? cur : [...cur, name]));
+  }
+
+  useEffect(() => {
+    fetch('/api/departments')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { if (Array.isArray(data)) setCustomDepartments(data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch('/api/users')
@@ -249,6 +267,7 @@ export default function UsersClient() {
         onClose={() => setModalOpen(false)}
         user={editing}
         departments={departments}
+        onAddDepartment={addDepartment}
         defaultBranch={session?.user?.branch || ''}
         onSaved={() => { setModalOpen(false); reloadUsers(); }}
       />
@@ -262,10 +281,15 @@ export default function UsersClient() {
   );
 }
 
-function UserModal({ open, onClose, user, departments, defaultBranch, onSaved }) {
+const ADD_DEPT_VALUE = '__add_new_department__';
+
+function UserModal({ open, onClose, user, departments, onAddDepartment, defaultBranch, onSaved }) {
   const fileRef    = useRef(null);
   const [form,           setForm]          = useState({});
   const [picture,        setPicture]       = useState(null);
+  const [addingDept,     setAddingDept]    = useState(false);
+  const [newDeptName,    setNewDeptName]   = useState('');
+  const [savingDept,     setSavingDept]    = useState(false);
   const [pictureChanged, setPictureChanged]= useState(false);
   const [saving,         setSaving]        = useState(false);
   const [bulkFile,       setBulkFile]      = useState(null);
@@ -336,6 +360,26 @@ function UserModal({ open, onClose, user, departments, defaultBranch, onSaved })
   function toggleRole(r) {
     const cur = normalizeRoles(form.roles);
     setForm({ ...form, roles: cur.includes(r) ? cur.filter(x => x !== r) : [...cur, r] });
+  }
+
+  function handleDeptSelect(v) {
+    if (v === ADD_DEPT_VALUE) { setAddingDept(true); setNewDeptName(''); return; }
+    setForm({ ...form, department: v });
+  }
+
+  async function saveNewDepartment() {
+    const name = newDeptName.trim();
+    if (!name) { setAddingDept(false); return; }
+    setSavingDept(true);
+    try {
+      await fetch('/api/departments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      onAddDepartment(name);
+      setForm((f) => ({ ...f, department: name }));
+      setAddingDept(false);
+    } finally { setSavingDept(false); }
   }
 
   function handleFileChange(e) {
@@ -467,10 +511,28 @@ function UserModal({ open, onClose, user, departments, defaultBranch, onSaved })
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label className="label">Department</label>
-              <select value={form.department||''} onChange={e=>setForm({...form,department:e.target.value})} className="input">
-                <option value="">Select department</option>
-                {departments.map(d=><option key={d.value} value={d.value}>{d.label}</option>)}
-              </select>
+              {addingDept ? (
+                <div className="flex gap-1.5">
+                  <input
+                    autoFocus
+                    className="input flex-1"
+                    placeholder="New department name"
+                    value={newDeptName}
+                    onChange={(e) => setNewDeptName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveNewDepartment(); } if (e.key === 'Escape') setAddingDept(false); }}
+                  />
+                  <button type="button" onClick={saveNewDepartment} disabled={savingDept || !newDeptName.trim()} className="btn-success !px-3 !text-[12px]">
+                    {savingDept ? '…' : 'Add'}
+                  </button>
+                  <button type="button" onClick={() => setAddingDept(false)} className="btn-ghost !px-2">✕</button>
+                </div>
+              ) : (
+                <select value={form.department||''} onChange={e=>handleDeptSelect(e.target.value)} className="input">
+                  <option value="">Select department</option>
+                  {departments.map(d=><option key={d.value} value={d.value}>{d.label}</option>)}
+                  <option value={ADD_DEPT_VALUE}>+ Add New Department…</option>
+                </select>
+              )}
             </div>
             <div>
               <label className="label">Branch</label>
