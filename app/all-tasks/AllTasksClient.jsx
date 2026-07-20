@@ -355,6 +355,7 @@ export default function AllTasksClient({ grouped, users }) {
                         <tbody>
                           {g.tasks.map((t) => {
                             globalSerial += 1;
+                            const canComplete = !isAdmin || t.doer === currentUserName;
                             return (
                               <tr key={t.id} className="table-row">
                                 {/* ACTION */}
@@ -372,16 +373,18 @@ export default function AllTasksClient({ grouped, users }) {
                                     </button>
                                     {t.type !== 'Checklist' && t.status !== 'done' && (
                                       <>
-                                        <button title="Mark Done"
-                                          onClick={() => t.requireFile ? (setCompletionInput(null), setFileTask(t)) : updateStatus(t.id, 'done', t.type)}
-                                          className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer text-[11px]">Done</button>
+                                        {canComplete && (
+                                          <button title="Mark Done"
+                                            onClick={() => t.requireFile ? (setCompletionInput(null), setFileTask(t)) : updateStatus(t.id, 'done', t.type)}
+                                            className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer text-[11px]">Done</button>
+                                        )}
                                         {t.status !== 'revise' && (
                                           <button title="Revise" onClick={() => { setReviseNote(''); setReviseDate(''); setReviseTask(t); }}
                                             className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer text-[11px]">Revise</button>
                                         )}
                                       </>
                                     )}
-                                    {t.type === 'Checklist' && t.status !== 'done' && (
+                                    {t.type === 'Checklist' && t.status !== 'done' && canComplete && (
                                       <button
                                         onClick={() => t.requireFile ? (setCompletionInput(null), setFileTask(t)) : markChecklistDone(t.id)}
                                         className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer text-[11px]">Done</button>

@@ -317,7 +317,9 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                             )
                           ) : (
                             <>
-                              <button onClick={() => handleDoneClick(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">✓ Done</button>
+                              {(!isAdmin || t.doer === userName) && (
+                                <button onClick={() => handleDoneClick(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">✓ Done</button>
+                              )}
                               {t.type === 'Delegation' && (
                                 <button onClick={() => requestRevise(t)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Revise</button>
                               )}
