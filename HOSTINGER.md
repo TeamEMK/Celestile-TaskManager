@@ -29,8 +29,28 @@ MAYTAPI_PHONE_ID=...
 MAYTAPI_TOKEN=...
 ```
 
-> ❗ Do **NOT** set `SHEETS_DB_ID`, and don't upload `credentials.json` — leaving
-> them out keeps the app on MySQL. (Both present = Google Sheets mode.)
+> ❗ Do **NOT** set `SHEETS_DB_ID` — leaving it out keeps the app on MySQL.
+> (`SHEETS_DB_ID` **and** Google credentials together = Google Sheets mode;
+> credentials on their own are fine and stay on MySQL.)
+
+### Google credentials (FMS sheets + Drive attachments)
+
+hPanel's environment-variable field reformats multi-line secrets, so a pasted
+`GOOGLE_PRIVATE_KEY` often comes back mangled — every FMS / attachment call then
+fails with `error:1E08010C:DECODER routines::unsupported`. The app repairs the
+common manglings automatically, but the panel-proof route is to skip the field:
+
+**upload the downloaded service-account JSON key file as `credentials.json` in
+the app folder** (File Manager → app root), then restart. It is gitignored, and
+the app prefers whichever source actually parses. Same thing as a single env
+line if you'd rather not upload a file:
+
+```
+GOOGLE_CREDENTIALS_JSON=<the JSON key file, base64-encoded>
+```
+
+Verify with `https://yourdomain.com/api/drive-check` (admin login required) — it
+reports which source was used and exactly which step fails.
 
 ## 3. Install + build
 In the Node.js app panel (or via SSH in the app folder):

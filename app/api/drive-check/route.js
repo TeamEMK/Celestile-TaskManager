@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Readable } from 'stream';
 import { getDrive } from '@/lib/googleDrive';
-import { normalizePrivateKey } from '@/lib/googleCreds';
+import { getGoogleCredentials } from '@/lib/googleCreds';
 import { requireAdmin } from '@/lib/api';
 
 // Admin-only smoke test for the Drive attachment pipeline. Uploads fail
@@ -17,11 +17,13 @@ export async function GET() {
   // most common failure here and it is otherwise invisible. A real 2048-bit
   // PKCS#8 key is ~1700 chars over ~28 lines, so a much smaller number means
   // the panel truncated the value.
-  const key = normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+  const creds = getGoogleCredentials();
+  const key = creds.private_key;
   const bodyChars = key.replace(/-----[A-Z ]+-----/g, '').replace(/\s/g, '');
   const steps = {
-    serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '(not set)',
-    privateKeySet: !!process.env.GOOGLE_PRIVATE_KEY,
+    serviceAccountEmail: creds.client_email || '(not set)',
+    credentialsSource: creds.source || '(none)',
+    privateKeySet: !!key,
     privateKeyLooksValid: key.includes('-----BEGIN') && key.includes('-----END') && key.includes('\n'),
     privateKeyHeader: (key.split('\n')[0] || '').slice(0, 40),
     privateKeyLength: key.length,
@@ -37,7 +39,7 @@ export async function GET() {
   } catch (e) {
     return NextResponse.json({
       ...steps, folderId: FOLDER_ID, ok: false, failedAt: 'private-key', error: e.message,
-      hint: 'The value stored in GOOGLE_PRIVATE_KEY is not a usable key. Most reliable fix: base64-encode the whole private_key and paste that single line instead — it cannot be reformatted by the panel, and the app decodes it automatically.',
+      hint: `The key in ${steps.credentialsSource} is not usable. Most reliable fix: upload the service-account JSON key file as credentials.json in the app folder — nothing can reformat it there. Alternatively base64-encode the whole private_key and paste that single line into GOOGLE_PRIVATE_KEY; the app decodes it automatically.`,
     });
   }
 
@@ -58,12 +60,32 @@ export async function GET() {
     // A malformed key surfaces here rather than at credential-build time,
     // because googleapis only signs the JWT once a call is actually made.
     const badKey = /DECODER|routines|PEM|asn1|Invalid keyData/i.test(e.message);
+    if (badKey) {
+      return NextResponse.json({
+        ...steps, ok: false, failedAt: 'private-key', error: e.message,
+        hint: `The key in ${steps.credentialsSource} is not a readable PEM. Upload the service-account JSON key file as credentials.json in the app folder, or paste the private_key exactly as it appears in that file (keeping the \\n sequences).`,
+      });
+    }
+    // "File not found" here means the account authenticated fine but cannot
+    // see the folder — almost always the share landing on a different address.
+    // List what it *can* reach so the mismatch is obvious.
+    const visible = { sharedDrives: [], folders: [] };
+    await Promise.all([
+      drive.drives.list({ pageSize: 10, fields: 'drives(id,name)' })
+        .then((r) => { visible.sharedDrives = (r.data.drives || []).map((d) => `${d.name} (${d.id})`); })
+        .catch((err) => { visible.sharedDrives = [`could not list: ${err.message}`]; }),
+      drive.files.list({
+        q: "mimeType='application/vnd.google-apps.folder' and trashed=false",
+        pageSize: 10, fields: 'files(id,name)',
+        supportsAllDrives: true, includeItemsFromAllDrives: true,
+      })
+        .then((r) => { visible.folders = (r.data.files || []).map((f) => `${f.name} (${f.id})`); })
+        .catch((err) => { visible.folders = [`could not list: ${err.message}`]; }),
+    ]);
     return NextResponse.json({
-      ...steps, ok: false, failedAt: badKey ? 'private-key' : 'folder-access',
-      error: e.message,
-      hint: badKey
-        ? 'GOOGLE_PRIVATE_KEY is not a readable PEM. Paste the private_key value exactly as it appears in the JSON key file (keeping the \\n sequences), or base64-encode the whole key and paste that instead.'
-        : 'Share the folder with the service account email above, giving it Editor access.',
+      ...steps, ok: false, failedAt: 'folder-access', error: e.message,
+      visibleToServiceAccount: visible,
+      hint: `${steps.serviceAccountEmail} cannot see this folder. Share it with exactly that address (Editor). If it lives in a Shared Drive, add the account as a member of the Shared Drive itself — sharing a single folder out of a Shared Drive is blocked when the org disallows external sharing. Anything the account can already reach is listed above.`,
     });
   }
 
