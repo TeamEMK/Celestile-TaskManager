@@ -14,14 +14,34 @@ export async function GET() {
   const gate = await requireAdmin(); if (gate) return gate;
 
   // Report the shape of the key, never the key itself — a mangled PEM is the
-  // most common failure here and it is otherwise invisible.
+  // most common failure here and it is otherwise invisible. A real 2048-bit
+  // PKCS#8 key is ~1700 chars over ~28 lines, so a much smaller number means
+  // the panel truncated the value.
   const key = normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+  const bodyChars = key.replace(/-----[A-Z ]+-----/g, '').replace(/\s/g, '');
   const steps = {
     serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '(not set)',
     privateKeySet: !!process.env.GOOGLE_PRIVATE_KEY,
     privateKeyLooksValid: key.includes('-----BEGIN') && key.includes('-----END') && key.includes('\n'),
-    folderId: FOLDER_ID,
+    privateKeyHeader: (key.split('\n')[0] || '').slice(0, 40),
+    privateKeyLength: key.length,
+    privateKeyLines: key.split('\n').filter(Boolean).length,
+    privateKeyBodyIsBase64: /^[A-Za-z0-9+/=]*$/.test(bodyChars),
+    privateKeyParses: false,
   };
+
+  try {
+    const { createPrivateKey } = await import('crypto');
+    createPrivateKey(key);
+    steps.privateKeyParses = true;
+  } catch (e) {
+    return NextResponse.json({
+      ...steps, folderId: FOLDER_ID, ok: false, failedAt: 'private-key', error: e.message,
+      hint: 'The value stored in GOOGLE_PRIVATE_KEY is not a usable key. Most reliable fix: base64-encode the whole private_key and paste that single line instead — it cannot be reformatted by the panel, and the app decodes it automatically.',
+    });
+  }
+
+  steps.folderId = FOLDER_ID;
 
   let drive;
   try {
