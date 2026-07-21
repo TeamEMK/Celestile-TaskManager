@@ -8,6 +8,7 @@ import { useConfirmToast } from './components/ConfirmToast';
 import { DonutChart, HorizBarChart } from './components/Charts';
 import FmsDoneModal from './components/FmsDoneModal';
 import { FMS_ENABLED } from '@/lib/config';
+import { isImageAttachment } from '@/lib/attachmentType';
 
 export default function DashboardClient({ data, performance, pendingApprovals, holidays, users = [], isAdmin, userName = '' }) {
   const router = useRouter();
@@ -294,6 +295,16 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                             <a href={t.url} target="_blank" rel="noopener noreferrer" title={t.url}
                               className="shrink-0 text-primary-500 hover:text-primary-700 mt-0.5">
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            </a>
+                          )}
+                          {t.image && (
+                            <a href={t.image} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5" title="View photo">
+                              <img src={t.image} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" />
+                            </a>
+                          )}
+                          {t.attachment && (
+                            <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-primary-500 hover:text-primary-700" title="View attachment">
+                              {isImageAttachment(t.attachment) ? <img src={t.attachment} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" /> : <span>📄</span>}
                             </a>
                           )}
                         </div>
