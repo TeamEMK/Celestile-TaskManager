@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Readable } from 'stream';
-import { getDrive } from '@/lib/googleDrive';
+import { getDrive, resolveFolderId } from '@/lib/googleDrive';
 import { getGoogleCredentials } from '@/lib/googleCreds';
 import { requireAdmin } from '@/lib/api';
 
@@ -8,8 +8,6 @@ import { requireAdmin } from '@/lib/api';
 // silently by design (the attachment falls back to inline base64 so nothing is
 // lost), which makes a misconfiguration hard to spot from the UI — hit this
 // route to see exactly which step is broken.
-const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || '1FrxrLhCQEEMT4Gp-oCqCAOM3lfhA59Ms';
-
 export async function GET() {
   const gate = await requireAdmin(); if (gate) return gate;
 
@@ -38,12 +36,10 @@ export async function GET() {
     steps.privateKeyParses = true;
   } catch (e) {
     return NextResponse.json({
-      ...steps, folderId: FOLDER_ID, ok: false, failedAt: 'private-key', error: e.message,
+      ...steps, ok: false, failedAt: 'private-key', error: e.message,
       hint: `The key in ${steps.credentialsSource} is not usable. Most reliable fix: upload the service-account JSON key file as credentials.json in the app folder — nothing can reformat it there. Alternatively base64-encode the whole private_key and paste that single line into GOOGLE_PRIVATE_KEY; the app decodes it automatically.`,
     });
   }
-
-  steps.folderId = FOLDER_ID;
 
   let drive;
   try {
@@ -52,8 +48,12 @@ export async function GET() {
     return NextResponse.json({ ...steps, ok: false, failedAt: 'credentials', error: e.message });
   }
 
+  let folderId;
   try {
-    const meta = await drive.files.get({ fileId: FOLDER_ID, fields: 'name, mimeType, driveId', supportsAllDrives: true });
+    // Resolves (and creates on first run) the same folder uploads use.
+    folderId = await resolveFolderId(drive);
+    steps.folderId = folderId;
+    const meta = await drive.files.get({ fileId: folderId, fields: 'name, mimeType, driveId', supportsAllDrives: true });
     steps.folderName = meta.data.name;
     steps.isSharedDrive = !!meta.data.driveId;
   } catch (e) {
@@ -91,7 +91,7 @@ export async function GET() {
 
   try {
     const res = await drive.files.create({
-      requestBody: { name: `drive-check-${Date.now()}.txt`, parents: [FOLDER_ID] },
+      requestBody: { name: `drive-check-${Date.now()}.txt`, parents: [folderId] },
       media: { mimeType: 'text/plain', body: Readable.from(Buffer.from('celestile drive check')) },
       fields: 'id',
       supportsAllDrives: true,
