@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Readable } from 'stream';
 import { getDrive } from '@/lib/googleDrive';
+import { normalizePrivateKey } from '@/lib/googleCreds';
 import { requireAdmin } from '@/lib/api';
 
 // Admin-only smoke test for the Drive attachment pipeline. Uploads fail
@@ -12,9 +13,13 @@ const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || '1FrxrLhCQEEMT4Gp-oCqCAO
 export async function GET() {
   const gate = await requireAdmin(); if (gate) return gate;
 
+  // Report the shape of the key, never the key itself — a mangled PEM is the
+  // most common failure here and it is otherwise invisible.
+  const key = normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
   const steps = {
     serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '(not set)',
     privateKeySet: !!process.env.GOOGLE_PRIVATE_KEY,
+    privateKeyLooksValid: key.includes('-----BEGIN') && key.includes('-----END') && key.includes('\n'),
     folderId: FOLDER_ID,
   };
 
@@ -30,10 +35,15 @@ export async function GET() {
     steps.folderName = meta.data.name;
     steps.isSharedDrive = !!meta.data.driveId;
   } catch (e) {
+    // A malformed key surfaces here rather than at credential-build time,
+    // because googleapis only signs the JWT once a call is actually made.
+    const badKey = /DECODER|routines|PEM|asn1|Invalid keyData/i.test(e.message);
     return NextResponse.json({
-      ...steps, ok: false, failedAt: 'folder-access',
+      ...steps, ok: false, failedAt: badKey ? 'private-key' : 'folder-access',
       error: e.message,
-      hint: 'Share the folder with the service account email above, giving it Editor access.',
+      hint: badKey
+        ? 'GOOGLE_PRIVATE_KEY is not a readable PEM. Paste the private_key value exactly as it appears in the JSON key file (keeping the \\n sequences), or base64-encode the whole key and paste that instead.'
+        : 'Share the folder with the service account email above, giving it Editor access.',
     });
   }
 
