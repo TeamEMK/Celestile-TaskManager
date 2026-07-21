@@ -157,7 +157,7 @@ export default function LeaveTrackerClient({ userId, userName, canApprove }) {
       </div>
 
       {open && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !saving && setOpen(false)}>
+        <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !saving && setOpen(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl grid place-items-center shrink-0 bg-amber-50 text-amber-600"><IconLeave /></div>

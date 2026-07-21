@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { requireUser, requireAdmin, currentUser } from '@/lib/api';
+import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 function parseRoles(role, userRole) {
   const combined = [role, userRole].join(',').toLowerCase();
@@ -79,7 +80,8 @@ export async function POST(req) {
       [id, body.name.trim(), body.email.trim(), body.phone || '', body.department || '', body.branch || '', roles.join(','), hash]
     );
     if (body.picture) {
-      await pool.query('UPDATE users SET picture = ? WHERE id = ?', [body.picture, id]);
+      const picture = await maybeUploadToDrive(body.picture, 'user-photo');
+      await pool.query('UPDATE users SET picture = ? WHERE id = ?', [picture, id]);
     }
     const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
     return NextResponse.json(result[0], { status: 201 });
@@ -111,7 +113,8 @@ export async function PATCH(req) {
        body.department ?? null, body.branch ?? null, roles, body.active ?? null, body.id]
     );
     if (body.picture !== undefined) {
-      await pool.query('UPDATE users SET picture = ? WHERE id = ?', [body.picture, body.id]);
+      const picture = await maybeUploadToDrive(body.picture, 'user-photo');
+      await pool.query('UPDATE users SET picture = ? WHERE id = ?', [picture, body.id]);
     }
     const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [body.id]);
     if (!result.length)

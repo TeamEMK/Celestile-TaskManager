@@ -115,7 +115,7 @@ export default function QuotationAdminClient() {
       {/* Approval modal */}
       {modal.open && (
         <div
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
+          className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
           onClick={() => !modal.saving && setModal(BLANK_MODAL)}
         >
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>

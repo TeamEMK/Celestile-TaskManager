@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireUser } from '@/lib/api';
+import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 const NOTIFY = () => process.env.INVENTORY_NOTIFY || '918008002121';
 const uid = (p) => p + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
@@ -85,11 +86,15 @@ export async function POST(req) {
     if (hasIssue) message += `⚠️ *Material Issue:* ${info.issue}\n\n`;
 
     // FSM log
+    const [grainImg, matImg] = await Promise.all([
+      maybeUploadToDrive(info.grainImg, 'step2-grain'),
+      maybeUploadToDrive(info.matImg, 'step2-material'),
+    ]);
     await pool.query(
       `INSERT INTO fsm_step2 (id, inv_key, created_at, order_no, material, all_pieces, grain, grain_img, issue, cutting_required, mat_img, sizes_packing)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       [uid('FSM'), info.key || orderNo, createdAt, orderNo, info.material || '', info.allPieces || '',
-       info.grain || '', info.grainImg || '', info.issue || '', hasCutting ? 'Yes' : 'No', info.matImg || '', info.sizesPacking || '']
+       info.grain || '', grainImg || '', info.issue || '', hasCutting ? 'Yes' : 'No', matImg || '', info.sizesPacking || '']
     );
 
     if ((hasCutting || hasIssue) && isWhatsappConfigured()) {

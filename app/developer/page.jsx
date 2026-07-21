@@ -364,7 +364,7 @@ export default function DeveloperPage() {
 
       {/* Confirm suspend/restore modal */}
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(9,9,11,0.5)' }} onClick={() => setConfirm(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }} onClick={() => setConfirm(false)}>
           <div className="card max-w-sm w-full p-7 text-center animate-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className={`w-12 h-12 rounded-xl mx-auto mb-4 grid place-items-center ${enabled ? 'bg-red-50' : 'bg-emerald-50'}`}>
               {enabled ? (
@@ -395,7 +395,7 @@ export default function DeveloperPage() {
 
       {/* Reset modal */}
       {resetOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(9,9,11,0.5)' }} onClick={() => setResetOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }} onClick={() => setResetOpen(false)}>
           <div className="card max-w-sm w-full p-7 text-center animate-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-12 rounded-xl mx-auto mb-4 grid place-items-center bg-red-50">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -428,7 +428,7 @@ export default function DeveloperPage() {
 
       {/* Confirm restore modal */}
       {confirmRestore && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(9,9,11,0.5)' }} onClick={() => setConfirmRestore(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }} onClick={() => setConfirmRestore(null)}>
           <div className="card max-w-sm w-full p-7 text-center animate-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-12 rounded-xl mx-auto mb-4 grid place-items-center bg-primary-50">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B78A16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -458,7 +458,7 @@ export default function DeveloperPage() {
 
       {/* Delete users modal */}
       {usersOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(9,9,11,0.5)' }} onClick={() => setUsersOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }} onClick={() => setUsersOpen(false)}>
           <div className="card max-w-sm w-full p-7 text-center animate-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-12 rounded-xl mx-auto mb-4 grid place-items-center bg-red-50">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

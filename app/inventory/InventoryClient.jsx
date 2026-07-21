@@ -620,7 +620,7 @@ function Stepper({ current }) {
 
 function Modal({ title, children, onClose }) {
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 backdrop-blur-sm flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl p-5 w-96 max-w-[92%]" onClick={(e) => e.stopPropagation()}>
         <div className="text-[14px] font-semibold text-slate-900 font-display mb-3">{title}</div>
         <div className="space-y-2.5">{children}</div>

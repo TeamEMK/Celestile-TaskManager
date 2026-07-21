@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { requireUser } from '@/lib/api';
+import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
@@ -22,10 +23,11 @@ export async function POST(req) {
 
     const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM checklist_completions');
     const id  = 'CC' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
+    const uploadedFile = await maybeUploadToDrive(file, 'checklist-completion');
 
     await pool.query(
       'INSERT INTO checklist_completions (id, master_id, doer, file, completed_at, date) VALUES (?, ?, ?, ?, NOW(), CURDATE())',
-      [id, masterId, doer || '', file || null]
+      [id, masterId, doer || '', uploadedFile || null]
     );
     return NextResponse.json({ success: true });
   } catch (err) {

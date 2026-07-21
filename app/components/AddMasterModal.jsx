@@ -1,6 +1,7 @@
 ﻿'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { isImageAttachment } from '@/lib/attachmentType';
 
 const FREQS = [
   { label: 'Daily (365 tasks/year)',            value: 'Daily'            },
@@ -36,6 +37,13 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
       if (Array.isArray(d)) setUsers(d.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')));
     }).catch(() => {});
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
 
   const [form, setForm] = useState({
     assignedTo: '', frequency: 'Daily',
@@ -136,7 +144,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col animate-pop-in" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 grid place-items-center">
@@ -154,7 +162,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
         <div className="p-6 space-y-4 overflow-y-auto">
           <div>
             <label className="label">Select Employee *</label>
-            <select value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })} className="input">
+            <select value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })} className="input !text-[14px]">
               <option value="">Select Employee</option>
               {users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
             </select>
@@ -162,40 +170,30 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
 
           <div>
             <label className="label">Frequency</label>
-            <div className="seg flex-wrap gap-1 w-full">
-              {FREQS.map((f) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  title={f.label}
-                  onClick={() => setForm({ ...form, frequency: f.value })}
-                  className={`seg-btn ${form.frequency === f.value ? 'seg-btn-active' : ''}`}
-                >
-                  {f.value}
-                </button>
-              ))}
-            </div>
+            <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} className="input !text-[14px]">
+              {FREQS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Start Date</label>
-              <input type="date" value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="input" />
+              <input type="date" value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="input !text-[14px]" />
             </div>
             <div>
               <label className="label">End Date <span className="text-slate-400">(Optional)</span></label>
-              <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="input" />
+              <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="input !text-[14px]" />
             </div>
           </div>
 
           <div>
             <label className="label">Task Name / Description</label>
-            <input value={form.task} onChange={(e) => setForm({ ...form, task: e.target.value })} placeholder="Enter task name..." className="input" />
+            <input value={form.task} onChange={(e) => setForm({ ...form, task: e.target.value })} placeholder="Enter task name..." className="input !text-[14px]" />
           </div>
 
           <div>
             <label className="label">Remarks</label>
-            <input value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} placeholder="Any remarks..." className="input" />
+            <input value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} placeholder="Any remarks..." className="input !text-[14px]" />
           </div>
 
           <div>
@@ -203,7 +201,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
             <div className="flex items-center gap-3">
               <label className="cursor-pointer flex items-center justify-center w-16 h-16 rounded-xl border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors shrink-0">
                 {form.attachment
-                  ? (form.attachment.startsWith('data:image')
+                  ? (isImageAttachment(form.attachment)
                     ? <img src={form.attachment} alt="" className="w-16 h-16 object-cover" />
                     : <span className="text-2xl">📄</span>)
                   : <span className="text-slate-400 text-xl leading-none">+</span>}
@@ -211,7 +209,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
               </label>
               {form.attachment && (
                 <div className="flex flex-col gap-1">
-                  {!form.attachment.startsWith('data:image') && (
+                  {!isImageAttachment(form.attachment) && (
                     <a href={form.attachment} target="_blank" rel="noopener noreferrer" className="text-[12px] text-primary-600 hover:underline">View PDF</a>
                   )}
                   <button type="button" className="text-[12px] text-red-500 hover:text-red-600 text-left" onClick={() => setForm((p) => ({ ...p, attachment: '' }))}>Remove</button>

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sendWhatsApp, delegationMessage, taskDoneMessage, approvalWaitingMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireUser } from '@/lib/api';
+import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 // Fire a WhatsApp "task delegated" notice to the doer (best-effort).
 async function notifyDelegation({ doerUser, delegatedById, del }) {
@@ -96,6 +97,10 @@ async function nextDelId() {
 async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, client, priority, approval, approverId, approverName, url, remarks, image, requireFile, attachment }) {
   const id = await nextDelId();
   const initialStatus = 'pending';
+  const [uploadedImage, uploadedAttachment] = await Promise.all([
+    maybeUploadToDrive(image, 'delegation-image'),
+    maybeUploadToDrive(attachment, 'delegation-attachment'),
+  ]);
   await pool.query(
     `INSERT INTO delegations
       (id, description, doer_id, doer, delegated_by, due_date, client, status, type,
@@ -104,8 +109,8 @@ async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, 
     [id, description, doerId, doerName || '', delegatedBy || null,
      dueDate, client || '', initialStatus,
      priority || 'Low', approval || 'No Approval', approverId || null, approverName || '',
-     url || '', remarks || '', image || '',
-     requireFile ? 1 : 0, attachment || null]
+     url || '', remarks || '', uploadedImage || '',
+     requireFile ? 1 : 0, uploadedAttachment || null]
   );
   const [result] = await pool.query('SELECT * FROM delegations WHERE id = ?', [id]);
   return result[0];
@@ -239,6 +244,8 @@ export async function PATCH(req) {
       reviseAction = 'denied';
     }
 
+    const completionFile = await maybeUploadToDrive(body.completionFile, 'completion-proof');
+
     await pool.query(
       `UPDATE delegations SET
         status           = COALESCE(?, status),
@@ -256,7 +263,7 @@ export async function PATCH(req) {
       [status ?? null, body.description ?? null, body.dueDate ?? null,
        body.client ?? null, body.priority ?? null, body.approval ?? null,
        body.url ?? null, body.remarks ?? null, reviseAction,
-       body.completionFile ?? null,
+       completionFile ?? null,
        status, body.id]
     );
 

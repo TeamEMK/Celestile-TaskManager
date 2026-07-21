@@ -137,7 +137,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in"
+      className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -175,18 +175,19 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Priority">
-              <div className="seg">
-                {['Low', 'Medium', 'High'].map((p) => (
-                  <button key={p} type="button" onClick={() => set('priority', p)} className={`seg-btn flex-1 ${form.priority === p ? 'seg-btn-active' : ''}`}>{p}</button>
-                ))}
-              </div>
+              <select className="input" value={form.priority} onChange={(e) => set('priority', e.target.value)}>
+                {['Low', 'Medium', 'High'].map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
             </Field>
             <Field label="Approval">
-              <div className="seg">
-                {['No Approval', 'Approval Required'].map((a) => (
-                  <button key={a} type="button" onClick={() => setForm((f) => ({ ...f, approval: a, approverId: a === 'Approval Required' ? f.approverId : '' }))} className={`seg-btn flex-1 ${form.approval === a ? 'seg-btn-active' : ''}`}>{a === 'Approval Required' ? 'Yes Approval' : a}</button>
-                ))}
-              </div>
+              <select
+                className="input"
+                value={form.approval}
+                onChange={(e) => { const a = e.target.value; setForm((f) => ({ ...f, approval: a, approverId: a === 'Approval Required' ? f.approverId : '' })); }}
+              >
+                <option value="No Approval">No Approval</option>
+                <option value="Approval Required">Yes Approval</option>
+              </select>
             </Field>
           </div>
 
