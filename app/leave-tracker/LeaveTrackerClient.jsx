@@ -108,7 +108,7 @@ export default function LeaveTrackerClient({ userId, userName, canApprove }) {
               <div className="text-[12px] text-slate-500 mt-0.5">Requests you apply for will show up here.</div>
             </div>
           ) : (
-            <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+            <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
                   <tr>

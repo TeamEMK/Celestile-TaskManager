@@ -127,9 +127,9 @@ export default function DeveloperPage() {
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 sm:p-6" style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif" }}>
       <div className="app-bg" aria-hidden="true">
-        <div className="orb" style={{ width: 560, height: 560, top: -180, left: -160, background: 'radial-gradient(circle, rgba(232,200,154,0.5), transparent 70%)', animation: 'app-drift1 22s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 500, height: 500, bottom: -200, right: -160, background: 'radial-gradient(circle, rgba(200,138,84,0.38), transparent 70%)', animation: 'app-drift2 26s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 420, height: 420, top: '35%', left: '55%', background: 'radial-gradient(circle, rgba(248,235,205,0.55), transparent 70%)', animation: 'app-drift3 30s ease-in-out infinite' }} />
+        <div className="orb" style={{ width: 560, height: 560, top: -180, left: -160, background: 'radial-gradient(circle, rgba(238,188,46,0.5), transparent 70%)', animation: 'app-drift1 22s ease-in-out infinite' }} />
+        <div className="orb" style={{ width: 500, height: 500, bottom: -200, right: -160, background: 'radial-gradient(circle, rgba(183,138,22,0.38), transparent 70%)', animation: 'app-drift2 26s ease-in-out infinite' }} />
+        <div className="orb" style={{ width: 420, height: 420, top: '35%', left: '55%', background: 'radial-gradient(circle, rgba(251,234,184,0.55), transparent 70%)', animation: 'app-drift3 30s ease-in-out infinite' }} />
       </div>
 
       <div className={`relative z-10 w-full ${authed ? 'max-w-2xl' : 'max-w-md'} animate-fade-in`}>
@@ -137,8 +137,8 @@ export default function DeveloperPage() {
         {!authed ? (
           <div className="card-glass stone-grain p-8 sm:p-10">
             <div className="flex items-center gap-3 mb-7">
-              <div className="w-12 h-12 rounded-xl grid place-items-center shrink-0 shadow-gold" style={{ background: 'linear-gradient(135deg, #DDAC6E 0%, #B96F3D 55%, #9C5730 100%)' }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div className="w-12 h-12 rounded-xl grid place-items-center shrink-0 shadow-gold" style={{ background: 'linear-gradient(135deg, #F3C955 0%, #EEBC2E 55%, #B78A16 100%)' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2"/>
                   <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </svg>
@@ -187,8 +187,8 @@ export default function DeveloperPage() {
           <div className="space-y-3.5">
 
             <div className="flex items-center gap-3 px-1">
-              <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0 shadow-gold" style={{ background: 'linear-gradient(135deg, #DDAC6E 0%, #B96F3D 55%, #9C5730 100%)' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0 shadow-gold" style={{ background: 'linear-gradient(135deg, #F3C955 0%, #EEBC2E 55%, #B78A16 100%)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2"/>
                   <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </svg>
@@ -221,7 +221,7 @@ export default function DeveloperPage() {
             <div className="card p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-11 h-11 rounded-xl bg-primary-50 grid place-items-center shrink-0">
-                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#9C5730" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#B78A16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>
                   </svg>
                 </div>
@@ -297,7 +297,7 @@ export default function DeveloperPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-11 h-11 rounded-xl bg-primary-50 grid place-items-center shrink-0">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9C5730" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B78A16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/>
                     </svg>
                   </div>
@@ -364,7 +364,7 @@ export default function DeveloperPage() {
 
       {/* Confirm suspend/restore modal */}
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(20,15,8,0.5)' }} onClick={() => setConfirm(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(9,9,11,0.5)' }} onClick={() => setConfirm(false)}>
           <div className="card max-w-sm w-full p-7 text-center animate-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className={`w-12 h-12 rounded-xl mx-auto mb-4 grid place-items-center ${enabled ? 'bg-red-50' : 'bg-emerald-50'}`}>
               {enabled ? (
@@ -395,7 +395,7 @@ export default function DeveloperPage() {
 
       {/* Reset modal */}
       {resetOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(20,15,8,0.5)' }} onClick={() => setResetOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(9,9,11,0.5)' }} onClick={() => setResetOpen(false)}>
           <div className="card max-w-sm w-full p-7 text-center animate-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-12 rounded-xl mx-auto mb-4 grid place-items-center bg-red-50">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -428,10 +428,10 @@ export default function DeveloperPage() {
 
       {/* Confirm restore modal */}
       {confirmRestore && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(20,15,8,0.5)' }} onClick={() => setConfirmRestore(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(9,9,11,0.5)' }} onClick={() => setConfirmRestore(null)}>
           <div className="card max-w-sm w-full p-7 text-center animate-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-12 rounded-xl mx-auto mb-4 grid place-items-center bg-primary-50">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9C5730" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B78A16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/>
               </svg>
             </div>
@@ -458,7 +458,7 @@ export default function DeveloperPage() {
 
       {/* Delete users modal */}
       {usersOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(20,15,8,0.5)' }} onClick={() => setUsersOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(9,9,11,0.5)' }} onClick={() => setUsersOpen(false)}>
           <div className="card max-w-sm w-full p-7 text-center animate-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-12 rounded-xl mx-auto mb-4 grid place-items-center bg-red-50">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

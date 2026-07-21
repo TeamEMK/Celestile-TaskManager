@@ -141,7 +141,7 @@ function Inward({ masters, reloadMasters, onSaved }) {
           <div key={i} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 items-end border border-slate-200 rounded-xl p-3 relative bg-white/60 transition-colors hover:border-primary-200">
             <span
               className="absolute -top-2 left-2 text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #DDAC6E 0%, #B96F3D 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #F3C955 0%, #B78A16 100%)' }}
             >
               Row {i + 1}
             </span>
@@ -528,18 +528,18 @@ function buildStep2Report(orderNo, hdr, slabs, cut) {
   });
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cutting Report ${esc(orderNo)}</title><style>
 @page{margin:12mm;size:A4 landscape}*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#26221C}
-.hdr{background:#26221C;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
-.logo{font-weight:700;font-size:16px;letter-spacing:.06em}.logo span{color:#DDAC6E}
-.doc{color:#DDAC6E;font-size:13px;letter-spacing:2px}
-.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 18px;padding:12px 16px;background:#F3EFE8;border-bottom:1px solid #D3C9B8}
-.meta .l{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#8A8071;display:block}.meta .v{font-weight:700;font-size:12px}
+body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#0A0A0A}
+.hdr{background:#0A0A0A;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-weight:700;font-size:16px;letter-spacing:.06em}.logo span{color:#EEBC2E}
+.doc{color:#EEBC2E;font-size:13px;letter-spacing:2px}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 18px;padding:12px 16px;background:#F5F5F5;border-bottom:1px solid #E5E7EB}
+.meta .l{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#71717A;display:block}.meta .v{font-weight:700;font-size:12px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
-th{background:#26221C;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
-td{padding:5px 8px;border-bottom:1px solid #E7E0D4}td.n{font-variant-numeric:tabular-nums}
-td.yes{color:#9C5730;font-weight:700}td.no{color:#8A8071}
-tbody tr:nth-child(even){background:#FAF8F5}
-.foot{margin-top:14px;padding:8px 16px;font-size:9px;color:#8A8071;border-top:1px solid #D3C9B8}
+th{background:#0A0A0A;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:5px 8px;border-bottom:1px solid #E5E7EB}td.n{font-variant-numeric:tabular-nums}
+td.yes{color:#B78A16;font-weight:700}td.no{color:#71717A}
+tbody tr:nth-child(even){background:#FAFAFA}
+.foot{margin-top:14px;padding:8px 16px;font-size:9px;color:#71717A;border-top:1px solid #E5E7EB}
 </style></head><body>
 <div class="hdr"><div class="logo">SK <span>Tiles</span></div><div class="doc">CUTTING REPORT</div></div>
 <div class="meta">
@@ -565,8 +565,8 @@ function F({ label, children, wide }) {
 const KPI_TONES = {
   emerald: { grad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', shadow: 'rgba(16,185,129,0.35)' },
   red:     { grad: 'linear-gradient(135deg, #f87171 0%, #dc2626 100%)', shadow: 'rgba(220,38,38,0.32)' },
-  stone:   { grad: 'linear-gradient(135deg, #ABA08C 0%, #6B6357 100%)', shadow: 'rgba(107,99,87,0.30)' },
-  gold:    { grad: 'linear-gradient(135deg, #DDAC6E 0%, #9C5730 100%)', shadow: 'rgba(156,87,48,0.38)' },
+  stone:   { grad: 'linear-gradient(135deg, #9CA3AF 0%, #52525B 100%)', shadow: 'rgba(82,82,91,0.30)' },
+  gold:    { grad: 'linear-gradient(135deg, #F3C955 0%, #B78A16 100%)', shadow: 'rgba(183,138,22,0.38)' },
 };
 
 function Kpi({ label, value, tone = 'gold', icon }) {
@@ -602,14 +602,14 @@ function Stepper({ current }) {
             <div className="flex items-center gap-2 shrink-0">
               <div
                 className={`w-7 h-7 rounded-full grid place-items-center text-[11px] font-bold shrink-0 transition-all duration-200 ${done || active ? 'text-white' : 'bg-slate-100 text-slate-400'}`}
-                style={done || active ? { background: 'linear-gradient(135deg, #DDAC6E 0%, #B96F3D 100%)', boxShadow: '0 2px 8px rgba(156,87,48,0.35)' } : undefined}
+                style={done || active ? { background: 'linear-gradient(135deg, #F3C955 0%, #B78A16 100%)', boxShadow: '0 2px 8px rgba(183,138,22,0.35)' } : undefined}
               >
                 {done ? <IconCheckSmall /> : i + 1}
               </div>
               <span className={`text-[12px] font-semibold whitespace-nowrap ${active ? 'text-slate-900' : done ? 'text-primary-600' : 'text-slate-400'}`}>{label}</span>
             </div>
             {i < steps.length - 1 && (
-              <div className="flex-1 h-0.5 rounded-full transition-colors" style={{ background: done ? 'linear-gradient(90deg, #DDAC6E, #B96F3D)' : '#E7E0D4' }} />
+              <div className="flex-1 h-0.5 rounded-full transition-colors" style={{ background: done ? 'linear-gradient(90deg, #F3C955, #B78A16)' : '#E5E7EB' }} />
             )}
           </div>
         );

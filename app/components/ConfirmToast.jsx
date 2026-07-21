@@ -13,7 +13,7 @@ export function useConfirmToast() {
       position: 'fixed', bottom: '28px', left: '50%',
       transform: 'translateX(-50%)',
       zIndex: 9999,
-      background: 'linear-gradient(180deg, #1E1A14, #14110D)',
+      background: 'linear-gradient(180deg, #1F2937, #111111)',
       padding: '14px 20px',
       borderRadius: '14px',
       boxShadow: '0 12px 40px rgba(20,15,8,0.45)',
@@ -23,7 +23,7 @@ export function useConfirmToast() {
     }}>
       <style>{`@keyframes _ctin{from{opacity:0;transform:translateX(-50%) translateY(14px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
       <style>{`div[data-ctid]{animation:_ctin 0.25s cubic-bezier(0.16,1,0.3,1)}`}</style>
-      <span data-ctid="1" style={{ fontSize: '13px', fontWeight: 500, color: '#E7E1D6' }}>{state.msg}</span>
+      <span data-ctid="1" style={{ fontSize: '15px', fontWeight: 500, color: '#E5E5E5' }}>{state.msg}</span>
       <button
         onClick={() => { const fn = state.onConfirm; setState(null); fn(); }}
         style={{

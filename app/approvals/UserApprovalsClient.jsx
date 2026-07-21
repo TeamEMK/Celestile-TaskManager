@@ -97,7 +97,7 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
             </div>
           </div>
           {myApprovals.length === 0 ? <EmptyState icon={TaskIcon} label="Task Approvals" /> : (
-            <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
+            <div className="overflow-x-auto max-h-[calc(100vh-260px)] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
                   <tr>
@@ -169,7 +169,7 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
             </div>
           </div>
           {myReviseRequests.length === 0 ? <EmptyState icon={ReviseIcon} label="Revise Requests" /> : (
-            <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
+            <div className="overflow-x-auto max-h-[calc(100vh-260px)] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
                   <tr>
@@ -215,7 +215,7 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
             </div>
           </div>
           {myTaskApprovals.length === 0 ? <EmptyState icon={SentIcon} label="Submitted Tasks" /> : (
-            <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
+            <div className="overflow-x-auto max-h-[calc(100vh-260px)] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
                   <tr>
