@@ -3,6 +3,7 @@ import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import bcrypt from 'bcryptjs';
+import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 const DEFAULT_PASSWORD = 'India@123';
 
@@ -27,7 +28,8 @@ export async function PATCH(req) {
     );
     // Picture update separately
     if (body.picture !== undefined) {
-      await pool.query('UPDATE users SET picture = ? WHERE id = ?', [body.picture, id]);
+      const picture = await maybeUploadToDrive(body.picture, 'profile-photo');
+      await pool.query('UPDATE users SET picture = ? WHERE id = ?', [picture, id]);
     }
     if (body.notificationEmail !== undefined) {
       await pool.query(

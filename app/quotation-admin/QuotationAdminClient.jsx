@@ -115,7 +115,7 @@ export default function QuotationAdminClient() {
       {/* Approval modal */}
       {modal.open && (
         <div
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
+          className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
           onClick={() => !modal.saving && setModal(BLANK_MODAL)}
         >
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
@@ -205,7 +205,7 @@ export default function QuotationAdminClient() {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label="Total" value={summary.count} icon="📄" grad="linear-gradient(135deg,#3b82f6,#4f46e5)" shadow="rgba(59,130,246,0.35)" />
-          <StatCard label="Total Value" value={fmtINR(summary.total)} icon="💰" grad="linear-gradient(135deg,#DDAC6E,#9C5730)" shadow="rgba(156,87,48,0.35)" />
+          <StatCard label="Total Value" value={fmtINR(summary.total)} icon="💰" grad="linear-gradient(135deg,#D9A81F,#8F6B10)" shadow="rgba(238,188,46,0.35)" />
           <StatCard label="Bangalore" value={summary.bng} icon="🏢" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
           <StatCard label="Hyderabad" value={summary.hyd} icon="🏙" grad="linear-gradient(135deg,#7c3aed,#a855f7)" shadow="rgba(124,58,237,0.35)" />
         </div>

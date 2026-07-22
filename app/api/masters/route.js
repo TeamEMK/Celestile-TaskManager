@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { requireUser, requireAdmin } from '@/lib/api';
+import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
@@ -44,10 +45,11 @@ export async function POST(req) {
 
     const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM masters');
     const id  = 'CHK' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
+    const attachment = await maybeUploadToDrive(body.attachment, 'checklist-attachment');
     await pool.query(
       'INSERT INTO masters (id, task, assigned_to, frequency, start_date, require_file, attachment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
       [id, body.task.trim(), body.assignedTo || '', body.frequency || 'Daily', body.startDate || null,
-       body.requireFile ? 1 : 0, body.attachment || null]
+       body.requireFile ? 1 : 0, attachment || null]
     );
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (err) {

@@ -120,7 +120,7 @@ export default function FmsTaskClient() {
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Process flow — click a step to view tasks</span>
             <span className="flex items-center gap-3 text-[11px] text-slate-500">
               <span className="inline-flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: 'linear-gradient(135deg,#DDAC6E,#9C5730)' }} /> Your step
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: 'linear-gradient(135deg,#F3C955,#B78A16)' }} /> Your step
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-slate-500 opacity-50" /> Other step
@@ -129,7 +129,7 @@ export default function FmsTaskClient() {
           </div>
 
           <div className="rounded-2xl overflow-hidden relative"
-            style={{ background: 'linear-gradient(180deg, #14110D 0%, #0D0B08 100%)', padding: '22px 0 32px' }}>
+            style={{ background: 'linear-gradient(180deg, #111111 0%, #000000 100%)', padding: '22px 0 32px' }}>
             {loadingSteps ? (
               <div className="text-[12px] text-slate-400 px-6 py-4">Loading steps…</div>
             ) : (
@@ -197,7 +197,7 @@ function FmsTrain({ steps, activeId, onSelect, fmsName }) {
   return (
     <>
       <div className="shrink-0 rounded-l-xl rounded-r-md px-4 py-3.5 text-white text-center min-w-[76px]"
-        style={{ background: 'linear-gradient(135deg,#1E1A14,#3C362B)', border: '2px solid #B96F3D' }}>
+        style={{ background: 'linear-gradient(135deg,#1F2937,#4B5563)', border: '2px solid #EEBC2E' }}>
         <div className="text-xl">🚂</div>
         <div className="text-[9px] mt-1 opacity-70 max-w-[70px] mx-auto truncate">{fmsName || ''}</div>
       </div>
@@ -214,10 +214,10 @@ function FmsTrain({ steps, activeId, onSelect, fmsName }) {
                 isMine ? 'cursor-pointer hover:-translate-y-1' : 'cursor-not-allowed opacity-55'
               }`}
               style={{
-                background: isMine ? 'linear-gradient(135deg,#DDAC6E,#9C5730)' : '#1E1A14',
-                border: isActive ? '2px solid #F3E1C8' : '2px solid transparent',
-                boxShadow: isActive ? '0 0 0 3px rgba(243,225,200,0.25)' : 'none',
-                color: isMine ? '#241408' : '#8F8471',
+                background: isMine ? 'linear-gradient(135deg,#F3C955,#B78A16)' : '#1F2937',
+                border: isActive ? '2px solid #FBEAB8' : '2px solid transparent',
+                boxShadow: isActive ? '0 0 0 3px rgba(251,234,184,0.25)' : 'none',
+                color: isMine ? '#241A03' : '#A3A3A3',
               }}
             >
               <div className="text-[10px] font-bold uppercase tracking-wide opacity-70">Step {s.step_order}</div>

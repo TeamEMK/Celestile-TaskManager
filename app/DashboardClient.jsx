@@ -8,6 +8,7 @@ import { useConfirmToast } from './components/ConfirmToast';
 import { DonutChart, HorizBarChart } from './components/Charts';
 import FmsDoneModal from './components/FmsDoneModal';
 import { FMS_ENABLED } from '@/lib/config';
+import { isImageAttachment } from '@/lib/attachmentType';
 
 export default function DashboardClient({ data, performance, pendingApprovals, holidays, users = [], isAdmin, userName = '' }) {
   const router = useRouter();
@@ -296,6 +297,16 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                             </a>
                           )}
+                          {t.image && (
+                            <a href={t.image} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5" title="View photo">
+                              <img src={t.image} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" />
+                            </a>
+                          )}
+                          {t.attachment && (
+                            <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-primary-500 hover:text-primary-700" title="View attachment">
+                              {isImageAttachment(t.attachment) ? <img src={t.attachment} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" /> : <span>📄</span>}
+                            </a>
+                          )}
                         </div>
                         {t.transferredFrom && (
                           <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium border border-amber-100 mt-1" title={t.transferredBy ? `Transferred by ${t.transferredBy}` : ''}>🔄 from {t.transferredFrom}</span>
@@ -369,7 +380,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                 <p className="text-[11.5px] text-slate-500">Overall completion status</p>
               </div>
             </div>
-            <DonutChart value={completed} total={total} size={160} strokeColor="#B96F3D" label="Complete" />
+            <DonutChart value={completed} total={total} size={160} strokeColor="#EEBC2E" label="Complete" />
             <div className="w-full grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
               <Legend dot="#10b981" label="Done"    value={completed} />
               <Legend dot="#ef4444" label="Pending" value={pending} />
@@ -440,7 +451,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 
       {/* File-required completion modal */}
       {fileTask && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !fileUploading && (setFileTask(null), setCompletionInput(null))}>
+        <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !fileUploading && (setFileTask(null), setCompletionInput(null))}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 grid place-items-center shrink-0">
@@ -477,7 +488,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
           grant:   { title: 'Grant Revise Request',  desc: 'Approve this revision request and send task back?', btn: 'Grant Revise'   },
         }[mode];
         return (
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !reviseSaving && setReviseTask(null)}>
+          <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !reviseSaving && setReviseTask(null)}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
               <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${mode === 'grant' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
@@ -541,7 +552,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 
 /* ── KPI card ───────────────────────────────────────────────────────────── */
 const KPI_GRADIENTS = {
-  blue:    { grad: 'linear-gradient(135deg, #DDAC6E 0%, #9C5730 100%)', shadow: 'rgba(156,87,48,0.38)' },
+  blue:    { grad: 'linear-gradient(135deg, #D9A81F 0%, #8F6B10 100%)', shadow: 'rgba(238,188,46,0.38)' },
   emerald: { grad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', shadow: 'rgba(16,185,129,0.35)' },
   red:     { grad: 'linear-gradient(135deg, #f97316 0%, #dc2626 100%)', shadow: 'rgba(249,115,22,0.35)'  },
   violet:  { grad: 'linear-gradient(135deg, #f43f5e 0%, #7c3aed 100%)', shadow: 'rgba(244,63,94,0.35)'  },

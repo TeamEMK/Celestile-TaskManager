@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, dailyTaskConfirmationMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireUser, currentUser } from '@/lib/api';
+import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         client, client_number AS clientNumber, department, description, minutes, created_at AS createdAt,
@@ -82,6 +83,7 @@ export async function POST(req) {
     for (const r of rows) {
       n += 1;
       const id = 'DT' + n.toString().padStart(5, '0');
+      const preInstallImage = await maybeUploadToDrive(r.preInstallImage, 'pre-install-photo');
       await pool.query(
         `INSERT INTO daily_tasks
            (id, entry_date, doer_id, doer, client, client_number, department, description, minutes,
@@ -95,7 +97,7 @@ export async function POST(req) {
          r.revision === 'Yes' || r.revision === true ? 'Yes' : 'No',
          r.siteLocation || '', r.purposeOfVisit || '', r.checksType || '',
          Number(r.kmsTravelled) || 0,
-         r.branch || 'Bangalore', r.preInstallImage || null, r.preInstallComment || null]
+         r.branch || 'Bangalore', preInstallImage || null, r.preInstallComment || null]
       );
     }
 

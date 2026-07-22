@@ -198,7 +198,7 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
 
       {/* ── Detail Popup Modal ── */}
       {modal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
+        <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
           onClick={() => setModal(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}>
@@ -308,7 +308,7 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
 
 const SUMMARY_TONES = ['blue', 'emerald', 'amber', 'violet', 'red'];
 const SUMMARY_GRADIENTS = {
-  blue:    { grad: 'linear-gradient(135deg, #DDAC6E 0%, #9C5730 100%)', shadow: 'rgba(156,87,48,0.38)' },
+  blue:    { grad: 'linear-gradient(135deg, #D9A81F 0%, #8F6B10 100%)', shadow: 'rgba(238,188,46,0.38)' },
   emerald: { grad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', shadow: 'rgba(16,185,129,0.35)' },
   amber:   { grad: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', shadow: 'rgba(245,158,11,0.35)' },
   violet:  { grad: 'linear-gradient(135deg, #f43f5e 0%, #7c3aed 100%)', shadow: 'rgba(244,63,94,0.35)'  },

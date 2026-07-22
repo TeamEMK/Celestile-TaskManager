@@ -5,6 +5,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sendWhatsApp, sendWhatsAppDocument, quotationRevisionMessage, quotationApprovalRequestMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { normalizeBranch, isRevision, baseRef, buildChangeList } from '@/lib/quotation';
 import { requireUser } from '@/lib/api';
+import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 // Per-branch WhatsApp recipient (ported from getBranchNotifyNumber). Configurable
 // via env; falls back to the numbers from the Apps Script.
@@ -130,6 +131,11 @@ export async function POST(req) {
     const creatorId = session?.user?.id || null;
     const creatorName = session?.user?.name || session?.user?.email || 'Unknown';
 
+    const stoneItems = Array.isArray(data.stoneItems) ? data.stoneItems : [];
+    for (const item of stoneItems) {
+      if (item?.img) item.img = await maybeUploadToDrive(item.img, 'quotation-item');
+    }
+
     await pool.query(
       `INSERT INTO quotations
         (id, ref_no, branch, client_name, client_firm, client_contact, client_email, pan,
@@ -147,7 +153,7 @@ export async function POST(req) {
         data.transport || '', data.billingAddress || '', data.siteAddress || '',
         data.grandTotal || '', data.discountPct || '', data.designFees || '', data.installationCharges || '',
         data.packingCharges || '',
-        JSON.stringify(data.stoneItems || []), JSON.stringify(data.totalsConfig || []),
+        JSON.stringify(stoneItems), JSON.stringify(data.totalsConfig || []),
         JSON.stringify(data.fixingItems || []), data.pdf || '', createdAt,
         'pending', creatorId, creatorName, approvalToken,
       ]

@@ -1,10 +1,10 @@
 'use client';
 
-const PALETTE = ['#B96F3D', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#0d9488', '#9333ea', '#db2777'];
+const PALETTE = ['#EEBC2E', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#0d9488', '#9333ea', '#db2777'];
 
 // Gradient definitions for bar charts
 const GRADIENT_PAIRS = [
-  ['#B96F3D', '#E8C89A'],
+  ['#EEBC2E', '#F7DA85'],
   ['#7c3aed', '#a78bfa'],
   ['#0891b2', '#22d3ee'],
   ['#059669', '#34d399'],
@@ -16,7 +16,7 @@ const GRADIENT_PAIRS = [
 ];
 
 // Animated SVG ring/donut chart for showing a percentage
-export function DonutChart({ value = 0, total = 0, size = 130, strokeColor = '#B96F3D', label = 'Complete', thickness = 12 }) {
+export function DonutChart({ value = 0, total = 0, size = 130, strokeColor = '#EEBC2E', label = 'Complete', thickness = 12 }) {
   const pct   = total > 0 ? Math.min(value / total, 1) : 0;
   const r     = (size / 2) - thickness - 4;
   const circ  = 2 * Math.PI * r;
@@ -61,7 +61,7 @@ export function DonutChart({ value = 0, total = 0, size = 130, strokeColor = '#B
       <text
         x={cx} y={cy - size * 0.08}
         textAnchor="middle" dominantBaseline="middle"
-        style={{ fontSize: size * 0.22, fontWeight: 900, fill: '#26221C', fontFamily: 'Inter, system-ui, sans-serif' }}
+        style={{ fontSize: size * 0.22, fontWeight: 900, fill: '#09090B', fontFamily: 'Inter, system-ui, sans-serif' }}
       >
         {Math.round(pct * 100)}%
       </text>
@@ -77,7 +77,7 @@ export function DonutChart({ value = 0, total = 0, size = 130, strokeColor = '#B
       <text
         x={cx} y={cy + size * 0.22}
         textAnchor="middle" dominantBaseline="middle"
-        style={{ fontSize: size * 0.085, fontWeight: 500, fill: '#ABA08C', fontFamily: 'Inter, system-ui, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+        style={{ fontSize: size * 0.085, fontWeight: 500, fill: '#9CA3AF', fontFamily: 'Inter, system-ui, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}
       >
         {label}
       </text>
@@ -173,7 +173,7 @@ export function HorizBarChart({ title, items = [], valueKey = 'value', color, ic
 }
 
 // Mini inline spark bar (e.g., inside a table cell)
-export function SparkBar({ value = 0, max = 100, color = '#B96F3D' }) {
+export function SparkBar({ value = 0, max = 100, color = '#EEBC2E' }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (
     <div className="flex items-center gap-2">
@@ -186,7 +186,7 @@ export function SparkBar({ value = 0, max = 100, color = '#B96F3D' }) {
 }
 
 // Stat pill: label + value badge (for small inline stats)
-export function StatPill({ label, value, color = '#B96F3D' }) {
+export function StatPill({ label, value, color = '#EEBC2E' }) {
   return (
     <div className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: `${color}0f`, border: `1px solid ${color}22` }}>
       <span className="text-[11px] font-semibold text-slate-600">{label}</span>
@@ -196,7 +196,7 @@ export function StatPill({ label, value, color = '#B96F3D' }) {
 }
 
 // Mini donut for table cells (40px)
-export function MiniDonut({ value = 0, total = 0, color = '#B96F3D' }) {
+export function MiniDonut({ value = 0, total = 0, color = '#EEBC2E' }) {
   const size = 40;
   const thickness = 5;
   const pct  = total > 0 ? Math.min(value / total, 1) : 0;
@@ -217,7 +217,7 @@ export function MiniDonut({ value = 0, total = 0, color = '#B96F3D' }) {
         />
       )}
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle"
-        style={{ fontSize: 9, fontWeight: 700, fill: '#26221C', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        style={{ fontSize: 9, fontWeight: 700, fill: '#09090B', fontFamily: 'Inter, system-ui, sans-serif' }}>
         {Math.round(pct * 100)}%
       </text>
     </svg>

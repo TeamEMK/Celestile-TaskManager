@@ -1,6 +1,7 @@
 ﻿'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
@@ -88,12 +89,12 @@ export default function UsersClient() {
   const [pwdUser,   setPwdUser]   = useState(null);
   const [customDepartments, setCustomDepartments] = useState([]);
 
-  const departments = [
+  const departments = useMemo(() => [
     ...DEPARTMENTS,
     ...customDepartments
       .filter((name) => !DEPARTMENTS.some((d) => d.value.toLowerCase() === name.toLowerCase()))
       .map((name) => ({ value: name, label: name })),
-  ];
+  ], [customDepartments]);
 
   function addDepartment(name) {
     setCustomDepartments((cur) => (cur.some((d) => d.toLowerCase() === name.toLowerCase()) ? cur : [...cur, name]));
@@ -187,7 +188,7 @@ export default function UsersClient() {
 
       {/* Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-auto max-h-[520px]">
+        <div className="overflow-auto max-h-[calc(100vh-190px)]">
           <table className="w-full text-sm min-w-[720px]">
             <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
               <tr>
@@ -353,7 +354,8 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
       }
       setPictureChanged(false);
     }
-  }, [user, open, departments]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, open]);
 
   if (!open) return null;
 
@@ -445,11 +447,11 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
 
   const initials = (form.name || 'U').split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase() || 'U';
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
       <style>{`
         .um-scroll::-webkit-scrollbar{width:4px}
-        .um-scroll::-webkit-scrollbar-thumb{background:#E7E0D4;border-radius:99px}
+        .um-scroll::-webkit-scrollbar-thumb{background:#E5E7EB;border-radius:99px}
         .um-scroll::-webkit-scrollbar-track{background:transparent}
       `}</style>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[88vh]" onClick={e => e.stopPropagation()}>
@@ -601,7 +603,8 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -630,8 +633,8 @@ function SetPasswordModal({ open, onClose, user }) {
     else { const d = await res.json(); setError(d.error || 'Something went wrong'); }
   }
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl grid place-items-center shrink-0 bg-primary-50 text-primary-600">
@@ -681,7 +684,8 @@ function SetPasswordModal({ open, onClose, user }) {
           <button onClick={save} disabled={saving || mismatch} className="btn-primary">{saving ? 'Saving...' : 'Set Password'}</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

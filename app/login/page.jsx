@@ -40,7 +40,7 @@ export default function LoginPage() {
         @keyframes lx-drift1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(60px,-40px) scale(1.15); } }
         @keyframes lx-drift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-50px,40px) scale(1.2); } }
         @keyframes lx-drift3 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(30px,50px) scale(1.1); } }
-        @keyframes lx-ring { 0%,100% { box-shadow: 0 0 0 1px rgba(232,184,115,.5), 0 0 40px rgba(232,184,115,.25); } 50% { box-shadow: 0 0 0 1px rgba(232,184,115,.8), 0 0 70px rgba(232,184,115,.45); } }
+        @keyframes lx-ring { 0%,100% { box-shadow: 0 0 0 1px rgba(238,188,46,.5), 0 0 40px rgba(238,188,46,.25); } 50% { box-shadow: 0 0 0 1px rgba(238,188,46,.8), 0 0 70px rgba(238,188,46,.45); } }
         @keyframes lx-shine { 0% { left:-120%; } 60%,100% { left:120%; } }
         @keyframes lx-sheen { to { background-position: 200% center; } }
 
@@ -50,20 +50,20 @@ export default function LoginPage() {
         .lx-stagger > *:nth-child(3){ animation-delay:.19s } .lx-stagger > *:nth-child(4){ animation-delay:.26s }
         .lx-stagger > *:nth-child(5){ animation-delay:.33s } .lx-stagger > *:nth-child(6){ animation-delay:.40s }
 
-        .lx-input { width:100%; box-sizing:border-box; padding:13px 44px 13px 42px;
+        .lx-input { width:100%; box-sizing:border-box; padding:14px 46px 14px 44px;
           background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.10); border-radius:13px;
-          color:#f4ece0; font-size:13.5px; outline:none; transition: border-color .18s, box-shadow .18s, background .18s; }
-        .lx-input::placeholder { color:#7c7468; }
-        .lx-input:focus { border-color: rgba(232,184,115,.65); background: rgba(255,255,255,.06);
-          box-shadow: 0 0 0 3px rgba(232,184,115,.14); }
+          color:#F5F5F5; font-size:15px; outline:none; transition: border-color .18s, box-shadow .18s, background .18s; }
+        .lx-input::placeholder { color:#737373; }
+        .lx-input:focus { border-color: rgba(238,188,46,.65); background: rgba(255,255,255,.06);
+          box-shadow: 0 0 0 3px rgba(238,188,46,.14); }
 
-        .lx-btn { position:relative; overflow:hidden; width:100%; padding:13.5px; border:none; border-radius:13px;
-          color:#1a130a; font-weight:800; font-size:14px; letter-spacing:.02em; cursor:pointer;
-          background: linear-gradient(135deg,#F5D6A8 0%,#E8B873 45%,#C4714A 100%);
-          box-shadow: 0 10px 30px rgba(196,113,74,.40), inset 0 1px 0 rgba(255,255,255,.45);
+        .lx-btn { position:relative; overflow:hidden; width:100%; padding:14px; border:none; border-radius:13px;
+          color:#000000; font-weight:800; font-size:15px; letter-spacing:.02em; cursor:pointer;
+          background: linear-gradient(135deg,#F3C955 0%,#EEBC2E 45%,#B78A16 100%);
+          box-shadow: 0 10px 30px rgba(183,138,22,.40), inset 0 1px 0 rgba(255,255,255,.45);
           transition: transform .15s, box-shadow .2s, filter .2s;
           display:flex; align-items:center; justify-content:center; gap:9px; }
-        .lx-btn:hover:not(:disabled) { transform: translateY(-2px); filter:brightness(1.04); box-shadow:0 16px 40px rgba(196,113,74,.5), inset 0 1px 0 rgba(255,255,255,.5); }
+        .lx-btn:hover:not(:disabled) { transform: translateY(-2px); filter:brightness(1.04); box-shadow:0 16px 40px rgba(183,138,22,.5), inset 0 1px 0 rgba(255,255,255,.5); }
         .lx-btn:active:not(:disabled){ transform: translateY(0); }
         .lx-btn:disabled { cursor:not-allowed; opacity:.75; }
         .lx-btn::after { content:''; position:absolute; top:0; left:-120%; width:55%; height:100%;
@@ -71,24 +71,24 @@ export default function LoginPage() {
         .lx-btn:not(:disabled)::after { animation: lx-shine 3.2s ease-in-out infinite; }
 
         .lx-eye { position:absolute; right:13px; top:50%; transform:translateY(-50%); background:none; border:none;
-          cursor:pointer; color:#8a8175; display:flex; padding:3px; transition:color .15s; }
-        .lx-eye:hover { color:#E8B873; }
+          cursor:pointer; color:#71717A; display:flex; padding:3px; transition:color .15s; }
+        .lx-eye:hover { color:#EEBC2E; }
 
         .lx-shell { position:relative; z-index:2; display:grid; grid-template-columns: 1.05fr .95fr;
           width:100%; max-width:920px; border-radius:26px; overflow:hidden;
-          background: rgba(20,17,14,.55); backdrop-filter: blur(22px) saturate(140%); -webkit-backdrop-filter: blur(22px) saturate(140%);
+          background: rgba(17,17,17,.55); backdrop-filter: blur(22px) saturate(140%); -webkit-backdrop-filter: blur(22px) saturate(140%);
           border:1px solid rgba(255,255,255,.10);
           box-shadow: 0 40px 120px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08);
           animation: lx-up .6s cubic-bezier(.16,1,.3,1) both; }
 
         .lx-brand { position:relative; padding:48px 44px; display:flex; flex-direction:column; justify-content:space-between;
           background:
-            radial-gradient(circle at 80% 0%, rgba(232,184,115,.18), transparent 55%),
-            radial-gradient(circle at 0% 100%, rgba(196,113,74,.20), transparent 55%),
+            radial-gradient(circle at 80% 0%, rgba(238,188,46,.18), transparent 55%),
+            radial-gradient(circle at 0% 100%, rgba(183,138,22,.20), transparent 55%),
             linear-gradient(160deg, rgba(255,255,255,.05), rgba(255,255,255,.01));
           border-right:1px solid rgba(255,255,255,.08); }
-        .lx-feat { display:flex; align-items:center; gap:11px; font-size:13px; color:#cfc4b4; }
-        .lx-feat svg { color:#E8B873; flex:none; }
+        .lx-feat { display:flex; align-items:center; gap:11px; font-size:14px; color:#D4D4D4; }
+        .lx-feat svg { color:#EEBC2E; flex:none; }
 
         .lx-mini { display:none; }
 
@@ -107,7 +107,7 @@ export default function LoginPage() {
           background: toast.type === 'success' ? 'rgba(16,32,18,.92)' : 'rgba(38,18,18,.92)',
           backdropFilter: 'blur(10px)',
           color: toast.type === 'success' ? '#6ee7a0' : '#fb8585',
-          padding: '12px 22px', borderRadius: '13px', fontSize: '13px', fontWeight: 600,
+          padding: '12px 22px', borderRadius: '13px', fontSize: '14px', fontWeight: 600,
           boxShadow: '0 12px 40px rgba(0,0,0,.4)',
           border: `1px solid ${toast.type === 'success' ? 'rgba(110,231,160,.25)' : 'rgba(251,133,133,.25)'}`,
           whiteSpace: 'nowrap',
@@ -117,13 +117,13 @@ export default function LoginPage() {
       <div style={{
         position: 'relative', minHeight: '100vh', overflow: 'hidden',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem',
-        background: 'radial-gradient(ellipse at 70% 20%, #1b1610 0%, #0d0b09 45%, #070605 100%)',
+        background: 'radial-gradient(ellipse at 70% 20%, #171717 0%, #0D0D0D 45%, #000000 100%)',
         fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
       }}>
         {/* aurora orbs */}
-        <div className="lx-blob" style={{ width: 480, height: 480, top: '-120px', left: '-80px', background: 'radial-gradient(circle,#E8B873,#C4714A)', animation: 'lx-drift1 16s ease-in-out infinite' }} />
-        <div className="lx-blob" style={{ width: 420, height: 420, bottom: '-140px', right: '-60px', background: 'radial-gradient(circle,#C4714A,#7a3f24)', animation: 'lx-drift2 19s ease-in-out infinite' }} />
-        <div className="lx-blob" style={{ width: 300, height: 300, top: '40%', left: '45%', opacity: .35, background: 'radial-gradient(circle,#F5D6A8,transparent)', animation: 'lx-drift3 22s ease-in-out infinite' }} />
+        <div className="lx-blob" style={{ width: 480, height: 480, top: '-120px', left: '-80px', background: 'radial-gradient(circle,#EEBC2E,#B78A16)', animation: 'lx-drift1 16s ease-in-out infinite' }} />
+        <div className="lx-blob" style={{ width: 420, height: 420, bottom: '-140px', right: '-60px', background: 'radial-gradient(circle,#B78A16,#8F6B10)', animation: 'lx-drift2 19s ease-in-out infinite' }} />
+        <div className="lx-blob" style={{ width: 300, height: 300, top: '40%', left: '45%', opacity: .35, background: 'radial-gradient(circle,#F3C955,transparent)', animation: 'lx-drift3 22s ease-in-out infinite' }} />
 
         <div className="lx-shell">
 
@@ -133,17 +133,17 @@ export default function LoginPage() {
               <div className="login-logo" style={{
                 width: 116, height: 116, borderRadius: 26, overflow: 'hidden',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: '#0c0a08', animation: 'lx-float 5s ease-in-out infinite, lx-ring 4s ease-in-out infinite',
+                background: '#0A0A0A', animation: 'lx-float 5s ease-in-out infinite, lx-ring 4s ease-in-out infinite',
               }}>
                 <img src="/logo.jpeg" alt="Celestile-TaskManager" width={116} height={116}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             </div>
 
-            <div className="font-display" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '.01em', color: '#F5E4C3' }}>
+            <div className="font-display" style={{ fontSize: 24, fontWeight: 600, letterSpacing: '.01em', color: '#FBEAB8' }}>
               Celestile
             </div>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.28em', textTransform: 'uppercase', color: '#9b9082', marginTop: -8 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.28em', textTransform: 'uppercase', color: '#9CA3AF', marginTop: -8 }}>
               Task Manager
             </div>
           </aside>
@@ -155,7 +155,7 @@ export default function LoginPage() {
               {/* mini logo (mobile only) */}
               <div className="lx-mini" style={{ justifyContent: 'center', marginBottom: 20 }}>
                 <div className="login-logo" style={{
-                  width: 76, height: 76, borderRadius: 18, overflow: 'hidden', background: '#0c0a08',
+                  width: 76, height: 76, borderRadius: 18, overflow: 'hidden', background: '#0A0A0A',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   animation: 'lx-float 5s ease-in-out infinite, lx-ring 4s ease-in-out infinite',
                 }}>
@@ -164,8 +164,8 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <h1 className="font-display" style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 600, color: '#f6efe4' }}>Welcome back 👋</h1>
-                <p style={{ margin: '0 0 26px', fontSize: 13, color: '#9b9082' }}>Sign in to your Celestile workspace</p>
+                <h1 className="font-display" style={{ margin: '0 0 6px', fontSize: 30, fontWeight: 600, color: '#FAFAFA' }}>Welcome back 👋</h1>
+                <p style={{ margin: '0 0 26px', fontSize: 14, color: '#9CA3AF' }}>Sign in to your Celestile workspace</p>
               </div>
 
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -205,9 +205,9 @@ export default function LoginPage() {
 
               <div style={{ marginTop: 26 }}>
                 <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent)', marginBottom: 14 }} />
-                <p style={{ textAlign: 'center', fontSize: 11, color: '#8a8175', margin: 0, letterSpacing: '.03em' }}>
-                  <span style={{ color: '#E8B873', fontWeight: 700 }}>Celestile-TaskManager</span>
-                  <span style={{ margin: '0 7px', color: '#56504a' }}>·</span>
+                <p style={{ textAlign: 'center', fontSize: 12, color: '#71717A', margin: 0, letterSpacing: '.03em' }}>
+                  <span style={{ color: '#EEBC2E', fontWeight: 700 }}>Celestile-TaskManager</span>
+                  <span style={{ margin: '0 7px', color: '#525252' }}>·</span>
                   Grow Your Business
                 </p>
               </div>
@@ -220,12 +220,12 @@ export default function LoginPage() {
 }
 
 const lblStyle = {
-  display: 'block', fontSize: 10.5, fontWeight: 600, letterSpacing: '.09em',
-  textTransform: 'uppercase', color: '#9b9082', marginBottom: 7,
+  display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '.09em',
+  textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 7,
 };
 const iconStyle = {
   position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
-  color: '#8a8175', display: 'flex',
+  color: '#71717A', display: 'flex',
 };
 
 function Spinner() {

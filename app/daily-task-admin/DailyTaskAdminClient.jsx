@@ -461,7 +461,7 @@ export default function DailyTaskAdminClient() {
 
       {/* ── Calendar day detail modal ───────────────────────────────── */}
       {activeTab === 'calendar' && selectedDay && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => setSelectedDay(null)}>
+        <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => setSelectedDay(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">

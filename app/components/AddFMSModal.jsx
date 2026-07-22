@@ -27,7 +27,7 @@ export default function AddFMSModal({ open, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-pop-in" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">

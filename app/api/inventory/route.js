@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, slabBlockedMessage, slabReleasedMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireUser } from '@/lib/api';
+import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 const NOTIFY = () => process.env.INVENTORY_NOTIFY || '918008002121';
 const uid = (p) => p + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
@@ -54,13 +55,14 @@ export async function POST(req) {
 
     for (const e of entries) {
       seq += 1;
+      const slabPhoto = await maybeUploadToDrive(e.slabPhoto, 'slab-photo');
       await pool.query(
         `INSERT INTO inventory
           (id, created_at, inv_key, slab, block, material, thickness, size_l, size_w, sft,
            slab_photo, status, order_no, client, area, cutting, cutting_reason, cutting_size_l, cutting_size_w, remarks)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [uid('INV'), createdAt, makeKey(seq), e.slab || '', e.block || '-', e.material || '', e.thickness || '',
-         e.sizeL || '', e.sizeW || '', e.sft || '', e.slabPhoto || '', e.status || 'Available',
+         e.sizeL || '', e.sizeW || '', e.sft || '', slabPhoto || '', e.status || 'Available',
          e.orderNo || '', e.client || '', e.area || '', e.cutting || '', e.cuttingReason || '',
          e.cuttingSizeL || '', e.cuttingSizeW || '', e.remarks || '']
       );
@@ -85,7 +87,7 @@ export async function PATCH(req) {
     const next = {
       slab: e.slab ?? prev.slab, material: e.material ?? prev.material, thickness: e.thickness ?? prev.thickness,
       sizeL: e.sizeL ?? prev.sizeL, sizeW: e.sizeW ?? prev.sizeW, sft: e.sft ?? prev.sft,
-      slabPhoto: e.slabPhoto ?? prev.slabPhoto, status: e.status ?? prev.status,
+      slabPhoto: await maybeUploadToDrive(e.slabPhoto ?? prev.slabPhoto, 'slab-photo'), status: e.status ?? prev.status,
       orderNo: e.orderNo ?? prev.orderNo, client: e.client ?? prev.client, area: e.area ?? prev.area,
       remarks: e.remarks ?? prev.remarks,
     };

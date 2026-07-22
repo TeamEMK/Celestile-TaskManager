@@ -7,6 +7,7 @@ import AddMasterModal   from '../components/AddMasterModal';
 import FmsDoneModal     from '../components/FmsDoneModal';
 import { useConfirmToast } from '../components/ConfirmToast';
 import { FMS_ENABLED } from '@/lib/config';
+import { isImageAttachment } from '@/lib/attachmentType';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -68,6 +69,8 @@ export default function AllTasksClient({ grouped, users }) {
 
   const STATUS_RANK = { revise: 0, revise_requested: 1, pending: 2, done: 3 };
 
+  const getUserName = (id) => users.find((u) => u.id === id)?.name || id || '—';
+
   const filterTasks = (tasks) => {
     let arr = tasks;
 
@@ -86,9 +89,11 @@ export default function AllTasksClient({ grouped, users }) {
 
     if (search) {
       const s = search.toLowerCase();
+      // Match anything the row actually displays, so searching a name someone
+      // can see in the Doer/Assignee column finds their tasks.
       arr = arr.filter((t) =>
-        (t.description || '').toLowerCase().includes(s) ||
-        (t.client || '').toLowerCase().includes(s)
+        [t.description, t.client, t.doer, getUserName(t.delegatedBy), t.remarks]
+          .some((v) => (v || '').toLowerCase().includes(s))
       );
     }
 
@@ -224,8 +229,6 @@ export default function AllTasksClient({ grouped, users }) {
     });
   }
 
-  const getUserName = (id) => users.find((u) => u.id === id)?.name || id || '—';
-
   // Global serial index counter across all groups
   let globalSerial = 0;
 
@@ -297,7 +300,7 @@ export default function AllTasksClient({ grouped, users }) {
         <div className="flex-1" />
         <div className="relative">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search description, client…" className="input pl-9 w-64" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search description, doer, client…" className="input pl-9 w-64" />
         </div>
       </div>
 
@@ -442,7 +445,7 @@ export default function AllTasksClient({ grouped, users }) {
                                     )}
                                     {t.attachment && (
                                       <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-primary-500 hover:text-primary-700" title="View attachment">
-                                        {t.attachment.startsWith('data:image') ? <img src={t.attachment} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" /> : <span>📄</span>}
+                                        {isImageAttachment(t.attachment) ? <img src={t.attachment} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" /> : <span>📄</span>}
                                       </a>
                                     )}
                                     {!!t.requireFile && t.status !== 'done' && (
@@ -519,7 +522,7 @@ export default function AllTasksClient({ grouped, users }) {
 
       {/* File Upload Modal — shown when task requires proof before marking done */}
       {fileTask && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !fileUploading && (setFileTask(null), setCompletionInput(null))}>
+        <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !fileUploading && (setFileTask(null), setCompletionInput(null))}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 grid place-items-center shrink-0">
@@ -549,7 +552,7 @@ export default function AllTasksClient({ grouped, users }) {
 
       {/* Revise Modal */}
       {reviseTask && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !reviseSaving && setReviseTask(null)}>
+        <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !reviseSaving && setReviseTask(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 grid place-items-center shrink-0">
@@ -634,7 +637,7 @@ function EditTaskModal({ task, users, onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
@@ -761,7 +764,7 @@ function TransferModal({ open, onClose, users, grouped, onDone }) {
   const allSelected = fromTasks.length > 0 && selectedIds.size === fromTasks.length;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
@@ -907,7 +910,7 @@ function MyTransferModal({ open, onClose, users, fromName, grouped, onDone }) {
   const allSelected = myTasks.length > 0 && selectedIds.size === myTasks.length;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}

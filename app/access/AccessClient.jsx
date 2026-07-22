@@ -99,7 +99,7 @@ export default function AccessClient() {
             <span className="text-[13px] text-slate-500">Loading access matrix…</span>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[420px]">
+          <div className="overflow-auto max-h-[calc(100vh-190px)]">
             <table className="w-full text-[12px] min-w-[720px]">
               <thead className="bg-ink-700 text-white sticky top-0 z-10">
                 <tr>
