@@ -52,9 +52,18 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
     .slice()
     .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
-  const total     = data.total     || 0;
-  const completed = data.completed || 0;
-  const pending   = data.pending   ?? visibleTasks.length;
+  // When an admin picks a specific employee from the filter, the KPI cards
+  // should reflect that person, not the whole org — computeDashboard() /
+  // computePendingApprovals() supply a per-doer breakdown for exactly this.
+  const filteringByEmployee = isAdmin && userFilter !== 'All';
+  const doerStats = filteringByEmployee
+    ? (data.byDoer?.[userFilter] || { total: 0, completed: 0, pending: 0, revised: 0, overdue: 0 })
+    : null;
+
+  const total     = doerStats ? doerStats.total     : (data.total     || 0);
+  const completed = doerStats ? doerStats.completed : (data.completed || 0);
+  const pending   = doerStats ? doerStats.pending   : (data.pending   ?? visibleTasks.length);
+  const revisedCt = doerStats ? doerStats.revised   : (data.revised   || 0);
   const rate      = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   const hour      = new Date().getHours();
@@ -62,12 +71,13 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   const firstName = (userName || '').split(' ')[0] || 'there';
   const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-  const overdueCount = visibleTasks.filter((t) => t.overdue).length;
+  const overdueCount = doerStats ? doerStats.overdue : visibleTasks.filter((t) => t.overdue).length;
 
-  const pa = pendingApprovals || { total: 0, mine: 0, byBranch: {} };
-  const approvalCount = isAdmin ? pa.total : pa.mine;
+  const pa = pendingApprovals || { total: 0, mine: 0, byBranch: {}, byDoer: {} };
+  const approvalCount = filteringByEmployee ? (pa.byDoer?.[userFilter] || 0) : (isAdmin ? pa.total : pa.mine);
   const approvalBranchSub = useMemo(() => {
     if (!isAdmin) return 'Awaiting approver';
+    if (filteringByEmployee) return `For ${userFilter}`;
     const b = pa.byBranch || {};
     const parts = [];
     if (b.bangalore)   parts.push(`BLR ${b.bangalore}`);
@@ -75,7 +85,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
     if (b.factory)     parts.push(`Factory ${b.factory}`);
     if (b.unspecified) parts.push(`Other ${b.unspecified}`);
     return parts.length ? parts.join(' · ') : 'None pending';
-  }, [isAdmin, pa.byBranch]);
+  }, [isAdmin, filteringByEmployee, userFilter, pa.byBranch]);
 
   /* ── handlers (unchanged) ───────────────────────────────────────── */
   async function markDone(task) {
@@ -216,7 +226,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
         <Kpi
           tone="blue" label="Total Tasks" value={total}
           icon={<IconLayers />}
-          sub={isAdmin ? 'All employees' : 'Assigned to you'}
+          sub={filteringByEmployee ? userFilter : isAdmin ? 'All employees' : 'Assigned to you'}
         />
         <Kpi
           tone="emerald" label="Completed" value={completed}
@@ -226,8 +236,8 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
         <Kpi
           tone="red" label="Pending" value={pending}
           icon={<IconClock />}
-          sub={data.revised > 0 ? `${data.revised} in revision` : 'Awaiting action'}
-          subTone={data.revised > 0 ? 'amber' : ''}
+          sub={revisedCt > 0 ? `${revisedCt} in revision` : 'Awaiting action'}
+          subTone={revisedCt > 0 ? 'amber' : ''}
         />
         <Kpi
           tone="violet" label="Overdue" value={overdueCount}
@@ -384,7 +394,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
             <div className="w-full grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
               <Legend dot="#10b981" label="Done"    value={completed} />
               <Legend dot="#ef4444" label="Pending" value={pending} />
-              <Legend dot="#f59e0b" label="Revised" value={data.revised} />
+              <Legend dot="#f59e0b" label="Revised" value={revisedCt} />
             </div>
           </div>
 
