@@ -117,7 +117,7 @@ export default function HyderabadForm({ initialRef = '' }) {
   async function save() {
     setSaving(true); setStatus('Saving…');
     const payload = {
-      branch: 'hyderabad', refNo: header.refNo,
+      branch: 'hyderabad', refNo: header.refNo, quoteDate: header.quoteDate,
       clientName: header.clientName, clientFirm: header.clientFirm, consultant: header.consultant,
       consultantNo: header.consultantNo, consultantEmail: header.consultantEmail, architect: header.architect,
       clientContact: header.clientContact, clientEmail: header.clientEmail, boutique: header.boutique,

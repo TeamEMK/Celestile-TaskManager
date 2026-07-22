@@ -159,7 +159,7 @@ export default function BangaloreForm({ initialRef = '' }) {
   async function save() {
     setSaving(true); setStatus('Saving…');
     const payload = {
-      branch: 'bangalore', refNo: header.refNo,
+      branch: 'bangalore', refNo: header.refNo, quoteDate: header.quoteDate,
       clientName: header.clientName, architectName: header.architectName, architectFirm: header.architectFirm,
       consultant: header.consultant, consultantNumber: header.consultantNumber, consultantEmail: header.consultantEmail,
       clientContact: header.clientContact, clientEmail: header.clientEmail, boutique: header.boutique,

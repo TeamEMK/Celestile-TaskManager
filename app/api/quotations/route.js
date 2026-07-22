@@ -37,6 +37,7 @@ function rowToQuo(r) {
   if (!r) return null;
   return {
     refNo: r.ref_no || '', branch: r.branch || 'bangalore',
+    quoteDate: r.quote_date || '',
     clientName: r.client_name || '', clientFirm: r.client_firm || '',
     clientContact: r.client_contact || '', contact: r.client_contact || '',
     clientEmail: r.client_email || '', email: r.client_email || '', pan: r.pan || '',
@@ -143,8 +144,8 @@ export async function POST(req) {
          boutique, payment_terms, validity, lead_time, transport, billing_address, site_address,
          grand_total, discount_pct, design_fees, installation_charges, packing_charges,
          stone_items, totals_config, fixing_items, pdf, created_at,
-         status, created_by_id, created_by_name, approval_token)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         status, created_by_id, created_by_name, approval_token, quote_date)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         id, data.refNo, branch, data.clientName || '', data.clientFirm || '', contact, cemail, data.pan || '',
         data.architectName || '', data.architectFirm || '', data.architect || '', data.consultant || '',
@@ -155,7 +156,7 @@ export async function POST(req) {
         data.packingCharges || '',
         JSON.stringify(stoneItems), JSON.stringify(data.totalsConfig || []),
         JSON.stringify(data.fixingItems || []), data.pdf || '', createdAt,
-        'pending', creatorId, creatorName, approvalToken,
+        'pending', creatorId, creatorName, approvalToken, data.quoteDate || '',
       ]
     );
 
