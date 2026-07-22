@@ -88,13 +88,13 @@ export async function GET() {
   }
 }
 
-async function nextDelId() {
-  const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM delegations');
-  return 'DEL' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
-}
+// COUNT(*)+1 collided once any row had ever been deleted (count drops below the
+// highest id already used) — e.g. "Duplicate entry 'DEL568' for key 'PRIMARY'".
+// A timestamp+random id can't collide with past ids regardless of deletions.
+const nextDelId = () => 'DEL' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
 
 async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, client, priority, approval, approverId, approverName, url, remarks, image, requireFile, attachment }) {
-  const id = await nextDelId();
+  const id = nextDelId();
   const initialStatus = 'pending';
   await pool.query(
     `INSERT INTO delegations
