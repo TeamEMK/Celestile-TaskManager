@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin, currentUser } from '@/lib/api';
-import { listFmsSheets, createFmsSheet } from '@/lib/fmsSheet';
+import { requireAdmin, requireUser, currentUser } from '@/lib/api';
+import { isAdminRoles } from '@/lib/pages';
+import { createFmsSheet, getFmsSheetsWithStats } from '@/lib/fmsSheet';
 
+// Any signed-in user can browse (admins see every FMS, everyone else only
+// flows they're a doer on) — editing/creating stays admin-only below.
 export async function GET() {
-  const gate = await requireAdmin(); if (gate) return gate;
+  const gate = await requireUser(); if (gate) return gate;
   try {
-    const sheets = await listFmsSheets();
+    const user = await currentUser();
+    const sheets = await getFmsSheetsWithStats(user.id, isAdminRoles(user.roles));
     return NextResponse.json(sheets);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

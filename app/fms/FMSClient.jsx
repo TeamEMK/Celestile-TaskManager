@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
+import SheetGridView from './SheetGridView';
+import PcView from './PcView';
 
 const FIELD_TYPES = [
   { value: 'text',     label: '📝 Text' },
@@ -22,15 +24,24 @@ function blankStep() {
 
 export default function FMSClient() {
   const { ask, ConfirmUI } = useConfirmToast();
-  const searchParams = useSearchParams();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
 
   const [sheets,      setSheets]      = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [activeId,    setActiveId]    = useState(null);
   const [detail,      setDetail]      = useState(null);
   const [loadingDet,  setLoadingDet]  = useState(false);
+  const [activeTab,     setActiveTab]     = useState('fmsview'); // 'fmsview' | 'pcview' | 'step'
   const [activeStepIdx, setActiveStepIdx] = useState(0);
   const [users,       setUsers]       = useState([]);
+
+  // FMS View (live sheet grid) + PC View (pending across all steps) — fetched
+  // on demand per FMS, reset whenever the selected FMS changes.
+  const [grid,       setGrid]       = useState(null);
+  const [loadingGrid, setLoadingGrid] = useState(false);
+  const [pcItems,    setPcItems]    = useState(null);
+  const [loadingPc,  setLoadingPc]  = useState(false);
 
   const [modal,   setModal]   = useState(null); // 'add' | 'edit' | null
   const [form,    setForm]    = useState(null);
@@ -60,11 +71,7 @@ export default function FMSClient() {
     const arr = Array.isArray(list) ? list : [];
     setSheets(arr);
     setLoadingList(false);
-    if (activeId) return;
-    // Deep-link from the FMS Tracker list's "Edit" button (?edit=<id>).
-    const editId = searchParams.get('edit');
-    if (editId && arr.some((s) => s.id === editId)) setActiveId(editId);
-    else if (arr.length) setActiveId(arr[0].id);
+    if (!activeId && arr.length) setActiveId(arr[0].id);
   }
 
   useEffect(() => {
@@ -72,15 +79,33 @@ export default function FMSClient() {
     let cancelled = false;
     setLoadingDet(true);
     setActiveStepIdx(0);
-    const openEditAfterLoad = activeId === searchParams.get('edit');
+    setActiveTab('fmsview');
+    setGrid(null);
+    setPcItems(null);
     fetch(`/api/fms/${activeId}`).then((r) => r.json()).then((d) => {
       if (cancelled) return;
       setDetail(d);
       setLoadingDet(false);
-      if (openEditAfterLoad) setTimeout(() => openEdit(), 0);
     }).catch(() => { if (!cancelled) setLoadingDet(false); });
     return () => { cancelled = true; };
   }, [activeId]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    if (activeTab === 'fmsview' && grid == null && !loadingGrid) {
+      setLoadingGrid(true);
+      fetch(`/api/fms/${activeId}/grid`).then((r) => r.json()).then((d) => {
+        setGrid(d); setLoadingGrid(false);
+      }).catch(() => setLoadingGrid(false));
+    }
+    if (activeTab === 'pcview' && pcItems == null && !loadingPc) {
+      setLoadingPc(true);
+      fetch(`/api/fms/${activeId}/pc`).then((r) => r.json()).then((d) => {
+        setPcItems(d.items || []); setLoadingPc(false);
+      }).catch(() => setLoadingPc(false));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, activeId]);
 
   function openAdd() {
     setForm({ fmsName: '', sheetName: '', sheetId: '', headerRow: 1, processCoordinatorId: '', steps: [blankStep()] });
@@ -234,7 +259,8 @@ export default function FMSClient() {
     });
   }
 
-  const step = detail?.steps?.[activeStepIdx];
+  const step = activeTab === 'step' ? detail?.steps?.[activeStepIdx] : null;
+  const activeSheetStats = sheets.find((s) => s.id === activeId);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -242,11 +268,11 @@ export default function FMSClient() {
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconLayers /></div>
           <div>
-            <div className="section-title">FMS Admin</div>
+            <div className="section-title">FMS</div>
             <div className="text-[11px] text-slate-500 mt-0.5">{sheets.length} flow{sheets.length === 1 ? '' : 's'} · each points at a live Google Sheet</div>
           </div>
         </div>
-        <button className="btn-primary !text-[12px]" onClick={openAdd}><PlusIcon /> Add New FMS</button>
+        {isAdmin && <button className="btn-primary !text-[12px]" onClick={openAdd}><PlusIcon /> Add New FMS</button>}
       </div>
 
       {loadingList ? (
@@ -254,8 +280,10 @@ export default function FMSClient() {
       ) : sheets.length === 0 ? (
         <div className="card p-14 text-center">
           <div className="w-12 h-12 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3"><IconLayers className="text-primary-500" /></div>
-          <div className="text-[13.5px] font-semibold text-slate-700">No FMS flows yet</div>
-          <div className="text-[12px] text-slate-500 mt-0.5">Click "Add New FMS" to point at your first Google Sheet.</div>
+          <div className="text-[13.5px] font-semibold text-slate-700">No FMS flows {isAdmin ? 'yet' : 'visible to you yet'}</div>
+          <div className="text-[12px] text-slate-500 mt-0.5">
+            {isAdmin ? 'Click "Add New FMS" to point at your first Google Sheet.' : 'Ask an admin to add you as a doer on an FMS step.'}
+          </div>
         </div>
       ) : (
         <>
@@ -278,22 +306,49 @@ export default function FMSClient() {
                   <div className="text-[12.5px] text-slate-700 mt-0.5">
                     <b>{detail.sheet.sheet_name}</b> · Sheet ID: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">{detail.sheet.sheet_id}</code> · Header Row: {detail.sheet.header_row}
                   </div>
+                  <div className="text-[12.5px] text-slate-500 mt-1">
+                    {activeSheetStats?.totalSteps ?? detail.steps.length} step{(activeSheetStats?.totalSteps ?? detail.steps.length) === 1 ? '' : 's'}
+                    {' · '}{activeSheetStats?.totalEntries ?? 0} entries
+                    {activeSheetStats?.coordinatorName && <> · Coordinator: <b>{activeSheetStats.coordinatorName}</b></>}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button className="btn-secondary !text-[12px]" onClick={openIntake}>📋 Intake Form</button>
-                  <button className="btn-secondary !text-[12px]" onClick={openEdit}>✏️ Edit FMS</button>
-                  <button className="btn-danger !text-[12px]" onClick={deleteSheet}>🗑 Delete</button>
-                </div>
+                {isAdmin && (
+                  <div className="flex gap-2">
+                    <button className="btn-secondary !text-[12px]" onClick={openIntake}>📋 Intake Form</button>
+                    <button className="btn-secondary !text-[12px]" onClick={openEdit}>✏️ Edit FMS</button>
+                    <button className="btn-danger !text-[12px]" onClick={deleteSheet}>🗑 Delete</button>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-1.5">
+                <button onClick={() => setActiveTab('fmsview')}
+                  className={`seg-btn !text-[11.5px] ${activeTab === 'fmsview' ? 'seg-btn-active' : 'bg-white border border-slate-200'}`}>📄 FMS View</button>
+                <button onClick={() => setActiveTab('pcview')}
+                  className={`seg-btn !text-[11.5px] ${activeTab === 'pcview' ? 'seg-btn-active' : 'bg-white border border-slate-200'}`}>👤 PC View</button>
                 {detail.steps.map((s, i) => (
-                  <button key={s.id} onClick={() => setActiveStepIdx(i)}
-                    className={`seg-btn !text-[11.5px] ${activeStepIdx === i ? 'seg-btn-active' : 'bg-white border border-slate-200'}`}>
+                  <button key={s.id} onClick={() => { setActiveTab('step'); setActiveStepIdx(i); }}
+                    className={`seg-btn !text-[11.5px] ${activeTab === 'step' && activeStepIdx === i ? 'seg-btn-active' : 'bg-white border border-slate-200'}`}>
                     {s.step_name}
                   </button>
                 ))}
               </div>
+
+              {activeTab === 'fmsview' && (
+                loadingGrid || !grid ? (
+                  <div className="card p-10 text-center text-slate-400 text-[13px]">Loading sheet…</div>
+                ) : (
+                  <SheetGridView rows={grid.rows || []} headerRow={grid.headerRow} />
+                )
+              )}
+
+              {activeTab === 'pcview' && (
+                loadingPc || pcItems == null ? (
+                  <div className="card p-10 text-center text-slate-400 text-[13px]">Loading pending entries…</div>
+                ) : (
+                  <PcView items={pcItems} />
+                )
+              )}
 
               {step && (
                 <div className="card p-5">

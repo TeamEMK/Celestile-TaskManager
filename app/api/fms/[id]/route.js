@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/api';
+import { requireAdmin, requireUser } from '@/lib/api';
 import { getFmsSheet, getFullSteps, updateFmsSheet, deleteFmsSheet } from '@/lib/fmsSheet';
 
+// Read-only detail is open to any signed-in user (the FMS View / PC View
+// tabs need it too); editing/deleting below stays admin-only.
 export async function GET(req, { params }) {
-  const gate = await requireAdmin(); if (gate) return gate;
+  const gate = await requireUser(); if (gate) return gate;
   try {
     const { id } = await params;
     const sheet = await getFmsSheet(id);
