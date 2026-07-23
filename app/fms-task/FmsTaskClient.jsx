@@ -6,6 +6,8 @@ import FmsDoneModal from '../components/FmsDoneModal';
 export default function FmsTaskClient() {
   const { data: session } = useSession();
   const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
+  // null access list = "not configured" → default allow, mirrors canAccess()/requireAccess() server-side.
+  const canIntake = isAdmin || session?.user?.access == null || (session?.user?.access || []).includes('fms-intake');
 
   const [fmsList,      setFmsList]      = useState([]);
   const [loadingList,  setLoadingList]  = useState(true);
@@ -20,6 +22,9 @@ export default function FmsTaskClient() {
   const [trainSpeed,   setTrainSpeed]   = useState(18);
   const [trainPaused,  setTrainPaused]  = useState(false);
 
+  const [intakeFields, setIntakeFields] = useState([]);
+  const [showIntakeForm, setShowIntakeForm] = useState(false);
+
   useEffect(() => { loadList(); }, []);
 
   async function loadList() {
@@ -32,19 +37,25 @@ export default function FmsTaskClient() {
   }
 
   useEffect(() => {
-    if (!selectedId) { setSheet(null); setSteps([]); setActiveStep(null); setRowsData(null); return; }
+    if (!selectedId) { setSheet(null); setSteps([]); setActiveStep(null); setRowsData(null); setIntakeFields([]); return; }
     let cancelled = false;
     setLoadingSteps(true);
     setActiveStep(null);
     setRowsData(null);
+    setIntakeFields([]);
     fetch(`/api/fms-tasks/${selectedId}`).then((r) => r.json()).then((d) => {
       if (cancelled) return;
       setSheet(d.sheet || null);
       setSteps(d.steps || []);
       setLoadingSteps(false);
     }).catch(() => { if (!cancelled) setLoadingSteps(false); });
+    if (canIntake) {
+      fetch(`/api/fms-tasks/${selectedId}/intake`).then((r) => r.json()).then((d) => {
+        if (!cancelled) setIntakeFields(d.fields || []);
+      }).catch(() => {});
+    }
     return () => { cancelled = true; };
-  }, [selectedId]);
+  }, [selectedId, canIntake]);
 
   function selectStep(step) {
     if (!step.isMyStep) return;
@@ -100,6 +111,9 @@ export default function FmsTaskClient() {
         </select>
         {selectedId && (
           <button onClick={() => loadList()} className="btn-secondary !text-[12px]">Refresh List</button>
+        )}
+        {selectedId && intakeFields.length > 0 && (
+          <button onClick={() => setShowIntakeForm(true)} className="btn-primary !text-[12px]">+ New Entry</button>
         )}
       </div>
 
@@ -189,6 +203,85 @@ export default function FmsTaskClient() {
           fmsId={selectedId}
         />
       )}
+
+      {showIntakeForm && (
+        <IntakeFormModal
+          fmsId={selectedId}
+          fields={intakeFields}
+          onClose={() => setShowIntakeForm(false)}
+          onSaved={() => { setShowIntakeForm(false); if (activeStep) loadRows(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function IntakeFormModal({ fmsId, fields, onClose, onSaved }) {
+  const [values, setValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const setVal = (id, v) => setValues((s) => ({ ...s, [id]: v }));
+
+  async function submit() {
+    setErr('');
+    const missing = fields.find((f) => f.required && !String(values[f.id] || '').trim());
+    if (missing) { setErr(`"${missing.field_label || missing.col_letter}" is required`); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/fms-tasks/${fmsId}/intake`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(d.error || 'Failed to submit'); return; }
+      onSaved();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !saving && onClose()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">📋</div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-slate-900">New Entry</h2>
+            <p className="text-[12px] text-slate-500 mt-0.5">Submitting adds a new row to this FMS's connected sheet</p>
+          </div>
+          <button onClick={onClose} disabled={saving} className="btn-ghost w-8 h-8 !p-0 shrink-0">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-3">
+          {err && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{err}</div>}
+          {fields.map((f) => (
+            <div key={f.id}>
+              <label className="label">{f.field_label || f.col_letter}{f.required ? ' *' : ''}</label>
+              {f.field_type === 'dropdown' ? (
+                <select className="input" value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)}>
+                  <option value="">-- Select --</option>
+                  {(f.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean).map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="input"
+                  type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'link' ? 'url' : 'text'}
+                  value={values[f.id] || ''}
+                  onChange={(e) => setVal(f.id, e.target.value)}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+          <button className="btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? 'Submitting…' : 'Submit'}</button>
+        </div>
+      </div>
     </div>
   );
 }

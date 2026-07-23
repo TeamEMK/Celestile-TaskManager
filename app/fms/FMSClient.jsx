@@ -37,6 +37,14 @@ export default function FMSClient() {
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState('');
 
+  // Intake form ("starting form" that appends a brand-new row) config modal
+  const [showIntake, setShowIntake] = useState(false);
+  const [intakeFields, setIntakeFields] = useState([]);
+  const [intakeHeaders, setIntakeHeaders] = useState([]);
+  const [intakeHeadersLoading, setIntakeHeadersLoading] = useState(false);
+  const [intakeSaving, setIntakeSaving] = useState(false);
+  const [intakeErr, setIntakeErr] = useState('');
+
   useEffect(() => { loadSheets(); loadUsers(); }, []);
 
   async function loadUsers() {
@@ -110,6 +118,54 @@ export default function FMSClient() {
     setHeadersLoading(false);
     if (r.error) { setErr(r.error); return; }
     setHeaders(r.headers || []);
+  }
+
+  async function openIntake() {
+    if (!detail) return;
+    setIntakeErr('');
+    setShowIntake(true);
+    setIntakeHeaders([]);
+    setIntakeHeadersLoading(true);
+    const [fieldsRes, headersRes] = await Promise.all([
+      fetch(`/api/fms/${activeId}/intake-fields`).then((r) => r.json()).catch((e) => ({ error: e.message })),
+      fetch('/api/fms/fetch-headers', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetId: detail.sheet.sheet_id, sheetName: detail.sheet.sheet_name, headerRow: detail.sheet.header_row }),
+      }).then((r) => r.json()).catch((e) => ({ error: e.message })),
+    ]);
+    setIntakeHeadersLoading(false);
+    if (fieldsRes.error) { setIntakeErr(fieldsRes.error); return; }
+    if (headersRes.error) { setIntakeErr(headersRes.error); return; }
+    setIntakeFields((fieldsRes.fields || []).map((f) => ({
+      label: f.field_label || f.col_letter, col_letter: f.col_letter,
+      field_type: f.field_type || 'text', dropdown_options: f.dropdown_options || '',
+      required: f.required == null ? 1 : (f.required ? 1 : 0),
+    })));
+    setIntakeHeaders(headersRes.headers || []);
+  }
+  function closeIntake() { setShowIntake(false); setIntakeFields([]); setIntakeHeaders([]); }
+  function updateIntakeField(i, patch) {
+    setIntakeFields((fs) => fs.map((f, fi) => (fi === i ? { ...f, ...patch } : f)));
+  }
+  function addIntakeField() {
+    setIntakeFields((fs) => [...fs, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1 }]);
+  }
+  function removeIntakeField(i) {
+    setIntakeFields((fs) => fs.filter((_, fi) => fi !== i));
+  }
+  async function saveIntake() {
+    setIntakeErr('');
+    if (intakeFields.some((f) => !f.col_letter)) { setIntakeErr('Every field needs a column'); return; }
+    setIntakeSaving(true);
+    try {
+      const res = await fetch(`/api/fms/${activeId}/intake-fields`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: intakeFields }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setIntakeErr(d.error || 'Failed to save'); return; }
+      closeIntake();
+    } finally { setIntakeSaving(false); }
   }
 
   function updateStep(i, patch) {
@@ -215,6 +271,7 @@ export default function FMSClient() {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  <button className="btn-secondary !text-[12px]" onClick={openIntake}>📋 Intake Form</button>
                   <button className="btn-secondary !text-[12px]" onClick={openEdit}>✏️ Edit FMS</button>
                   <button className="btn-danger !text-[12px]" onClick={deleteSheet}>🗑 Delete</button>
                 </div>
@@ -323,6 +380,54 @@ export default function FMSClient() {
               <div className="flex gap-2">
                 <button className="btn-secondary" onClick={closeModal} disabled={saving}>Cancel</button>
                 <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : modal === 'edit' ? '💾 Save Changes' : '💾 Create FMS'}</button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showIntake && createPortal(
+        <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !intakeSaving && closeIntake()}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">📋</div>
+              <div className="flex-1">
+                <h2 className="text-base font-semibold text-slate-900">Intake Form</h2>
+                <p className="text-[12px] text-slate-500 mt-0.5">The "starting form" — submitting it appends a brand-new row to this FMS's sheet</p>
+              </div>
+              <button onClick={closeIntake} disabled={intakeSaving} className="btn-ghost w-8 h-8 !p-0 shrink-0">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3 overflow-y-auto flex-1">
+              {intakeErr && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{intakeErr}</div>}
+              {intakeHeadersLoading ? (
+                <div className="text-center text-slate-400 text-[13px] py-6">Loading…</div>
+              ) : (
+                <>
+                  {intakeFields.length === 0 && (
+                    <div className="text-[12.5px] text-slate-500">No fields yet — add one for each column you want on the form (e.g. Client Name, Contact Number, Lead Source).</div>
+                  )}
+                  <div className="space-y-2.5">
+                    {intakeFields.map((f, i) => (
+                      <ExtraRowConfig key={i} row={f} headers={intakeHeaders}
+                        onChange={(patch) => updateIntakeField(i, patch)}
+                        onRemove={() => removeIntakeField(i)}
+                      />
+                    ))}
+                  </div>
+                  <button type="button" className="btn-secondary !text-[11px]" onClick={addIntakeField}>+ Add Field</button>
+                </>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-between items-center shrink-0">
+              <span className="text-[11.5px] text-slate-400">{intakeFields.length} field{intakeFields.length === 1 ? '' : 's'}</span>
+              <div className="flex gap-2">
+                <button className="btn-secondary" onClick={closeIntake} disabled={intakeSaving}>Cancel</button>
+                <button className="btn-primary" onClick={saveIntake} disabled={intakeSaving || intakeHeadersLoading}>{intakeSaving ? 'Saving…' : '💾 Save'}</button>
               </div>
             </div>
           </div>
