@@ -34,6 +34,7 @@ const SECTIONS = [
   ]},
   { title: 'Operations', items: [
     { href: '/fms',           label: 'FMS Admin',     icon: 'fms',          flag: 'fms', adminOnly: true },
+    { href: '/fms-view',      label: 'FMS Tracker',   icon: 'fms',          flag: 'fms' },
     { href: '/masters',       label: 'Checklists',    icon: 'masters',      adminOnly: true, hidden: true },
     { href: '/client-master', label: 'Client Master', icon: 'clientmaster', adminOnly: true, hidden: true },
     { href: '/mis',           label: 'MIS Report',    icon: 'mis',          adminOnly: true },

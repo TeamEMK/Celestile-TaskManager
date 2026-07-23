@@ -22,6 +22,7 @@ export async function POST(req) {
     const id = await createFmsSheet({
       fmsName: body.fmsName, sheetName: body.sheetName, sheetId: body.sheetId,
       headerRow: body.headerRow, createdBy: user?.id, steps: body.steps || [],
+      processCoordinatorId: body.processCoordinatorId || null,
     });
     return NextResponse.json({ id }, { status: 201 });
   } catch (err) {

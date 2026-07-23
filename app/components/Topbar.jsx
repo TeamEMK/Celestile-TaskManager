@@ -9,7 +9,7 @@ const TITLES = {
   '/mis':            'MIS Report',
   '/masters':        'Checklists',
   '/fms':            'FMS Admin',
-  '/fms-task':       'FMS Task',
+  '/fms-view':       'FMS Tracker',
   '/profile':        'Profile',
   '/leave-tracker':  'Leave Tracker',
   '/daily-reports':  'Daily Reports',

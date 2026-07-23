@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'next/navigation';
 import { useConfirmToast } from '../components/ConfirmToast';
 
 const FIELD_TYPES = [
@@ -21,6 +22,7 @@ function blankStep() {
 
 export default function FMSClient() {
   const { ask, ConfirmUI } = useConfirmToast();
+  const searchParams = useSearchParams();
 
   const [sheets,      setSheets]      = useState([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -58,7 +60,11 @@ export default function FMSClient() {
     const arr = Array.isArray(list) ? list : [];
     setSheets(arr);
     setLoadingList(false);
-    if (!activeId && arr.length) setActiveId(arr[0].id);
+    if (activeId) return;
+    // Deep-link from the FMS Tracker list's "Edit" button (?edit=<id>).
+    const editId = searchParams.get('edit');
+    if (editId && arr.some((s) => s.id === editId)) setActiveId(editId);
+    else if (arr.length) setActiveId(arr[0].id);
   }
 
   useEffect(() => {
@@ -66,16 +72,18 @@ export default function FMSClient() {
     let cancelled = false;
     setLoadingDet(true);
     setActiveStepIdx(0);
+    const openEditAfterLoad = activeId === searchParams.get('edit');
     fetch(`/api/fms/${activeId}`).then((r) => r.json()).then((d) => {
       if (cancelled) return;
       setDetail(d);
       setLoadingDet(false);
+      if (openEditAfterLoad) setTimeout(() => openEdit(), 0);
     }).catch(() => { if (!cancelled) setLoadingDet(false); });
     return () => { cancelled = true; };
   }, [activeId]);
 
   function openAdd() {
-    setForm({ fmsName: '', sheetName: '', sheetId: '', headerRow: 1, steps: [blankStep()] });
+    setForm({ fmsName: '', sheetName: '', sheetId: '', headerRow: 1, processCoordinatorId: '', steps: [blankStep()] });
     setHeaders([]);
     setErr('');
     setModal('add');
@@ -87,6 +95,7 @@ export default function FMSClient() {
       fmsName: detail.sheet.fms_name || detail.sheet.sheet_name,
       sheetName: detail.sheet.sheet_name, sheetId: detail.sheet.sheet_id,
       headerRow: detail.sheet.header_row || 1,
+      processCoordinatorId: detail.sheet.process_coordinator_id || '',
       steps: detail.steps.map((s) => ({
         stepName: s.step_name,
         doers: s.doers.map((d) => d.user_id),
@@ -353,6 +362,13 @@ export default function FMSClient() {
                 <div>
                   <label className="label">Header Row</label>
                   <input type="number" min="1" className="input" value={form.headerRow} onChange={(e) => setForm((f) => ({ ...f, headerRow: Number(e.target.value) || 1 }))} />
+                </div>
+                <div>
+                  <label className="label">Process Coordinator</label>
+                  <select className="input" value={form.processCoordinatorId} onChange={(e) => setForm((f) => ({ ...f, processCoordinatorId: e.target.value }))}>
+                    <option value="">-- None --</option>
+                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
                 </div>
                 <div className="col-span-2">
                   <button className="btn-secondary w-full !text-[12px]" disabled={headersLoading || !form.sheetId.trim()}

@@ -25,6 +25,7 @@ export async function PUT(req, { params }) {
     await updateFmsSheet(id, {
       fmsName: body.fmsName, sheetName: body.sheetName, sheetId: body.sheetId,
       headerRow: body.headerRow, steps: body.steps || [],
+      processCoordinatorId: body.processCoordinatorId || null,
     });
     return NextResponse.json({ success: true });
   } catch (err) {
