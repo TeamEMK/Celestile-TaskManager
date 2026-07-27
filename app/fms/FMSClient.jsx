@@ -289,7 +289,7 @@ export default function FMSClient() {
         </div>
       ) : (
         <>
-          <div className="card p-0 overflow-hidden">
+          <div className="card p-0 overflow-x-auto">
             <table className="w-full text-[12.5px]">
               <thead>
                 <tr>
@@ -297,32 +297,32 @@ export default function FMSClient() {
                   <th className="table-th">Steps</th>
                   <th className="table-th">Pending</th>
                   <th className="table-th">Coordinator</th>
+                  <th className="table-th">Sheet</th>
+                  <th className="table-th text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {sheets.flatMap((s) => [
-                  <tr key={s.id} onClick={() => setActiveId(s.id)}
-                    className={`table-row cursor-pointer ${activeId === s.id ? 'bg-primary-50/60' : ''}`}>
-                    <td className="table-td font-semibold text-slate-800">{s.fms_name || s.sheet_name}</td>
-                    <td className="table-td">{s.totalSteps ?? 0}</td>
-                    <td className="table-td">{s.totalPending ?? 0}</td>
-                    <td className="table-td text-slate-500">{s.coordinatorName || '—'}</td>
-                  </tr>,
-                  activeId === s.id ? (
-                    <tr key={`${s.id}-actions`} className="bg-primary-50/30">
-                      <td colSpan={4} className="table-td !py-3">
-                        {loadingDet ? (
-                          <span className="text-slate-400 text-[12.5px]">Loading…</span>
-                        ) : detail && (
-                          <div className="flex items-center justify-between flex-wrap gap-3">
-                            {sheetUrl ? (
-                              <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-[12.5px] text-primary-600 hover:underline">
-                                🔗 {detail.sheet.sheet_name} ↗
-                              </a>
-                            ) : <span />}
-                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                {sheets.map((s) => {
+                  const isActive = activeId === s.id;
+                  return (
+                    <tr key={s.id} onClick={() => setActiveId(s.id)}
+                      className={`table-row cursor-pointer ${isActive ? 'bg-primary-50/60' : ''}`}>
+                      <td className="table-td font-semibold text-slate-800 whitespace-nowrap">{s.fms_name || s.sheet_name}</td>
+                      <td className="table-td">{s.totalSteps ?? 0}</td>
+                      <td className="table-td">{s.totalPending ?? 0}</td>
+                      <td className="table-td text-slate-500">{s.coordinatorName || '—'}</td>
+                      <td className="table-td whitespace-nowrap">
+                        {isActive && sheetUrl && (
+                          <a href={sheetUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                            className="text-primary-600 hover:underline">🔗 {detail?.sheet?.sheet_name} ↗</a>
+                        )}
+                      </td>
+                      <td className="table-td">
+                        {isActive && (
+                          loadingDet ? (
+                            <span className="text-slate-400 text-[12px]">Loading…</span>
+                          ) : detail && (
+                            <div className="flex gap-2 flex-wrap justify-end" onClick={(e) => e.stopPropagation()}>
                               <button className="btn-secondary !text-[12px]" onClick={togglePc}>👤 {showPc ? 'Hide' : ''} PC Report</button>
                               {canSubmitIntake && submitFields.length > 0 && (
                                 <button className="btn-primary !text-[12px]" onClick={() => setShowSubmitForm(true)}>📝 Submit Entry</button>
@@ -335,12 +335,12 @@ export default function FMSClient() {
                                 </>
                               )}
                             </div>
-                          </div>
+                          )
                         )}
                       </td>
                     </tr>
-                  ) : null,
-                ])}
+                  );
+                })}
               </tbody>
             </table>
           </div>
