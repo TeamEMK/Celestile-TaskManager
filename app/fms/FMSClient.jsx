@@ -3,7 +3,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
-import SheetGridView from './SheetGridView';
 import PcView from './PcView';
 
 const FIELD_TYPES = [
@@ -32,14 +31,11 @@ export default function FMSClient() {
   const [activeId,    setActiveId]    = useState(null);
   const [detail,      setDetail]      = useState(null);
   const [loadingDet,  setLoadingDet]  = useState(false);
-  const [activeTab,     setActiveTab]     = useState('fmsview'); // 'fmsview' | 'pcview' | 'step'
-  const [activeStepIdx, setActiveStepIdx] = useState(0);
   const [users,       setUsers]       = useState([]);
 
-  // FMS View (live sheet grid) + PC View (pending across all steps) — fetched
-  // on demand per FMS, reset whenever the selected FMS changes.
-  const [grid,       setGrid]       = useState(null);
-  const [loadingGrid, setLoadingGrid] = useState(false);
+  // PC Report (pending across every step) — fetched on demand the first time
+  // it's opened for a given FMS, reset whenever the selected FMS changes.
+  const [showPc,     setShowPc]     = useState(false);
   const [pcItems,    setPcItems]    = useState(null);
   const [loadingPc,  setLoadingPc]  = useState(false);
 
@@ -78,9 +74,7 @@ export default function FMSClient() {
     if (!activeId) { setDetail(null); return; }
     let cancelled = false;
     setLoadingDet(true);
-    setActiveStepIdx(0);
-    setActiveTab('fmsview');
-    setGrid(null);
+    setShowPc(false);
     setPcItems(null);
     fetch(`/api/fms/${activeId}`).then((r) => r.json()).then((d) => {
       if (cancelled) return;
@@ -90,22 +84,15 @@ export default function FMSClient() {
     return () => { cancelled = true; };
   }, [activeId]);
 
-  useEffect(() => {
-    if (!activeId) return;
-    if (activeTab === 'fmsview' && grid == null && !loadingGrid) {
-      setLoadingGrid(true);
-      fetch(`/api/fms/${activeId}/grid`).then((r) => r.json()).then((d) => {
-        setGrid(d); setLoadingGrid(false);
-      }).catch(() => setLoadingGrid(false));
-    }
-    if (activeTab === 'pcview' && pcItems == null && !loadingPc) {
+  function togglePc() {
+    setShowPc((v) => !v);
+    if (pcItems == null && !loadingPc) {
       setLoadingPc(true);
       fetch(`/api/fms/${activeId}/pc`).then((r) => r.json()).then((d) => {
         setPcItems(d.items || []); setLoadingPc(false);
       }).catch(() => setLoadingPc(false));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, activeId]);
+  }
 
   function openAdd() {
     setForm({ fmsName: '', sheetName: '', sheetId: '', headerRow: 1, processCoordinatorId: '', steps: [blankStep()] });
@@ -259,8 +246,8 @@ export default function FMSClient() {
     });
   }
 
-  const step = activeTab === 'step' ? detail?.steps?.[activeStepIdx] : null;
   const activeSheetStats = sheets.find((s) => s.id === activeId);
+  const sheetUrl = detail?.sheet?.sheet_id ? `https://docs.google.com/spreadsheets/d/${detail.sheet.sheet_id}/edit` : null;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -300,81 +287,39 @@ export default function FMSClient() {
             <div className="card p-10 text-center text-slate-400 text-[13px]">Loading…</div>
           ) : detail && (
             <>
-              <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
+              <div className="card p-5 flex items-center justify-between flex-wrap gap-3">
                 <div>
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Sheet Info</div>
-                  <div className="text-[12.5px] text-slate-700 mt-0.5">
-                    <b>{detail.sheet.sheet_name}</b> · Sheet ID: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">{detail.sheet.sheet_id}</code> · Header Row: {detail.sheet.header_row}
-                  </div>
+                  <div className="text-[16px] font-semibold text-slate-900">{detail.sheet.fms_name || detail.sheet.sheet_name}</div>
+                  {sheetUrl && (
+                    <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
+                      className="text-[12.5px] text-primary-600 hover:underline mt-0.5 inline-block">
+                      🔗 {detail.sheet.sheet_name} ↗
+                    </a>
+                  )}
                   <div className="text-[12.5px] text-slate-500 mt-1">
                     {activeSheetStats?.totalSteps ?? detail.steps.length} step{(activeSheetStats?.totalSteps ?? detail.steps.length) === 1 ? '' : 's'}
-                    {' · '}{activeSheetStats?.totalEntries ?? 0} entries
+                    {' · '}{activeSheetStats?.totalPending ?? 0} pending
                     {activeSheetStats?.coordinatorName && <> · Coordinator: <b>{activeSheetStats.coordinatorName}</b></>}
                   </div>
                 </div>
-                {isAdmin && (
-                  <div className="flex gap-2">
-                    <button className="btn-secondary !text-[12px]" onClick={openIntake}>📋 Intake Form</button>
-                    <button className="btn-secondary !text-[12px]" onClick={openEdit}>✏️ Edit FMS</button>
-                    <button className="btn-danger !text-[12px]" onClick={deleteSheet}>🗑 Delete</button>
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <button className="btn-secondary !text-[12px]" onClick={togglePc}>👤 {showPc ? 'Hide' : ''} PC Report</button>
+                  {isAdmin && (
+                    <>
+                      <button className="btn-secondary !text-[12px]" onClick={openIntake}>📋 Intake Form</button>
+                      <button className="btn-secondary !text-[12px]" onClick={openEdit}>✏️ Edit</button>
+                      <button className="btn-danger !text-[12px]" onClick={deleteSheet}>🗑 Delete</button>
+                    </>
+                  )}
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
-                <button onClick={() => setActiveTab('fmsview')}
-                  className={`seg-btn !text-[11.5px] ${activeTab === 'fmsview' ? 'seg-btn-active' : 'bg-white border border-slate-200'}`}>📄 FMS View</button>
-                <button onClick={() => setActiveTab('pcview')}
-                  className={`seg-btn !text-[11.5px] ${activeTab === 'pcview' ? 'seg-btn-active' : 'bg-white border border-slate-200'}`}>👤 PC View</button>
-                {detail.steps.map((s, i) => (
-                  <button key={s.id} onClick={() => { setActiveTab('step'); setActiveStepIdx(i); }}
-                    className={`seg-btn !text-[11.5px] ${activeTab === 'step' && activeStepIdx === i ? 'seg-btn-active' : 'bg-white border border-slate-200'}`}>
-                    {s.step_name}
-                  </button>
-                ))}
-              </div>
-
-              {activeTab === 'fmsview' && (
-                loadingGrid || !grid ? (
-                  <div className="card p-10 text-center text-slate-400 text-[13px]">Loading sheet…</div>
-                ) : (
-                  <SheetGridView rows={grid.rows || []} headerRow={grid.headerRow} />
-                )
-              )}
-
-              {activeTab === 'pcview' && (
+              {showPc && (
                 loadingPc || pcItems == null ? (
                   <div className="card p-10 text-center text-slate-400 text-[13px]">Loading pending entries…</div>
                 ) : (
                   <PcView items={pcItems} />
                 )
-              )}
-
-              {step && (
-                <div className="card p-5">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Detail label="Step Name" value={step.step_name} />
-                    <Detail label="Step Doer(s)" value={step.doers.map((d) => d.name).join(', ') || '—'} />
-                    <Detail label="Plan Column" value={step.plan_col || '—'} />
-                    <Detail label="Actual Column" value={step.actual_col || '—'} />
-                    <Detail label="Delay Reason Column" value={step.delay_reason_col || '—'} />
-                    <Detail label="Doer Name Column" value={step.doer_name_col || '—'} />
-                  </div>
-                  {step.extraRows?.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-slate-100">
-                      <div className="label !mb-2">Extra Input Fields</div>
-                      <div className="space-y-1">
-                        {step.extraRows.map((r) => (
-                          <div key={r.id} className="text-[12.5px] text-slate-600">• {r.row_label || r.col_letter} <span className="text-slate-400">(COL {r.col_letter}, {r.field_type})</span></div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex gap-2 mt-4 pt-3 border-t border-slate-100">
-                    {activeStepIdx > 0 && <button className="btn-secondary !text-[12px]" onClick={() => setActiveStepIdx((i) => i - 1)}>← Prev Step</button>}
-                    {activeStepIdx < detail.steps.length - 1 && <button className="btn-primary !text-[12px]" onClick={() => setActiveStepIdx((i) => i + 1)}>Next Step →</button>}
-                  </div>
-                </div>
               )}
             </>
           )}
@@ -687,15 +632,6 @@ function ExtraRowConfig({ row, headers, onChange, onRemove }) {
       {row.field_type === 'dropdown' && (
         <input className="input !text-[11.5px] col-span-5" value={row.dropdown_options} onChange={(e) => onChange({ dropdown_options: e.target.value })} placeholder="Comma-separated options e.g. Yes,No,Partial" />
       )}
-    </div>
-  );
-}
-
-function Detail({ label, value }) {
-  return (
-    <div>
-      <div className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide">{label}</div>
-      <div className="text-[13px] text-slate-800 mt-1">{value}</div>
     </div>
   );
 }
