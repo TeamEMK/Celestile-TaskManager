@@ -25,6 +25,8 @@ export default function FMSClient() {
   const { ask, ConfirmUI } = useConfirmToast();
   const { data: session } = useSession();
   const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
+  // access list null/unconfigured → default allow, same rule as canAccess()/canSee() in lib/pages.js
+  const canSubmitIntake = isAdmin || session?.user?.access == null || (session?.user?.access || []).includes('fms-intake');
 
   const [sheets,      setSheets]      = useState([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -54,6 +56,13 @@ export default function FMSClient() {
   const [intakeSaving, setIntakeSaving] = useState(false);
   const [intakeErr, setIntakeErr] = useState('');
 
+  // Intake form SUBMIT (fill it in + append a row) — separate from the admin
+  // config modal above. submitFields is fetched per FMS just to know whether
+  // a form is configured at all (and to render it), gated server-side by
+  // requireAccess('fms-intake') on GET /api/fms-tasks/[id]/intake.
+  const [submitFields, setSubmitFields] = useState([]);
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
+
   useEffect(() => { loadSheets(); loadUsers(); }, []);
 
   async function loadUsers() {
@@ -76,22 +85,29 @@ export default function FMSClient() {
     setLoadingDet(true);
     setShowPc(false);
     setPcItems(null);
+    setSubmitFields([]);
     fetch(`/api/fms/${activeId}`).then((r) => r.json()).then((d) => {
       if (cancelled) return;
       setDetail(d);
       setLoadingDet(false);
     }).catch(() => { if (!cancelled) setLoadingDet(false); });
+    if (canSubmitIntake) {
+      fetch(`/api/fms-tasks/${activeId}/intake`).then((r) => r.json()).then((d) => {
+        if (!cancelled) setSubmitFields(d.fields || []);
+      }).catch(() => {});
+    }
     return () => { cancelled = true; };
-  }, [activeId]);
+  }, [activeId, canSubmitIntake]);
 
+  function loadPc() {
+    setLoadingPc(true);
+    fetch(`/api/fms/${activeId}/pc`).then((r) => r.json()).then((d) => {
+      setPcItems(d.items || []); setLoadingPc(false);
+    }).catch(() => setLoadingPc(false));
+  }
   function togglePc() {
     setShowPc((v) => !v);
-    if (pcItems == null && !loadingPc) {
-      setLoadingPc(true);
-      fetch(`/api/fms/${activeId}/pc`).then((r) => r.json()).then((d) => {
-        setPcItems(d.items || []); setLoadingPc(false);
-      }).catch(() => setLoadingPc(false));
-    }
+    if (pcItems == null && !loadingPc) loadPc();
   }
 
   function openAdd() {
@@ -274,13 +290,28 @@ export default function FMSClient() {
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap gap-2">
-            {sheets.map((s) => (
-              <button key={s.id} onClick={() => setActiveId(s.id)}
-                className={`seg-btn ${activeId === s.id ? 'seg-btn-active' : 'bg-white border border-slate-200'}`}>
-                {s.fms_name || s.sheet_name}
-              </button>
-            ))}
+          <div className="card p-0 overflow-hidden">
+            <table className="w-full text-[12.5px]">
+              <thead>
+                <tr>
+                  <th className="table-th">FMS Name</th>
+                  <th className="table-th">Steps</th>
+                  <th className="table-th">Pending</th>
+                  <th className="table-th">Coordinator</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sheets.map((s) => (
+                  <tr key={s.id} onClick={() => setActiveId(s.id)}
+                    className={`table-row cursor-pointer ${activeId === s.id ? 'bg-primary-50/60' : ''}`}>
+                    <td className="table-td font-semibold text-slate-800">{s.fms_name || s.sheet_name}</td>
+                    <td className="table-td">{s.totalSteps ?? 0}</td>
+                    <td className="table-td">{s.totalPending ?? 0}</td>
+                    <td className="table-td text-slate-500">{s.coordinatorName || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {loadingDet ? (
@@ -304,6 +335,9 @@ export default function FMSClient() {
                 </div>
                 <div className="flex gap-2">
                   <button className="btn-secondary !text-[12px]" onClick={togglePc}>👤 {showPc ? 'Hide' : ''} PC Report</button>
+                  {canSubmitIntake && submitFields.length > 0 && (
+                    <button className="btn-primary !text-[12px]" onClick={() => setShowSubmitForm(true)}>📝 Submit Entry</button>
+                  )}
                   {isAdmin && (
                     <>
                       <button className="btn-secondary !text-[12px]" onClick={openIntake}>📋 Intake Form</button>
@@ -448,6 +482,16 @@ export default function FMSClient() {
             </div>
           </div>
         </div>,
+        document.body
+      )}
+
+      {showSubmitForm && createPortal(
+        <IntakeFormModal
+          fmsId={activeId}
+          fields={submitFields}
+          onClose={() => setShowSubmitForm(false)}
+          onSaved={() => { setShowSubmitForm(false); if (showPc) loadPc(); }}
+        />,
         document.body
       )}
     </div>
@@ -632,6 +676,79 @@ function ExtraRowConfig({ row, headers, onChange, onRemove }) {
       {row.field_type === 'dropdown' && (
         <input className="input !text-[11.5px] col-span-5" value={row.dropdown_options} onChange={(e) => onChange({ dropdown_options: e.target.value })} placeholder="Comma-separated options e.g. Yes,No,Partial" />
       )}
+    </div>
+  );
+}
+
+// Fill-in-and-submit form for the intake fields an admin configured — appends
+// a brand-new row to the FMS's connected sheet. Distinct from the admin
+// config modal above (that one edits which fields exist; this one fills them in).
+function IntakeFormModal({ fmsId, fields, onClose, onSaved }) {
+  const [values, setValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const setVal = (id, v) => setValues((s) => ({ ...s, [id]: v }));
+
+  async function submit() {
+    setErr('');
+    const missing = fields.find((f) => f.required && !String(values[f.id] || '').trim());
+    if (missing) { setErr(`"${missing.field_label || missing.col_letter}" is required`); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/fms-tasks/${fmsId}/intake`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(d.error || 'Failed to submit'); return; }
+      onSaved();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !saving && onClose()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">📝</div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-slate-900">New Entry</h2>
+            <p className="text-[12px] text-slate-500 mt-0.5">Submitting adds a new row to this FMS's connected sheet</p>
+          </div>
+          <button onClick={onClose} disabled={saving} className="btn-ghost w-8 h-8 !p-0 shrink-0">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-3">
+          {err && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{err}</div>}
+          {fields.map((f) => (
+            <div key={f.id}>
+              <label className="label">{f.field_label || f.col_letter}{f.required ? ' *' : ''}</label>
+              {f.field_type === 'dropdown' ? (
+                <select className="input" value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)}>
+                  <option value="">-- Select --</option>
+                  {(f.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean).map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="input"
+                  type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'link' ? 'url' : 'text'}
+                  value={values[f.id] || ''}
+                  onChange={(e) => setVal(f.id, e.target.value)}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+          <button className="btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? 'Submitting…' : 'Submit'}</button>
+        </div>
+      </div>
     </div>
   );
 }
