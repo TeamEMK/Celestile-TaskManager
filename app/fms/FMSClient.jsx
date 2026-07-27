@@ -262,7 +262,6 @@ export default function FMSClient() {
     });
   }
 
-  const activeSheetStats = sheets.find((s) => s.id === activeId);
   const sheetUrl = detail?.sheet?.sheet_id ? `https://docs.google.com/spreadsheets/d/${detail.sheet.sheet_id}/edit` : null;
 
   return (
@@ -318,21 +317,13 @@ export default function FMSClient() {
             <div className="card p-10 text-center text-slate-400 text-[13px]">Loading…</div>
           ) : detail && (
             <>
-              <div className="card p-5 flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <div className="text-[16px] font-semibold text-slate-900">{detail.sheet.fms_name || detail.sheet.sheet_name}</div>
-                  {sheetUrl && (
-                    <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-[12.5px] text-primary-600 hover:underline mt-0.5 inline-block">
-                      🔗 {detail.sheet.sheet_name} ↗
-                    </a>
-                  )}
-                  <div className="text-[12.5px] text-slate-500 mt-1">
-                    {activeSheetStats?.totalSteps ?? detail.steps.length} step{(activeSheetStats?.totalSteps ?? detail.steps.length) === 1 ? '' : 's'}
-                    {' · '}{activeSheetStats?.totalPending ?? 0} pending
-                    {activeSheetStats?.coordinatorName && <> · Coordinator: <b>{activeSheetStats.coordinatorName}</b></>}
-                  </div>
-                </div>
+              <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
+                {sheetUrl ? (
+                  <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-[12.5px] text-primary-600 hover:underline">
+                    🔗 {detail.sheet.fms_name || detail.sheet.sheet_name} — {detail.sheet.sheet_name} ↗
+                  </a>
+                ) : <span />}
                 <div className="flex gap-2">
                   <button className="btn-secondary !text-[12px]" onClick={togglePc}>👤 {showPc ? 'Hide' : ''} PC Report</button>
                   {canSubmitIntake && submitFields.length > 0 && (
