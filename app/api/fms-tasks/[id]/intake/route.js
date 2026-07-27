@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAccess } from '@/lib/api';
-import { getFmsSheet, getIntakeFields, submitIntakeRow } from '@/lib/fmsSheet';
+import { getFmsSheet, getIntakeFields, submitIntakeRow, effectiveIntakeSheet } from '@/lib/fmsSheet';
 
 // GET the configured intake-form fields, for rendering the "+ New Entry" form.
 export async function GET(req, { params }) {
@@ -27,7 +27,7 @@ export async function POST(req, { params }) {
     const fields = await getIntakeFields(id);
     if (!fields.length) return NextResponse.json({ error: 'No intake form configured for this FMS' }, { status: 400 });
 
-    await submitIntakeRow(sheet, fields, values || {});
+    await submitIntakeRow(effectiveIntakeSheet(sheet), fields, values || {});
     return NextResponse.json({ success: true });
   } catch (err) {
     const code = err?.code || err?.response?.status;

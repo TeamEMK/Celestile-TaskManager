@@ -48,9 +48,15 @@ export default function FMSClient() {
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState('');
 
-  // Intake form ("starting form" that appends a brand-new row) config modal
+  // Intake form ("starting form" that appends a brand-new row) config modal.
+  // Can target a different sheet/tab/header-row than the FMS's own tracking
+  // sheet — intakeSheetId/Name/HeaderRow default to the FMS's own sheet but
+  // are editable, and blank out to "use the FMS's sheet" when cleared.
   const [showIntake, setShowIntake] = useState(false);
   const [intakeFields, setIntakeFields] = useState([]);
+  const [intakeSheetId, setIntakeSheetId] = useState('');
+  const [intakeSheetName, setIntakeSheetName] = useState('');
+  const [intakeHeaderRow, setIntakeHeaderRow] = useState(1);
   const [intakeHeaders, setIntakeHeaders] = useState([]);
   const [intakeHeadersLoading, setIntakeHeadersLoading] = useState(false);
   const [intakeSaving, setIntakeSaving] = useState(false);
@@ -163,24 +169,33 @@ export default function FMSClient() {
     setShowIntake(true);
     setIntakeHeaders([]);
     setIntakeHeadersLoading(true);
-    const [fieldsRes, headersRes] = await Promise.all([
-      fetch(`/api/fms/${activeId}/intake-fields`).then((r) => r.json()).catch((e) => ({ error: e.message })),
-      fetch('/api/fms/fetch-headers', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetId: detail.sheet.sheet_id, sheetName: detail.sheet.sheet_name, headerRow: detail.sheet.header_row }),
-      }).then((r) => r.json()).catch((e) => ({ error: e.message })),
-    ]);
-    setIntakeHeadersLoading(false);
-    if (fieldsRes.error) { setIntakeErr(fieldsRes.error); return; }
-    if (headersRes.error) { setIntakeErr(headersRes.error); return; }
+    const fieldsRes = await fetch(`/api/fms/${activeId}/intake-fields`).then((r) => r.json()).catch((e) => ({ error: e.message }));
+    if (fieldsRes.error) { setIntakeHeadersLoading(false); setIntakeErr(fieldsRes.error); return; }
     setIntakeFields((fieldsRes.fields || []).map((f) => ({
       label: f.field_label || f.col_letter, col_letter: f.col_letter,
       field_type: f.field_type || 'text', dropdown_options: f.dropdown_options || '',
       required: f.required == null ? 1 : (f.required ? 1 : 0),
     })));
-    setIntakeHeaders(headersRes.headers || []);
+    const sId = fieldsRes.intakeSheetId || detail.sheet.sheet_id;
+    const sName = fieldsRes.intakeSheetName || detail.sheet.sheet_name;
+    const hRow = fieldsRes.intakeHeaderRow || detail.sheet.header_row || 1;
+    setIntakeSheetId(sId); setIntakeSheetName(sName); setIntakeHeaderRow(hRow);
+    await fetchIntakeHeaders(sId, sName, hRow);
   }
-  function closeIntake() { setShowIntake(false); setIntakeFields([]); setIntakeHeaders([]); }
+  async function fetchIntakeHeaders(sheetId, sheetName, headerRow) {
+    setIntakeHeadersLoading(true);
+    const r = await fetch('/api/fms/fetch-headers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetId, sheetName, headerRow }),
+    }).then((res) => res.json()).catch((e) => ({ error: e.message }));
+    setIntakeHeadersLoading(false);
+    if (r.error) { setIntakeErr(r.error); return; }
+    setIntakeHeaders(r.headers || []);
+  }
+  function closeIntake() {
+    setShowIntake(false); setIntakeFields([]); setIntakeHeaders([]);
+    setIntakeSheetId(''); setIntakeSheetName(''); setIntakeHeaderRow(1);
+  }
   function updateIntakeField(i, patch) {
     setIntakeFields((fs) => fs.map((f, fi) => (fi === i ? { ...f, ...patch } : f)));
   }
@@ -192,12 +207,16 @@ export default function FMSClient() {
   }
   async function saveIntake() {
     setIntakeErr('');
+    if (!intakeSheetId.trim() || !intakeSheetName.trim()) { setIntakeErr('Sheet ID and Tab Name are required'); return; }
     if (intakeFields.some((f) => !f.col_letter)) { setIntakeErr('Every field needs a column'); return; }
     setIntakeSaving(true);
     try {
       const res = await fetch(`/api/fms/${activeId}/intake-fields`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: intakeFields }),
+        body: JSON.stringify({
+          fields: intakeFields,
+          intakeSheetId, intakeSheetName, intakeHeaderRow,
+        }),
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setIntakeErr(d.error || 'Failed to save'); return; }
@@ -439,33 +458,49 @@ export default function FMSClient() {
               <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">📋</div>
               <div className="flex-1">
                 <h2 className="text-base font-semibold text-slate-900">Intake Form</h2>
-                <p className="text-[12px] text-slate-500 mt-0.5">The "starting form" — submitting it appends a brand-new row to this FMS's sheet</p>
+                <p className="text-[12px] text-slate-500 mt-0.5">The "starting form" — submitting it appends a brand-new row to the sheet configured below</p>
               </div>
               <button onClick={closeIntake} disabled={intakeSaving} className="btn-ghost w-8 h-8 !p-0 shrink-0">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
               </button>
             </div>
 
-            <div className="p-6 space-y-3 overflow-y-auto flex-1">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               {intakeErr && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{intakeErr}</div>}
-              {intakeHeadersLoading ? (
-                <div className="text-center text-slate-400 text-[13px] py-6">Loading…</div>
-              ) : (
-                <>
-                  {intakeFields.length === 0 && (
-                    <div className="text-[12.5px] text-slate-500">No fields yet — add one for each column you want on the form (e.g. Client Name, Contact Number, Lead Source).</div>
-                  )}
-                  <div className="space-y-2.5">
-                    {intakeFields.map((f, i) => (
-                      <ExtraRowConfig key={i} row={f} headers={intakeHeaders}
-                        onChange={(patch) => updateIntakeField(i, patch)}
-                        onRemove={() => removeIntakeField(i)}
-                      />
-                    ))}
-                  </div>
-                  <button type="button" className="btn-secondary !text-[11px]" onClick={addIntakeField}>+ Add Field</button>
-                </>
+
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="label">Google Sheet ID <span className="text-slate-400 font-normal normal-case">(or full URL) — defaults to this FMS's own sheet, change to submit into a different one</span></label>
+                  <input className="input" value={intakeSheetId} onChange={(e) => setIntakeSheetId(e.target.value)} placeholder="Sheet ID or full URL" />
+                </div>
+                <div>
+                  <label className="label">Google Sheet Tab Name</label>
+                  <input className="input" value={intakeSheetName} onChange={(e) => setIntakeSheetName(e.target.value)} placeholder="e.g. Sheet1" />
+                </div>
+                <div>
+                  <label className="label">Header Row</label>
+                  <input type="number" min="1" className="input" value={intakeHeaderRow} onChange={(e) => setIntakeHeaderRow(Number(e.target.value) || 1)} />
+                </div>
+                <div className="col-span-2">
+                  <button className="btn-secondary w-full !text-[12px]" disabled={intakeHeadersLoading || !intakeSheetId.trim()}
+                    onClick={() => fetchIntakeHeaders(intakeSheetId, intakeSheetName, intakeHeaderRow)}>
+                    {intakeHeadersLoading ? 'Fetching…' : intakeHeaders.length ? `✅ ${intakeHeaders.length} columns loaded — click to refetch` : '🔍 Fetch Column Headers'}
+                  </button>
+                </div>
+              </div>
+
+              {intakeFields.length === 0 && !intakeHeadersLoading && (
+                <div className="text-[12.5px] text-slate-500">No fields yet — add one for each column you want on the form (e.g. Client Name, Contact Number, Lead Source).</div>
               )}
+              <div className="space-y-2.5">
+                {intakeFields.map((f, i) => (
+                  <ExtraRowConfig key={i} row={f} headers={intakeHeaders}
+                    onChange={(patch) => updateIntakeField(i, patch)}
+                    onRemove={() => removeIntakeField(i)}
+                  />
+                ))}
+              </div>
+              <button type="button" className="btn-secondary !text-[11px]" onClick={addIntakeField}>+ Add Field</button>
             </div>
 
             <div className="px-6 py-4 border-t border-slate-100 flex justify-between items-center shrink-0">
