@@ -300,53 +300,57 @@ export default function FMSClient() {
                 </tr>
               </thead>
               <tbody>
-                {sheets.map((s) => (
+                {sheets.flatMap((s) => [
                   <tr key={s.id} onClick={() => setActiveId(s.id)}
                     className={`table-row cursor-pointer ${activeId === s.id ? 'bg-primary-50/60' : ''}`}>
                     <td className="table-td font-semibold text-slate-800">{s.fms_name || s.sheet_name}</td>
                     <td className="table-td">{s.totalSteps ?? 0}</td>
                     <td className="table-td">{s.totalPending ?? 0}</td>
                     <td className="table-td text-slate-500">{s.coordinatorName || '—'}</td>
-                  </tr>
-                ))}
+                  </tr>,
+                  activeId === s.id ? (
+                    <tr key={`${s.id}-actions`} className="bg-primary-50/30">
+                      <td colSpan={4} className="table-td !py-3">
+                        {loadingDet ? (
+                          <span className="text-slate-400 text-[12.5px]">Loading…</span>
+                        ) : detail && (
+                          <div className="flex items-center justify-between flex-wrap gap-3">
+                            {sheetUrl ? (
+                              <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[12.5px] text-primary-600 hover:underline">
+                                🔗 {detail.sheet.sheet_name} ↗
+                              </a>
+                            ) : <span />}
+                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                              <button className="btn-secondary !text-[12px]" onClick={togglePc}>👤 {showPc ? 'Hide' : ''} PC Report</button>
+                              {canSubmitIntake && submitFields.length > 0 && (
+                                <button className="btn-primary !text-[12px]" onClick={() => setShowSubmitForm(true)}>📝 Submit Entry</button>
+                              )}
+                              {isAdmin && (
+                                <>
+                                  <button className="btn-secondary !text-[12px]" onClick={openIntake}>📋 Intake Form</button>
+                                  <button className="btn-secondary !text-[12px]" onClick={openEdit}>✏️ Edit</button>
+                                  <button className="btn-danger !text-[12px]" onClick={deleteSheet}>🗑 Delete</button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ) : null,
+                ])}
               </tbody>
             </table>
           </div>
 
-          {loadingDet ? (
-            <div className="card p-10 text-center text-slate-400 text-[13px]">Loading…</div>
-          ) : detail && (
-            <>
-              <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
-                {sheetUrl ? (
-                  <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-[12.5px] text-primary-600 hover:underline">
-                    🔗 {detail.sheet.fms_name || detail.sheet.sheet_name} — {detail.sheet.sheet_name} ↗
-                  </a>
-                ) : <span />}
-                <div className="flex gap-2">
-                  <button className="btn-secondary !text-[12px]" onClick={togglePc}>👤 {showPc ? 'Hide' : ''} PC Report</button>
-                  {canSubmitIntake && submitFields.length > 0 && (
-                    <button className="btn-primary !text-[12px]" onClick={() => setShowSubmitForm(true)}>📝 Submit Entry</button>
-                  )}
-                  {isAdmin && (
-                    <>
-                      <button className="btn-secondary !text-[12px]" onClick={openIntake}>📋 Intake Form</button>
-                      <button className="btn-secondary !text-[12px]" onClick={openEdit}>✏️ Edit</button>
-                      <button className="btn-danger !text-[12px]" onClick={deleteSheet}>🗑 Delete</button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {showPc && (
-                loadingPc || pcItems == null ? (
-                  <div className="card p-10 text-center text-slate-400 text-[13px]">Loading pending entries…</div>
-                ) : (
-                  <PcView items={pcItems} />
-                )
-              )}
-            </>
+          {showPc && (
+            loadingPc || pcItems == null ? (
+              <div className="card p-10 text-center text-slate-400 text-[13px]">Loading pending entries…</div>
+            ) : (
+              <PcView items={pcItems} />
+            )
           )}
         </>
       )}
