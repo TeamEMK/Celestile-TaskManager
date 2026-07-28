@@ -298,9 +298,9 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                   {filtered.map((t) => (
                     <tr key={t.id} className="table-row">
                       <td className="table-td"><TypePill type={t.type} /></td>
-                      <td className="table-td max-w-[260px] font-medium text-slate-800" title={t.description}>
+                      <td className={`table-td ${t.type === 'FMS' ? 'max-w-[380px]' : 'max-w-[260px]'} font-medium text-slate-800`} title={t.type === 'FMS' ? '' : t.description}>
                         <div className="flex items-start gap-1.5">
-                          <span className="truncate block">{t.description}</span>
+                          <span className={t.type === 'FMS' ? 'block' : 'truncate block'}>{t.description}</span>
                           {t.url && (
                             <a href={t.url} target="_blank" rel="noopener noreferrer" title={t.url}
                               className="shrink-0 text-primary-500 hover:text-primary-700 mt-0.5">
@@ -318,6 +318,13 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                             </a>
                           )}
                         </div>
+                        {t.type === 'FMS' && t.details?.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+                            {t.details.map(({ header, value }) => (
+                              <span key={header}><span className="font-semibold text-slate-600">{header}:</span> {value || '—'}</span>
+                            ))}
+                          </div>
+                        )}
                         {t.transferredFrom && (
                           <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium border border-amber-100 mt-1" title={t.transferredBy ? `Transferred by ${t.transferredBy}` : ''}>🔄 from {t.transferredFrom}</span>
                         )}
@@ -360,7 +367,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                             )
                           ) : (
                             <>
-                              {(!isAdmin || t.doer === userName) && (
+                              {(t.type === 'FMS' || !isAdmin || t.doer === userName) && (
                                 <button onClick={() => handleDoneClick(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">✓ Done</button>
                               )}
                               {t.type === 'Delegation' && (
