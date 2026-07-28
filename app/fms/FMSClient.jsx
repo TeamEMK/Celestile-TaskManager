@@ -87,6 +87,17 @@ export default function FMSClient() {
     if (!activeId && arr.length) setActiveId(arr[0].id);
   }
 
+  // Also called right after saving the Intake Form config, so "Submit Entry"
+  // reflects field/auto-fill changes immediately instead of showing the
+  // stale list fetched on the last activeId switch.
+  function loadSubmitFields() {
+    if (!activeId || !canSubmitIntake) return;
+    fetch(`/api/fms-tasks/${activeId}/intake`).then((r) => r.json()).then((d) => {
+      setSubmitFields(d.fields || []);
+      setSubmitFormName(d.formName || '');
+    }).catch(() => {});
+  }
+
   useEffect(() => {
     if (!activeId) { setDetail(null); return; }
     let cancelled = false;
@@ -228,7 +239,7 @@ export default function FMSClient() {
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setIntakeErr(d.error || 'Failed to save'); return; }
       closeIntake();
-      setSubmitFormName(intakeFormName);
+      loadSubmitFields();
     } finally { setIntakeSaving(false); }
   }
 
@@ -461,7 +472,7 @@ export default function FMSClient() {
 
       {showIntake && createPortal(
         <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !intakeSaving && closeIntake()}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0">
               <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">📋</div>
               <div className="flex-1">
