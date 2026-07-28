@@ -179,6 +179,7 @@ export default function FMSClient() {
       label: f.field_label || f.col_letter, col_letter: f.col_letter,
       field_type: f.field_type || 'text', dropdown_options: f.dropdown_options || '',
       required: f.required == null ? 1 : (f.required ? 1 : 0),
+      auto_fill: f.auto_fill || '', auto_fill_value: f.auto_fill_value || '',
     })));
     const sId = fieldsRes.intakeSheetId || detail.sheet.sheet_id;
     const sName = fieldsRes.intakeSheetName || detail.sheet.sheet_name;
@@ -206,7 +207,7 @@ export default function FMSClient() {
     setIntakeFields((fs) => fs.map((f, fi) => (fi === i ? { ...f, ...patch } : f)));
   }
   function addIntakeField() {
-    setIntakeFields((fs) => [...fs, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1 }]);
+    setIntakeFields((fs) => [...fs, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1, auto_fill: '', auto_fill_value: '' }]);
   }
   function removeIntakeField(i) {
     setIntakeFields((fs) => fs.filter((_, fi) => fi !== i));
@@ -505,7 +506,7 @@ export default function FMSClient() {
               )}
               <div className="space-y-2.5">
                 {intakeFields.map((f, i) => (
-                  <ExtraRowConfig key={i} row={f} headers={intakeHeaders}
+                  <ExtraRowConfig key={i} row={f} headers={intakeHeaders} showAutoFill
                     onChange={(patch) => updateIntakeField(i, patch)}
                     onRemove={() => removeIntakeField(i)}
                   />
@@ -692,9 +693,10 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
   );
 }
 
-function ExtraRowConfig({ row, headers, onChange, onRemove }) {
+function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill }) {
+  const gridCols = showAutoFill ? 'grid-cols-[1fr_1fr_1fr_1fr_auto_auto]' : 'grid-cols-[1fr_1fr_1fr_auto_auto]';
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-2.5 grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-2 items-start">
+    <div className={`bg-white border border-slate-200 rounded-lg p-2.5 grid ${gridCols} gap-2 items-start`}>
       {headers.length ? (
         <select className="input !text-[11.5px]" value={row.col_letter} onChange={(e) => {
           const h = headers.find((x) => x.col === e.target.value);
@@ -710,13 +712,24 @@ function ExtraRowConfig({ row, headers, onChange, onRemove }) {
       <select className="input !text-[11.5px]" value={row.field_type} onChange={(e) => onChange({ field_type: e.target.value })}>
         {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
       </select>
+      {showAutoFill && (
+        <select className="input !text-[11.5px]" value={row.auto_fill || ''} onChange={(e) => onChange({ auto_fill: e.target.value })} title="Auto-fill — skips this field on the submit form and fills it in automatically">
+          <option value="">📝 Manual entry</option>
+          <option value="timestamp">⏱ Current date/time</option>
+          <option value="user_name">🧑 Logged-in user's name</option>
+          <option value="fixed">📌 Fixed value</option>
+        </select>
+      )}
       <label className="flex items-center gap-1 text-[10.5px] text-slate-500 whitespace-nowrap pt-2">
-        <input type="checkbox" checked={!!row.required} onChange={(e) => onChange({ required: e.target.checked ? 1 : 0 })} className="accent-primary-600" />
+        <input type="checkbox" checked={!!row.required} onChange={(e) => onChange({ required: e.target.checked ? 1 : 0 })} className="accent-primary-600" disabled={!!row.auto_fill} />
         Req.
       </label>
       <button type="button" onClick={onRemove} className="btn-ghost !p-1.5 text-red-500">✕</button>
       {row.field_type === 'dropdown' && (
-        <input className="input !text-[11.5px] col-span-5" value={row.dropdown_options} onChange={(e) => onChange({ dropdown_options: e.target.value })} placeholder="Comma-separated options e.g. Yes,No,Partial" />
+        <input className="input !text-[11.5px]" style={{ gridColumn: '1 / -1' }} value={row.dropdown_options} onChange={(e) => onChange({ dropdown_options: e.target.value })} placeholder="Comma-separated options e.g. Yes,No,Partial" />
+      )}
+      {showAutoFill && row.auto_fill === 'fixed' && (
+        <input className="input !text-[11.5px]" style={{ gridColumn: '1 / -1' }} value={row.auto_fill_value || ''} onChange={(e) => onChange({ auto_fill_value: e.target.value })} placeholder="Value to always write into this column" />
       )}
     </div>
   );
@@ -730,11 +743,16 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
+  // Auto-filled fields (Timestamp, logged-in user's name, a fixed value…)
+  // are computed server-side on submit — no input for them here.
+  const visibleFields = fields.filter((f) => !f.auto_fill);
+  const autoFields = fields.filter((f) => f.auto_fill);
+
   const setVal = (id, v) => setValues((s) => ({ ...s, [id]: v }));
 
   async function submit() {
     setErr('');
-    const missing = fields.find((f) => f.required && !String(values[f.id] || '').trim());
+    const missing = visibleFields.find((f) => f.required && !String(values[f.id] || '').trim());
     if (missing) { setErr(`"${missing.field_label || missing.col_letter}" is required`); return; }
     setSaving(true);
     try {
@@ -750,8 +768,8 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !saving && onClose()}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0">
           <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">📝</div>
           <div className="flex-1">
             <h2 className="text-base font-semibold text-slate-900">{formName || 'New Entry'}</h2>
@@ -762,31 +780,38 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
           </button>
         </div>
 
-        <div className="p-6 space-y-3">
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
           {err && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{err}</div>}
-          {fields.map((f) => (
-            <div key={f.id}>
-              <label className="label">{f.field_label || f.col_letter}{f.required ? ' *' : ''}</label>
-              {f.field_type === 'dropdown' ? (
-                <select className="input" value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)}>
-                  <option value="">-- Select --</option>
-                  {(f.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean).map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  className="input"
-                  type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'link' ? 'url' : 'text'}
-                  value={values[f.id] || ''}
-                  onChange={(e) => setVal(f.id, e.target.value)}
-                />
-              )}
+          {autoFields.length > 0 && (
+            <div className="text-[11.5px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+              ⏱ Auto-filled on submit: {autoFields.map((f) => f.field_label || f.col_letter).join(', ')}
             </div>
-          ))}
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+            {visibleFields.map((f) => (
+              <div key={f.id}>
+                <label className="label">{f.field_label || f.col_letter}{f.required ? ' *' : ''}</label>
+                {f.field_type === 'dropdown' ? (
+                  <select className="input" value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)}>
+                    <option value="">-- Select --</option>
+                    {(f.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean).map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    className="input"
+                    type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'link' ? 'url' : 'text'}
+                    value={values[f.id] || ''}
+                    onChange={(e) => setVal(f.id, e.target.value)}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 shrink-0">
           <button className="btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
           <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? 'Submitting…' : 'Submit'}</button>
         </div>
