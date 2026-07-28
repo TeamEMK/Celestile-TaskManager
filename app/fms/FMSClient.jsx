@@ -54,6 +54,7 @@ export default function FMSClient() {
   // are editable, and blank out to "use the FMS's sheet" when cleared.
   const [showIntake, setShowIntake] = useState(false);
   const [intakeFields, setIntakeFields] = useState([]);
+  const [intakeFormName, setIntakeFormName] = useState('');
   const [intakeSheetId, setIntakeSheetId] = useState('');
   const [intakeSheetName, setIntakeSheetName] = useState('');
   const [intakeHeaderRow, setIntakeHeaderRow] = useState(1);
@@ -67,6 +68,7 @@ export default function FMSClient() {
   // a form is configured at all (and to render it), gated server-side by
   // requireAccess('fms-intake') on GET /api/fms-tasks/[id]/intake.
   const [submitFields, setSubmitFields] = useState([]);
+  const [submitFormName, setSubmitFormName] = useState('');
   const [showSubmitForm, setShowSubmitForm] = useState(false);
 
   useEffect(() => { loadSheets(); loadUsers(); }, []);
@@ -99,7 +101,9 @@ export default function FMSClient() {
     }).catch(() => { if (!cancelled) setLoadingDet(false); });
     if (canSubmitIntake) {
       fetch(`/api/fms-tasks/${activeId}/intake`).then((r) => r.json()).then((d) => {
-        if (!cancelled) setSubmitFields(d.fields || []);
+        if (cancelled) return;
+        setSubmitFields(d.fields || []);
+        setSubmitFormName(d.formName || '');
       }).catch(() => {});
     }
     return () => { cancelled = true; };
@@ -179,6 +183,7 @@ export default function FMSClient() {
     const sId = fieldsRes.intakeSheetId || detail.sheet.sheet_id;
     const sName = fieldsRes.intakeSheetName || detail.sheet.sheet_name;
     const hRow = fieldsRes.intakeHeaderRow || detail.sheet.header_row || 1;
+    setIntakeFormName(fieldsRes.intakeFormName || '');
     setIntakeSheetId(sId); setIntakeSheetName(sName); setIntakeHeaderRow(hRow);
     await fetchIntakeHeaders(sId, sName, hRow);
   }
@@ -194,6 +199,7 @@ export default function FMSClient() {
   }
   function closeIntake() {
     setShowIntake(false); setIntakeFields([]); setIntakeHeaders([]);
+    setIntakeFormName('');
     setIntakeSheetId(''); setIntakeSheetName(''); setIntakeHeaderRow(1);
   }
   function updateIntakeField(i, patch) {
@@ -215,12 +221,13 @@ export default function FMSClient() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fields: intakeFields,
-          intakeSheetId, intakeSheetName, intakeHeaderRow,
+          intakeSheetId, intakeSheetName, intakeHeaderRow, intakeFormName,
         }),
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setIntakeErr(d.error || 'Failed to save'); return; }
       closeIntake();
+      setSubmitFormName(intakeFormName);
     } finally { setIntakeSaving(false); }
   }
 
@@ -344,7 +351,7 @@ export default function FMSClient() {
                             <div className="flex gap-2 flex-wrap justify-end" onClick={(e) => e.stopPropagation()}>
                               <button className="btn-secondary !text-[12px]" onClick={togglePc}>👤 {showPc ? 'Hide' : ''} PC Report</button>
                               {canSubmitIntake && submitFields.length > 0 && (
-                                <button className="btn-primary !text-[12px]" onClick={() => setShowSubmitForm(true)}>📝 Submit Entry</button>
+                                <button className="btn-primary !text-[12px]" onClick={() => setShowSubmitForm(true)}>📝 {submitFormName || 'Submit Entry'}</button>
                               )}
                               {isAdmin && (
                                 <>
@@ -470,6 +477,10 @@ export default function FMSClient() {
 
               <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 grid grid-cols-2 gap-3">
                 <div className="col-span-2">
+                  <label className="label">Form Name <span className="text-slate-400 font-normal normal-case">(shown to whoever fills it in)</span></label>
+                  <input className="input" value={intakeFormName} onChange={(e) => setIntakeFormName(e.target.value)} placeholder="e.g. New Lead Entry" />
+                </div>
+                <div className="col-span-2">
                   <label className="label">Google Sheet ID <span className="text-slate-400 font-normal normal-case">(or full URL) — defaults to this FMS's own sheet, change to submit into a different one</span></label>
                   <input className="input" value={intakeSheetId} onChange={(e) => setIntakeSheetId(e.target.value)} placeholder="Sheet ID or full URL" />
                 </div>
@@ -519,6 +530,7 @@ export default function FMSClient() {
         <IntakeFormModal
           fmsId={activeId}
           fields={submitFields}
+          formName={submitFormName}
           onClose={() => setShowSubmitForm(false)}
           onSaved={() => { setShowSubmitForm(false); if (showPc) loadPc(); }}
         />,
@@ -713,7 +725,7 @@ function ExtraRowConfig({ row, headers, onChange, onRemove }) {
 // Fill-in-and-submit form for the intake fields an admin configured — appends
 // a brand-new row to the FMS's connected sheet. Distinct from the admin
 // config modal above (that one edits which fields exist; this one fills them in).
-function IntakeFormModal({ fmsId, fields, onClose, onSaved }) {
+function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
   const [values, setValues] = useState({});
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -742,7 +754,7 @@ function IntakeFormModal({ fmsId, fields, onClose, onSaved }) {
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">📝</div>
           <div className="flex-1">
-            <h2 className="text-base font-semibold text-slate-900">New Entry</h2>
+            <h2 className="text-base font-semibold text-slate-900">{formName || 'New Entry'}</h2>
             <p className="text-[12px] text-slate-500 mt-0.5">Submitting adds a new row to this FMS's connected sheet</p>
           </div>
           <button onClick={onClose} disabled={saving} className="btn-ghost w-8 h-8 !p-0 shrink-0">

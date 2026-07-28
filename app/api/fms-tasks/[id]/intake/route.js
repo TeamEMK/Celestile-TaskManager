@@ -10,7 +10,7 @@ export async function GET(req, { params }) {
     const sheet = await getFmsSheet(id);
     if (!sheet) return NextResponse.json({ error: 'FMS not found' }, { status: 404 });
     const fields = await getIntakeFields(id);
-    return NextResponse.json({ fields });
+    return NextResponse.json({ fields, formName: sheet.intake_form_name || '' });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

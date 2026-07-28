@@ -14,6 +14,7 @@ export async function GET(req, { params }) {
       intakeSheetId: sheet.intake_sheet_id || '',
       intakeSheetName: sheet.intake_sheet_name || '',
       intakeHeaderRow: sheet.intake_header_row || '',
+      intakeFormName: sheet.intake_form_name || '',
     });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -30,6 +31,7 @@ export async function PUT(req, { params }) {
     await saveIntakeFields(id, body.fields || []);
     await saveIntakeSheetConfig(id, {
       sheetId: body.intakeSheetId, sheetName: body.intakeSheetName, headerRow: body.intakeHeaderRow,
+      formName: body.intakeFormName,
     });
     return NextResponse.json({ success: true });
   } catch (err) {
