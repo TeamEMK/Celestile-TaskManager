@@ -1,6 +1,5 @@
-﻿'use client';
+'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { CELESTILE_LOGO } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
@@ -18,7 +17,6 @@ const parseSize = (s) => {
   return { wt: parseFloat(p[0]) || 0, ht: parseFloat(p[1]) || 0 };
 };
 const inr0 = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-const inr2 = (n) => (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Round a single dimension up to the nearest multiple of 6
 const roundDim6 = (n) => Math.ceil((Number(n) || 0) / 6) * 6;
 // SFT per module: round each dimension to nearest-6, then convert sq-inches → SFT
@@ -88,19 +86,52 @@ function compute(rows, totals) {
   return { rowData, basicSale, discountPct, discount, chargesSum, chargeVals, totalGst, subTotal, grandTotal };
 }
 
-const HEADER_FIELDS = [
-  ['clientName','Client Name','Enter client name'], ['architectName','Architect Name','Architect name'],
-  ['architectFirm','Architect Firm','Firm / Company'], ['consultant','Consultant','—'],
-  ['consultantNumber','Consultant Number','+91 …'], ['consultantEmail','Consultant Email','consultant@email.com'],
-  ['clientContact','Client Contact','+91 …'], ['clientEmail','Email','email@example.com'],
-  ['boutique','Boutique',''], ['leadTime','Lead Time',''],
+// Flat field order — mirrors the Apps Script tool's info-grid exactly (a plain
+// 4-column CSS grid with no filler cells, so the 15 fields wrap unevenly).
+const FIELD_ORDER = [
+  { key:'quoteDate', label:'Date', type:'date' },
+  { key:'architectName', label:'Architect Name', placeholder:'Architect name' },
+  { key:'refNo', label:'Quotation Ref. No.', readOnly:true },
+  { key:'boutique', label:'Boutique' },
+  { key:'clientName', label:'Client Name', placeholder:'Enter client name' },
+  { key:'architectFirm', label:'Architect Firm', placeholder:'Firm / Company name' },
+  { key:'consultant', label:'Consultant', placeholder:'—', list:'bq-consult', useOnBlur:true },
+  { key:'clientContact', label:'Client Contact', placeholder:'+91 XXXXX XXXXX' },
+  { key:'validity', label:'Validity', readOnly:true },
+  { key:'consultantNumber', label:'Consultant Number', placeholder:'+91 XXXXX XXXXX' },
+  { key:'clientEmail', label:'Email', placeholder:'email@example.com', type:'email' },
+  { key:'siteAddress', label:'Site Address', placeholder:'Project / site address', textarea:true },
+  { key:'leadTime', label:'Lead Time' },
+  { key:'consultantEmail', label:'Consultant Email', placeholder:'consultant@email.com', type:'email' },
+  { key:'billingAddress', label:'Billing Address', placeholder:'Full billing address', textarea:true },
+];
+
+const TERMS = [
+  "Payment Terms: A 60% advance is required upon order confirmation or booking. The remaining 40% to be paid before delivery.",
+  "Order Policy: Once booked, products cannot be returned, exchanged, or cancelled under any circumstances.",
+  "Delivery & Transportation: All products are dispatched from our local warehouse. Transportation charges will be applicable based on the delivery location.",
+  "Measurement Changes: In case of changes in site measurements during the design stage, the quotation will be revised as per actuals.",
+  "Site Visit Charges: Additional charges will apply for site visits outside Bengaluru.",
+  "Legal Jurisdiction: Any disputes will fall under the jurisdiction of Bengaluru, Karnataka.",
+  "Quotation Validity: This quotation is valid for 30 days from the date of issue.",
+  "Product Issues: Any complaints or discrepancies must be reported within 24 hours of delivery, in case installation is not in Celes'tile scope of work.",
+  "Packaging Guidelines: If installation is to be carried out by Celes'tile, product boxes must remain sealed and untouched until our team arrives.",
+  "Additional Charges: Charges for transportation, loading, unloading, and installation are not included in the quotation and will be billed separately.",
+  "Installation Advisory: Celes'tile shall not be liable for damages caused by third-party installers or contractors not appointed by us.",
+  "Installation Condition: The stone can be installed only on a cement-plastered wall.",
+  "Transit Tolerance: A standard transit damage margin of 5–7% is considered acceptable within industry norms.",
+  "Delivery Schedule: The delivery of the material will be processed within 48 hours upon receipt of payment.",
+  "Design Iteration: Up to three changes in any drawing can be made without any additional fee.",
+  "Design Confirmation: Once the drawings are approved for production, no further changes can be made.",
+  "Site Condition: The stone can only be installed on a cement plastered wall, chipping is not in the scope of Celes'tile.",
+  "Work Responsibility: Carpentry, Plumbing, Electrical, Fabrication, Scaffolding is not in scope of Celes'tile.",
+  "Delivery Timeline: The estimated delivery timeline is 40 to 60 days from the date of order confirmation.",
+  "Site Cleaning: Cleaning of debris and wooden boxes from the site is not included in the scope of Celes'tile.",
+  "Storage Responsibility: If delivery is completed but installation is delayed due to site unavailability, the client shall be responsible for safe storage.",
+  "Studio Timings: Monday–Saturday 9:30 am–7:30 pm, studio is closed on Sundays.",
 ];
 
 export default function BangaloreForm({ initialRef = '' }) {
-  const { data: session } = useSession();
-  const roles = session?.user?.roles || [];
-  const isAdmin = roles.includes('Admin') || roles.includes('HOD');
-
   const [header, setHeader] = useState({
     quoteDate: todayISO(), refNo: '', clientName:'', architectName:'', architectFirm:'',
     consultant:'', consultantNumber:'', consultantEmail:'', clientContact:'', clientEmail:'',
@@ -173,10 +204,15 @@ export default function BangaloreForm({ initialRef = '' }) {
       const d = await res.json();
       if (!res.ok || d.status === 'error') throw new Error(d.message || 'Save failed');
       const isRev = String(header.refNo).toUpperCase().includes('-REV');
-      setStatus('✅ Saved (' + d.refNo + ')' + (isRev ? '' : ' — Approval WhatsApp sent'));
-      setH('status', 'pending');
-      // refresh next ref for a fresh new quotation number
-      fetch('/api/quotations/next-ref?branch=bangalore').then((r) => r.json()).then((x) => x.refNo).catch(() => {});
+      const savedMsg = '✅ Saved (' + d.refNo + ')' + (isRev ? '' : ' — Approval WhatsApp sent');
+      // clear the form for the next quotation, keeping the success message visible
+      setHeader((h) => ({ ...h, refNo:'', clientName:'', architectName:'', architectFirm:'', consultant:'', consultantNumber:'',
+        consultantEmail:'', clientContact:'', clientEmail:'', billingAddress:'', siteAddress:'',
+        boutique:'Sarjapur Road, Bangalore', leadTime:'60 Working Days', quoteDate: todayISO(), validity: validityFrom(todayISO()), status:'' }));
+      setRows(Array.from({ length: 5 }, blankRow));
+      setTotals(defaultTotals());
+      fetch('/api/quotations/next-ref?branch=bangalore').then((r) => r.json()).then((x) => setH('refNo', x.refNo || '001')).catch(() => {});
+      setStatus(savedMsg);
     } catch (e) { setStatus('❌ ' + e.message); }
     finally { setSaving(false); }
   }
@@ -225,371 +261,385 @@ export default function BangaloreForm({ initialRef = '' }) {
     setStatus('');
   }
 
-  const canDownload = isAdmin || header.status === 'approved';
-  function printPdf() {
-    if (!canDownload) return;
-    const html = buildPdfHtml(header, rows, totals, calc);
-    const w = window.open('', '_blank');
-    if (!w) { setStatus('❌ Popup blocked — allow popups to print.'); return; }
-    w.document.open(); w.document.write(html); w.document.close();
-    setTimeout(() => { w.focus(); w.print(); }, 700);
-  }
-
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="qb-scope">
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600;700&display=swap" />
       <datalist id="bq-mat">{MATERIAL_LIST.map((m) => <option key={m} value={m} />)}</datalist>
       <datalist id="bq-unit">{UNIT_OPTIONS.map((u) => <option key={u} value={u} />)}</datalist>
       <datalist id="bq-consult">{consultants.map((c) => <option key={c.name} value={c.name} />)}</datalist>
 
       {/* toolbar */}
-      <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
-            <IconDoc className="w-[18px] h-[18px]" />
-          </div>
-          <div className="min-w-0">
-            <div className="font-display text-[15px] font-semibold tracking-tight text-slate-900">Quotation — Bangalore</div>
-            <div className="text-[11.5px] text-slate-500">Ref: <b className="text-slate-700">{header.refNo || '—'}</b></div>
-          </div>
+      <div className="qb-toolbar">
+        <div className="qb-toolbar-left">
+          <div className="qb-toolbar-title">Quotation — Bangalore</div>
+          <div className="qb-toolbar-ref">REF: {header.refNo || '—'}</div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {status && <span className="text-[12px] text-slate-600 mr-1">{status}</span>}
-          <button className="btn-ghost" onClick={reset}>↺ Reset</button>
-          <button className="btn-secondary" onClick={openRevise}>Revise</button>
-          <button className="btn-secondary" disabled={!canDownload} title={canDownload ? '' : 'Available once an admin approves this quotation'} onClick={printPdf}>⬇ PDF</button>
-          <button className="btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
+        <div className="qb-tbtn-group">
+          {status && <span className="qb-status-text">{status}</span>}
+          <button className="qb-tbtn" onClick={reset}>↺ Reset</button>
+          <button className="qb-tbtn" onClick={openRevise}>Revise</button>
+          <button className="qb-tbtn qb-tbtn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
         </div>
       </div>
 
-      {/* header info */}
-      <div className="card p-5">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
-            <IconInfo className="w-4 h-4" />
-          </div>
-          <h2 className="section-title">Client &amp; Project Details</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Field label="Date" type="date" value={header.quoteDate}
-            onChange={(v) => setHeader((h) => ({ ...h, quoteDate: v, validity: validityFrom(v) }))} />
-          {HEADER_FIELDS.map(([k, label, ph]) => (
-            <Field key={k} label={label} value={header[k]} placeholder={ph}
-              list={k === 'consultant' ? 'bq-consult' : undefined}
-              onBlur={k === 'consultant' ? onConsultantBlur : undefined}
-              onChange={(v) => setH(k, v)} />
-          ))}
-          <Field label="Validity" value={header.validity} readOnly />
-          <Field label="Site Address" value={header.siteAddress} onChange={(v) => setH('siteAddress', v)} />
-          <Field label="Billing Address" value={header.billingAddress} onChange={(v) => setH('billingAddress', v)} />
-        </div>
-      </div>
-
-      {/* selections table */}
-      <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2 bg-gradient-to-r from-slate-50/80 to-transparent">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconList /></div>
-            <div>
-              <h2 className="text-[13.5px] font-semibold text-slate-900">Selections</h2>
-              <p className="text-[11.5px] text-slate-500">{rows.length} line{rows.length !== 1 ? 's' : ''}</p>
+      <div className="qb-container">
+        {/* document header */}
+        <div className="qb-doc-header">
+          <div className="qb-header-top">
+            <div className="qb-header-left">
+              <img className="qb-header-logo" src={CELESTILE_LOGO} alt="Celestile" />
+              <div>
+                <div className="qb-brand-name">CELESTILE</div>
+                <div className="qb-brand-tagline">The Home &amp; Bath Boutique</div>
+              </div>
+            </div>
+            <div className="qb-doc-type-block">
+              <div className="qb-doc-type">QUOTATION</div>
+              <div className="qb-ref-badge">REF: {header.refNo || '—'}</div>
             </div>
           </div>
+          <div className="qb-gold-rule" />
         </div>
-        <div className="p-5">
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full text-[12px]">
-              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
+
+        {/* info grid */}
+        <div className="qb-info-section">
+          <div className="qb-info-grid">
+            {FIELD_ORDER.map((f) => (
+              <div className="qb-info-field" key={f.key}>
+                <label>{f.label}</label>
+                {f.textarea
+                  ? <textarea rows={1} value={header[f.key]} placeholder={f.placeholder}
+                      onChange={(e) => setH(f.key, e.target.value)} />
+                  : <input type={f.type || 'text'} list={f.list} readOnly={f.readOnly}
+                      value={f.key === 'quoteDate' ? header.quoteDate : header[f.key]}
+                      placeholder={f.placeholder}
+                      onBlur={f.useOnBlur ? onConsultantBlur : undefined}
+                      onChange={f.key === 'quoteDate'
+                        ? (e) => setHeader((h) => ({ ...h, quoteDate: e.target.value, validity: validityFrom(e.target.value) }))
+                        : (e) => setH(f.key, e.target.value)} />}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="qb-body-content">
+          <div className="qb-section-header">
+            <div className="qb-section-num">01</div>
+            <div className="qb-section-label">Selections</div>
+            <div className="qb-section-rule" />
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table className="qb-items-table">
+              <colgroup>
+                <col style={{ width: 26 }} /><col style={{ width: 50 }} /><col style={{ width: 140 }} /><col style={{ width: 54 }} />
+                <col style={{ width: 70 }} /><col style={{ width: 98 }} /><col style={{ width: 68 }} /><col style={{ width: 68 }} />
+                <col style={{ width: 56 }} /><col style={{ width: 72 }} /><col style={{ width: 46 }} /><col style={{ width: 52 }} />
+                <col style={{ width: 78 }} /><col style={{ width: 26 }} />
+              </colgroup>
+              <thead>
                 <tr>
-                  {['#','Image','Description','Area','Size (in)','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
-                    <th key={i} className={`table-th whitespace-nowrap ${i >= 9 && i <= 12 ? 'text-right' : ''}`}>{h}</th>)}
+                  <th>#</th><th>Image</th><th>Description</th><th>Area</th><th>Size</th><th>Material</th>
+                  <th>Thickness</th><th>Unit</th><th>Rate Type</th><th>Rate (₹)</th><th>Qty</th><th>GST %</th>
+                  <th style={{ textAlign: 'right' }}>Amount</th><th></th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
                   const eff = calc.rowData[i] || { gross: 0, qty: 0, hasInput: false };
                   return (
-                    <tr key={i} className="table-row">
-                      <td className="px-2 py-1 text-slate-400">{i + 1}</td>
-                      <td className="px-1 py-1">
-                        <label className="cursor-pointer flex items-center justify-center w-10 h-10 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">
-                          {r.img ? <img src={r.img} alt="" className="w-10 h-10 object-cover" /> : <span className="text-slate-400 text-lg leading-none">+</span>}
+                    <tr key={i} className={i % 2 === 1 ? 'qb-row-even' : ''}>
+                      <td className="qb-sno-cell">{i + 1}</td>
+                      <td className="qb-img-cell">
+                        <label className="qb-img-container">
+                          {r.img ? <img className="qb-img-preview-thumb" src={r.img} alt="" /> : <div className="qb-img-placeholder">+</div>}
                           <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
                         </label>
                       </td>
-                      <td className="px-1 py-1"><input className="input !py-1" value={r.desc} onChange={(e) => setRow(i, 'desc', e.target.value)} placeholder="Description" /></td>
-                      <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.area} onChange={(e) => setRow(i, 'area', e.target.value)} placeholder="—" /></td>
-                      <td className="px-1 py-1 w-24"><input className="input !py-1" value={r.size} onChange={(e) => setRow(i, 'size', e.target.value)} placeholder="5×7" /></td>
-                      <td className="px-1 py-1 w-28"><input className="input !py-1" list="bq-mat" value={r.mat} onChange={(e) => setRow(i, 'mat', e.target.value)} placeholder="Material" /></td>
-                      <td className="px-1 py-1 w-20"><input className="input !py-1" value={r.thk} onChange={(e) => setRow(i, 'thk', e.target.value)} placeholder="18MM" /></td>
-                      <td className="px-1 py-1 w-20"><input className="input !py-1" list="bq-unit" value={r.unit} onChange={(e) => setRow(i, 'unit', e.target.value)} placeholder="—" /></td>
-                      <td className="px-1 py-1 text-center" title="Rate per SFT (qty = size W×H)">
-                        <input type="checkbox" className="h-4 w-4 accent-primary-600" checked={r.module} onChange={(e) => setRow(i, 'module', e.target.checked)} />
+                      <td><input value={r.desc} placeholder="Description" onChange={(e) => setRow(i, 'desc', e.target.value)} /></td>
+                      <td><input value={r.area} placeholder="—" onChange={(e) => setRow(i, 'area', e.target.value)} /></td>
+                      <td><input value={r.size} placeholder="5×7" onChange={(e) => setRow(i, 'size', e.target.value)} /></td>
+                      <td><input list="bq-mat" value={r.mat} placeholder="Material" onChange={(e) => setRow(i, 'mat', e.target.value)} /></td>
+                      <td><input value={r.thk} placeholder="18MM" onChange={(e) => setRow(i, 'thk', e.target.value)} /></td>
+                      <td className="qb-unit-wrap"><input list="bq-unit" value={r.unit} placeholder="—" onChange={(e) => setRow(i, 'unit', e.target.value)} /></td>
+                      <td className="qb-rate-type-cell">
+                        <label className="qb-rate-type-toggle" title="Rate per SFT (qty = size W×H)">
+                          <input type="checkbox" checked={r.module} onChange={(e) => setRow(i, 'module', e.target.checked)} />
+                          <span>SFT</span>
+                        </label>
                       </td>
-                      <td className="px-1 py-1 w-20"><CalcInput className="input !py-1 text-right tabular-nums" value={r.price} onChange={(v) => setRow(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
-                      <td className="px-1 py-1 w-16">
+                      <td><CalcInput className="qb-num-input" value={r.price} onChange={(v) => setRow(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
+                      <td>
                         {r.module
-                          ? <input type="number" className="input !py-1 text-right tabular-nums bg-slate-100 text-slate-500" value={eff.qty ? +Number(eff.qty).toFixed(2) : ''} readOnly />
-                          : <CalcInput className="input !py-1 text-right tabular-nums" value={r.qty} onChange={(v) => setRow(i, 'qty', v)} title="Type a formula, e.g. 2850*45" />}
+                          ? <input className="qb-num-input qb-readonly-qty" readOnly value={eff.qty ? +Number(eff.qty).toFixed(2) : ''} />
+                          : <CalcInput className="qb-num-input" value={r.qty} onChange={(v) => setRow(i, 'qty', v)} title="Type a formula, e.g. 2850*45" />}
                       </td>
-                      <td className="px-1 py-1 w-16"><CalcInput className="input !py-1 text-right tabular-nums" value={r.gst} onChange={(v) => setRow(i, 'gst', v)} /></td>
-                      <td className="px-2 py-1 text-right whitespace-nowrap font-semibold tabular-nums">{eff.hasInput ? inr0(eff.gross) : ''}</td>
-                      <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delRow(i)}>✕</button></td>
+                      <td><CalcInput className="qb-num-input" value={r.gst} onChange={(v) => setRow(i, 'gst', v)} /></td>
+                      <td className="qb-amt-cell">{eff.hasInput ? inr0(eff.gross) : ''}</td>
+                      <td><button className="qb-del-btn" onClick={() => delRow(i)}>✕</button></td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          <button className="btn-secondary mt-3" onClick={addRow}>+ Add Item</button>
-        </div>
-      </div>
+          <button className="qb-add-row-btn" onClick={addRow}>+ Add Item</button>
 
-      {/* totals */}
-      <div className="card p-5 max-w-md ml-auto relative overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-300 via-primary-500 to-primary-700" />
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconCalc className="w-3.5 h-3.5" /></div>
-            <div className="text-[13px] font-semibold text-slate-800">Totals</div>
+          <div className="qb-bottom-grid">
+            <div className="qb-bank-panel">
+              <div className="qb-bank-title">Bank Details</div>
+              <div className="qb-bank-row"><span className="qb-bank-key">Name</span><span className="qb-bank-val">Vijayaananth Realtech</span></div>
+              <div className="qb-bank-row"><span className="qb-bank-key">Account No.</span><span className="qb-bank-val">50200093326161</span></div>
+              <div className="qb-bank-row"><span className="qb-bank-key">Bank</span><span className="qb-bank-val">HDFC Bank</span></div>
+              <div className="qb-bank-row"><span className="qb-bank-key">IFSC Code</span><span className="qb-bank-val">HDFC0001755</span></div>
+              <div className="qb-payment-terms-title">Payment Terms</div>
+              <div className="qb-pt-row"><span className="qb-pt-pct">60%</span><span className="qb-pt-desc">Advance to process the order</span></div>
+              <div className="qb-pt-row"><span className="qb-pt-pct">35%</span><span className="qb-pt-desc">Balance payment before delivery</span></div>
+              <div className="qb-pt-row"><span className="qb-pt-pct">5%</span><span className="qb-pt-desc">Payment after finishing and before sealer</span></div>
+            </div>
+
+            <div className="qb-totals-panel">
+              <div className="qb-totals-add-bar"><button className="qb-add-total-btn" onClick={addCustom}>+ Add Row</button></div>
+              {totals.map((t) => {
+                if (t.id === 'basicSaleValue') return <div key={t.id} className="qb-total-row"><span className="qb-label">Basic Sale Value</span><span className="qb-value">{inr0(calc.basicSale)}</span></div>;
+                if (t.id === 'subTotal') return <div key={t.id} className="qb-total-row qb-subtotal-row"><span className="qb-label">Sub Total</span><span className="qb-value">{inr0(calc.subTotal)}</span></div>;
+                if (t.id === 'gst') return <div key={t.id} className="qb-total-row"><span className="qb-label">GST (as applicable)</span><span className="qb-value">{inr0(calc.totalGst)}</span></div>;
+                if (t.type === 'manual-discount') return (
+                  <div key={t.id} className={`qb-total-row qb-discount-row ${!parseFloat(t.value) ? 'qb-zero-discount' : ''}`}>
+                    <span className="qb-label">Discount</span>
+                    <div className="qb-total-input-wrap">
+                      <CalcInput className="qb-total-input" style={{ width: 40 }} value={t.value} onChange={(v) => setTotal(t.id, { value: v })} />
+                      <span>%</span>
+                      <span style={{ marginLeft: 8, whiteSpace: 'nowrap' }}>− {inr0(calc.discount)}</span>
+                    </div>
+                  </div>
+                );
+                if (t.type === 'rate-area') return (
+                  <div key={t.id} className="qb-total-row">
+                    <span className="qb-label">{t.label} <small style={{ color: 'var(--qb-gold-dark)' }}>(₹{t.rate}/unit)</small></span>
+                    <div className="qb-rate-area-wrap">
+                      <CalcInput className="qb-area-input" placeholder="Area" value={t.area} onChange={(v) => setTotal(t.id, { area: v })} />
+                      <span className="qb-ra-eq">=</span>
+                      <span className="qb-computed-val">{inr0((t.rate || 0) * (parseFloat(t.area) || 0))}</span>
+                    </div>
+                  </div>
+                );
+                const isCustom = t.id.startsWith('custom_');
+                return (
+                  <div key={t.id} className="qb-total-row">
+                    {isCustom
+                      ? <input className="qb-row-label-input" value={t.label} onChange={(e) => setTotal(t.id, { label: e.target.value })} />
+                      : <span className="qb-label">{t.label}</span>}
+                    <div className="qb-total-input-wrap">
+                      <span>₹</span>
+                      <CalcInput className="qb-total-input" value={t.value} onChange={(v) => setTotal(t.id, { value: v })} />
+                      {isCustom && <button className="qb-del-btn" onClick={() => removeTotal(t.id)}>✕</button>}
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="qb-total-row qb-grand">
+                <span className="qb-label">Grand Total</span>
+                <span className="qb-value">{inr0(calc.grandTotal)}</span>
+              </div>
+            </div>
           </div>
-          <button className="btn-ghost !py-1" onClick={addCustom}>+ Add Row</button>
         </div>
-        <div className="space-y-1">
-          {totals.map((t) => {
-            if (t.id === 'basicSaleValue') return <Line key={t.id} label="Basic Sale Value" value={inr0(calc.basicSale)} strong />;
-            if (t.id === 'subTotal') return <Line key={t.id} label="Sub Total" value={inr0(calc.subTotal)} strong />;
-            if (t.id === 'gst') return <Line key={t.id} label="GST (as applicable)" value={inr0(calc.totalGst)} />;
-            if (t.type === 'manual-discount') return (
-              <div key={t.id} className="flex items-center justify-between gap-2 text-[12.5px] py-1">
-                <span className="text-rose-700">Discount</span>
-                <div className="flex items-center gap-1">
-                  <CalcInput className="input !py-1 w-16 text-right tabular-nums" value={t.value}
-                    onChange={(v) => setTotal(t.id, { value: v })} /><span className="text-rose-700">%</span>
-                  <span className="text-rose-700 w-24 text-right tabular-nums">− {inr0(calc.discount)}</span>
-                </div>
-              </div>
-            );
-            if (t.type === 'rate-area') return (
-              <div key={t.id} className="flex items-center justify-between gap-2 text-[12.5px] py-1">
-                <span className="text-slate-600">{t.label} <small className="text-primary-700">(₹{t.rate}/unit)</small></span>
-                <div className="flex items-center gap-1">
-                  <CalcInput className="input !py-1 w-16 text-right tabular-nums" placeholder="Area" value={t.area}
-                    onChange={(v) => setTotal(t.id, { area: v })} />
-                  <span className="text-slate-400">=</span>
-                  <span className="w-24 text-right font-medium tabular-nums">{inr0((t.rate || 0) * (parseFloat(t.area) || 0))}</span>
-                </div>
-              </div>
-            );
-            // manual / custom
-            const isCustom = t.id.startsWith('custom_');
-            return (
-              <div key={t.id} className="flex items-center justify-between gap-2 text-[12.5px] py-1">
-                {isCustom
-                  ? <input className="input !py-1 flex-1" value={t.label} onChange={(e) => setTotal(t.id, { label: e.target.value })} />
-                  : <span className="text-slate-600">{t.label}</span>}
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-400">₹</span>
-                  <CalcInput className="input !py-1 w-24 text-right tabular-nums" value={t.value}
-                    onChange={(v) => setTotal(t.id, { value: v })} />
-                  {isCustom && <button className="btn-danger !px-2 !py-0.5" onClick={() => removeTotal(t.id)}>✕</button>}
-                </div>
-              </div>
-            );
-          })}
-          <div className="flex items-center justify-between mt-2 -mx-5 -mb-5 px-5 py-3 rounded-b-xl bg-gradient-to-r from-primary-50 to-primary-50/40 border-t border-primary-100">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-primary-800">Grand Total</span>
-            <span className="text-[19px] font-bold text-gradient-gold tabular-nums">{inr0(calc.grandTotal)}</span>
+
+        {/* stone characteristics */}
+        <div className="qb-stone-chars-section">
+          <div className="qb-section-header" style={{ marginTop: 0 }}>
+            <div className="qb-section-label" style={{ fontSize: '0.85rem' }}>Natural Stone Characteristics</div>
+            <div className="qb-section-rule" />
           </div>
+          <div className="qb-stone-chars-grid">
+            <div className="qb-stone-char-item"><div className="qb-stone-char-title">Natural Variation</div><div className="qb-stone-char-body">As these are natural stones, variations in colour, grain pattern, porosity, and thickness of approximately 15–20% are inherent and to be expected. These natural characteristics make each piece unique.</div></div>
+            <div className="qb-stone-char-item"><div className="qb-stone-char-title">Cleaning Instructions</div><div className="qb-stone-char-body">Please avoid using acidic or alkaline substances to clean the stone surfaces, as they may react with the stone and cause permanent patches or discoloration.</div></div>
+            <div className="qb-stone-char-item"><div className="qb-stone-char-title">Natural Features</div><div className="qb-stone-char-body">Due to the natural structure of the stone, grains and pores may open up during production, transit, or installation. Our experienced craftsmen will address and finish these areas.</div></div>
+            <div className="qb-stone-char-item"><div className="qb-stone-char-title">Chemical Treatment Disclaimer</div><div className="qb-stone-char-body">The high-grade surface treatments and chemicals used are synthetic and may age differently over time. This may cause the stone's appearance to evolve naturally with use.</div></div>
+          </div>
+        </div>
+
+        {/* terms */}
+        <div className="qb-terms-section">
+          <div className="qb-terms-title">Terms &amp; Conditions</div>
+          <ul className="qb-terms-columns">
+            {TERMS.map((t, i) => <li key={i}>{t}</li>)}
+          </ul>
+        </div>
+
+        {/* signatures */}
+        <div className="qb-sig-section">
+          <div className="qb-sig-block"><div className="qb-sig-line" /><div className="qb-sig-label">Agreed by Client / Signature</div></div>
+          <div className="qb-sig-block"><div className="qb-sig-line" /><div className="qb-sig-label">For Celestile / Authorized Signatory</div></div>
+        </div>
+
+        <div className="qb-doc-footer">
+          <p>Celestile · The Home &amp; Bath Boutique<span className="qb-sep">|</span>www.celestile.com</p>
+          <p>BANGALORE: SARJAPUR MAIN ROAD<span className="qb-sep">|</span>+91 9008882854</p>
         </div>
       </div>
 
       {/* revise modal */}
       {showRevise && (
-        <div className="fixed inset-0 backdrop-blur-sm flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setShowRevise(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-5 w-80 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconClock className="w-4 h-4" /></div>
-              <div className="text-[14px] font-semibold text-slate-900">Load Quotation</div>
-            </div>
-            <select className="input mb-3" value={selRef} onChange={(e) => setSelRef(e.target.value)}>
+        <div className="qb-modal" onClick={() => setShowRevise(false)}>
+          <div className="qb-modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3>Load Quotation</h3>
+            <select value={selRef} onChange={(e) => setSelRef(e.target.value)}>
               {reviseList.length === 0 && <option value="">No saved quotations</option>}
               {reviseList.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-            <div className="flex gap-2">
-              <button className="btn-primary flex-1" disabled={!selRef} onClick={loadSelected}>Load</button>
-              <button className="btn-ghost" onClick={() => setShowRevise(false)}>Cancel</button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button className="qb-tbtn qb-tbtn-primary" style={{ flex: 1 }} disabled={!selRef} onClick={loadSelected}>Load</button>
+              <button className="qb-tbtn" onClick={() => setShowRevise(false)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        .qb-scope {
+          --qb-gold:#b08d57; --qb-gold-light:#d4b483; --qb-gold-dark:#8a6d3b;
+          --qb-cream:#faf7f2; --qb-cream-dark:#e8dece; --qb-border:#d9cfc0;
+          --qb-green:#243020; --qb-text:#2a2218; --qb-muted:#7a6e60; --qb-beige:#ede5d3;
+          font-family:'Jost',sans-serif;
+        }
+        .qb-toolbar{background:var(--qb-green);border-radius:10px;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+        .qb-toolbar-title{color:var(--qb-gold-light);font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:600;letter-spacing:1px;}
+        .qb-toolbar-ref{color:rgba(212,180,131,0.65);font-size:0.72rem;letter-spacing:1px;margin-top:2px;font-family:Arial,sans-serif;}
+        .qb-tbtn-group{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+        .qb-status-text{color:var(--qb-gold-light);font-size:0.75rem;margin-right:6px;}
+        .qb-tbtn{padding:7px 16px;border-radius:2px;border:1px solid rgba(176,141,87,0.4);background:transparent;color:#c9b48a;cursor:pointer;font-family:'Jost',sans-serif;font-size:0.72rem;letter-spacing:1.2px;text-transform:uppercase;transition:all 0.2s;}
+        .qb-tbtn:hover{background:rgba(176,141,87,0.15);border-color:var(--qb-gold);}
+        .qb-tbtn:disabled{opacity:0.4;cursor:not-allowed;}
+        .qb-tbtn-primary{background:linear-gradient(135deg,#b08d57,#8a6d3b);color:#fff1da;border:none;font-weight:600;}
+        .qb-tbtn-primary:hover{background:linear-gradient(135deg,#c4a06b,#9a7d4b);}
+
+        .qb-container{max-width:1100px;margin:0 auto;background:#fff;box-shadow:0 8px 40px rgba(100,80,40,0.14),0 0 0 1px rgba(176,141,87,0.18);}
+
+        .qb-doc-header{background:var(--qb-green);padding:24px 36px 22px;position:relative;overflow:hidden;border-bottom:3px solid var(--qb-gold);}
+        .qb-doc-header::before{content:'';position:absolute;top:-60px;right:-60px;width:240px;height:240px;border:1px solid rgba(176,141,87,0.10);border-radius:50%;pointer-events:none;}
+        .qb-header-top{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;flex-wrap:wrap;gap:12px;}
+        .qb-header-left{display:flex;align-items:center;gap:18px;}
+        .qb-header-logo{width:74px;height:74px;border-radius:50%;background:#000;box-shadow:0 0 0 1px rgba(176,141,87,0.5),0 4px 14px rgba(0,0,0,0.3);object-fit:cover;flex-shrink:0;}
+        .qb-brand-name{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:400;color:var(--qb-gold-light);letter-spacing:7px;line-height:1;}
+        .qb-brand-tagline{font-size:0.6rem;letter-spacing:4.5px;text-transform:uppercase;color:var(--qb-gold);margin-top:6px;}
+        .qb-doc-type-block{text-align:right;}
+        .qb-doc-type{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:500;color:var(--qb-gold-light);letter-spacing:5px;}
+        .qb-ref-badge{background:rgba(176,141,87,0.10);border:1px solid rgba(176,141,87,0.45);padding:5px 14px;font-size:0.7rem;letter-spacing:2px;color:var(--qb-gold-light);margin-top:8px;display:inline-block;font-family:Arial,sans-serif;}
+        .qb-gold-rule{height:1px;background:linear-gradient(90deg,transparent,rgba(176,141,87,0.75),transparent);margin:18px 0 0;}
+
+        .qb-info-section{padding:20px 36px;background:var(--qb-cream);border-bottom:1px solid var(--qb-border);}
+        .qb-info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 20px;}
+        .qb-info-field{border-bottom:1px solid var(--qb-border);padding-bottom:6px;}
+        .qb-info-field label{display:block;font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--qb-muted);margin-bottom:4px;}
+        .qb-info-field input,.qb-info-field textarea{width:100%;border:none;outline:none;background:transparent;font-family:'Jost',sans-serif;font-size:0.82rem;color:var(--qb-text);font-weight:500;resize:none;}
+        .qb-info-field input::placeholder,.qb-info-field textarea::placeholder{color:#bfb8ae;font-weight:300;}
+        .qb-info-field input[readonly]{color:var(--qb-muted);}
+
+        .qb-body-content{padding:24px 36px;}
+        .qb-section-header{display:flex;align-items:center;gap:12px;margin:20px 0 10px;}
+        .qb-section-header:first-child{margin-top:0;}
+        .qb-section-num{width:24px;height:24px;border-radius:50%;background:var(--qb-green);color:var(--qb-gold-light);font-size:0.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:Arial,sans-serif;}
+        .qb-section-label{font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:600;letter-spacing:2px;color:var(--qb-green);text-transform:uppercase;}
+        .qb-section-rule{flex:1;height:1px;background:var(--qb-border);}
+
+        .qb-items-table{width:100%;border-collapse:collapse;font-size:0.85rem;table-layout:fixed;}
+        .qb-items-table thead tr{background:var(--qb-green);}
+        .qb-items-table th{padding:9px 4px;color:rgba(232,218,196,0.9);font-weight:500;letter-spacing:1px;font-size:0.58rem;text-transform:uppercase;text-align:left;}
+        .qb-items-table tbody tr{border-bottom:1px solid var(--qb-cream-dark);}
+        .qb-items-table tbody tr.qb-row-even{background:var(--qb-cream);}
+        .qb-items-table td{padding:6px 4px;vertical-align:middle;}
+        .qb-items-table td input{width:100%;border:none;outline:none;background:transparent;font-family:'Jost',sans-serif;font-size:0.78rem;color:var(--qb-text);}
+        .qb-items-table td input:focus{background:rgba(176,141,87,0.05);}
+        .qb-num-input{text-align:right;font-family:Arial,sans-serif !important;font-size:0.8rem !important;}
+        .qb-readonly-qty{background:rgba(176,141,87,0.08) !important;color:var(--qb-muted) !important;}
+        .qb-sno-cell{width:26px;text-align:center;font-weight:700;font-size:0.8rem;color:var(--qb-muted);font-family:Arial,sans-serif;}
+        .qb-amt-cell{text-align:right;font-weight:600;color:var(--qb-text);white-space:nowrap;font-family:Arial,sans-serif;font-size:0.85rem;}
+        .qb-del-btn{background:none;border:none;cursor:pointer;color:#ccc;font-size:0.75rem;padding:2px 6px;}
+        .qb-del-btn:hover{color:#c0392b;}
+        .qb-add-row-btn{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 14px;border:1px dashed rgba(176,141,87,0.4);background:transparent;color:var(--qb-gold-dark);font-family:'Jost',sans-serif;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;}
+        .qb-add-row-btn:hover{background:rgba(176,141,87,0.08);border-color:var(--qb-gold);}
+
+        .qb-img-cell{width:50px;}
+        .qb-img-container{width:40px;height:40px;display:block;cursor:pointer;}
+        .qb-img-placeholder{width:40px;height:40px;border:1px dashed rgba(176,141,87,0.35);background:rgba(176,141,87,0.04);display:flex;align-items:center;justify-content:center;color:rgba(176,141,87,0.5);font-size:1.1rem;}
+        .qb-img-preview-thumb{width:40px;height:40px;object-fit:cover;border:1px solid var(--qb-border);}
+
+        .qb-rate-type-cell{text-align:center;}
+        .qb-rate-type-toggle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-size:0.56rem;color:var(--qb-muted);letter-spacing:1px;text-transform:uppercase;font-weight:600;}
+        .qb-rate-type-toggle input{margin:0;width:14px;height:14px;cursor:pointer;accent-color:var(--qb-green);}
+
+        .qb-bottom-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:20px;margin-top:24px;}
+        .qb-bank-panel{background:var(--qb-cream);border:1px solid var(--qb-border);padding:16px 18px;}
+        .qb-bank-title{font-family:'Cormorant Garamond',serif;font-size:0.85rem;font-weight:600;letter-spacing:2px;color:var(--qb-green);text-transform:uppercase;margin-bottom:12px;border-bottom:1px solid var(--qb-border);padding-bottom:8px;}
+        .qb-bank-row{display:flex;gap:10px;padding:5px 0;border-bottom:1px solid rgba(217,207,192,0.5);font-size:0.77rem;}
+        .qb-bank-key{width:90px;flex-shrink:0;color:var(--qb-muted);font-weight:500;}
+        .qb-bank-val{color:var(--qb-text);font-weight:600;font-family:Arial,sans-serif;}
+        .qb-payment-terms-title{font-family:'Cormorant Garamond',serif;font-size:0.82rem;font-weight:600;letter-spacing:2px;color:var(--qb-green);text-transform:uppercase;margin-top:14px;margin-bottom:8px;border-bottom:1px solid var(--qb-border);padding-bottom:6px;}
+        .qb-pt-row{display:flex;gap:10px;padding:5px 0;border-bottom:1px solid rgba(217,207,192,0.4);font-size:0.74rem;align-items:baseline;}
+        .qb-pt-row:last-child{border-bottom:none;}
+        .qb-pt-pct{flex-shrink:0;width:42px;color:var(--qb-gold-dark);font-weight:700;font-family:Arial,sans-serif;font-size:0.78rem;}
+        .qb-pt-desc{color:var(--qb-muted);line-height:1.4;}
+
+        .qb-totals-panel{border:1px solid var(--qb-border);overflow:hidden;height:fit-content;}
+        .qb-total-row{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid var(--qb-cream-dark);font-size:0.8rem;gap:8px;}
+        .qb-label{color:var(--qb-muted);}
+        .qb-value{font-weight:600;color:var(--qb-text);white-space:nowrap;font-family:Arial,sans-serif;font-size:0.85rem;}
+        .qb-subtotal-row{background:rgba(176,141,87,0.06);}
+        .qb-discount-row .qb-label,.qb-discount-row span{color:#9a3a1f;}
+        .qb-discount-row.qb-zero-discount{opacity:0.55;}
+        .qb-total-row.qb-grand{background:var(--qb-beige);padding:12px 14px;border-bottom:none;border-top:2px solid rgba(176,141,87,0.4);}
+        .qb-total-row.qb-grand .qb-label{color:#5a4a30;font-size:0.72rem;letter-spacing:1px;text-transform:uppercase;}
+        .qb-total-row.qb-grand .qb-value{color:var(--qb-green);font-size:1.1rem;font-family:Arial,sans-serif;font-weight:700;}
+        .qb-total-input{border:none;outline:none;background:transparent;font-family:Arial,sans-serif;font-size:0.85rem;font-weight:600;color:var(--qb-text);width:70px;text-align:right;}
+        .qb-total-input:focus{background:rgba(176,141,87,0.06);}
+        .qb-total-input-wrap{display:flex;align-items:center;gap:3px;}
+        .qb-row-label-input{border:none;outline:none;background:transparent;font-family:'Jost',sans-serif;font-size:0.8rem;color:var(--qb-muted);width:100%;}
+        .qb-totals-add-bar{padding:7px 14px;border-bottom:1px solid var(--qb-cream-dark);background:rgba(176,141,87,0.02);}
+        .qb-add-total-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border:1px dashed rgba(176,141,87,0.4);background:transparent;color:var(--qb-gold-dark);font-family:'Jost',sans-serif;font-size:0.66rem;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+        .qb-add-total-btn:hover{background:rgba(176,141,87,0.1);}
+
+        .qb-rate-area-wrap{display:flex;align-items:center;gap:6px;justify-content:flex-end;}
+        .qb-area-input{width:52px;border:1px solid var(--qb-border);padding:3px 5px;background:rgba(176,141,87,0.06);font-family:Arial,sans-serif;font-size:0.76rem;color:var(--qb-text);text-align:right;}
+        .qb-area-input:focus{border-color:var(--qb-gold);background:rgba(176,141,87,0.12);outline:none;}
+        .qb-ra-eq{color:var(--qb-muted);font-size:0.72rem;}
+        .qb-computed-val{font-weight:600;color:var(--qb-text);font-family:Arial,sans-serif;font-size:0.84rem;white-space:nowrap;min-width:74px;text-align:right;}
+
+        .qb-stone-chars-section{padding:28px 36px 20px;}
+        .qb-stone-chars-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 32px;margin-top:14px;}
+        .qb-stone-char-item{padding:14px 16px;background:var(--qb-cream);border-left:3px solid var(--qb-gold);}
+        .qb-stone-char-title{font-size:0.7rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--qb-green);margin-bottom:5px;}
+        .qb-stone-char-body{font-size:0.74rem;color:var(--qb-muted);line-height:1.6;}
+
+        .qb-terms-section{padding:24px 36px;background:var(--qb-cream);border-top:1px solid var(--qb-border);}
+        .qb-terms-title{font-family:'Cormorant Garamond',serif;font-size:0.9rem;font-weight:600;letter-spacing:2px;color:var(--qb-green);text-transform:uppercase;margin-bottom:14px;}
+        .qb-terms-columns{columns:3;gap:28px;list-style:none;margin:0;padding:0;}
+        .qb-terms-columns li{font-size:0.7rem;color:var(--qb-muted);line-height:1.55;margin-bottom:6px;padding-left:12px;position:relative;break-inside:avoid;}
+        .qb-terms-columns li::before{content:'—';position:absolute;left:0;color:var(--qb-gold-light);}
+
+        .qb-sig-section{padding:20px 36px;display:flex;gap:40px;}
+        .qb-sig-block{flex:1;}
+        .qb-sig-line{height:44px;border-bottom:1px solid var(--qb-border);margin-bottom:6px;}
+        .qb-sig-label{font-size:0.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--qb-muted);}
+
+        .qb-doc-footer{background:var(--qb-green);padding:14px 36px;text-align:center;border-top:3px solid var(--qb-gold);}
+        .qb-doc-footer p{font-size:0.63rem;letter-spacing:1.5px;color:var(--qb-gold);text-transform:uppercase;line-height:1.8;margin:0;}
+        .qb-doc-footer p:last-child{color:var(--qb-gold-dark);}
+        .qb-sep{margin:0 10px;color:rgba(176,141,87,0.4);}
+
+        .qb-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;}
+        .qb-modal-box{background:#fff;width:340px;max-width:92%;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,0.25);}
+        .qb-modal-box h3{font-family:'Cormorant Garamond',serif;font-size:1.2rem;color:var(--qb-green);letter-spacing:1.5px;margin-bottom:14px;}
+        .qb-modal-box select{width:100%;padding:9px;margin-top:6px;border:1px solid var(--qb-border);background:var(--qb-cream);font-family:'Jost',sans-serif;font-size:0.8rem;outline:none;}
+
+        @media (max-width: 860px) {
+          .qb-info-grid{grid-template-columns:repeat(2,1fr);}
+          .qb-bottom-grid{grid-template-columns:1fr;}
+          .qb-terms-columns{columns:1;}
+          .qb-stone-chars-grid{grid-template-columns:1fr;}
+        }
+      `}</style>
     </div>
   );
-}
-
-function IconDoc(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" />
-      <path d="M9 13h6" /><path d="M9 17h6" />
-    </svg>
-  );
-}
-function IconInfo(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" /><path d="M12 16v-4" /><path d="M12 8h.01" />
-    </svg>
-  );
-}
-function IconList(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" />
-    </svg>
-  );
-}
-function IconCalc(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="2" width="16" height="20" rx="2" /><path d="M8 6h8" /><path d="M8 11h.01" /><path d="M12 11h.01" /><path d="M16 11h.01" /><path d="M8 15h.01" /><path d="M12 15h.01" /><path d="M16 15h.01" /><path d="M8 19h.01" /><path d="M12 19h.01" /><path d="M16 19h.01" />
-    </svg>
-  );
-}
-function IconClock(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
-    </svg>
-  );
-}
-
-function Field({ label, value, onChange, onBlur, placeholder, type = 'text', readOnly, list }) {
-  return (
-    <div>
-      <label className="label">{label}</label>
-      <input type={type} className={`input ${readOnly ? 'bg-slate-50' : ''}`} value={value} placeholder={placeholder}
-        list={list} readOnly={readOnly} onBlur={onBlur}
-        onChange={onChange ? (e) => onChange(e.target.value) : undefined} />
-    </div>
-  );
-}
-function Line({ label, value, strong }) {
-  return (
-    <div className={`flex items-center justify-between text-[12.5px] py-1 ${strong ? 'font-semibold' : ''}`}>
-      <span className="text-slate-600">{label}</span><span className="tabular-nums">{value}</span>
-    </div>
-  );
-}
-
-/* ── PDF document (ported from prepareHtmlForPDF) ──────────────────────── */
-function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-
-function buildPdfHtml(header, rows, totals, calc) {
-  const fv = (k) => esc(header[k] || '');
-  const items = rows
-    .map((r) => {
-      const price = parseFloat(r.price) || 0;
-      const { wt: pw, ht: ph } = parseSize(r.size);
-    const qty = r.module ? moduleQty(pw, ph) : (parseFloat(r.qty) || 0);
-      return { ...r, price, qty, gPct: parseFloat(r.gst) || 0, gross: price * qty };
-    })
-    .filter((it) => it.desc || it.area || it.price || it.qty);
-  const hasNonSFT = items.some((it) => !it.module);
-  const { basicSale, discount, discountPct, totalGst, subTotal, grandTotal } = calc;
-  const showDiscount = discount > 0;
-
-  let stoneHtml = '';
-  items.forEach((it, idx) => {
-    const imgH = it.img ? `<img src="${it.img}" style="width:34px;height:34px;object-fit:cover;border-radius:1px"/>` : '';
-    const qDisp = it.qty ? (Number.isInteger(it.qty) ? it.qty : (+it.qty).toFixed(2)) : '';
-    // Rate intentionally omitted from client-facing output — only Qty + line Amount shown.
-    const qtyCell = hasNonSFT
-      ? `<td class="num-c" style="text-align:right">${it.module ? '' : qDisp}</td>`
-      : '';
-    stoneHtml += `<tr><td class="num-c" style="text-align:center;color:#7a6e60;font-weight:700">${idx+1}</td><td>${imgH}</td><td>${esc(it.desc)}</td><td class="num-c" style="text-align:right">${esc(it.area)}</td><td>${esc(it.size)}</td><td>${esc(it.mat)}</td><td>${esc(it.thk)}</td><td>${esc(it.unit)}</td>${qtyCell}<td class="num-c" style="text-align:right">${it.gPct ? it.gPct.toFixed(2)+'%' : ''}</td><td class="num-c" style="text-align:right;font-weight:600">&#8377; ${inr2(it.gross)}</td></tr>`;
-  });
-
-  let totalsHtml = '';
-  totals.forEach((row) => {
-    if (row.id === 'basicSaleValue') totalsHtml += tr(row.label, '&#8377; ' + inr2(basicSale));
-    else if (row.type === 'manual-discount') { if (showDiscount) totalsHtml += tr(`${esc(row.label)} (${discountPct}%)`, '&minus; &#8377; ' + inr0(discount).replace('₹ ',''), 'color:#9a3a1f;'); }
-    else if (row.type === 'rate-area') { const v = (row.rate || 0) * (parseFloat(row.area) || 0); if (v > 0) totalsHtml += tr(row.label, '&#8377; ' + inr2(v)); }
-    else if (row.type === 'manual') { const v = parseFloat(row.value) || 0; if (v > 0) totalsHtml += tr(esc(row.label), '&#8377; ' + inr2(v)); }
-    else if (row.id === 'subTotal') totalsHtml += tr(row.label, '&#8377; ' + inr2(subTotal), '', 'sub');
-    else if (row.id === 'gst') totalsHtml += tr(row.label + ' (As Applicable)', '&#8377; ' + inr2(totalGst));
-  });
-  function tr(l, v, style = '', cls = '') {
-    return `<div class="tr ${cls}"><span class="l" style="${style}">${l}</span><span class="v" style="${style}">${v}</span></div>`;
-  }
-
-  const grandStr = '&#8377; ' + inr0(grandTotal).replace('₹ ', '');
-  const SEP = ' <span style="margin:0 8px;color:rgba(176,141,87,0.4);">|</span> ';
-  const hdr = `<div style="background:#243020;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #b08d57;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
-    <div style="display:flex;align-items:center;gap:14px;"><img src="${CELESTILE_LOGO}" style="width:56px;height:56px;border-radius:50%;background:#000;object-fit:cover;"/>
-      <div><div style="color:#d4b483;font-size:24px;letter-spacing:6px;font-family:'Cormorant Garamond',Georgia,serif;line-height:1;">CELESTILE<small style="display:block;font-size:8px;letter-spacing:3px;color:#b08d57;margin-top:5px;font-family:'Jost',sans-serif;">THE HOME &amp; BATH BOUTIQUE</small></div></div></div>
-    <div style="text-align:right;"><div style="color:#d4b483;font-size:18px;letter-spacing:4px;font-family:'Cormorant Garamond',Georgia,serif;">QUOTATION</div>
-      <div style="font-size:9px;letter-spacing:2px;color:#d4b483;margin-top:5px;font-family:Arial,sans-serif;background:rgba(176,141,87,0.1);border:1px solid rgba(176,141,87,0.4);padding:3px 10px;display:inline-block;">REF: ${fv('refNo')}</div></div></div>`;
-  const ftr = `<div style="background:#243020;padding:10px 18px;text-align:center;border-top:3px solid #b08d57;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
-    <p style="font-size:9px;letter-spacing:1.5px;color:#b08d57;text-transform:uppercase;margin:0;font-family:'Jost',sans-serif;">Celestile &middot; The Home &amp; Bath Boutique${SEP}www.celestile.com</p>
-    <p style="font-size:9px;letter-spacing:1.5px;color:#8a6d3b;text-transform:uppercase;margin:0;font-family:'Jost',sans-serif;">BANGALORE: SARJAPUR MAIN ROAD${SEP}+91 9008882854</p></div>`;
-
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${fv('refNo')}</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet"><style>
-@page{margin:12mm;size:A4}*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
-body{font-family:'Jost',Helvetica,sans-serif;font-size:13px;color:#1a1a1a}.num-c{font-family:Arial,sans-serif !important}
-.info-sec{background:#faf7f2;padding:10px 18px;border-bottom:1px solid #e8dece}.info-table{width:100%;border-collapse:collapse}
-.info-table td{padding:3px 6px 6px;vertical-align:top;border-bottom:1px solid rgba(217,207,192,0.4)}
-.lbl{font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:#7a6e60;display:block;margin-bottom:3px}
-.val{font-size:11px;font-weight:600;color:#1a1a1a}.body{padding:12px 18px;background:#faf7f2}
-table.it{width:100%;border-collapse:collapse;font-size:9px;table-layout:auto}table.it thead tr{background:#243020}
-table.it th{padding:7px 3px;color:rgba(232,218,196,0.92);font-size:7.5px;text-transform:uppercase;text-align:left;background:#243020;letter-spacing:0.5px}
-table.it tbody tr{border-bottom:1px solid #f0e8dc}table.it tbody tr:nth-child(even){background:#faf7f2}table.it td{padding:5px 3px;vertical-align:middle}
-.bg{display:grid;grid-template-columns:1fr 1.1fr;gap:12px;margin-top:14px}.bp{background:#faf7f2;border:1px solid #e8dece;padding:11px 13px}
-.bt{font-size:10px;font-weight:700;letter-spacing:1.5px;color:#243020;text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid #e8dece;padding-bottom:5px;font-family:'Cormorant Garamond',serif}
-.br{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(217,207,192,0.5);font-size:10px}.bk{width:80px;color:#7a6e60}.bv{color:#1a1a1a;font-weight:600;font-family:Arial,sans-serif}
-.pt-title{font-family:'Cormorant Garamond',serif;font-size:10px;font-weight:700;letter-spacing:1.5px;color:#243020;text-transform:uppercase;margin-top:10px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #e8dece}
-.pt{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid rgba(217,207,192,0.4);font-size:9.5px}.pt:last-child{border-bottom:none}.pt-pct{width:38px;color:#8a6d3b;font-weight:700;font-family:Arial,sans-serif}.pt-desc{color:#7a6e60}
-.tp{border:1px solid #e8dece;overflow:hidden}.tr{display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid #f0e8dc;font-size:10.5px}.tr .l{color:#7a6e60}.tr .v{font-weight:600;color:#1a1a1a;font-family:Arial,sans-serif;font-size:11px}.tr.sub{background:#faf7f2}
-.tr.gd{background:#ede5d3;border-bottom:none;padding:11px 12px;border-top:2px solid rgba(176,141,87,0.5)}.tr.gd .l{color:#5a4a30;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;font-weight:600}.tr.gd .v{color:#243020;font-size:15px;font-weight:700;font-family:Arial,sans-serif}
-.p2{page-break-before:always}.p2body{padding:14px 18px}.p2-sec-title{font-size:11px;font-weight:700;letter-spacing:2px;color:#243020;text-transform:uppercase;margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid #e8dece;font-family:'Cormorant Garamond',serif}
-.chars-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}.char-card{background:#faf7f2;border-left:3px solid #b08d57;padding:12px 14px}.char-t{font-size:10.5px;font-weight:700;text-transform:uppercase;color:#243020;margin-bottom:6px}.char-b{font-size:10.5px;color:#7a6e60;line-height:1.65}
-.terms-cols{columns:2;gap:22px;list-style:none;margin-bottom:18px}.terms-cols li{font-size:10px;color:#7a6e60;line-height:1.6;margin-bottom:8px;padding-left:12px;position:relative;break-inside:avoid}.terms-cols li::before{content:'\\2014';position:absolute;left:0;color:#b08d57}
-.sigs{display:flex;gap:24px;margin-top:14px}.sig{flex:1;text-align:center}.sigline{height:30px;border-bottom:1px solid #d9cfc0}.siglbl{font-size:7px;letter-spacing:1.5px;text-transform:uppercase;color:#7a6e60;margin-top:4px}
-</style></head><body>
-${hdr}
-<div class="info-sec"><table class="info-table">
-<tr><td><span class="lbl">Date</span><span class="val">${fv('quoteDate')}</span></td><td><span class="lbl">Architect Name</span><span class="val">${fv('architectName')||'&mdash;'}</span></td><td><span class="lbl">Ref. No.</span><span class="val">${fv('refNo')}</span></td><td><span class="lbl">Boutique</span><span class="val">${fv('boutique')}</span></td></tr>
-<tr><td><span class="lbl">Client Name</span><span class="val">${fv('clientName')}</span></td><td><span class="lbl">Architect Firm</span><span class="val">${fv('architectFirm')||'&mdash;'}</span></td><td><span class="lbl">Consultant</span><span class="val">${fv('consultant')||'&mdash;'}</span></td><td></td></tr>
-<tr><td><span class="lbl">Client Contact</span><span class="val">${fv('clientContact')||'&mdash;'}</span></td><td><span class="lbl">Validity</span><span class="val">${fv('validity')||'&mdash;'}</span></td><td><span class="lbl">Consultant No.</span><span class="val">${fv('consultantNumber')||'&mdash;'}</span></td><td><span class="lbl">Email</span><span class="val">${fv('clientEmail')||'&mdash;'}</span></td></tr>
-<tr><td><span class="lbl">Site Address</span><span class="val">${fv('siteAddress')||'&mdash;'}</span></td><td><span class="lbl">Lead Time</span><span class="val">${fv('leadTime')}</span></td><td><span class="lbl">Consultant Email</span><span class="val">${fv('consultantEmail')||'&mdash;'}</span></td><td><span class="lbl">Billing Address</span><span class="val">${fv('billingAddress')||'&mdash;'}</span></td></tr>
-</table></div>
-<div class="body"><table class="it"><thead><tr><th>#</th><th>Img</th><th>Description</th><th style="text-align:right">Area</th><th>Size (in)</th><th>Material</th><th>Thk</th><th>Unit</th>${hasNonSFT?'<th style="text-align:right">Qty</th>':''}<th style="text-align:right">GST%</th><th style="text-align:right">Amount</th></tr></thead><tbody>${stoneHtml}</tbody></table>
-<div class="bg"><div class="bp"><div class="bt">Bank Details</div><div class="br"><span class="bk">Name</span><span class="bv">Vijayaananth Realtech</span></div><div class="br"><span class="bk">Account No.</span><span class="bv">50200093326161</span></div><div class="br"><span class="bk">Bank</span><span class="bv">HDFC Bank</span></div><div class="br"><span class="bk">IFSC Code</span><span class="bv">HDFC0001755</span></div><div class="pt-title">Payment Terms</div><div class="pt"><span class="pt-pct">60%</span><span class="pt-desc">Advance on order confirmation</span></div><div class="pt"><span class="pt-pct">35%</span><span class="pt-desc">Before delivery of material</span></div><div class="pt"><span class="pt-pct">5%</span><span class="pt-desc">Before completion of installation</span></div></div>
-<div class="tp">${totalsHtml}<div class="tr gd"><span class="l">Grand Total</span><span class="v">${grandStr}</span></div></div></div></div>
-${ftr}
-<div class="p2">${hdr}<div class="p2body"><div class="p2-sec-title">Natural Stone Characteristics</div><div class="chars-grid">
-<div class="char-card"><div class="char-t">Natural Variation</div><div class="char-b">As these are natural stones, variations in colour, grain pattern, porosity, and thickness of approximately 15&ndash;20% are inherent and to be expected.</div></div>
-<div class="char-card"><div class="char-t">Cleaning Instructions</div><div class="char-b">Please avoid using acidic or alkaline substances to clean the stone surfaces, as they may cause permanent patches or discoloration.</div></div>
-<div class="char-card"><div class="char-t">Natural Features</div><div class="char-b">Due to the natural structure of the stone, grains and pores may open up during production, transit, or installation. Our craftsmen will address these areas.</div></div>
-<div class="char-card"><div class="char-t">Chemical Treatment Disclaimer</div><div class="char-b">The high-grade surface treatments used are synthetic and may age differently over time, causing the stone's appearance to evolve naturally.</div></div></div>
-<div class="p2-sec-title">Terms &amp; Conditions</div><ul class="terms-cols">
-<li>Payment Terms: A 60% advance is required upon order confirmation. The remaining 40% before delivery.</li>
-<li>Order Policy: Once booked, products cannot be returned, exchanged, or cancelled.</li>
-<li>Delivery &amp; Transportation: Dispatched from our local warehouse. Transportation charges based on delivery location.</li>
-<li>Measurement Changes: Quotation revised as per actual site measurements.</li>
-<li>Site Visit Charges: Additional charges apply for site visits outside Bengaluru.</li>
-<li>Legal Jurisdiction: Disputes fall under the jurisdiction of Bengaluru, Karnataka.</li>
-<li>Quotation Validity: Valid for 30 days from the date of issue.</li>
-<li>Product Issues: Complaints must be reported within 24 hours of delivery if installation is not in Celes'tile scope.</li>
-<li>Additional Charges: Transportation, loading, unloading, installation billed separately.</li>
-<li>Installation Condition: Stone can be installed only on a cement-plastered wall.</li>
-<li>Transit Tolerance: A standard transit damage margin of 5&ndash;7% is acceptable.</li>
-<li>Delivery Schedule: Material delivered within 48 hours upon receipt of payment.</li>
-<li>Design Iteration: Up to three drawing changes without additional fee.</li>
-<li>Delivery Timeline: Estimated 40 to 60 days from order confirmation.</li>
-<li>Storage Responsibility: If installation is delayed, client is responsible for safe storage.</li>
-<li>Studio Timings: Monday&ndash;Saturday 9:30 am&ndash;7:30 pm. Closed Sundays.</li>
-</ul>
-<div class="sigs"><div class="sig"><div class="sigline"></div><div class="siglbl">Agreed by Client / Signature</div></div><div class="sig"><div class="sigline"></div><div class="siglbl">For Celestile / Authorized Signatory</div></div></div></div>${ftr}</div>
-</body></html>`;
 }
