@@ -515,7 +515,7 @@ export default function BangaloreForm({ initialRef = '' }) {
         .qb-tbtn-primary{background:linear-gradient(135deg,#b08d57,#8a6d3b);color:#fff1da;border:none;font-weight:600;}
         .qb-tbtn-primary:hover{background:linear-gradient(135deg,#c4a06b,#9a7d4b);}
 
-        .qb-container{max-width:1100px;margin:0 auto;background:#fff;box-shadow:0 8px 40px rgba(100,80,40,0.14),0 0 0 1px rgba(176,141,87,0.18);}
+        .qb-container{background:#fff;box-shadow:0 8px 40px rgba(100,80,40,0.14),0 0 0 1px rgba(176,141,87,0.18);}
 
         .qb-doc-header{background:var(--qb-green);padding:24px 36px 22px;position:relative;overflow:hidden;border-bottom:3px solid var(--qb-gold);}
         .qb-doc-header::before{content:'';position:absolute;top:-60px;right:-60px;width:240px;height:240px;border:1px solid rgba(176,141,87,0.10);border-radius:50%;pointer-events:none;}
