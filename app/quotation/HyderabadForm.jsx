@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { CELESTILE_LOGO } from '@/lib/celestile-logo';
@@ -54,11 +54,42 @@ function compute(stoneRows, fixRows, charges) {
   return { perStone, stoneSum, discPct, discAmt, netStone, designFees, totalGst, swg, fixSum, installation, packing, grandTotal };
 }
 
-const HEADER_FIELDS = [
-  ['clientName','Client Name'], ['clientFirm','Client Firm'], ['consultant','Consultant','bq-consult'],
-  ['consultantNo','Consultant No.'], ['consultantEmail','Consultant Email','bq-consult-email'],
-  ['architect','Architect / Designer'], ['clientContact','Client Contact'], ['clientEmail','Client Email'],
-  ['boutique','Boutique'], ['paymentTerms','Payment Terms'], ['leadTime','Lead Time'], ['transport','Mode of Transport'],
+// Flat field order — mirrors the info-table grouping shown in the delivered
+// PDF/Apps Script tool (Date/Client/Consultant/Boutique per row, etc.).
+const FIELD_ORDER = [
+  { key:'quoteDate', label:'Date', type:'date' },
+  { key:'clientName', label:'Client Name' },
+  { key:'consultant', label:'Consultant', list:'qh-consult', useOnBlur:true },
+  { key:'boutique', label:'Boutique' },
+  { key:'refNo', label:'Quotation Ref. No.', readOnly:true },
+  { key:'clientContact', label:'Client Contact No.' },
+  { key:'consultantNo', label:'Consultant No.' },
+  { key:'paymentTerms', label:'Payment Terms' },
+  { key:'leadTime', label:'Lead Time' },
+  { key:'clientFirm', label:'Client Firm' },
+  { key:'consultantEmail', label:'Consultant Email', list:'qh-consult-email' },
+  { key:'transport', label:'Mode of Transport' },
+  { key:'validity', label:'Validity', readOnly:true },
+  { key:'clientEmail', label:'Client Email' },
+  { key:'architect', label:'Architect / Designer' },
+  { key:'siteAddress', label:'Site Address', textarea:true },
+  { key:'billingAddress', label:'Billing Address', textarea:true },
+];
+
+const TERMS = [
+  { text: 'Quotation valid for 30 days from date of issue.' },
+  { text: '80% Advance against order confirmation. Balance 20% before delivery.' },
+  { text: 'Payment via Cheque / DD / Transfer in favor of SK Marketing Tiles And Tapz.' },
+  { text: 'Products once booked cannot be returned, exchanged or cancelled.' },
+  { text: 'All disputes subject to Hyderabad, Telangana jurisdiction only.' },
+  { text: 'Delivery 40–60 working days from drawing confirmation.' },
+  { text: 'Products delivered from Factory @ Jadcherla; local transport extra.' },
+  { text: 'Natural stones have 15–20% variation in color & size.' },
+  { text: 'Complaints within 24 hours of delivery.' },
+  { text: 'Stone can only be installed on a cement-plastered wall.' },
+  { text: 'Transit damage margin of 5–7% is acceptable within industry norms.' },
+  { text: 'If material is ready for dispatch, the client must issue full payment.', hl: true },
+  { text: 'Celestile will hold ready material for only 15 days; beyond which 2% of bill value/month storage applies.', hl: true },
 ];
 
 export default function HyderabadForm({ initialRef = '' }) {
@@ -198,277 +229,369 @@ export default function HyderabadForm({ initialRef = '' }) {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      <datalist id="bq-mat">{MATERIAL_LIST.map((m) => <option key={m} value={m} />)}</datalist>
-      <datalist id="bq-consult">{consultants.map((c) => <option key={c.name} value={c.name} />)}</datalist>
-      <datalist id="bq-consult-email">{consultants.map((c) => c.email && <option key={c.email} value={c.email} />)}</datalist>
+    <div className="qh-scope">
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600;700&display=swap" />
+      <datalist id="qh-mat">{MATERIAL_LIST.map((m) => <option key={m} value={m} />)}</datalist>
+      <datalist id="qh-consult">{consultants.map((c) => <option key={c.name} value={c.name} />)}</datalist>
+      <datalist id="qh-consult-email">{consultants.map((c) => c.email && <option key={c.email} value={c.email} />)}</datalist>
 
-      <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
-            <IconDoc className="w-[18px] h-[18px]" />
-          </div>
-          <div className="min-w-0">
-            <div className="font-display text-[15px] font-semibold tracking-tight text-slate-900">Quotation — Hyderabad</div>
-            <div className="text-[11.5px] text-slate-500">Ref: <b className="text-slate-700">{header.refNo || '—'}</b></div>
-          </div>
+      <div className="qh-toolbar">
+        <div className="qh-toolbar-left">
+          <div className="qh-toolbar-title">Quotation — Hyderabad</div>
+          <div className="qh-toolbar-ref">REF: {header.refNo || '—'}</div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {status && <span className="text-[12px] text-slate-600 mr-1">{status}</span>}
-          <button className="btn-ghost" onClick={reset}>↺ Reset</button>
-          <button className="btn-secondary" onClick={openRevise}>Revise</button>
-          <button className="btn-secondary" disabled={!canDownload} title={canDownload ? '' : 'Available once an admin approves this quotation'} onClick={printPdf}>⬇ PDF</button>
-          <button className="btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
+        <div className="qh-tbtn-group">
+          {status && <span className="qh-status-text">{status}</span>}
+          <button className="qh-tbtn" onClick={reset}>↺ Reset</button>
+          <button className="qh-tbtn" onClick={openRevise}>Revise</button>
+          <button className="qh-tbtn" disabled={!canDownload} title={canDownload ? '' : 'Available once an admin approves this quotation'} onClick={printPdf}>⬇ PDF</button>
+          <button className="qh-tbtn qh-tbtn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
         </div>
       </div>
 
-      {/* header */}
-      <div className="card p-5">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
-            <IconInfo className="w-4 h-4" />
-          </div>
-          <h2 className="section-title">Client &amp; Project Details</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Field label="Date" type="date" value={header.quoteDate}
-            onChange={(v) => setHeader((h) => ({ ...h, quoteDate: v, validity: validityFrom(v) }))} />
-          {HEADER_FIELDS.map(([k, label, list]) => (
-            <Field key={k} label={label} value={header[k]} list={list}
-              onBlur={k === 'consultant' ? onConsultantBlur : undefined} onChange={(v) => setH(k, v)} />
-          ))}
-          <Field label="Validity" value={header.validity} readOnly />
-          <Field label="Site Address" value={header.siteAddress} onChange={(v) => setH('siteAddress', v)} />
-          <Field label="Billing Address" value={header.billingAddress} onChange={(v) => setH('billingAddress', v)} />
-        </div>
-      </div>
-
-      {/* stone items */}
-      <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2 bg-gradient-to-r from-slate-50/80 to-transparent">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconList /></div>
-            <div>
-              <h2 className="text-[13.5px] font-semibold text-slate-900">Stone &amp; Tile Items</h2>
-              <p className="text-[11.5px] text-slate-500">{stoneRows.length} line{stoneRows.length !== 1 ? 's' : ''}</p>
+      <div className="qh-container">
+        <div className="qh-doc-header">
+          <div className="qh-header-top">
+            <div className="qh-header-left">
+              <img className="qh-header-logo" src={CELESTILE_LOGO} alt="Celestile" />
+              <div>
+                <div className="qh-brand-name">CELESTILE</div>
+                <div className="qh-brand-tagline">Hyderabad Boutique</div>
+              </div>
+            </div>
+            <div className="qh-doc-type-block">
+              <div className="qh-doc-type">QUOTATION</div>
+              <div className="qh-ref-badge">REF: {header.refNo || '—'}</div>
             </div>
           </div>
+          <div className="qh-gold-rule" />
         </div>
-        <div className="p-5">
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full text-[12px]">
-              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
-                <tr>{['#','Image','Description','Area','Size Wt (in)','Size Ht (in)','Material','Thickness','Unit','SFT','Rate ₹','Qty','GST %','Amount',''].map((h, i) =>
-                  <th key={i} className={`table-th whitespace-nowrap ${i >= 10 && i <= 13 ? 'text-right' : ''}`}>{h}</th>)}</tr>
+
+        <div className="qh-info-section">
+          <div className="qh-info-grid">
+            {FIELD_ORDER.map((f) => (
+              <div className="qh-info-field" key={f.key}>
+                <label>{f.label}</label>
+                {f.textarea
+                  ? <textarea rows={1} value={header[f.key]} onChange={(e) => setH(f.key, e.target.value)} />
+                  : <input type={f.type || 'text'} list={f.list} readOnly={f.readOnly}
+                      value={f.key === 'quoteDate' ? header.quoteDate : header[f.key]}
+                      onBlur={f.useOnBlur ? onConsultantBlur : undefined}
+                      onChange={f.key === 'quoteDate'
+                        ? (e) => setHeader((h) => ({ ...h, quoteDate: e.target.value, validity: validityFrom(e.target.value) }))
+                        : (e) => setH(f.key, e.target.value)} />}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="qh-body-content">
+          <div className="qh-section-header">
+            <div className="qh-section-num">01</div>
+            <div className="qh-section-label">Stone &amp; Tile Items</div>
+            <div className="qh-section-rule" />
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table className="qh-items-table">
+              <colgroup>
+                <col style={{ width: 24 }} /><col style={{ width: 46 }} /><col style={{ width: 130 }} /><col style={{ width: 48 }} />
+                <col style={{ width: 46 }} /><col style={{ width: 46 }} /><col style={{ width: 90 }} /><col style={{ width: 60 }} />
+                <col style={{ width: 62 }} /><col style={{ width: 52 }} /><col style={{ width: 64 }} /><col style={{ width: 44 }} />
+                <col style={{ width: 46 }} /><col style={{ width: 72 }} /><col style={{ width: 24 }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>#</th><th>Img</th><th>Description</th><th>Area</th><th>Wt (in)</th><th>Ht (in)</th><th>Material</th>
+                  <th>Thickness</th><th>Unit</th><th>Rate Type</th><th>Rate (₹)</th><th>Qty</th><th>GST %</th>
+                  <th style={{ textAlign: 'right' }}>Amount</th><th></th>
+                </tr>
               </thead>
               <tbody>
                 {stoneRows.map((r, i) => {
                   const eff = calc.perStone[i] || { amt: 0, q: 0, hasInput: false };
                   return (
-                    <tr key={i} className="table-row">
-                      <td className="px-2 py-1 text-slate-400">{i + 1}</td>
-                      <td className="px-1 py-1">
-                        <label className="cursor-pointer flex items-center justify-center w-10 h-10 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">
-                          {r.img ? <img src={r.img} alt="" className="w-10 h-10 object-cover" /> : <span className="text-slate-400 text-lg leading-none">+</span>}
+                    <tr key={i} className={i % 2 === 1 ? 'qh-row-even' : ''}>
+                      <td className="qh-sno-cell">{i + 1}</td>
+                      <td className="qh-img-cell">
+                        <label className="qh-img-container">
+                          {r.img ? <img className="qh-img-preview-thumb" src={r.img} alt="" /> : <div className="qh-img-placeholder">+</div>}
                           <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
                         </label>
                       </td>
-                      <td className="px-1 py-1 min-w-[140px]"><input className="input !py-1" value={r.desc} onChange={(e) => setStone(i, 'desc', e.target.value)} placeholder="Description" /></td>
-                      <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.area} onChange={(e) => setStone(i, 'area', e.target.value)} placeholder="Area" /></td>
-                      <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.sizeWt} onChange={(e) => setStone(i, 'sizeWt', e.target.value)} placeholder="Wt" /></td>
-                      <td className="px-1 py-1 w-16"><input className="input !py-1" value={r.sizeHt} onChange={(e) => setStone(i, 'sizeHt', e.target.value)} placeholder="Ht" /></td>
-                      <td className="px-1 py-1 w-28"><input className="input !py-1" list="bq-mat" value={r.mat} onChange={(e) => setStone(i, 'mat', e.target.value)} placeholder="Material" /></td>
-                      <td className="px-1 py-1 w-20"><input className="input !py-1" value={r.thk} onChange={(e) => setStone(i, 'thk', e.target.value)} placeholder="Thk" /></td>
-                      <td className="px-1 py-1 w-20">
-                        <select className="input !py-1" value={r.unit} onChange={(e) => setStone(i, 'unit', e.target.value)}>
+                      <td><input value={r.desc} placeholder="Description" onChange={(e) => setStone(i, 'desc', e.target.value)} /></td>
+                      <td><input value={r.area} placeholder="—" onChange={(e) => setStone(i, 'area', e.target.value)} /></td>
+                      <td><input value={r.sizeWt} placeholder="Wt" onChange={(e) => setStone(i, 'sizeWt', e.target.value)} /></td>
+                      <td><input value={r.sizeHt} placeholder="Ht" onChange={(e) => setStone(i, 'sizeHt', e.target.value)} /></td>
+                      <td><input list="qh-mat" value={r.mat} placeholder="Material" onChange={(e) => setStone(i, 'mat', e.target.value)} /></td>
+                      <td><input value={r.thk} placeholder="Thk" onChange={(e) => setStone(i, 'thk', e.target.value)} /></td>
+                      <td>
+                        <select value={r.unit} onChange={(e) => setStone(i, 'unit', e.target.value)}>
                           {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u || '—'}</option>)}
                         </select>
                       </td>
-                      <td className="px-1 py-1 text-center" title="SFT: qty = Wt × Ht">
-                        <input type="checkbox" className="h-4 w-4 accent-primary-600" checked={r.module} onChange={(e) => setStone(i, 'module', e.target.checked)} />
+                      <td className="qh-rate-type-cell">
+                        <label className="qh-rate-type-toggle" title="SFT: qty = Wt × Ht">
+                          <input type="checkbox" checked={r.module} onChange={(e) => setStone(i, 'module', e.target.checked)} />
+                          <span>SFT</span>
+                        </label>
                       </td>
-                      <td className="px-1 py-1 w-20"><CalcInput className="input !py-1 text-right tabular-nums" value={r.price} onChange={(v) => setStone(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
-                      <td className="px-1 py-1 w-16">
+                      <td><CalcInput className="qh-num-input" value={r.price} onChange={(v) => setStone(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
+                      <td>
                         {r.module
-                          ? <input type="number" className="input !py-1 text-right tabular-nums bg-slate-100 text-slate-500" value={eff.q ? +Number(eff.q).toFixed(2) : ''} readOnly />
-                          : <CalcInput className="input !py-1 text-right tabular-nums" value={r.qty} onChange={(v) => setStone(i, 'qty', v)} title="Type a formula, e.g. 2850*45" />}
+                          ? <input className="qh-num-input qh-readonly-qty" readOnly value={eff.q ? +Number(eff.q).toFixed(2) : ''} />
+                          : <CalcInput className="qh-num-input" value={r.qty} onChange={(v) => setStone(i, 'qty', v)} title="Type a formula, e.g. 2850*45" />}
                       </td>
-                      <td className="px-1 py-1 w-16"><CalcInput className="input !py-1 text-right tabular-nums" value={r.gst} onChange={(v) => setStone(i, 'gst', v)} /></td>
-                      <td className="px-2 py-1 text-right whitespace-nowrap font-semibold tabular-nums">{eff.hasInput ? inr2(eff.amt) : ''}</td>
-                      <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delStone(i)}>✕</button></td>
+                      <td><CalcInput className="qh-num-input" value={r.gst} onChange={(v) => setStone(i, 'gst', v)} /></td>
+                      <td className="qh-amt-cell">{eff.hasInput ? inr2(eff.amt) : ''}</td>
+                      <td><button className="qh-del-btn" onClick={() => delStone(i)}>✕</button></td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          <button className="btn-secondary mt-3" onClick={addStone}>+ Add Stone Item</button>
-        </div>
-      </div>
+          <button className="qh-add-row-btn" onClick={addStone}>+ Add Stone Item</button>
 
-      {/* fixing items */}
-      <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2 bg-gradient-to-r from-slate-50/80 to-transparent">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconLayers /></div>
-            <div>
-              <h2 className="text-[13.5px] font-semibold text-slate-900">Fixing Material</h2>
-              <p className="text-[11.5px] text-slate-500">{fixRows.length} line{fixRows.length !== 1 ? 's' : ''}</p>
-            </div>
+          <div className="qh-section-header">
+            <div className="qh-section-num">02</div>
+            <div className="qh-section-label">Fixing Material</div>
+            <div className="qh-section-rule" />
           </div>
-        </div>
-        <div className="p-5">
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full text-[12px]">
-              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
-                <tr>{['#','Description','Material','Size / Thickness','Unit','Rate ₹','Qty','Amount',''].map((h, i) =>
-                  <th key={i} className={`table-th whitespace-nowrap ${i >= 5 && i <= 7 ? 'text-right' : ''}`}>{h}</th>)}</tr>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table className="qh-items-table">
+              <colgroup>
+                <col style={{ width: 24 }} /><col style={{ width: 180 }} /><col style={{ width: 120 }} /><col style={{ width: 100 }} />
+                <col style={{ width: 70 }} /><col style={{ width: 70 }} /><col style={{ width: 46 }} /><col style={{ width: 78 }} /><col style={{ width: 24 }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>#</th><th>Description</th><th>Material</th><th>Size / Thickness</th><th>Unit</th>
+                  <th>Rate (₹)</th><th>Qty</th><th style={{ textAlign: 'right' }}>Amount</th><th></th>
+                </tr>
               </thead>
               <tbody>
                 {fixRows.map((r, i) => {
                   const amt = (parseFloat(r.price) || 0) * (parseFloat(r.qty) || 0);
                   return (
-                    <tr key={i} className="table-row">
-                      <td className="px-2 py-1 text-slate-400">{i + 1}</td>
-                      <td className="px-1 py-1"><input className="input !py-1" value={r.desc} onChange={(e) => setFix(i, 'desc', e.target.value)} /></td>
-                      <td className="px-1 py-1"><input className="input !py-1" value={r.mat} onChange={(e) => setFix(i, 'mat', e.target.value)} /></td>
-                      <td className="px-1 py-1 w-24"><input className="input !py-1" value={r.size} onChange={(e) => setFix(i, 'size', e.target.value)} /></td>
-                      <td className="px-1 py-1 w-20"><input className="input !py-1" value={r.unit} onChange={(e) => setFix(i, 'unit', e.target.value)} /></td>
-                      <td className="px-1 py-1 w-20"><CalcInput className="input !py-1 text-right tabular-nums" value={r.price} onChange={(v) => setFix(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
-                      <td className="px-1 py-1 w-16"><CalcInput className="input !py-1 text-right tabular-nums" value={r.qty} onChange={(v) => setFix(i, 'qty', v)} /></td>
-                      <td className="px-2 py-1 text-right whitespace-nowrap tabular-nums">{amt ? inr2(amt) : '₹ 0'}</td>
-                      <td className="px-1 py-1"><button className="btn-danger !px-2 !py-1" onClick={() => delFix(i)}>✕</button></td>
+                    <tr key={i} className={i % 2 === 1 ? 'qh-row-even' : ''}>
+                      <td className="qh-sno-cell">{i + 1}</td>
+                      <td><input value={r.desc} onChange={(e) => setFix(i, 'desc', e.target.value)} /></td>
+                      <td><input value={r.mat} onChange={(e) => setFix(i, 'mat', e.target.value)} /></td>
+                      <td><input value={r.size} onChange={(e) => setFix(i, 'size', e.target.value)} /></td>
+                      <td><input value={r.unit} onChange={(e) => setFix(i, 'unit', e.target.value)} /></td>
+                      <td><CalcInput className="qh-num-input" value={r.price} onChange={(v) => setFix(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
+                      <td><CalcInput className="qh-num-input" value={r.qty} onChange={(v) => setFix(i, 'qty', v)} /></td>
+                      <td className="qh-amt-cell">{amt ? inr2(amt) : '₹ 0.00'}</td>
+                      <td><button className="qh-del-btn" onClick={() => delFix(i)}>✕</button></td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          <button className="btn-secondary mt-3" onClick={addFix}>+ Add Fixing Item</button>
-        </div>
-      </div>
+          <button className="qh-add-row-btn" onClick={addFix}>+ Add Fixing Item</button>
 
-      {/* charges + totals */}
-      <div className="card p-5 max-w-md ml-auto relative overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-300 via-primary-500 to-primary-700" />
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-7 h-7 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconCalc className="w-3.5 h-3.5" /></div>
-          <div className="text-[13px] font-semibold text-slate-800">Charges &amp; Totals</div>
-        </div>
-        <div className="space-y-2">
-          <ChargeInput label="Discount %" value={charges.discountPct} onChange={(v) => setC('discountPct', v)} suffix="%" />
-          <ChargeInput label="Design Fees" value={charges.designFees} onChange={(v) => setC('designFees', v)} />
-          <ChargeInput label="Installation Charges" value={charges.installationCharges} onChange={(v) => setC('installationCharges', v)} />
-          <ChargeInput label="Packing Charges" value={charges.packingCharges} onChange={(v) => setC('packingCharges', v)} />
-        </div>
-        <div className="border-t border-slate-200 pt-2 mt-2 space-y-1">
-          <Line label="Basic Sale Value (Stone)" value={inr2(calc.stoneSum)} />
-          {calc.discAmt > 0 && <Line label={`Discount @ ${calc.discPct}%`} value={inrNeg(calc.discAmt)} />}
-          {calc.discAmt > 0 && <Line label="Net Stone Value" value={inr2(calc.netStone)} />}
-          <Line label="Design Fees" value={inr2(calc.designFees)} />
-          <Line label="GST (Total)" value={inr2(calc.totalGst)} />
-          <Line label="Stone Total (Incl. GST)" value={inr2(calc.swg)} strong />
-          <Line label="Fixing Material Total" value={inr2(calc.fixSum)} />
-          <Line label="Installation Charges" value={inr2(calc.installation)} />
-          {calc.packing > 0 && <Line label="Packing Charges" value={inr2(calc.packing)} />}
-          <div className="flex items-center justify-between mt-2 -mx-5 -mb-5 px-5 py-3 rounded-b-xl bg-gradient-to-r from-primary-50 to-primary-50/40 border-t border-primary-100">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-primary-800">Grand Total</span>
-            <span className="text-[19px] font-bold text-gradient-gold tabular-nums">{inr2(calc.grandTotal)}</span>
+          <div className="qh-bottom-grid">
+            <div className="qh-bank-panel">
+              <div className="qh-bank-title">Bank Details</div>
+              <div className="qh-bank-row"><span className="qh-bank-key">Name</span><span className="qh-bank-val">S K Marketing Tiles &amp; Tapz</span></div>
+              <div className="qh-bank-row"><span className="qh-bank-key">Account No.</span><span className="qh-bank-val">8008002700</span></div>
+              <div className="qh-bank-row"><span className="qh-bank-key">Bank</span><span className="qh-bank-val">Kotak Mahindra Bank</span></div>
+              <div className="qh-bank-row"><span className="qh-bank-key">Branch</span><span className="qh-bank-val">Srinagar Colony</span></div>
+              <div className="qh-bank-row"><span className="qh-bank-key">IFSC Code</span><span className="qh-bank-val">KKBK0007488</span></div>
+              <div className="qh-bank-row"><span className="qh-bank-key">UPI ID</span><span className="qh-bank-val">celestile@kotak</span></div>
+            </div>
+
+            <div className="qh-totals-panel">
+              <div className="qh-total-row"><span className="qh-label">Basic Sale Value (Stone)</span><span className="qh-value">{inr2(calc.stoneSum)}</span></div>
+              <div className="qh-total-row qh-discount-row">
+                <span className="qh-label">Discount</span>
+                <div className="qh-total-input-wrap">
+                  <CalcInput className="qh-total-input" style={{ width: 40 }} value={charges.discountPct} onChange={(v) => setC('discountPct', v)} />
+                  <span>%</span>
+                  <span style={{ marginLeft: 8, whiteSpace: 'nowrap' }}>{inrNeg(calc.discAmt)}</span>
+                </div>
+              </div>
+              {calc.discAmt > 0 && <div className="qh-total-row qh-subtotal-row"><span className="qh-label">Net Stone Value</span><span className="qh-value">{inr2(calc.netStone)}</span></div>}
+              <div className="qh-total-row">
+                <span className="qh-label">Design Fees</span>
+                <div className="qh-total-input-wrap"><span>₹</span><CalcInput className="qh-total-input" value={charges.designFees} onChange={(v) => setC('designFees', v)} /></div>
+              </div>
+              <div className="qh-total-row"><span className="qh-label">GST (Total)</span><span className="qh-value">{inr2(calc.totalGst)}</span></div>
+              <div className="qh-total-row qh-subtotal-row"><span className="qh-label">Stone Total (Incl. GST)</span><span className="qh-value">{inr2(calc.swg)}</span></div>
+              <div className="qh-total-row"><span className="qh-label">Fixing Material Total</span><span className="qh-value">{inr2(calc.fixSum)}</span></div>
+              <div className="qh-total-row">
+                <span className="qh-label">Installation Charges</span>
+                <div className="qh-total-input-wrap"><span>₹</span><CalcInput className="qh-total-input" value={charges.installationCharges} onChange={(v) => setC('installationCharges', v)} /></div>
+              </div>
+              <div className="qh-total-row">
+                <span className="qh-label">Packing Charges</span>
+                <div className="qh-total-input-wrap"><span>₹</span><CalcInput className="qh-total-input" value={charges.packingCharges} onChange={(v) => setC('packingCharges', v)} /></div>
+              </div>
+              <div className="qh-total-row qh-grand">
+                <span className="qh-label">Grand Total</span>
+                <span className="qh-value">{inr2(calc.grandTotal)}</span>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <div className="qh-terms-section">
+          <div className="qh-terms-title">Terms &amp; Conditions</div>
+          <ul className="qh-terms-columns">
+            {TERMS.map((t, i) => <li key={i} className={t.hl ? 'qh-term-hl' : ''}>{t.text}</li>)}
+          </ul>
+        </div>
+
+        <div className="qh-sig-section">
+          <div className="qh-sig-block"><div className="qh-sig-line" /><div className="qh-sig-label">Agreed by Client / Signature</div></div>
+          <div className="qh-sig-block"><div className="qh-sig-line" /><div className="qh-sig-label">For Celestile / Authorized Signatory</div></div>
+        </div>
+
+        <div className="qh-doc-footer">
+          <p>Celestile · The Home &amp; Bath Boutique<span className="qh-sep">|</span>www.celestile.com</p>
+          <p>SHAMSHABAD, HYDERABAD: +91 800 800 2700<span className="qh-sep">|</span>SARJAPUR ROAD, BANGALORE: +91 080 2665 8884</p>
         </div>
       </div>
 
       {showRevise && (
-        <div className="fixed inset-0 backdrop-blur-sm flex items-start justify-center overflow-y-auto z-50 pt-10 px-4 pb-4" onClick={() => setShowRevise(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-5 w-80 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconClock className="w-4 h-4" /></div>
-              <div className="text-[14px] font-semibold text-slate-900">Load Quotation</div>
-            </div>
-            <select className="input mb-3" value={selRef} onChange={(e) => setSelRef(e.target.value)}>
+        <div className="qh-modal" onClick={() => setShowRevise(false)}>
+          <div className="qh-modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3>Load Quotation</h3>
+            <select value={selRef} onChange={(e) => setSelRef(e.target.value)}>
               {reviseList.length === 0 && <option value="">No saved quotations</option>}
               {reviseList.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-            <div className="flex gap-2">
-              <button className="btn-primary flex-1" disabled={!selRef} onClick={loadSelected}>Load</button>
-              <button className="btn-ghost" onClick={() => setShowRevise(false)}>Cancel</button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button className="qh-tbtn qh-tbtn-primary" style={{ flex: 1 }} disabled={!selRef} onClick={loadSelected}>Load</button>
+              <button className="qh-tbtn" onClick={() => setShowRevise(false)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
-function IconDoc(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" />
-      <path d="M9 13h6" /><path d="M9 17h6" />
-    </svg>
-  );
-}
-function IconInfo(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" /><path d="M12 16v-4" /><path d="M12 8h.01" />
-    </svg>
-  );
-}
-function IconList(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" />
-    </svg>
-  );
-}
-function IconLayers(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m12 2 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5" /><path d="m3 17 9 5 9-5" />
-    </svg>
-  );
-}
-function IconCalc(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="2" width="16" height="20" rx="2" /><path d="M8 6h8" /><path d="M8 11h.01" /><path d="M12 11h.01" /><path d="M16 11h.01" /><path d="M8 15h.01" /><path d="M12 15h.01" /><path d="M16 15h.01" /><path d="M8 19h.01" /><path d="M12 19h.01" /><path d="M16 19h.01" />
-    </svg>
-  );
-}
-function IconClock(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
-    </svg>
-  );
-}
+      <style jsx>{`
+        .qh-scope {
+          --qh-blue:#22409A; --qh-blue-light:#3a5bc0; --qh-gold:#b08d57; --qh-gold-light:#d4b483; --qh-gold-dark:#8a6d3b;
+          --qh-cream:#faf7f2; --qh-cream-dark:#e8dece; --qh-border:#d9cfc0;
+          --qh-text:#2a2218; --qh-muted:#7a6e60; --qh-beige:#ede5d3;
+          font-family:'Jost',sans-serif;
+        }
+        .qh-toolbar{background:var(--qh-blue);border-radius:10px;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+        .qh-toolbar-title{color:var(--qh-gold-light);font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:600;letter-spacing:1px;}
+        .qh-toolbar-ref{color:rgba(212,180,131,0.65);font-size:0.72rem;letter-spacing:1px;margin-top:2px;font-family:Arial,sans-serif;}
+        .qh-tbtn-group{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+        .qh-status-text{color:var(--qh-gold-light);font-size:0.75rem;margin-right:6px;}
+        .qh-tbtn{padding:7px 16px;border-radius:2px;border:1px solid rgba(176,141,87,0.4);background:transparent;color:#c9d2ea;cursor:pointer;font-family:'Jost',sans-serif;font-size:0.72rem;letter-spacing:1.2px;text-transform:uppercase;transition:all 0.2s;}
+        .qh-tbtn:hover{background:rgba(176,141,87,0.15);border-color:var(--qh-gold);}
+        .qh-tbtn:disabled{opacity:0.4;cursor:not-allowed;}
+        .qh-tbtn-primary{background:linear-gradient(135deg,#b08d57,#8a6d3b);color:#fff1da;border:none;font-weight:600;}
+        .qh-tbtn-primary:hover{background:linear-gradient(135deg,#c4a06b,#9a7d4b);}
 
-function Field({ label, value, onChange, onBlur, type = 'text', readOnly, list }) {
-  return (
-    <div>
-      <label className="label">{label}</label>
-      <input type={type} className={`input ${readOnly ? 'bg-slate-50' : ''}`} value={value} list={list} readOnly={readOnly}
-        onBlur={onBlur} onChange={onChange ? (e) => onChange(e.target.value) : undefined} />
-    </div>
-  );
-}
-function ChargeInput({ label, value, onChange, suffix }) {
-  return (
-    <div className="flex items-center justify-between gap-2 text-[12.5px]">
-      <span className="text-slate-600">{label}</span>
-      <div className="flex items-center gap-1">
-        {!suffix && <span className="text-slate-400">₹</span>}
-        <CalcInput className="input !py-1 w-28 text-right tabular-nums" value={value} onChange={onChange} />
-        {suffix && <span className="text-slate-400">{suffix}</span>}
-      </div>
-    </div>
-  );
-}
-function Line({ label, value, strong }) {
-  return (
-    <div className={`flex items-center justify-between text-[12.5px] py-0.5 ${strong ? 'font-semibold' : ''}`}>
-      <span className="text-slate-600">{label}</span><span className="tabular-nums">{value}</span>
+        .qh-container{background:#fff;box-shadow:0 8px 40px rgba(30,45,100,0.14),0 0 0 1px rgba(176,141,87,0.18);}
+
+        .qh-doc-header{background:var(--qh-blue);padding:24px 36px 22px;position:relative;overflow:hidden;border-bottom:3px solid var(--qh-gold);}
+        .qh-doc-header::before{content:'';position:absolute;top:-60px;right:-60px;width:240px;height:240px;border:1px solid rgba(176,141,87,0.14);border-radius:50%;pointer-events:none;}
+        .qh-header-top{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;flex-wrap:wrap;gap:12px;}
+        .qh-header-left{display:flex;align-items:center;gap:18px;}
+        .qh-header-logo{width:74px;height:74px;border-radius:50%;background:#000;box-shadow:0 0 0 1px rgba(176,141,87,0.5),0 4px 14px rgba(0,0,0,0.3);object-fit:cover;flex-shrink:0;}
+        .qh-brand-name{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:400;color:var(--qh-gold-light);letter-spacing:7px;line-height:1;}
+        .qh-brand-tagline{font-size:0.6rem;letter-spacing:4.5px;text-transform:uppercase;color:rgba(212,180,131,0.85);margin-top:6px;}
+        .qh-doc-type-block{text-align:right;}
+        .qh-doc-type{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:500;color:var(--qh-gold-light);letter-spacing:5px;}
+        .qh-ref-badge{background:rgba(176,141,87,0.16);border:1px solid rgba(176,141,87,0.5);padding:5px 14px;font-size:0.7rem;letter-spacing:2px;color:rgba(232,218,196,0.9);margin-top:8px;display:inline-block;font-family:Arial,sans-serif;}
+        .qh-gold-rule{height:1px;background:linear-gradient(90deg,transparent,rgba(176,141,87,0.75),transparent);margin:18px 0 0;}
+
+        .qh-info-section{padding:20px 36px;background:var(--qh-cream);border-bottom:1px solid var(--qh-border);}
+        .qh-info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 20px;}
+        .qh-info-field label{display:block;font-size:0.68rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--qh-muted);margin-bottom:5px;}
+        .qh-info-field input,.qh-info-field textarea{width:100%;border:1px solid var(--qh-border);border-radius:5px;background:rgba(34,64,154,0.035);outline:none;padding:7px 9px;font-family:'Jost',sans-serif;font-size:0.9rem;color:var(--qh-text);font-weight:500;resize:none;transition:background .15s,box-shadow .15s;}
+        .qh-info-field input:focus,.qh-info-field textarea:focus{background:#fff;box-shadow:0 0 0 1px var(--qh-gold);}
+        .qh-info-field input::placeholder,.qh-info-field textarea::placeholder{color:#a89e90;font-weight:300;}
+        .qh-info-field input[readonly]{background:rgba(34,64,154,0.07);color:var(--qh-muted);}
+
+        .qh-body-content{padding:24px 36px;}
+        .qh-section-header{display:flex;align-items:center;gap:12px;margin:20px 0 10px;}
+        .qh-section-header:first-child{margin-top:0;}
+        .qh-section-num{width:24px;height:24px;border-radius:50%;background:var(--qh-blue);color:var(--qh-gold-light);font-size:0.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:Arial,sans-serif;}
+        .qh-section-label{font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:600;letter-spacing:2px;color:var(--qh-blue);text-transform:uppercase;}
+        .qh-section-rule{flex:1;height:1px;background:var(--qh-border);}
+
+        .qh-items-table{width:100%;border-collapse:collapse;font-size:0.85rem;table-layout:fixed;}
+        .qh-items-table thead tr{background:var(--qh-blue);}
+        .qh-items-table th{padding:9px 4px;color:rgba(220,228,245,0.92);font-weight:500;letter-spacing:1px;font-size:0.62rem;text-transform:uppercase;text-align:left;}
+        .qh-items-table tbody tr{border-bottom:1px solid var(--qh-cream-dark);}
+        .qh-items-table tbody tr.qh-row-even{background:var(--qh-cream);}
+        .qh-items-table td{padding:6px 3px;vertical-align:middle;}
+        .qh-items-table td input,.qh-items-table td select{width:100%;border:1px solid transparent;border-radius:4px;background:rgba(34,64,154,0.035);outline:none;padding:4px 5px;font-family:'Jost',sans-serif;font-size:0.83rem;color:var(--qh-text);transition:background .15s,box-shadow .15s;}
+        .qh-items-table td input:focus,.qh-items-table td select:focus{background:#fff;box-shadow:0 0 0 1px var(--qh-gold);}
+        .qh-num-input{text-align:right;font-family:Arial,sans-serif !important;font-size:0.85rem !important;}
+        .qh-readonly-qty{background:rgba(34,64,154,0.08) !important;color:var(--qh-muted) !important;}
+        .qh-sno-cell{width:24px;text-align:center;font-weight:700;font-size:0.8rem;color:var(--qh-muted);font-family:Arial,sans-serif;}
+        .qh-amt-cell{text-align:right;font-weight:600;color:var(--qh-text);white-space:nowrap;font-family:Arial,sans-serif;font-size:0.85rem;}
+        .qh-del-btn{background:none;border:none;cursor:pointer;color:#ccc;font-size:0.75rem;padding:2px 6px;}
+        .qh-del-btn:hover{color:#c0392b;}
+        .qh-add-row-btn{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 14px;border:1px dashed rgba(34,64,154,0.35);background:transparent;color:var(--qh-blue);font-family:'Jost',sans-serif;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;}
+        .qh-add-row-btn:hover{background:rgba(34,64,154,0.06);border-color:var(--qh-blue);}
+
+        .qh-img-cell{width:46px;}
+        .qh-img-container{width:38px;height:38px;display:block;cursor:pointer;}
+        .qh-img-placeholder{width:38px;height:38px;border:1px dashed rgba(34,64,154,0.3);background:rgba(34,64,154,0.04);display:flex;align-items:center;justify-content:center;color:rgba(34,64,154,0.45);font-size:1.05rem;}
+        .qh-img-preview-thumb{width:38px;height:38px;object-fit:cover;border:1px solid var(--qh-border);}
+
+        .qh-rate-type-cell{text-align:center;}
+        .qh-rate-type-toggle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-size:0.54rem;color:var(--qh-muted);letter-spacing:1px;text-transform:uppercase;font-weight:600;}
+        .qh-rate-type-toggle input{margin:0;width:14px;height:14px;cursor:pointer;accent-color:var(--qh-blue);}
+
+        .qh-bottom-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:20px;margin-top:24px;}
+        .qh-bank-panel{background:var(--qh-cream);border:1px solid var(--qh-border);padding:16px 18px;}
+        .qh-bank-title{font-family:'Cormorant Garamond',serif;font-size:0.85rem;font-weight:600;letter-spacing:2px;color:var(--qh-blue);text-transform:uppercase;margin-bottom:12px;border-bottom:1px solid var(--qh-border);padding-bottom:8px;}
+        .qh-bank-row{display:flex;gap:10px;padding:5px 0;border-bottom:1px solid rgba(217,207,192,0.5);font-size:0.82rem;}
+        .qh-bank-key{width:90px;flex-shrink:0;color:var(--qh-muted);font-weight:500;}
+        .qh-bank-val{color:var(--qh-text);font-weight:600;font-family:Arial,sans-serif;}
+
+        .qh-totals-panel{border:1px solid var(--qh-border);overflow:hidden;height:fit-content;}
+        .qh-total-row{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid var(--qh-cream-dark);font-size:0.86rem;gap:8px;}
+        .qh-label{color:var(--qh-muted);}
+        .qh-value{font-weight:600;color:var(--qh-text);white-space:nowrap;font-family:Arial,sans-serif;font-size:0.9rem;}
+        .qh-subtotal-row{background:rgba(34,64,154,0.045);}
+        .qh-discount-row .qh-label,.qh-discount-row span{color:#9a3a1f;}
+        .qh-total-row.qh-grand{background:var(--qh-beige);padding:12px 14px;border-bottom:none;border-top:2px solid rgba(176,141,87,0.4);}
+        .qh-total-row.qh-grand .qh-label{color:#5a4a30;font-size:0.76rem;letter-spacing:1px;text-transform:uppercase;}
+        .qh-total-row.qh-grand .qh-value{color:var(--qh-blue);font-size:1.15rem;font-family:Arial,sans-serif;font-weight:700;}
+        .qh-total-input{border:1px solid var(--qh-border);border-radius:4px;background:rgba(34,64,154,0.05);outline:none;padding:3px 6px;font-family:Arial,sans-serif;font-size:0.88rem;font-weight:600;color:var(--qh-text);width:74px;text-align:right;transition:background .15s,box-shadow .15s;}
+        .qh-total-input:focus{background:#fff;box-shadow:0 0 0 1px var(--qh-gold);}
+        .qh-total-input-wrap{display:flex;align-items:center;gap:4px;}
+
+        .qh-terms-section{padding:24px 36px;background:var(--qh-cream);border-top:1px solid var(--qh-border);}
+        .qh-terms-title{font-family:'Cormorant Garamond',serif;font-size:0.9rem;font-weight:600;letter-spacing:2px;color:var(--qh-blue);text-transform:uppercase;margin-bottom:14px;}
+        .qh-terms-columns{columns:2;gap:28px;list-style:none;margin:0;padding:0;}
+        .qh-terms-columns li{font-size:0.76rem;color:var(--qh-muted);line-height:1.55;margin-bottom:6px;padding-left:12px;position:relative;break-inside:avoid;}
+        .qh-terms-columns li::before{content:'—';position:absolute;left:0;color:var(--qh-gold-light);}
+        .qh-terms-columns li.qh-term-hl{color:var(--qh-text);font-weight:700;}
+
+        .qh-sig-section{padding:20px 36px;display:flex;gap:40px;}
+        .qh-sig-block{flex:1;}
+        .qh-sig-line{height:44px;border-bottom:1px solid var(--qh-border);margin-bottom:6px;}
+        .qh-sig-label{font-size:0.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--qh-muted);}
+
+        .qh-doc-footer{background:var(--qh-blue);padding:14px 36px;text-align:center;border-top:3px solid var(--qh-gold);}
+        .qh-doc-footer p{font-size:0.63rem;letter-spacing:1.5px;color:rgba(212,180,131,0.85);text-transform:uppercase;line-height:1.8;margin:0;}
+        .qh-sep{margin:0 10px;color:rgba(176,141,87,0.4);}
+
+        .qh-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;}
+        .qh-modal-box{background:#fff;width:340px;max-width:92%;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,0.25);}
+        .qh-modal-box h3{font-family:'Cormorant Garamond',serif;font-size:1.2rem;color:var(--qh-blue);letter-spacing:1.5px;margin-bottom:14px;}
+        .qh-modal-box select{width:100%;padding:9px;margin-top:6px;border:1px solid var(--qh-border);background:var(--qh-cream);font-family:'Jost',sans-serif;font-size:0.8rem;outline:none;}
+
+        @media (max-width: 860px) {
+          .qh-info-grid{grid-template-columns:repeat(2,1fr);}
+          .qh-bottom-grid{grid-template-columns:1fr;}
+          .qh-terms-columns{columns:1;}
+        }
+      `}</style>
     </div>
   );
 }
