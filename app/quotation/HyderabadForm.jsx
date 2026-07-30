@@ -140,6 +140,11 @@ export default function HyderabadForm({ initialRef = '' }) {
   }
 
   async function save() {
+    const activeStoneRows = stoneRows.filter((r) => r.desc || Number(r.price) || Number(r.qty) || r.module);
+    if (activeStoneRows.some((r) => !r.img)) {
+      setStatus('❌ Please add an image for every item before saving.');
+      return;
+    }
     setSaving(true); setStatus('Saving…');
     const payload = {
       branch: 'hyderabad', refNo: header.refNo, quoteDate: header.quoteDate,
@@ -151,7 +156,7 @@ export default function HyderabadForm({ initialRef = '' }) {
       discountPct: charges.discountPct, designFees: charges.designFees,
       installationCharges: charges.installationCharges, packingCharges: charges.packingCharges,
       grandTotal: inr2(calc.grandTotal),
-      stoneItems: stoneRows.filter((r) => r.desc || Number(r.price) || Number(r.qty) || r.module),
+      stoneItems: activeStoneRows,
       fixingItems: fixRows.filter((r) => Number(r.qty) > 0),
     };
     try {
@@ -293,12 +298,13 @@ export default function HyderabadForm({ initialRef = '' }) {
               <tbody>
                 {stoneRows.map((r, i) => {
                   const eff = calc.perStone[i] || { amt: 0, q: 0, hasInput: false };
+                  const needsImage = !r.img && (r.desc || Number(r.price) || Number(r.qty) || r.module);
                   return (
                     <tr key={i} className={i % 2 === 1 ? 'qh-row-even' : ''}>
                       <td className="qh-sno-cell">{i + 1}</td>
                       <td className="qh-img-cell">
                         <label className="qh-img-container">
-                          {r.img ? <img className="qh-img-preview-thumb" src={r.img} alt="" /> : <div className="qh-img-placeholder">+</div>}
+                          {r.img ? <img className="qh-img-preview-thumb" src={r.img} alt="" /> : <div className={`qh-img-placeholder ${needsImage ? 'qh-img-required' : ''}`}>+</div>}
                           <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
                         </label>
                       </td>
@@ -522,6 +528,7 @@ export default function HyderabadForm({ initialRef = '' }) {
         .qh-img-cell{width:46px;}
         .qh-img-container{width:38px;height:38px;display:block;cursor:pointer;}
         .qh-img-placeholder{width:38px;height:38px;border:1px dashed rgba(34,64,154,0.3);background:rgba(34,64,154,0.04);display:flex;align-items:center;justify-content:center;color:rgba(34,64,154,0.45);font-size:1.05rem;}
+        .qh-img-placeholder.qh-img-required{border:1px dashed #c0392b;background:rgba(192,57,43,0.06);color:#c0392b;}
         .qh-img-preview-thumb{width:38px;height:38px;object-fit:cover;border:1px solid var(--qh-border);}
 
         .qh-rate-type-cell{text-align:center;}

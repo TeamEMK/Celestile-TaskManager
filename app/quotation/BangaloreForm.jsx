@@ -188,6 +188,11 @@ export default function BangaloreForm({ initialRef = '' }) {
 
   /* save */
   async function save() {
+    const activeRows = rows.filter((r) => r.desc || r.area || Number(r.price) || Number(r.qty));
+    if (activeRows.some((r) => !r.img)) {
+      setStatus('❌ Please add an image for every item before saving.');
+      return;
+    }
     setSaving(true); setStatus('Saving…');
     const payload = {
       branch: 'bangalore', refNo: header.refNo, quoteDate: header.quoteDate,
@@ -196,7 +201,7 @@ export default function BangaloreForm({ initialRef = '' }) {
       clientContact: header.clientContact, clientEmail: header.clientEmail, boutique: header.boutique,
       validity: header.validity, leadTime: header.leadTime, billingAddress: header.billingAddress, siteAddress: header.siteAddress,
       grandTotal: inr0(calc.grandTotal),
-      stoneItems: rows.filter((r) => r.desc || r.area || Number(r.price) || Number(r.qty)),
+      stoneItems: activeRows,
       totalsConfig: totals,
     };
     try {
@@ -347,12 +352,13 @@ export default function BangaloreForm({ initialRef = '' }) {
               <tbody>
                 {rows.map((r, i) => {
                   const eff = calc.rowData[i] || { gross: 0, qty: 0, hasInput: false };
+                  const needsImage = !r.img && (r.desc || r.area || Number(r.price) || Number(r.qty));
                   return (
                     <tr key={i} className={i % 2 === 1 ? 'qb-row-even' : ''}>
                       <td className="qb-sno-cell">{i + 1}</td>
                       <td className="qb-img-cell">
                         <label className="qb-img-container">
-                          {r.img ? <img className="qb-img-preview-thumb" src={r.img} alt="" /> : <div className="qb-img-placeholder">+</div>}
+                          {r.img ? <img className="qb-img-preview-thumb" src={r.img} alt="" /> : <div className={`qb-img-placeholder ${needsImage ? 'qb-img-required' : ''}`}>+</div>}
                           <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
                         </label>
                       </td>
@@ -564,6 +570,7 @@ export default function BangaloreForm({ initialRef = '' }) {
         .qb-img-cell{width:50px;}
         .qb-img-container{width:40px;height:40px;display:block;cursor:pointer;}
         .qb-img-placeholder{width:40px;height:40px;border:1px dashed rgba(176,141,87,0.35);background:rgba(176,141,87,0.04);display:flex;align-items:center;justify-content:center;color:rgba(176,141,87,0.5);font-size:1.1rem;}
+        .qb-img-placeholder.qb-img-required{border:1px dashed #c0392b;background:rgba(192,57,43,0.06);color:#c0392b;}
         .qb-img-preview-thumb{width:40px;height:40px;object-fit:cover;border:1px solid var(--qb-border);}
 
         .qb-rate-type-cell{text-align:center;}
