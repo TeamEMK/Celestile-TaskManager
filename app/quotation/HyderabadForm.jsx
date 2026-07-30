@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { CELESTILE_LOGO } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
@@ -13,7 +12,6 @@ const inr2 = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumF
 const roundDim6 = (n) => Math.ceil((Number(n) || 0) / 6) * 6;
 const moduleQty = (wt, ht) => (roundDim6(wt) * roundDim6(ht)) / 144;
 const inrNeg = (n) => (Number(n) || 0) === 0 ? '– ₹ 0' : '– ₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -93,10 +91,6 @@ const TERMS = [
 ];
 
 export default function HyderabadForm({ initialRef = '' }) {
-  const { data: session } = useSession();
-  const roles = session?.user?.roles || [];
-  const isAdmin = roles.includes('Admin') || roles.includes('HOD');
-
   const [header, setHeader] = useState({
     quoteDate: todayISO(), refNo: '', clientName:'', clientFirm:'', consultant:'', consultantNo:'', consultantEmail:'',
     architect:'', clientContact:'', clientEmail:'', boutique:'Shamshabad, Hyderabad',
@@ -218,16 +212,6 @@ export default function HyderabadForm({ initialRef = '' }) {
     setStatus('');
   }
 
-  const canDownload = isAdmin || header.status === 'approved';
-  function printPdf() {
-    if (!canDownload) return;
-    const html = buildPdfHtml(header, charges, stoneRows, fixRows, calc);
-    const w = window.open('', '_blank');
-    if (!w) { setStatus('❌ Popup blocked — allow popups to print.'); return; }
-    w.document.open(); w.document.write(html); w.document.close();
-    setTimeout(() => { w.focus(); w.print(); }, 700);
-  }
-
   return (
     <div className="qh-scope">
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600;700&display=swap" />
@@ -244,7 +228,6 @@ export default function HyderabadForm({ initialRef = '' }) {
           {status && <span className="qh-status-text">{status}</span>}
           <button className="qh-tbtn" onClick={reset}>↺ Reset</button>
           <button className="qh-tbtn" onClick={openRevise}>Revise</button>
-          <button className="qh-tbtn" disabled={!canDownload} title={canDownload ? '' : 'Available once an admin approves this quotation'} onClick={printPdf}>⬇ PDF</button>
           <button className="qh-tbtn qh-tbtn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
         </div>
       </div>
@@ -594,123 +577,4 @@ export default function HyderabadForm({ initialRef = '' }) {
       `}</style>
     </div>
   );
-}
-
-/* ── Hyderabad PDF (blue theme, ported from prepareHtmlForPDF) ─────────── */
-function buildPdfHtml(header, charges, stoneRows, fixRows, calc) {
-  const fv = (k) => esc(header[k] || '');
-  const f2 = (n) => (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
-  const stoneItems = stoneRows
-    .map((r) => {
-      const p = parseFloat(r.price) || 0;
-      const q = r.module ? moduleQty(parseFloat(r.sizeWt) || 0, parseFloat(r.sizeHt) || 0) : (parseFloat(r.qty) || 0);
-      return { ...r, p, q, gst: parseFloat(r.gst) || 0 };
-    })
-    .filter((it) => it.desc || it.p || it.q);
-  const hasNonSFT = stoneItems.some((it) => !it.module);
-
-  let stoneHtml = '';
-  stoneItems.forEach((it, idx) => {
-    const imgH = it.img ? `<img src="${it.img}" style="width:32px;height:32px;object-fit:cover;border-radius:1px">` : '';
-    const qDisp = it.q ? (Number.isInteger(it.q) ? it.q : (+it.q).toFixed(2)) : '';
-    // Rate intentionally omitted from client-facing output — only Qty + line Amount shown.
-    const qtyCell = hasNonSFT
-      ? `<td class="num" style="text-align:right">${it.module ? '' : qDisp}</td>` : '';
-    stoneHtml += `<tr><td class="num" style="text-align:center;font-weight:600;color:#7a6e60">${idx+1}</td><td>${imgH}</td><td class="desc-cell">${esc(it.desc)}</td><td>${esc(it.area)}</td><td>${esc(it.sizeWt)}</td><td>${esc(it.sizeHt)}</td><td>${esc(it.mat)}</td><td>${esc(it.thk)}</td><td>${esc(it.unit)}</td>${qtyCell}<td class="num" style="text-align:right">${it.gst}%</td><td class="num" style="text-align:right;font-weight:600">₹ ${f2(it.p * it.q)}</td></tr>`;
-  });
-
-  let fixHtml = '', fi = 0;
-  fixRows.forEach((r) => {
-    const q = parseFloat(r.qty) || 0; if (q <= 0) return;
-    const p = parseFloat(r.price) || 0; fi++;
-    fixHtml += `<tr><td class="num" style="text-align:center;font-weight:600;color:#7a6e60">${fi}</td><td>${esc(r.desc)}</td><td>${esc(r.mat)}</td><td>${esc(r.size)}</td><td>${esc(r.unit)}</td><td class="num" style="text-align:right">${q}</td><td class="num" style="text-align:right;font-weight:600">₹ ${f2(p * q)}</td></tr>`;
-  });
-
-  const discPct = parseFloat(charges.discountPct) || 0;
-  const packingNum = parseFloat(charges.packingCharges) || 0;
-  const t = {
-    bsv: inr2(calc.stoneSum), disc: inrNeg(calc.discAmt), nsv: inr2(calc.netStone), df: inr2(calc.designFees),
-    gst: inr2(calc.totalGst), swg: inr2(calc.swg), ft: inr2(calc.fixSum), inst: inr2(calc.installation),
-    pack: inr2(calc.packing), gt: inr2(calc.grandTotal),
-  };
-
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${fv('refNo')}</title><style>
-@page{margin:10mm;size:A4}*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Georgia,serif;font-size:9px;color:#1a1a1a;background:#fff}
-.num,td.num{font-family:Arial,Helvetica,sans-serif!important}
-.hdr{background:#22409A;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.brand-wrap{display:flex;align-items:center;gap:12px}.brand-logo{height:54px;width:auto;border-radius:50%;background:#000}
-.brand-tagline{font-size:6.5px;letter-spacing:3px;color:rgba(212,180,131,0.85);text-transform:uppercase}
-.doc-type{color:#d4b483;font-size:11px;letter-spacing:3px}.ref-b{font-size:6.5px;letter-spacing:2px;color:rgba(232,218,196,0.75);margin-top:4px;background:rgba(176,141,87,0.18);padding:2px 8px;display:inline-block}
-.info-sec{background:#faf7f2;padding:8px 18px;border-top:1px solid #b08d57;border-bottom:1px solid #b08d57}
-.info-table{width:100%;border-collapse:collapse}.info-table td{padding:3px 8px 5px;vertical-align:top;border-right:1px solid rgba(217,207,192,0.55);border-bottom:1px solid rgba(217,207,192,0.35)}
-.info-table tr:last-child td{border-bottom:none}.info-table td:last-child{border-right:none}
-.lbl{font-size:6.5px;letter-spacing:1.5px;text-transform:uppercase;color:#7a6e60;display:block;margin-bottom:1px}.val{font-size:9px;font-weight:600}
-.body{padding:10px 18px}.sh{display:flex;align-items:center;gap:8px;margin:8px 0 5px}
-.snum{width:16px;height:16px;border-radius:50%;background:#22409A;color:#d4b483;font-size:6.5px;font-weight:700;display:flex;align-items:center;justify-content:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.slbl{font-size:8.5px;font-weight:700;letter-spacing:2px;color:#22409A;text-transform:uppercase}.srule{flex:1;height:1px;background:#e8dece}
-table.it{width:100%;border-collapse:collapse;font-size:7px;margin-bottom:6px;border:1px solid #b08d57}
-table.it thead tr{background:#22409A;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-table.it th{padding:5px 4px;color:#e8dac4;font-weight:600;letter-spacing:0.7px;font-size:6.5px;text-transform:uppercase;border-right:1px solid rgba(176,141,87,0.25);text-align:left}
-table.it tbody tr{border-bottom:1px solid #e8dece}table.it tbody tr:nth-child(even){background:#f4f6fb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-table.it td{padding:3px 4px;border-right:1px solid #efe6d4;vertical-align:middle;word-wrap:break-word}.desc-cell{white-space:pre-wrap;line-height:1.35}
-.bg{display:grid;grid-template-columns:1fr 1.1fr;gap:10px;margin-top:10px}
-.bp{background:#faf7f2;border:1px solid #b08d57;padding:8px 10px}.bt{font-size:7.5px;font-weight:700;letter-spacing:1.5px;color:#22409A;text-transform:uppercase;margin-bottom:6px;border-bottom:1.5px solid #b08d57;padding-bottom:4px}
-.br{display:flex;gap:8px;padding:2px 0;border-bottom:1px solid rgba(217,207,192,0.5);font-size:7.5px}.bk{width:68px;color:#7a6e60;font-weight:500}.bv{color:#1a1a1a;font-weight:600}
-.tp{border:1px solid #b08d57;overflow:hidden}.tr{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-bottom:1px solid #f0e8dc;font-size:8px}.tr .l{color:#7a6e60}.tr .v{font-weight:600}
-.tr.sub{background:#faf7f2;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.tr.gd{background:#22409A;border-bottom:none;padding:7px 10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.tr.gd .l{color:rgba(232,218,196,0.6);font-size:7px;letter-spacing:1px;text-transform:uppercase}.tr.gd .v{color:#d4b483;font-size:10.5px}
-.terms{padding:8px 18px;background:#faf7f2;border-top:1px solid #e8dece}.terms-t{font-size:7.5px;font-weight:700;letter-spacing:2px;color:#22409A;text-transform:uppercase;margin-bottom:6px}
-.terms ul{columns:2;gap:16px;list-style:none}.terms li{font-size:7px;color:#7a6e60;line-height:1.45;margin-bottom:2px;padding-left:8px;position:relative}.terms li::before{content:'\\2014';position:absolute;left:0;color:#b08d57}.terms li.hl{color:#1a1a1a;font-weight:700}
-.sigs{display:flex;gap:24px;padding:8px 18px}.sig{flex:1;text-align:center}.sigline{height:24px;border-bottom:1px solid #d9cfc0}.siglbl{font-size:6.5px;letter-spacing:1.5px;text-transform:uppercase;color:#7a6e60;margin-top:4px}
-.ftr{background:#22409A;padding:8px 18px;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}.ftr p{font-size:6.5px;letter-spacing:1.5px;color:rgba(176,141,87,0.7);text-transform:uppercase;line-height:1.85}
-</style></head><body>
-<div class="hdr"><div class="brand-wrap"><img class="brand-logo" src="${CELESTILE_LOGO}"><div><div style="color:#d4b483;font-size:20px;letter-spacing:5px;font-family:Georgia,serif">CELESTILE</div><div class="brand-tagline">Hyderabad Boutique</div></div></div>
-<div style="text-align:right"><div class="doc-type">QUOTATION</div><div class="ref-b">REF: ${fv('refNo')}</div></div></div>
-<div class="info-sec"><table class="info-table">
-<tr><td><span class="lbl">Date</span><span class="val num">${fmtDate(header.quoteDate)}</span></td><td><span class="lbl">Client Name</span><span class="val">${fv('clientName')||'—'}</span></td><td><span class="lbl">Consultant</span><span class="val">${fv('consultant')||'—'}</span></td><td><span class="lbl">Boutique</span><span class="val">${fv('boutique')}</span></td></tr>
-<tr><td><span class="lbl">Ref. No.</span><span class="val num">${fv('refNo')}</span></td><td><span class="lbl">Client Contact No.</span><span class="val num">${fv('clientContact')||'—'}</span></td><td><span class="lbl">Consultant No.</span><span class="val num">${fv('consultantNo')||'—'}</span></td><td><span class="lbl">Payment Terms</span><span class="val">${fv('paymentTerms')}</span></td></tr>
-<tr><td><span class="lbl">Lead Time</span><span class="val">${fv('leadTime')}</span></td><td><span class="lbl">Client Firm</span><span class="val">${fv('clientFirm')||'—'}</span></td><td><span class="lbl">Consultant Email</span><span class="val">${fv('consultantEmail')||'—'}</span></td><td><span class="lbl">Mode of Transport</span><span class="val">${fv('transport')}</span></td></tr>
-<tr><td><span class="lbl">Validity</span><span class="val num">${fv('validity')}</span></td><td><span class="lbl">Client Email</span><span class="val">${fv('clientEmail')||'—'}</span></td><td colspan="2"><span class="lbl">Architect / Designer</span><span class="val">${fv('architect')||'—'}</span></td></tr>
-<tr><td colspan="2"><span class="lbl">Billing Address</span><span class="val">${fv('billingAddress')||'—'}</span></td><td colspan="2"><span class="lbl">Site Address</span><span class="val">${fv('siteAddress')||'—'}</span></td></tr>
-</table></div>
-<div class="body">
-<div class="sh"><div class="snum">01</div><div class="slbl">Stone &amp; Tile Items</div><div class="srule"></div></div>
-<table class="it"><thead><tr><th>#</th><th>Img</th><th>Description</th><th>Area</th><th>Size Wt (in)</th><th>Size Ht (in)</th><th>Material</th><th>Thickness</th><th>Unit</th>${hasNonSFT?'<th style="text-align:right">Qty</th>':''}<th style="text-align:right">GST%</th><th style="text-align:right">Amount</th></tr></thead><tbody>${stoneHtml}</tbody></table>
-<div class="sh" style="margin-top:8px"><div class="snum">02</div><div class="slbl">Fixing Material</div><div class="srule"></div></div>
-<table class="it"><thead><tr><th>#</th><th>Description</th><th>Material</th><th>Size / Thickness</th><th>Unit</th><th style="text-align:right">Qty</th><th style="text-align:right">Amount</th></tr></thead><tbody>${fixHtml}</tbody></table>
-<div class="bg"><div class="bp"><div class="bt">Bank Details</div>
-<div class="br"><span class="bk">Name</span><span class="bv">S K Marketing Tiles &amp; Tapz</span></div>
-<div class="br"><span class="bk">Account No.</span><span class="bv num">8008002700</span></div>
-<div class="br"><span class="bk">Bank</span><span class="bv">Kotak Mahindra Bank</span></div>
-<div class="br"><span class="bk">Branch</span><span class="bv">Srinagar Colony</span></div>
-<div class="br"><span class="bk">IFSC Code</span><span class="bv num">KKBK0007488</span></div>
-<div class="br"><span class="bk">UPI ID</span><span class="bv">celestile@kotak</span></div></div>
-<div class="tp"><div class="tr"><span class="l">Basic Sale Value (Stone)</span><span class="v">${t.bsv}</span></div>
-${discPct > 0 ? `<div class="tr"><span class="l">Discount @ ${discPct}%</span><span class="v">${t.disc}</span></div><div class="tr sub"><span class="l">Net Stone Value</span><span class="v">${t.nsv}</span></div>` : ''}
-<div class="tr"><span class="l">Design Fees (Concept)</span><span class="v">${t.df}</span></div>
-<div class="tr"><span class="l">GST (Total)</span><span class="v">${t.gst}</span></div>
-<div class="tr sub"><span class="l">Stone Total (Incl. GST)</span><span class="v">${t.swg}</span></div>
-<div class="tr"><span class="l">Fixing Material Total</span><span class="v">${t.ft}</span></div>
-<div class="tr"><span class="l">Installation Charges</span><span class="v">${t.inst}</span></div>
-${packingNum > 0 ? `<div class="tr"><span class="l">Packing Charges</span><span class="v">${t.pack}</span></div>` : ''}
-<div class="tr gd"><span class="l">Grand Total</span><span class="v">${t.gt}</span></div></div></div></div>
-<div class="terms"><div class="terms-t">Terms &amp; Conditions</div><ul>
-<li>Quotation valid for 30 days from date of issue.</li>
-<li>80% Advance against order confirmation. Balance 20% before delivery.</li>
-<li>Payment via Cheque / DD / Transfer in favor of SK Marketing Tiles And Tapz.</li>
-<li>Products once booked cannot be returned, exchanged or cancelled.</li>
-<li>All disputes subject to Hyderabad, Telangana jurisdiction only.</li>
-<li>Delivery 40–60 working days from drawing confirmation.</li>
-<li>Products delivered from Factory @ Jadcherla; local transport extra.</li>
-<li>Natural stones have 15–20% variation in color &amp; size.</li>
-<li>Complaints within 24 hours of delivery.</li>
-<li>Stone can only be installed on a cement-plastered wall.</li>
-<li>Transit damage margin of 5–7% is acceptable within industry norms.</li>
-<li class="hl">If material is ready for dispatch, the client must issue full payment.</li>
-<li class="hl">Celestile will hold ready material for only 15 days; beyond which 2% of bill value/month storage applies.</li>
-</ul></div>
-<div class="sigs"><div class="sig"><div class="sigline"></div><div class="siglbl">Agreed by Client / Signature</div></div><div class="sig"><div class="sigline"></div><div class="siglbl">For Celestile / Authorized Signatory</div></div></div>
-<div class="ftr"><p>Celestile · The Home &amp; Bath Boutique · www.celestile.com</p><p>Shamshabad, Hyderabad · +91 800 800 2700</p><p>Sarjapur Road, Bangalore · +91 080 2665 8884</p></div>
-</body></html>`;
 }
