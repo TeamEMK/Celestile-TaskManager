@@ -503,7 +503,7 @@ export default function BangaloreForm({ initialRef = '' }) {
         </div>
       )}
 
-      <style jsx>{`
+      <style jsx global>{`
         .qb-scope {
           --qb-gold:#b08d57; --qb-gold-light:#d4b483; --qb-gold-dark:#8a6d3b;
           --qb-cream:#faf7f2; --qb-cream-dark:#e8dece; --qb-border:#d9cfc0;

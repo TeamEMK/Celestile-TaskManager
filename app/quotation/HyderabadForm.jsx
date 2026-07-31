@@ -461,7 +461,7 @@ export default function HyderabadForm({ initialRef = '' }) {
         </div>
       )}
 
-      <style jsx>{`
+      <style jsx global>{`
         .qh-scope {
           --qh-blue:#22409A; --qh-blue-light:#3a5bc0; --qh-gold:#b08d57; --qh-gold-light:#d4b483; --qh-gold-dark:#8a6d3b;
           --qh-cream:#faf7f2; --qh-cream-dark:#e8dece; --qh-border:#d9cfc0;
