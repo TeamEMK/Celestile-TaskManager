@@ -647,6 +647,11 @@ export default function BangaloreForm({ initialRef = '' }) {
           .qb-terms-columns{columns:1;}
           .qb-stone-chars-grid{grid-template-columns:1fr;}
         }
+
+        @media print {
+          .qb-toolbar{display:none;}
+          .qb-stone-chars-section{page-break-before:always;break-before:page;}
+        }
       `}</style>
     </div>
   );
