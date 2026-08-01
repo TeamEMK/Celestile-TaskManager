@@ -799,7 +799,14 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
         setErr('Nothing was saved — none of the configured fields matched a valid sheet column. Check this form\'s field setup (Column dropdown for each field).');
         return;
       }
-      setSavedInfo(`Saved to row ${d.targetRow} of "${d.sheetName}"`);
+      // The API call can report success without the write actually sticking
+      // (e.g. a Protected Range silently rejecting the service account's
+      // edit) — we read the row straight back server-side to catch that.
+      if (d.verified === false) {
+        setErr(`Google Sheets accepted the write but row ${d.targetRow} of "${d.sheetName}" doesn't show it back (column${d.mismatchCols?.length > 1 ? 's' : ''} ${(d.mismatchCols || []).join(', ')}). This usually means a Protected Range on that sheet is silently blocking the service account — check Data → Protected sheets and ranges, and make sure the service account email has edit access.`);
+        return;
+      }
+      setSavedInfo(`Saved to row ${d.targetRow} of "${d.sheetName}" (verified)`);
       setTimeout(onSaved, 1400);
     } finally { setSaving(false); }
   }
