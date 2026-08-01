@@ -1,6 +1,23 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { fileToThumbnail } from '../quotation/imageThumb';
+
+// PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
+// The resulting data: URI is swapped for a Drive URL server-side (writeStepDone)
+// once actually submitted.
+async function fileToDataUrl(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+async function pickUploadFile(file) {
+  if (!file) return '';
+  return file.type === 'application/pdf' ? fileToDataUrl(file) : fileToThumbnail(file, 700, 0.7);
+}
 
 function isDelayed(planValue) {
   const v = (planValue || '').trim();
@@ -147,7 +164,40 @@ function ExtraField({ row, value, onChange }) {
           {(row.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean).map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
       )}
+      {row.field_type === 'upload' && <UploadField value={value} onChange={onChange} />}
       {(!row.field_type || row.field_type === 'text') && <input type="text" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter value…" />}
+    </div>
+  );
+}
+
+function UploadField({ value, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const isPdf = (value || '').startsWith('data:application/pdf');
+  return (
+    <div>
+      <input
+        type="file"
+        accept="image/*,application/pdf"
+        className="input !py-1.5"
+        onChange={async (e) => {
+          const file = e.target.files[0];
+          e.target.value = '';
+          if (!file) return;
+          setBusy(true);
+          try { onChange(await pickUploadFile(file)); }
+          catch { /* ignore — user can retry */ }
+          finally { setBusy(false); }
+        }}
+      />
+      {busy && <div className="text-[11px] text-slate-400 mt-1">Processing…</div>}
+      {!busy && value && (
+        <div className="flex items-center gap-2 mt-1.5">
+          {isPdf
+            ? <span className="text-[11.5px] text-slate-600">📄 PDF attached</span>
+            : <img src={value} alt="" className="w-10 h-10 object-cover rounded border border-slate-200" />}
+          <button type="button" className="text-[11px] text-red-500 hover:underline" onClick={() => onChange('')}>Remove</button>
+        </div>
+      )}
     </div>
   );
 }

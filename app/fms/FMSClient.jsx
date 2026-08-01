@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
+import { fileToThumbnail } from '../quotation/imageThumb';
 import PcView from './PcView';
 
 const FIELD_TYPES = [
@@ -11,7 +12,24 @@ const FIELD_TYPES = [
   { value: 'date',     label: '📅 Date' },
   { value: 'link',     label: '🔗 Link' },
   { value: 'dropdown', label: '🔽 Dropdown' },
+  { value: 'upload',   label: '📎 Upload' },
 ];
+
+// PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail
+// so the eventual sheet cell — a Drive URL once uploaded — never sees a huge
+// inline blob even transiently. Mirrors AddDelegateModal's pickAttachment.
+async function fileToDataUrl(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+async function pickUploadFile(file) {
+  if (!file) return '';
+  return file.type === 'application/pdf' ? fileToDataUrl(file) : fileToThumbnail(file, 700, 0.7);
+}
 
 function blankStep() {
   return {
@@ -809,6 +827,8 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
                       <option key={o} value={o}>{o}</option>
                     ))}
                   </select>
+                ) : f.field_type === 'upload' ? (
+                  <UploadField value={values[f.id] || ''} onChange={(v) => setVal(f.id, v)} />
                 ) : (
                   <input
                     className="input"
@@ -827,6 +847,41 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
           <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? 'Submitting…' : 'Submit'}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// File picker for 'upload' fields — images get downscaled to a JPEG thumbnail,
+// PDFs are kept as-is; the resulting data: URI is swapped for a Drive URL
+// server-side (see submitIntakeRow / writeStepDone) once actually submitted.
+function UploadField({ value, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const isPdf = (value || '').startsWith('data:application/pdf');
+  return (
+    <div>
+      <input
+        type="file"
+        accept="image/*,application/pdf"
+        className="input !py-1.5"
+        onChange={async (e) => {
+          const file = e.target.files[0];
+          e.target.value = '';
+          if (!file) return;
+          setBusy(true);
+          try { onChange(await pickUploadFile(file)); }
+          catch { /* ignore — user can retry */ }
+          finally { setBusy(false); }
+        }}
+      />
+      {busy && <div className="text-[11px] text-slate-400 mt-1">Processing…</div>}
+      {!busy && value && (
+        <div className="flex items-center gap-2 mt-1.5">
+          {isPdf
+            ? <span className="text-[11.5px] text-slate-600">📄 PDF attached</span>
+            : <img src={value} alt="" className="w-10 h-10 object-cover rounded border border-slate-200" />}
+          <button type="button" className="text-[11px] text-red-500 hover:underline" onClick={() => onChange('')}>Remove</button>
+        </div>
+      )}
     </div>
   );
 }
