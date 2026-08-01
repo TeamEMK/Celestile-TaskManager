@@ -5,6 +5,7 @@ import { useConfirmToast } from '../components/ConfirmToast';
 
 const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1 });
 const REFRESH_MS = 30000;
+const isLinkValue = (s) => /^https?:\/\/\S+$/i.test(s);
 
 export default function LiveTrackingClient() {
   const { data: session } = useSession();
@@ -208,7 +209,16 @@ export default function LiveTrackingClient() {
                   <tbody>
                     {filteredRows.map((row, ri) => (
                       <tr key={ri} className="table-row">
-                        {row.map((c, ci) => <td key={ci} className="table-td whitespace-nowrap">{String(c ?? '') || '—'}</td>)}
+                        {row.map((c, ci) => {
+                          const val = String(c ?? '').trim();
+                          return (
+                            <td key={ci} className="table-td whitespace-nowrap">
+                              {isLinkValue(val)
+                                ? <a href={val} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">Click here ↗</a>
+                                : (val || '—')}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>
