@@ -808,6 +808,12 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
       }
       setSavedInfo(`Saved to row ${d.targetRow} of "${d.sheetName}" (verified)`);
       setTimeout(onSaved, 1400);
+    } catch (e) {
+      // fetch() itself can reject (dropped connection, proxy timeout on a
+      // slow multi-field write, offline) — without this the button just
+      // silently reset with no error and nothing saved, indistinguishable
+      // from the click not registering at all.
+      setErr(`Submit failed: ${e?.message || 'network error'} — check your connection and try again.`);
     } finally { setSaving(false); }
   }
 
