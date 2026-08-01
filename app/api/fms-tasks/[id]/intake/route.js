@@ -28,8 +28,8 @@ export async function POST(req, { params }) {
     if (!fields.length) return NextResponse.json({ error: 'No intake form configured for this FMS' }, { status: 400 });
 
     const user = await currentUser();
-    await submitIntakeRow(effectiveIntakeSheet(sheet), fields, values || {}, { userName: user?.name || '' });
-    return NextResponse.json({ success: true });
+    const result = await submitIntakeRow(effectiveIntakeSheet(sheet), fields, values || {}, { userName: user?.name || '' });
+    return NextResponse.json({ success: true, ...result });
   } catch (err) {
     const code = err?.code || err?.response?.status;
     if (code === 403) return NextResponse.json({ error: 'Access denied. Sheet write permission needed.' }, { status: 400 });

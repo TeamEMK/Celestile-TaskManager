@@ -771,6 +771,7 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
   const [values, setValues] = useState({});
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [savedInfo, setSavedInfo] = useState('');
 
   // Auto-filled fields (Timestamp, logged-in user's name, a fixed value…)
   // are computed server-side on submit — no input for them here.
@@ -791,7 +792,15 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setErr(d.error || 'Failed to submit'); return; }
-      onSaved();
+      // cellsWritten === 0 means none of the configured fields matched a real
+      // sheet column — the request "succeeds" with nothing actually written,
+      // which used to look identical to a real save. Surface it instead.
+      if (!d.cellsWritten) {
+        setErr('Nothing was saved — none of the configured fields matched a valid sheet column. Check this form\'s field setup (Column dropdown for each field).');
+        return;
+      }
+      setSavedInfo(`Saved to row ${d.targetRow} of "${d.sheetName}"`);
+      setTimeout(onSaved, 1400);
     } finally { setSaving(false); }
   }
 
@@ -811,6 +820,7 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
 
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
           {err && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{err}</div>}
+          {savedInfo && <div className="rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 text-[12.5px] px-3 py-2">✅ {savedInfo}</div>}
           {autoFields.length > 0 && (
             <div className="text-[11.5px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
               ⏱ Auto-filled on submit: {autoFields.map((f) => f.field_label || f.col_letter).join(', ')}
@@ -843,8 +853,8 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
         </div>
 
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 shrink-0">
-          <button className="btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? 'Submitting…' : 'Submit'}</button>
+          <button className="btn-secondary" onClick={onClose} disabled={saving || !!savedInfo}>Cancel</button>
+          <button className="btn-primary" onClick={submit} disabled={saving || !!savedInfo}>{saving ? 'Submitting…' : 'Submit'}</button>
         </div>
       </div>
     </div>
