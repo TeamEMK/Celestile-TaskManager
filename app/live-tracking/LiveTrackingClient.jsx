@@ -1,11 +1,13 @@
 'use client';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
 
 const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1 });
 const REFRESH_MS = 30000;
 const isLinkValue = (s) => /^https?:\/\/\S+$/i.test(s);
+const DEFAULT_COL_WIDTH = 160;
+const MIN_COL_WIDTH = 60;
 
 export default function LiveTrackingClient() {
   const { data: session } = useSession();
@@ -26,6 +28,44 @@ export default function LiveTrackingClient() {
   const [form, setForm]   = useState(blankForm());
   const [saving, setSaving] = useState(false);
   const [formErr, setFormErr] = useState('');
+
+  // Per-tracker column widths — drag the header edge to resize, persisted
+  // per tracker in this browser so it's remembered across visits/reloads.
+  const [colWidths, setColWidths] = useState({});
+  const resizeRef = useRef(null);
+
+  useEffect(() => {
+    if (!activeId) { setColWidths({}); return; }
+    try { setColWidths(JSON.parse(localStorage.getItem(`lt-col-widths-${activeId}`) || '{}')); }
+    catch { setColWidths({}); }
+  }, [activeId]);
+
+  const startColResize = useCallback((e, index) => {
+    e.preventDefault();
+    resizeRef.current = { index, startX: e.clientX, startWidth: colWidths[index] || DEFAULT_COL_WIDTH };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onColResizeMove);
+    window.addEventListener('mouseup', onColResizeEnd);
+  }, [colWidths]);
+
+  function onColResizeMove(e) {
+    const r = resizeRef.current;
+    if (!r) return;
+    const next = Math.max(MIN_COL_WIDTH, r.startWidth + (e.clientX - r.startX));
+    setColWidths((w) => ({ ...w, [r.index]: next }));
+  }
+  function onColResizeEnd() {
+    window.removeEventListener('mousemove', onColResizeMove);
+    window.removeEventListener('mouseup', onColResizeEnd);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    resizeRef.current = null;
+    setColWidths((w) => {
+      try { localStorage.setItem(`lt-col-widths-${activeId}`, JSON.stringify(w)); } catch {}
+      return w;
+    });
+  }
 
   useEffect(() => { loadList(); }, []);
 
@@ -200,10 +240,22 @@ export default function LiveTrackingClient() {
               <div className="p-10 text-center text-slate-400 text-[13px]">No rows match "{q}".</div>
             ) : (
               <div className="overflow-auto max-h-[70vh]">
-                <table className="w-full text-[12.5px]">
+                <table className="text-[12.5px]" style={{ tableLayout: 'fixed', width: data.headers.reduce((sum, _, i) => sum + (colWidths[i] || DEFAULT_COL_WIDTH), 0) }}>
+                  <colgroup>
+                    {data.headers.map((_, i) => <col key={i} style={{ width: colWidths[i] || DEFAULT_COL_WIDTH }} />)}
+                  </colgroup>
                   <thead className="sticky top-0 z-10">
                     <tr>
-                      {data.headers.map((h, i) => <th key={i} className="table-th whitespace-nowrap">{h}</th>)}
+                      {data.headers.map((h, i) => (
+                        <th key={i} className="table-th whitespace-nowrap" style={{ position: 'relative', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {h}
+                          <span
+                            onMouseDown={(e) => startColResize(e, i)}
+                            className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-primary-300/70 active:bg-primary-400"
+                            title="Drag to resize column"
+                          />
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -212,7 +264,7 @@ export default function LiveTrackingClient() {
                         {row.map((c, ci) => {
                           const val = String(c ?? '').trim();
                           return (
-                            <td key={ci} className="table-td whitespace-nowrap">
+                            <td key={ci} className="table-td whitespace-nowrap" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {isLinkValue(val)
                                 ? <a href={val} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">Click here ↗</a>
                                 : (val || '—')}
