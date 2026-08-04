@@ -20,7 +20,10 @@ export async function GET() {
   try {
     await ensureSchema();
     const [rows] = callerBranch
-      ? await pool.query('SELECT * FROM users WHERE LOWER(branch) = ? ORDER BY id', [callerBranch])
+      ? await pool.query(
+          "SELECT * FROM users WHERE LOWER(branch) = ? OR roles LIKE '%Admin%' ORDER BY id",
+          [callerBranch]
+        )
       : await pool.query('SELECT * FROM users ORDER BY id');
     if (rows.length > 0) return NextResponse.json(rows);
   } catch {}
@@ -30,7 +33,7 @@ export async function GET() {
     const store = await readStore();
     const all = store.users || [];
     const filtered = callerBranch
-      ? all.filter(u => (u.branch || '').toLowerCase() === callerBranch)
+      ? all.filter(u => (u.branch || '').toLowerCase() === callerBranch || (u.roles || []).includes('Admin'))
       : all;
     return NextResponse.json(filtered);
   } catch {
