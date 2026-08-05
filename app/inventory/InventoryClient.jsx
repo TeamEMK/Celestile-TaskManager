@@ -8,6 +8,13 @@ const sftOf = (l, w) => Math.round((num(l) * num(w) / 144) * 100) / 100;
 const blankRow = () => ({ slab: '', material: '', thickness: '', sizeL: '', sizeW: '', sft: '', photo: '', remarks: '' });
 const TAB_IDS = ['inward', 'stock', 'step2'];
 
+// Step 2 form fields keep a fixed vocabulary (matches the original SK Tiles
+// dispatch sheet) instead of free text, so downstream logic that keys off
+// these values (e.g. "is there a material issue?") can't be broken by a typo.
+const STEP2_MATERIALS = ['Tile', 'Stone', 'Wood Vineer', 'Acralic', 'WPC', 'PLY Wood', 'MOP'];
+const STEP2_ISSUES = ['No', 'Chiping', 'Breakage', 'Grain Opening', 'Flaking', 'Color Matching'];
+const MAX_IMG_BYTES = 4 * 1024 * 1024;
+
 export default function InventoryClient() {
   // Lets a link land directly on a specific tab — e.g. an FMS step's "Open
   // Page on this Step" pointing at /inventory?tab=step2 for "Blocking for
@@ -49,7 +56,7 @@ export default function InventoryClient() {
 
       {tab === 'inward' && <Inward masters={masters} reloadMasters={loadMasters} onSaved={loadInv} />}
       {tab === 'stock' && <Stock inv={inv} loading={loading} masters={masters} reload={loadInv} />}
-      {tab === 'step2' && <Step2 onDone={loadInv} />}
+      {tab === 'step2' && <Step2 inv={inv} reload={loadInv} />}
     </div>
   );
 }
@@ -206,6 +213,7 @@ function Stock({ inv, loading, masters, reload }) {
   const [search, setSearch] = useState('');
   const [block, setBlock] = useState(null); // {id, orderNo, client, area}
   const [edit, setEdit] = useState(null);   // {id, slab, material, thickness, sizeL, sizeW, sft, remarks, photo}
+  const [confirm, setConfirm] = useState(null); // {title, message, danger, onConfirm}
 
   const thicknessOpts = useMemo(() => {
     const s = new Set(); inv.forEach((r) => { if (!mat || r.material === mat) { if (r.thickness) s.add(r.thickness); } });
@@ -238,7 +246,21 @@ function Stock({ inv, loading, masters, reload }) {
     await fetch('/api/inventory', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     reload();
   }
-  const unblock = (r) => patch({ id: r.id, status: 'Available', orderNo: '', client: '', area: '' });
+  const askUnblock = (r) => setConfirm({
+    title: 'Unblock Slab', danger: true,
+    message: `"${r.slab}" will be released from order ${r.orderNo || '—'} and set back to Available.`,
+    onConfirm: () => { setConfirm(null); patch({ id: r.id, status: 'Available', orderNo: '', client: '', area: '' }); },
+  });
+  const askMarkSold = (r) => setConfirm({
+    title: 'Mark as Sold',
+    message: `"${r.slab}" will be marked Sold and removed from the available/blocking pool.`,
+    onConfirm: () => { setConfirm(null); patch({ id: r.id, status: 'Sold' }); },
+  });
+  const askRevertSold = (r) => setConfirm({
+    title: 'Revert Sale',
+    message: `"${r.slab}" will be set back to Available.`,
+    onConfirm: () => { setConfirm(null); patch({ id: r.id, status: 'Available' }); },
+  });
   async function confirmBlock() {
     await patch({ id: block.id, status: 'Blocked', orderNo: block.orderNo, client: block.client, area: block.area });
     setBlock(null);
@@ -262,6 +284,8 @@ function Stock({ inv, loading, masters, reload }) {
   const badge = (s) => ({
     Available: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
     Blocked: 'bg-red-50 text-red-700 border border-red-100',
+    Step2: 'bg-amber-50 text-amber-700 border border-amber-100',
+    Sold: 'bg-blue-50 text-blue-700 border border-blue-100',
     Used: 'bg-slate-100 text-slate-500 border border-slate-200',
   }[s] || 'bg-slate-100 text-slate-600 border border-slate-200');
 
@@ -271,7 +295,7 @@ function Stock({ inv, loading, masters, reload }) {
         <F label="Min SFT"><input type="number" className="input !py-1 w-28" value={minSft} onChange={(e) => setMinSft(e.target.value)} placeholder="e.g. 35" /></F>
         <F label="Material"><select className="input !py-1 w-40" value={mat} onChange={(e) => { setMat(e.target.value); setThk(''); }}><option value="">All</option>{masters.materials.map((m) => <option key={m} value={m}>{m}</option>)}</select></F>
         <F label="Thickness"><select className="input !py-1 w-32" value={thk} onChange={(e) => setThk(e.target.value)}><option value="">All</option>{thicknessOpts.map((t) => <option key={t} value={t}>{t}</option>)}</select></F>
-        <F label="Status"><select className="input !py-1 w-32" value={statusF} onChange={(e) => setStatusF(e.target.value)}>{['All', 'Available', 'Blocked', 'Used'].map((s) => <option key={s}>{s}</option>)}</select></F>
+        <F label="Status"><select className="input !py-1 w-32" value={statusF} onChange={(e) => setStatusF(e.target.value)}>{['All', 'Available', 'Blocked', 'Step2', 'Sold', 'Used'].map((s) => <option key={s}>{s}</option>)}</select></F>
         <div className="relative flex-1 min-w-[180px]">
           <label className="label">Search</label>
           <svg className="absolute left-2.5 top-1/2 mt-[3px] -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
@@ -328,7 +352,9 @@ function Stock({ inv, loading, masters, reload }) {
                     <td className="table-td whitespace-nowrap">
                       <div className="flex gap-1 justify-end">
                         {r.status === 'Available' && <button className="btn-danger !px-2 !py-1" onClick={() => setBlock({ id: r.id, orderNo: '', client: '', area: '' })}>Block</button>}
-                        {r.status === 'Blocked' && <button className="btn-success !px-2 !py-1" onClick={() => unblock(r)}>Unblock</button>}
+                        {r.status === 'Available' && <button className="btn-ghost !px-2 !py-1" onClick={() => askMarkSold(r)}>Mark Sold</button>}
+                        {r.status === 'Blocked' && <button className="btn-success !px-2 !py-1" onClick={() => askUnblock(r)}>Unblock</button>}
+                        {r.status === 'Sold' && <button className="btn-success !px-2 !py-1" onClick={() => askRevertSold(r)}>Revert</button>}
                         <button className="btn-ghost !px-2 !py-1" onClick={() => setEdit({ id: r.id, slab: r.slab, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, remarks: r.remarks, photo: r.slabPhoto })}>Edit</button>
                       </div>
                     </td>
@@ -370,38 +396,127 @@ function Stock({ inv, loading, masters, reload }) {
           <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setEdit(null)}>Cancel</button><button className="btn-warn" onClick={saveEdit}>Save</button></div>
         </Modal>
       )}
+
+      {confirm && (
+        <ConfirmModal title={confirm.title} message={confirm.message} danger={confirm.danger}
+          onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
+      )}
     </div>
   );
 }
 
 /* ───────────────────────── STEP 2 ───────────────────────── */
-function Step2({ onDone }) {
+// Slab lifecycle: Available → Blocked (Stock tab) → Step2 (in review, this
+// tab) → Used (on final submit) — with Sold as a side-exit straight from
+// Available. Order dropdown only lists orders still in Blocked/Step2 since
+// those are the only ones with anything left to do here.
+function Step2({ inv, reload }) {
   const [orderNo, setOrderNo] = useState('');
-  const [data, setData] = useState(null); // {key, slabs}
+  const [data, setData] = useState(null); // {key, client, area, slabs}
   const [cut, setCut] = useState({}); // { [slabId]: {cutting, cuttingReason, cuttingSizeL, cuttingSizeW} }
   const [hdr, setHdr] = useState({ material: '', allPieces: '', grain: '', issue: '', sizesPacking: '', grainImg: '', matImg: '' });
+  const [imgStatus, setImgStatus] = useState({ grainImg: '', matImg: '' }); // '' | 'ready' | 'toolarge'
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSel, setAddSel] = useState([]);
+  const [confirm, setConfirm] = useState(null);
 
-  async function load() {
-    if (!orderNo.trim()) return;
+  const orderOptions = useMemo(() => {
+    const seen = new Set();
+    inv.forEach((r) => {
+      const o = (r.orderNo || '').trim();
+      if (o && (r.status === 'Blocked' || r.status === 'Step2')) seen.add(o);
+    });
+    return Array.from(seen).sort();
+  }, [inv]);
+
+  const availableSlabs = useMemo(() => inv.filter((r) => r.status === 'Available'), [inv]);
+
+  async function load(o) {
+    const target = (o ?? orderNo).trim();
+    if (!target) { setData(null); return; }
     setStatus('Loading…'); setData(null);
     try {
-      const d = await (await fetch('/api/inventory/step2?orderNo=' + encodeURIComponent(orderNo.trim()))).json();
+      const d = await (await fetch('/api/inventory/step2?orderNo=' + encodeURIComponent(target))).json();
       if (d.error) throw new Error(d.error);
       setData(d);
-      const c = {}; (d.slabs || []).forEach((s) => { c[s.id] = { cutting: 'No', cuttingReason: '', cuttingSizeL: '', cuttingSizeW: '' }; });
+      const c = {};
+      (d.slabs || []).forEach((s) => { c[s.id] = { cutting: 'No', cuttingReason: '', cuttingSizeL: '', cuttingSizeW: '' }; });
       setCut(c);
       setHdr((h) => ({ ...h, material: (d.slabs || [])[0]?.material || '' }));
       setStatus(d.slabs?.length ? '' : 'No slabs for this order (block slabs to this order first).');
     } catch (e) { setStatus('❌ ' + e.message); }
   }
+  function chooseOrder(o) { setOrderNo(o); load(o); }
+
   const setC = (id, k, v) => setCut((c) => ({ ...c, [id]: { ...c[id], [k]: v } }));
-  async function pick(setter, file) { if (!file) return; try { setter(await fileToThumbnail(file, 300, 0.7)); } catch {} }
+  async function pick(key, setter, file) {
+    if (!file) return;
+    if (file.size > MAX_IMG_BYTES) { setImgStatus((s) => ({ ...s, [key]: 'toolarge' })); return; }
+    setImgStatus((s) => ({ ...s, [key]: '' }));
+    try { setter(await fileToThumbnail(file, 300, 0.7)); setImgStatus((s) => ({ ...s, [key]: 'ready' })); }
+    catch { setImgStatus((s) => ({ ...s, [key]: 'toolarge' })); }
+  }
+
+  // Editable rows are the ones still awaiting a cutting decision; Used/Sold
+  // rows from an earlier round stay visible for context but read-only.
+  const editableSlabs = (data?.slabs || []).filter((s) => s.status === 'Blocked' || s.status === 'Step2');
+  const blockedCount = editableSlabs.filter((s) => s.status === 'Blocked').length;
+  const step2Count = editableSlabs.filter((s) => s.status === 'Step2').length;
+  const hasSlabs = !!(data && data.slabs?.length > 0);
+
+  async function bulkTransition(from, to) {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/inventory/step2', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderNo, from, to }) });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed');
+      await reload(); await load();
+    } catch (e) { setStatus('❌ ' + e.message); }
+    finally { setSaving(false); }
+  }
+  const startReview = () => setConfirm({
+    title: 'Start Step 2 Review', message: `${blockedCount} slab(s) will move from Blocked into Step 2 review.`,
+    onConfirm: () => { setConfirm(null); bulkTransition('Blocked', 'Step2'); },
+  });
+  const revertReview = () => setConfirm({
+    title: 'Revert to Blocked', message: `${step2Count} slab(s) will move back from Step 2 review to Blocked.`,
+    onConfirm: () => { setConfirm(null); bulkTransition('Step2', 'Blocked'); },
+  });
+
+  function removeSlab(s) {
+    setConfirm({
+      title: 'Remove Slab', danger: true,
+      message: `"${s.slab}" will be released from order ${orderNo} and set back to Available.`,
+      onConfirm: async () => {
+        setConfirm(null);
+        await fetch('/api/inventory', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: s.id, status: 'Available', orderNo: '', client: '', area: '' }) });
+        await reload(); await load();
+      },
+    });
+  }
+
+  function openAddSlabs() { setAddSel([]); setAddOpen(true); }
+  async function confirmAddSlabs() {
+    if (!addSel.length) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/inventory', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: addSel, status: 'Blocked', orderNo, client: data?.client || '', area: data?.area || '' }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed');
+      setAddOpen(false); setAddSel([]);
+      await reload(); await load();
+    } catch (e) { setStatus('❌ ' + e.message); }
+    finally { setSaving(false); }
+  }
 
   function printReport() {
     if (!data) return;
-    const html = buildStep2Report(orderNo.trim(), hdr, data.slabs, cut);
+    const html = buildStep2Report(orderNo.trim(), hdr, editableSlabs, cut);
     const w = window.open('', '_blank');
     if (!w) { setStatus('❌ Popup blocked — allow popups to print.'); return; }
     w.document.open(); w.document.write(html); w.document.close();
@@ -409,21 +524,19 @@ function Step2({ onDone }) {
   }
 
   async function submit() {
-    if (!data) return;
+    if (!data || !editableSlabs.length) return;
     setSaving(true); setStatus('Submitting…');
     try {
-      const cuttingRows = (data.slabs || []).map((s) => ({ id: s.id, slab: s.slab, ...cut[s.id] }));
+      const cuttingRows = editableSlabs.map((s) => ({ id: s.id, slab: s.slab, ...cut[s.id] }));
       const body = { orderNo: orderNo.trim(), key: data.key, ...hdr, cuttingRows };
       const res = await fetch('/api/inventory/step2', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed');
       setStatus('✅ Saved — slabs marked Used, remnants created.');
-      setData(null); setCut({}); onDone();
+      setData(null); setCut({}); setOrderNo(''); await reload();
     } catch (e) { setStatus('❌ ' + e.message); }
     finally { setSaving(false); }
   }
-
-  const hasSlabs = !!(data && data.slabs?.length > 0);
 
   return (
     <div className="space-y-4">
@@ -433,8 +546,12 @@ function Step2({ onDone }) {
 
       <div className="card p-5">
         <div className="flex items-end gap-2 flex-wrap">
-          <F label="Order No."><input className="input" value={orderNo} onChange={(e) => setOrderNo(e.target.value)} placeholder="ORD-2026-001" /></F>
-          <button className="btn-warn" onClick={load}>Load Order</button>
+          <F label="Order No.">
+            <select className="input" value={orderNo} onChange={(e) => chooseOrder(e.target.value)}>
+              <option value="">Choose an order</option>
+              {orderOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </F>
           {status && <span className="text-[12px] text-slate-600 ml-2">{status}</span>}
         </div>
       </div>
@@ -445,7 +562,7 @@ function Step2({ onDone }) {
             <IconSearch className="w-6 h-6 text-primary-500" />
           </div>
           <div className="text-[13.5px] font-semibold text-slate-700">No order loaded yet</div>
-          <div className="text-[12px] text-slate-500 mt-0.5">Enter an order number above and click "Load Order" to begin blocking for jointing.</div>
+          <div className="text-[12px] text-slate-500 mt-0.5">Pick an order above to begin blocking for jointing. Only orders with slabs Blocked or in Step 2 review are listed.</div>
         </div>
       )}
 
@@ -461,15 +578,50 @@ function Step2({ onDone }) {
 
       {hasSlabs && (
         <>
+          <div className="card p-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[12.5px] text-slate-600">
+              <b className="text-slate-800">Order:</b> {orderNo} &nbsp; <b className="text-slate-800">Client:</b> {data.client || '—'} &nbsp;
+              <b className="text-slate-800">Area:</b> {data.area || '—'} &nbsp; <b className="text-slate-800">Key:</b> {data.key || '—'} &nbsp;
+              <b className="text-slate-800">Slabs:</b> {data.slabs.length}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button className="btn-secondary !px-2 !py-1" onClick={openAddSlabs}>+ Add Slabs</button>
+              {blockedCount > 0 && <button className="btn-secondary !px-2 !py-1" onClick={startReview}>Start Step 2 Review ({blockedCount})</button>}
+              {step2Count > 0 && <button className="btn-ghost !px-2 !py-1" onClick={revertReview}>Revert to Blocked ({step2Count})</button>}
+            </div>
+          </div>
+
           <div className="card p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <F label="Material"><input className="input" value={hdr.material} onChange={(e) => setHdr({ ...hdr, material: e.target.value })} /></F>
-            <F label="All Pieces"><input className="input" value={hdr.allPieces} onChange={(e) => setHdr({ ...hdr, allPieces: e.target.value })} placeholder="e.g. 12" /></F>
-            <F label="Grain"><input className="input" value={hdr.grain} onChange={(e) => setHdr({ ...hdr, grain: e.target.value })} placeholder="Yes / No / type" /></F>
-            <F label="Material Issue"><input className="input" value={hdr.issue} onChange={(e) => setHdr({ ...hdr, issue: e.target.value })} placeholder="No / describe" /></F>
-            <F label="Sizes / Packing"><input className="input" value={hdr.sizesPacking} onChange={(e) => setHdr({ ...hdr, sizesPacking: e.target.value })} /></F>
+            <F label="Material">
+              <select className="input" value={hdr.material} onChange={(e) => setHdr({ ...hdr, material: e.target.value })}>
+                <option value="">Select</option>{STEP2_MATERIALS.map((m) => <option key={m}>{m}</option>)}
+              </select>
+            </F>
+            <F label="All pieces used?">
+              <select className="input" value={hdr.allPieces} onChange={(e) => setHdr({ ...hdr, allPieces: e.target.value })}>
+                <option value="">Select</option><option>Yes</option><option>No</option>
+              </select>
+            </F>
+            <F label="Grain matching">
+              <select className="input" value={hdr.grain} onChange={(e) => setHdr({ ...hdr, grain: e.target.value })}>
+                <option value="">Select</option><option value="Y">Y</option><option value="N">N</option>
+              </select>
+            </F>
+            <F label="Material issue">
+              <select className="input" value={hdr.issue} onChange={(e) => setHdr({ ...hdr, issue: e.target.value })}>
+                <option value="">Select</option>{STEP2_ISSUES.map((i) => <option key={i}>{i}</option>)}
+              </select>
+            </F>
+            <F label="Sizes given to packing?">
+              <select className="input" value={hdr.sizesPacking} onChange={(e) => setHdr({ ...hdr, sizesPacking: e.target.value })}>
+                <option value="">Select</option><option>Yes</option><option>No</option>
+              </select>
+            </F>
             <div className="flex gap-3">
-              <F label="Grain Photo"><label className="cursor-pointer flex items-center justify-center h-9 px-2 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">{hdr.grainImg ? <img src={hdr.grainImg} className="h-9" alt="" /> : <span className="text-[11px] text-slate-400">+ Grain</span>}<input type="file" accept="image/*" className="hidden" onChange={(e) => pick((v) => setHdr((h) => ({ ...h, grainImg: v })), e.target.files[0])} /></label></F>
-              <F label="Material Photo"><label className="cursor-pointer flex items-center justify-center h-9 px-2 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">{hdr.matImg ? <img src={hdr.matImg} className="h-9" alt="" /> : <span className="text-[11px] text-slate-400">+ Mat</span>}<input type="file" accept="image/*" className="hidden" onChange={(e) => pick((v) => setHdr((h) => ({ ...h, matImg: v })), e.target.files[0])} /></label></F>
+              <ImgUpload label="Grain Photo" value={hdr.grainImg} imgStatus={imgStatus.grainImg}
+                onPick={(f) => pick('grainImg', (v) => setHdr((h) => ({ ...h, grainImg: v })), f)} />
+              <ImgUpload label="Material Photo" value={hdr.matImg} imgStatus={imgStatus.matImg}
+                onPick={(f) => pick('matImg', (v) => setHdr((h) => ({ ...h, matImg: v })), f)} />
             </div>
           </div>
 
@@ -478,25 +630,28 @@ function Step2({ onDone }) {
               <table className="w-full text-[12px]">
                 <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
                   <tr>
-                    {['Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Cutting?', 'Reason', 'Cut L', 'Cut W'].map((h, i) => (
+                    {['Slab', 'Status', 'Material', 'Thk', 'L', 'W', 'SFT', 'Cutting?', 'Reason', 'Cut L', 'Cut W', ''].map((h, i) => (
                       <th key={i} className={`table-th whitespace-nowrap ${['L', 'W', 'SFT', 'Cut L', 'Cut W'].includes(h) ? 'text-right' : ''}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {data.slabs.map((s) => {
-                    const c = cut[s.id] || {};
+                    const c = cut[s.id] || { cutting: 'No', cuttingReason: '', cuttingSizeL: '', cuttingSizeW: '' };
+                    const editable = s.status === 'Blocked' || s.status === 'Step2';
                     return (
                       <tr key={s.id} className="table-row">
                         <td className="table-td font-medium text-slate-800">{s.slab}</td>
+                        <td className="table-td"><span className={`pill ${STOCK_BADGE(s.status)}`}>{s.status}</span></td>
                         <td className="table-td">{s.material}</td><td className="table-td">{s.thickness}</td>
                         <td className="table-td text-right tabular-nums">{s.sizeL}</td>
                         <td className="table-td text-right tabular-nums">{s.sizeW}</td>
                         <td className="table-td text-right tabular-nums font-semibold text-slate-700">{s.sft}</td>
-                        <td className="table-td"><select className="input !py-1" value={c.cutting} onChange={(e) => setC(s.id, 'cutting', e.target.value)}><option>No</option><option>Yes</option></select></td>
-                        <td className="table-td"><input className="input !py-1" value={c.cuttingReason} onChange={(e) => setC(s.id, 'cuttingReason', e.target.value)} disabled={c.cutting !== 'Yes'} /></td>
-                        <td className="table-td w-16"><input type="number" className="input !py-1 text-right" value={c.cuttingSizeL} onChange={(e) => setC(s.id, 'cuttingSizeL', e.target.value)} disabled={c.cutting !== 'Yes'} /></td>
-                        <td className="table-td w-16"><input type="number" className="input !py-1 text-right" value={c.cuttingSizeW} onChange={(e) => setC(s.id, 'cuttingSizeW', e.target.value)} disabled={c.cutting !== 'Yes'} /></td>
+                        <td className="table-td"><select className="input !py-1" value={c.cutting} onChange={(e) => setC(s.id, 'cutting', e.target.value)} disabled={!editable}><option>No</option><option>Yes</option></select></td>
+                        <td className="table-td"><input className="input !py-1" value={c.cuttingReason} onChange={(e) => setC(s.id, 'cuttingReason', e.target.value)} disabled={!editable || c.cutting !== 'Yes'} /></td>
+                        <td className="table-td w-16"><input type="number" className="input !py-1 text-right" value={c.cuttingSizeL} onChange={(e) => setC(s.id, 'cuttingSizeL', e.target.value)} disabled={!editable || c.cutting !== 'Yes'} /></td>
+                        <td className="table-td w-16"><input type="number" className="input !py-1 text-right" value={c.cuttingSizeW} onChange={(e) => setC(s.id, 'cuttingSizeW', e.target.value)} disabled={!editable || c.cutting !== 'Yes'} /></td>
+                        <td className="table-td">{editable && <button className="btn-danger !px-2 !py-1" onClick={() => removeSlab(s)}>Remove</button>}</td>
                       </tr>
                     );
                   })}
@@ -506,12 +661,75 @@ function Step2({ onDone }) {
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <button className="btn-secondary" onClick={printReport}>⬇ Cutting Report</button>
-            <button className="btn-warn" disabled={saving} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
+            <button className="btn-warn" disabled={saving || !editableSlabs.length} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
           </div>
           <p className="text-[11.5px] text-slate-500">Cutting "Yes" → slab marked <b className="text-slate-700">Used</b>, a remnant slab (size − cut) is auto-created as Available, and a WhatsApp update is sent.</p>
         </>
       )}
+
+      {addOpen && (
+        <Modal title="Choose Slabs" onClose={() => setAddOpen(false)}>
+          <p className="text-[12px] text-slate-500 -mt-1 mb-2">Select from available slabs to block them for order {orderNo}.</p>
+          <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg">
+            {availableSlabs.length === 0 ? (
+              <div className="p-6 text-center text-[12px] text-slate-400">No available slabs.</div>
+            ) : (
+              <table className="w-full text-[12px]">
+                <thead className="sticky top-0 bg-slate-50">
+                  <tr>
+                    <th className="table-th"><input type="checkbox" checked={addSel.length === availableSlabs.length} onChange={(e) => setAddSel(e.target.checked ? availableSlabs.map((r) => r.id) : [])} /></th>
+                    <th className="table-th">Slab</th><th className="table-th">Material</th><th className="table-th">Size</th><th className="table-th">SFT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {availableSlabs.map((r) => (
+                    <tr key={r.id} className="table-row">
+                      <td className="table-td"><input type="checkbox" checked={addSel.includes(r.id)} onChange={(e) => setAddSel((sel) => e.target.checked ? [...sel, r.id] : sel.filter((x) => x !== r.id))} /></td>
+                      <td className="table-td font-medium text-slate-800">{r.slab}</td>
+                      <td className="table-td">{r.material}</td>
+                      <td className="table-td">{r.sizeL}x{r.sizeW}</td>
+                      <td className="table-td">{r.sft}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <div className="flex gap-2 justify-end mt-3">
+            <button className="btn-ghost" onClick={() => setAddOpen(false)}>Cancel</button>
+            <button className="btn-warn" disabled={!addSel.length || saving} onClick={confirmAddSlabs}>Block Selected ({addSel.length})</button>
+          </div>
+        </Modal>
+      )}
+
+      {confirm && (
+        <ConfirmModal title={confirm.title} message={confirm.message} danger={confirm.danger}
+          onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
+      )}
+
+      {saving && <SaveLoader text="Saving…" />}
     </div>
+  );
+}
+
+const STOCK_BADGE = (s) => ({
+  Available: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+  Blocked: 'bg-red-50 text-red-700 border border-red-100',
+  Step2: 'bg-amber-50 text-amber-700 border border-amber-100',
+  Sold: 'bg-blue-50 text-blue-700 border border-blue-100',
+  Used: 'bg-slate-100 text-slate-500 border border-slate-200',
+}[s] || 'bg-slate-100 text-slate-600 border border-slate-200');
+
+function ImgUpload({ label, value, imgStatus, onPick }) {
+  return (
+    <F label={label}>
+      <label className="cursor-pointer flex items-center justify-center h-9 px-2 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">
+        {value ? <img src={value} className="h-9" alt="" /> : <span className="text-[11px] text-slate-400">+ {label.replace(' Photo', '')}</span>}
+        <input type="file" accept="image/*" className="hidden" onChange={(e) => onPick(e.target.files[0])} />
+      </label>
+      {imgStatus === 'ready' && <span className="text-[10px] text-emerald-600 mt-0.5">✓ Ready</span>}
+      {imgStatus === 'toolarge' && <span className="text-[10px] text-red-600 mt-0.5">File too large — max 4MB</span>}
+    </F>
   );
 }
 
@@ -632,6 +850,34 @@ function Modal({ title, children, onClose }) {
         <div className="text-[14px] font-semibold text-slate-900 font-display mb-3">{title}</div>
         <div className="space-y-2.5">{children}</div>
       </div>
+    </div>
+  );
+}
+
+// Shared "are you sure?" dialog — used before destructive/bulk actions
+// (unblock, remove slab, mark sold, revert lifecycle) instead of firing
+// straight away like the old flat PATCH calls did.
+function ConfirmModal({ title, message, confirmLabel = 'Confirm', danger, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 backdrop-blur-sm flex items-start justify-center overflow-y-auto z-[60] pt-24 px-4 pb-4 animate-fade-in" onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-2xl p-5 w-96 max-w-[92%]" onClick={(e) => e.stopPropagation()}>
+        <div className="text-[14px] font-semibold text-slate-900 font-display mb-1">{title}</div>
+        <div className="text-[12.5px] text-slate-500 mb-4 leading-relaxed">{message}</div>
+        <div className="flex gap-2 justify-end">
+          <button className="btn-ghost" onClick={onCancel}>Cancel</button>
+          <button className={danger ? 'btn-danger' : 'btn-warn'} onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Full-screen loader for slower multi-step saves (Step 2 submit, bulk block).
+function SaveLoader({ text = 'Saving…' }) {
+  return (
+    <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-4" style={{ background: 'rgba(15,23,42,0.6)' }}>
+      <div className="w-12 h-12 rounded-full border-4 border-white/30 border-t-primary-400 animate-spin" />
+      <div className="text-white text-[14px] font-medium">{text}</div>
     </div>
   );
 }

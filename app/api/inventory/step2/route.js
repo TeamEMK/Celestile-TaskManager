@@ -8,7 +8,9 @@ const NOTIFY = () => process.env.INVENTORY_NOTIFY || '918008002121';
 const uid = (p) => p + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
 const num = (v) => parseFloat(v) || 0;
 
-// GET ?orderNo=... → slabs belonging to that order (self-contained: from inventory)
+// GET ?orderNo=... → every slab ever attached to that order (self-contained:
+// from inventory), any status — Used/Sold rows stay visible for context, the
+// UI just disables editing on them. Use the `status` field to gate actions.
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
   try {
@@ -16,14 +18,33 @@ export async function GET(req) {
     const orderNo = (new URL(req.url).searchParams.get('orderNo') || '').trim();
     if (!orderNo) return NextResponse.json({ error: 'orderNo required' }, { status: 400 });
     const [rows] = await pool.query('SELECT * FROM inventory WHERE order_no = ?', [orderNo]);
-    const slabs = rows
-      .filter((r) => String(r.status) !== 'Used') // not already consumed
-      .map((r) => ({
-        id: r.id, slab: r.slab, material: r.material, thickness: r.thickness,
-        sizeL: r.size_l, sizeW: r.size_w, sft: r.sft, status: r.status, key: r.inv_key,
-      }));
-    if (!slabs.length) return NextResponse.json({ orderNo, key: orderNo, slabs: [] });
-    return NextResponse.json({ orderNo, key: slabs[0].key || orderNo, slabs });
+    const slabs = rows.map((r) => ({
+      id: r.id, slab: r.slab, material: r.material, thickness: r.thickness,
+      sizeL: r.size_l, sizeW: r.size_w, sft: r.sft, status: r.status, key: r.inv_key,
+      client: r.client, area: r.area,
+    }));
+    if (!slabs.length) return NextResponse.json({ orderNo, key: orderNo, client: '', area: '', slabs: [] });
+    return NextResponse.json({
+      orderNo, key: slabs[0].key || orderNo, client: slabs[0].client || '', area: slabs[0].area || '', slabs,
+    });
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+// PATCH { orderNo, from, to } → bulk-transition every slab in an order between
+// two statuses in one query (e.g. Blocked → Step2 to start review, or back).
+export async function PATCH(req) {
+  const gate = await requireUser(); if (gate) return gate;
+  try {
+    await ensureSchema();
+    const { orderNo, from, to } = await req.json();
+    if (!orderNo || !from || !to) return NextResponse.json({ error: 'orderNo, from, to required' }, { status: 400 });
+    const [result] = await pool.query(
+      'UPDATE inventory SET status=?, updated_at=? WHERE order_no=? AND status=?',
+      [to, new Date().toISOString(), orderNo, from]
+    );
+    return NextResponse.json({ ok: true, count: result.affectedRows });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -50,6 +71,9 @@ export async function POST(req) {
         : await pool.query('SELECT * FROM inventory WHERE order_no = ? AND slab = ?', [orderNo, row.slab]);
       if (!found.length) continue;
       const r = found[0];
+      // Skip slabs that already moved past Step 2 (Used/Sold) — a stale form
+      // re-submit must not drag a sold slab back into the cutting workflow.
+      if (!['Blocked', 'Step2'].includes(String(r.status))) continue;
 
       const origL = num(r.size_l), origW = num(r.size_w);
       const origSFT = (origL * origW) / 144;

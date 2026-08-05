@@ -73,11 +73,44 @@ export async function POST(req) {
   }
 }
 
+// Multi-select "Add Slabs" (Step 2) blocks several available slabs to the same
+// order in one request instead of firing one PATCH per slab from the client.
+// Only status/order/client/area move here — per-slab detail edits (size,
+// photo, etc.) still go through the single-id path below.
+async function patchBulk(ids, e) {
+  const results = [];
+  for (const id of ids) {
+    const [cur] = await pool.query('SELECT * FROM inventory WHERE id = ?', [id]);
+    if (!cur.length) continue;
+    const prev = rowToInv(cur[0]);
+    const next = {
+      status: e.status ?? prev.status, orderNo: e.orderNo ?? prev.orderNo,
+      client: e.client ?? prev.client, area: e.area ?? prev.area,
+    };
+    await pool.query(
+      'UPDATE inventory SET status=?, updated_at=?, order_no=?, client=?, area=? WHERE id=?',
+      [next.status, new Date().toISOString(), next.orderNo, next.client, next.area, id]
+    );
+    if (isWhatsappConfigured() && prev.status !== 'Blocked' && next.status === 'Blocked') {
+      try { await sendWhatsApp(NOTIFY(), slabBlockedMessage({ ...prev, ...next })); }
+      catch (err) { console.error('[inventory notify]', err.message); }
+    }
+    results.push(id);
+  }
+  return results;
+}
+
 export async function PATCH(req) {
   const gate = await requireUser(); if (gate) return gate;
   try {
     await ensureSchema();
     const e = await req.json();
+
+    if (Array.isArray(e.ids) && e.ids.length) {
+      const updated = await patchBulk(e.ids, e);
+      return NextResponse.json({ ok: true, count: updated.length });
+    }
+
     if (!e.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
     const [cur] = await pool.query('SELECT * FROM inventory WHERE id = ?', [e.id]);
