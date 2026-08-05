@@ -44,7 +44,10 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
-  const delayed = isDelayed(row.planValue);
+  // Only prompt for a delay reason if this step actually has a Delay Reason
+  // Column configured — otherwise there's nowhere to write it, and the user
+  // was being forced to type a reason that silently went nowhere.
+  const delayed = isDelayed(row.planValue) && !!step?.delay_reason_col;
   const extraRows = (step?.extraRows || []).filter((r) => r.col_letter);
   // Steps can be configured (in the FMS editor) to point at another page of
   // the app — e.g. the Inventory form for a "slab inward" step. The caller
