@@ -523,8 +523,18 @@ function Step2({ inv, reload }) {
     setTimeout(() => { w.focus(); w.print(); }, 500);
   }
 
+  // Cutting "Yes" without a size isn't a valid cut — nothing to remnant, and
+  // the cutting report would print a blank. Block submit and name the slabs.
+  function cuttingErrors() {
+    return editableSlabs
+      .filter((s) => cut[s.id]?.cutting === 'Yes' && (!num(cut[s.id]?.cuttingSizeL) || !num(cut[s.id]?.cuttingSizeW)))
+      .map((s) => s.slab);
+  }
+
   async function submit() {
     if (!data || !editableSlabs.length) return;
+    const missing = cuttingErrors();
+    if (missing.length) { setStatus('❌ Cut L & Cut W required for: ' + missing.join(', ')); return; }
     setSaving(true); setStatus('Submitting…');
     try {
       const cuttingRows = editableSlabs.map((s) => ({ id: s.id, slab: s.slab, ...cut[s.id] }));
@@ -630,8 +640,8 @@ function Step2({ inv, reload }) {
               <table className="w-full text-[12px]">
                 <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
                   <tr>
-                    {['Slab', 'Status', 'Material', 'Thk', 'L', 'W', 'SFT', 'Cutting?', 'Reason', 'Cut L', 'Cut W', ''].map((h, i) => (
-                      <th key={i} className={`table-th whitespace-nowrap ${['L', 'W', 'SFT', 'Cut L', 'Cut W'].includes(h) ? 'text-right' : ''}`}>{h}</th>
+                    {['Slab', 'Status', 'Material', 'Thk', 'L', 'W', 'SFT', 'Cutting?', 'Reason', 'Cut L*', 'Cut W*', ''].map((h, i) => (
+                      <th key={i} className={`table-th whitespace-nowrap ${['L', 'W', 'SFT', 'Cut L*', 'Cut W*'].includes(h) ? 'text-right' : ''}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -639,6 +649,9 @@ function Step2({ inv, reload }) {
                   {data.slabs.map((s) => {
                     const c = cut[s.id] || { cutting: 'No', cuttingReason: '', cuttingSizeL: '', cuttingSizeW: '' };
                     const editable = s.status === 'Blocked' || s.status === 'Step2';
+                    const needsCut = c.cutting === 'Yes';
+                    const missL = needsCut && !num(c.cuttingSizeL);
+                    const missW = needsCut && !num(c.cuttingSizeW);
                     return (
                       <tr key={s.id} className="table-row">
                         <td className="table-td font-medium text-slate-800">{s.slab}</td>
@@ -648,9 +661,17 @@ function Step2({ inv, reload }) {
                         <td className="table-td text-right tabular-nums">{s.sizeW}</td>
                         <td className="table-td text-right tabular-nums font-semibold text-slate-700">{s.sft}</td>
                         <td className="table-td"><select className="input !py-1" value={c.cutting} onChange={(e) => setC(s.id, 'cutting', e.target.value)} disabled={!editable}><option>No</option><option>Yes</option></select></td>
-                        <td className="table-td"><input className="input !py-1" value={c.cuttingReason} onChange={(e) => setC(s.id, 'cuttingReason', e.target.value)} disabled={!editable || c.cutting !== 'Yes'} /></td>
-                        <td className="table-td w-16"><input type="number" className="input !py-1 text-right" value={c.cuttingSizeL} onChange={(e) => setC(s.id, 'cuttingSizeL', e.target.value)} disabled={!editable || c.cutting !== 'Yes'} /></td>
-                        <td className="table-td w-16"><input type="number" className="input !py-1 text-right" value={c.cuttingSizeW} onChange={(e) => setC(s.id, 'cuttingSizeW', e.target.value)} disabled={!editable || c.cutting !== 'Yes'} /></td>
+                        <td className="table-td"><input className="input !py-1" placeholder={needsCut ? 'Reason' : ''} value={c.cuttingReason} onChange={(e) => setC(s.id, 'cuttingReason', e.target.value)} disabled={!editable || !needsCut} /></td>
+                        <td className="table-td w-16">
+                          <input type="number" step="0.01" placeholder={needsCut ? 'Required' : ''}
+                            className={`input !py-1 text-right ${missL ? '!border-red-400 !bg-red-50' : ''}`}
+                            value={c.cuttingSizeL} onChange={(e) => setC(s.id, 'cuttingSizeL', e.target.value)} disabled={!editable || !needsCut} />
+                        </td>
+                        <td className="table-td w-16">
+                          <input type="number" step="0.01" placeholder={needsCut ? 'Required' : ''}
+                            className={`input !py-1 text-right ${missW ? '!border-red-400 !bg-red-50' : ''}`}
+                            value={c.cuttingSizeW} onChange={(e) => setC(s.id, 'cuttingSizeW', e.target.value)} disabled={!editable || !needsCut} />
+                        </td>
                         <td className="table-td">{editable && <button className="btn-danger !px-2 !py-1" onClick={() => removeSlab(s)}>Remove</button>}</td>
                       </tr>
                     );
@@ -659,11 +680,17 @@ function Step2({ inv, reload }) {
               </table>
             </div>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <button className="btn-secondary" onClick={printReport}>⬇ Cutting Report</button>
-            <button className="btn-warn" disabled={saving || !editableSlabs.length} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
-          </div>
-          <p className="text-[11.5px] text-slate-500">Cutting "Yes" → slab marked <b className="text-slate-700">Used</b>, a remnant slab (size − cut) is auto-created as Available, and a WhatsApp update is sent.</p>
+          {(() => {
+            const missing = cuttingErrors();
+            return (
+              <div className="flex flex-wrap justify-end items-center gap-2">
+                {missing.length > 0 && <span className="text-[12px] text-red-600">Cut L &amp; Cut W required for: {missing.join(', ')}</span>}
+                <button className="btn-secondary" onClick={printReport}>⬇ Cutting Report</button>
+                <button className="btn-warn" disabled={saving || !editableSlabs.length || missing.length > 0} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
+              </div>
+            );
+          })()}
+          <p className="text-[11.5px] text-slate-500">Cutting "Yes" → slab marked <b className="text-slate-700">Used</b>, a remnant slab (size − cut) is auto-created as Available, and a WhatsApp update is sent. Cut L &amp; Cut W are required whenever Cutting is Yes.</p>
         </>
       )}
 
