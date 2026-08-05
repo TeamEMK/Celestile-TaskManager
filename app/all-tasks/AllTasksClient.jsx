@@ -163,6 +163,10 @@ export default function AllTasksClient({ grouped, users }) {
   }
 
   async function openFmsDone(task) {
+    // Opened synchronously, before the await below, so it still counts as a
+    // direct response to the click — an async-deferred window.open gets
+    // silently popup-blocked by most browsers.
+    if (task.openUrl) window.open(task.openUrl, '_blank', 'noopener');
     setFmsDoneLoading(true);
     try {
       const d = await fetch(`/api/fms-tasks/${task.fmsId}`).then((r) => r.json());

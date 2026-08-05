@@ -34,7 +34,7 @@ async function pickUploadFile(file) {
 function blankStep() {
   return {
     stepName: '', doers: [], planCol: '', actualCol: '',
-    extraInput: 'no', extraCol: '', showCols: [], delayReasonCol: '', doerNameCol: '',
+    extraInput: 'no', extraCol: '', showCols: [], delayReasonCol: '', doerNameCol: '', openUrl: '',
     extraRows: [],
   };
 }
@@ -170,6 +170,7 @@ export default function FMSClient() {
         extraInput: s.extra_input || 'no', extraCol: s.extra_col || '',
         showCols: s.show_cols_parsed || [],
         delayReasonCol: s.delay_reason_col || '', doerNameCol: s.doer_name_col || '',
+        openUrl: s.open_url || '',
         extraRows: (s.extraRows || []).map((r) => ({
           label: r.row_label || r.col_letter, col_letter: r.col_letter,
           field_type: r.field_type || 'text', dropdown_options: r.dropdown_options || '',
@@ -695,6 +696,11 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
           </button>
         </div>
         {loadDoersMsg && <div className="text-[11px] mt-1.5 text-slate-500">{loadDoersMsg}</div>}
+      </div>
+
+      <div className="mt-3">
+        <label className="label">Open Page on this Step <span className="text-slate-400 font-normal normal-case">(optional — opens in a new tab when someone marks it done)</span></label>
+        <input className="input !text-[12px]" value={step.openUrl} onChange={(e) => onChange({ openUrl: e.target.value })} placeholder="e.g. /inventory or a full https:// link" />
       </div>
 
       <div className="mt-3">

@@ -46,6 +46,14 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
 
   const delayed = isDelayed(row.planValue);
   const extraRows = (step?.extraRows || []).filter((r) => r.col_letter);
+  // Steps can be configured (in the FMS editor) to point at another page of
+  // the app — e.g. the Inventory form for a "slab inward" step. The caller
+  // (the "Mark Done" click handler) already tries to open this in a new tab
+  // synchronously, before this modal even mounts, so it survives popup
+  // blockers; this is just the manual reopen if that got blocked anyway or
+  // the tab was closed.
+  const openUrl = step?.open_url || '';
+
   const actualDisplay = useMemo(() => {
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
@@ -95,6 +103,14 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
 
         <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
           {err && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{err}</div>}
+
+          {openUrl && (
+            <div className="rounded-lg bg-violet-50 border border-violet-200 p-3 flex items-center justify-between gap-2">
+              <span className="text-[12.5px] text-violet-800">📎 This step has a linked form — it should have opened in a new tab when you clicked Mark Done.</span>
+              <button type="button" onClick={() => window.open(openUrl, '_blank', 'noopener')}
+                className="btn-secondary !text-[11px] !py-1.5 !px-2.5 whitespace-nowrap">↗ Open Form</button>
+            </div>
+          )}
 
           <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-[12.5px] space-y-1.5 max-h-[160px] overflow-y-auto">
             {Object.entries(row.data || {}).map(([k, v]) => (
