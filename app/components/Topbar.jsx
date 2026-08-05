@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
 const TITLES = {
@@ -22,7 +23,14 @@ const TITLES = {
 export default function Topbar({ onMenuClick = () => {} }) {
   const pathname = usePathname();
   const title = TITLES[pathname] || '';
-  const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  // Compute "today" only after mount so the server-rendered HTML and the
+  // first client render match exactly (avoids React hydration error #418,
+  // which otherwise crashes the app and breaks client-side navigation).
+  const [today, setToday] = useState('');
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }));
+  }, []);
 
   return (
     <header className="sticky top-0 z-20 backdrop-blur-md"

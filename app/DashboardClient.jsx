@@ -29,7 +29,16 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   const [fmsDoneLoading,  setFmsDoneLoading]  = useState(false);
   const { ask, ConfirmUI } = useConfirmToast();
 
-  const todayISO = new Date().toISOString().split('T')[0];
+  // Computed only after mount (not during the SSR/initial-hydration render)
+  // so the server-rendered HTML and the first client render match exactly.
+  // Otherwise "now"-derived values (today's date, greeting) can differ
+  // between the server and the browser's timezone, triggering React
+  // hydration error #418 — which crashes the app and breaks navigation.
+  const [todayISO, setTodayISO] = useState('');
+  useEffect(() => {
+    setTodayISO(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })); // en-CA => YYYY-MM-DD
+  }, []);
+
   useEffect(() => {
     if (!isAdmin) return;
     const t = setInterval(() => router.refresh(), 60000);
@@ -38,7 +47,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 
   const fmt = (iso) => {
     if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+    return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Kolkata' }).replace(/\//g, '-');
   };
 
   const visibleTasks = data.pendingTasks;
@@ -66,10 +75,16 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   const revisedCt = doerStats ? doerStats.revised   : (data.revised   || 0);
   const rate      = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  const hour      = new Date().getHours();
-  const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = (userName || '').split(' ')[0] || 'there';
-  const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  // Same hydration-safety reasoning as todayISO above: compute after mount.
+  const [greeting, setGreeting]   = useState('Hello');
+  const [todayLabel, setTodayLabel] = useState('');
+  useEffect(() => {
+    const hour = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Kolkata' }));
+    setGreeting(hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening');
+    setTodayLabel(new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' }));
+  }, []);
 
   const overdueCount = doerStats ? doerStats.overdue : visibleTasks.filter((t) => t.overdue).length;
 

@@ -120,6 +120,15 @@ export default function DailyTaskClient() {
   const [past, setPast]                 = useState([]);
   const [clients, setClients]           = useState([]);
 
+  // Computed only after mount so the server-rendered HTML and the first
+  // client render match exactly — otherwise this "now" timestamp differs
+  // between server and browser and triggers React hydration error #418,
+  // which crashes the app and breaks client-side navigation.
+  const [nowLabel, setNowLabel] = useState('');
+  useEffect(() => {
+    setNowLabel(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' }));
+  }, []);
+
   const activeDept     = isAdmin ? selectedForm : deptToFormType(department);
   const isSiteEngineer = activeDept === 'Site Engineer';
   const isSales        = activeDept === 'Sales';
@@ -274,7 +283,7 @@ export default function DailyTaskClient() {
               </div>
             </div>
           </div>
-          <div className="text-[12px] text-slate-500">{new Date().toLocaleString('en-GB')}</div>
+          <div className="text-[12px] text-slate-500">{nowLabel}</div>
         </div>
 
         {/* Admin: Branch first → then Department */}
