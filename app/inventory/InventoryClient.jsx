@@ -1,13 +1,20 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
 
 const num = (v) => parseFloat(v) || 0;
 const sftOf = (l, w) => Math.round((num(l) * num(w) / 144) * 100) / 100;
 const blankRow = () => ({ slab: '', material: '', thickness: '', sizeL: '', sizeW: '', sft: '', photo: '', remarks: '' });
+const TAB_IDS = ['inward', 'stock', 'step2'];
 
 export default function InventoryClient() {
-  const [tab, setTab] = useState('inward');
+  // Lets a link land directly on a specific tab — e.g. an FMS step's "Open
+  // Page on this Step" pointing at /inventory?tab=step2 for "Blocking for
+  // Jointing" instead of always opening on Inward.
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const [tab, setTab] = useState(TAB_IDS.includes(requestedTab) ? requestedTab : 'inward');
   const [masters, setMasters] = useState({ materials: [], thicknessMap: {} });
   const [inv, setInv] = useState([]);
   const [loading, setLoading] = useState(true);
