@@ -22,6 +22,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   const [reviseSaving, setReviseSaving] = useState(false);
   const [subTab,       setSubTab]       = useState('All');
   const [userFilter,   setUserFilter]   = useState('All');
+  const [fmsNameFilter, setFmsNameFilter] = useState('All');
   const [fileTask,        setFileTask]        = useState(null);
   const [completionInput, setCompletionInput] = useState(null);
   const [fileUploading,   setFileUploading]   = useState(false);
@@ -52,11 +53,19 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 
   const visibleTasks = data.pendingTasks;
   const allDoers = useMemo(() => users.map((u) => u.name).sort(), [users]);
+  const allFmsNames = useMemo(
+    () => [...new Set(visibleTasks.filter((t) => t.type === 'FMS').map((t) => t.fmsName).filter(Boolean))].sort(),
+    [visibleTasks]
+  );
 
   const filtered = visibleTasks
     .filter((t) =>
       (subTab === 'All' || t.type === subTab) &&
-      (userFilter === 'All' || t.doer === userFilter)
+      (userFilter === 'All' || t.doer === userFilter) &&
+      // Only meaningful on the FMS tab — non-FMS tasks have no fmsName, so
+      // gate on subTab rather than comparing t.fmsName directly, or picking
+      // an FMS name would also hide every Delegation/Checklist row.
+      (subTab !== 'FMS' || fmsNameFilter === 'All' || t.fmsName === fmsNameFilter)
     )
     .slice()
     .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
@@ -285,10 +294,18 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                 <p className="text-[11.5px] text-slate-500">{filtered.length} awaiting action</p>
               </div>
             </div>
-            <div className="seg">
-              {['All', 'Delegation', 'Checklist', ...(FMS_ENABLED ? ['FMS'] : [])].map((t) => (
-                <button key={t} onClick={() => setSubTab(t)} className={`seg-btn ${subTab === t ? 'seg-btn-active' : ''}`}>{t}</button>
-              ))}
+            <div className="flex items-center gap-2 flex-wrap">
+              {subTab === 'FMS' && allFmsNames.length > 0 && (
+                <select value={fmsNameFilter} onChange={(e) => setFmsNameFilter(e.target.value)} className="input !w-auto !py-2 !text-[12.5px]">
+                  <option value="All">All FMS</option>
+                  {allFmsNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              )}
+              <div className="seg">
+                {['All', 'Delegation', 'Checklist', ...(FMS_ENABLED ? ['FMS'] : [])].map((t) => (
+                  <button key={t} onClick={() => { setSubTab(t); if (t !== 'FMS') setFmsNameFilter('All'); }} className={`seg-btn ${subTab === t ? 'seg-btn-active' : ''}`}>{t}</button>
+                ))}
+              </div>
             </div>
           </div>
 
