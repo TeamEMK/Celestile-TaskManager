@@ -38,18 +38,24 @@ export async function GET(req) {
   await ensureSchema();
   const today = istDateStr();
   const [rows] = await pool.query(
-    `SELECT doer, description, minutes FROM daily_tasks
+    `SELECT doer, client, client_number AS clientNumber, order_number AS orderNumber,
+            area_name AS areaName, minutes, software
+     FROM daily_tasks
      WHERE DATE(entry_date) = ? AND LOWER(department) LIKE '%design%'
      ORDER BY doer, created_at`,
     [today]
   );
 
-  // Group today's rows by designer.
+  // Group today's rows by designer — each row becomes one numbered client
+  // block in that designer's message.
   const byDoer = {};
   for (const r of rows) {
     const name = (r.doer || '').trim();
     if (!name) continue;
-    (byDoer[name] = byDoer[name] || []).push({ description: r.description, minutes: r.minutes });
+    (byDoer[name] = byDoer[name] || []).push({
+      client: r.client, clientNumber: r.clientNumber, orderNumber: r.orderNumber,
+      areaName: r.areaName, minutes: r.minutes, software: r.software,
+    });
   }
 
   const results = [];
