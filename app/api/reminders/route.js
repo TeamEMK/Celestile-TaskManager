@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, reminderMessage, checklistReminderMessage, fmsReminderMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { getFmsPendingGroupedByDoer } from '@/lib/fmsSheet';
+import { requireCron } from '@/lib/api';
 
 // UTC date helpers (match the engine's CURDATE())
 function todayStr() {
@@ -19,21 +20,10 @@ function weekStartStr() {
 
 export const dynamic = 'force-dynamic';
 
-// Allowed if called by Vercel Cron (Authorization: Bearer CRON_SECRET) or
-// manually with ?secret=<DEVELOPER_SECRET> for testing.
-function authorized(req) {
-  const bearer = req.headers.get('authorization');
-  if (process.env.CRON_SECRET && bearer === `Bearer ${process.env.CRON_SECRET}`) return true;
-  const secret = new URL(req.url).searchParams.get('secret');
-  if (secret && secret === process.env.DEVELOPER_SECRET) return true;
-  return false;
-}
-
 // Send a WhatsApp reminder for every OVERDUE, not-yet-done delegation
 // (one message per task) to the doer's phone. Wired to a daily Vercel Cron.
 export async function GET(req) {
-  if (!authorized(req))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const gate = requireCron(req); if (gate) return gate;
   if (!isWhatsappConfigured())
     return NextResponse.json({ error: 'WhatsApp not configured' }, { status: 400 });
 
