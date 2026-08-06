@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
-import { sendWhatsApp, designDailyReportMessage, isWhatsappConfigured } from '@/lib/whatsapp';
+import { sendWhatsApp, designDailyReportMessage, designNotFilledMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireCron } from '@/lib/api';
 
 // Where the design group's daily report lands. Same fallback pattern as
@@ -65,5 +65,24 @@ export async function GET(req) {
     results.push({ designer: name, tasks: tasks.length, ok: !!r.ok, reason: r.reason || r.error });
   }
 
-  return NextResponse.json({ date: today, designers: results.length, sent: results.filter((r) => r.ok).length, results });
+  // Designers who haven't filled anything today get their own separate
+  // "not filled" message — same group, but its own message per person
+  // rather than folded into the report above.
+  const [designUsers] = await pool.query('SELECT name, department FROM users');
+  const filled = new Set(Object.keys(byDoer).map((n) => n.toLowerCase()));
+  const notFilledResults = [];
+  for (const u of designUsers) {
+    const dept = (u.department || '').toLowerCase();
+    if (!dept.includes('design')) continue;
+    const name = (u.name || '').trim();
+    if (!name || filled.has(name.toLowerCase())) continue;
+    const r = await sendWhatsApp(DESIGN_GROUP(), designNotFilledMessage(name));
+    notFilledResults.push({ designer: name, ok: !!r.ok, reason: r.reason || r.error });
+  }
+
+  return NextResponse.json({
+    date: today,
+    designers: results.length, sent: results.filter((r) => r.ok).length, results,
+    notFilled: notFilledResults.length, notFilledSent: notFilledResults.filter((r) => r.ok).length, notFilledResults,
+  });
 }
