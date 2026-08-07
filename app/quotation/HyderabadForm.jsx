@@ -51,12 +51,19 @@ function compute(stoneRows, fixRows, charges) {
   const netStone = stoneSum - discAmt;
   const netGst = grossGst * (1 - discPct / 100);
   const designFees = parseFloat(charges.designFees) || 0;
-  const totalGst = netGst + designFees * DEFAULT_GST / 100;
+  const designGst = designFees * DEFAULT_GST / 100;
   const installation = parseFloat(charges.installationCharges) || 0;
   const packing = parseFloat(charges.packingCharges) || 0;
-  const swg = netStone + designFees + totalGst;
   const fixSum = fixRows.reduce((s, r) => s + fixAmount(r), 0);
-  const grandTotal = swg + fixSum + installation + packing;
+  // GST applies to everything except Installation Charges (client rule,
+  // 2026-08-07): stone, design fees, fixing material and packing all carry
+  // GST @18% (stone rows use their own per-row rate); only installation is tax-free.
+  const fixGst = fixSum * DEFAULT_GST / 100;
+  const packingGst = packing * DEFAULT_GST / 100;
+  const stoneDesignGst = netGst + designGst;
+  const swg = netStone + designFees + stoneDesignGst; // Stone Total (Incl. GST) — stone + design fees only
+  const totalGst = stoneDesignGst + fixGst + packingGst; // GST (Total) — every taxed line
+  const grandTotal = netStone + designFees + fixSum + packing + installation + totalGst;
   return { perStone, stoneSum, discPct, discAmt, netStone, designFees, totalGst, swg, fixSum, installation, packing, grandTotal };
 }
 
