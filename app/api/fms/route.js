@@ -3,13 +3,18 @@ import { requireAdmin, requireUser, currentUser } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 import { createFmsSheet, getFmsSheetsWithStats } from '@/lib/fmsSheet';
 
-// Any signed-in user can browse (admins see every FMS, everyone else only
-// flows they're a doer on) — editing/creating stays admin-only below.
+// Any signed-in user can browse: admins see every FMS; everyone else sees
+// flows they're a doer on, PLUS flows with an "open form" (intake) they're
+// allowed to submit into, even if they're not a doer on any step there —
+// same default-allow rule FMSClient's canSubmitIntake uses on the client.
+// Editing/creating stays admin-only below.
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
   try {
     const user = await currentUser();
-    const sheets = await getFmsSheetsWithStats(user.id, isAdminRoles(user.roles));
+    const isAdmin = isAdminRoles(user.roles);
+    const canSubmitIntake = isAdmin || user.access == null || (user.access || []).includes('fms-intake');
+    const sheets = await getFmsSheetsWithStats(user.id, isAdmin, canSubmitIntake);
     return NextResponse.json(sheets);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -341,7 +341,7 @@ export default function FMSClient() {
           <div className="w-12 h-12 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3"><IconLayers className="text-primary-500" /></div>
           <div className="text-[13.5px] font-semibold text-slate-700">No FMS flows {isAdmin ? 'yet' : 'visible to you yet'}</div>
           <div className="text-[12px] text-slate-500 mt-0.5">
-            {isAdmin ? 'Click "Add New FMS" to point at your first Google Sheet.' : 'Ask an admin to add you as a doer on an FMS step.'}
+            {isAdmin ? 'Click "Add New FMS" to point at your first Google Sheet.' : 'Ask an admin to add you as a doer on an FMS step, or set up an open (intake) form you can submit into.'}
           </div>
         </div>
       ) : (
