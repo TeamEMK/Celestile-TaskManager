@@ -11,6 +11,30 @@ const monthRange = (ym) => {
 const curMonth = () => new Date().toISOString().slice(0, 7);
 const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-') : '');
 
+// Client WhatsApp update — generated here, sent manually (opens WhatsApp
+// with the message pre-filled via wa.me; nothing is auto-sent from the server).
+function formatClientPhone(raw) {
+  let n = String(raw || '').replace(/\D/g, '');
+  n = n.replace(/^0+/, '');
+  if (!n) return null;
+  if (n.length === 10) n = '91' + n; // bare local number → assume India
+  return n.length >= 11 && n.length <= 15 ? n : null;
+}
+function clientUpdateMessage(e) {
+  return [
+    `Hi ${e.client || 'there'},`,
+    '',
+    "Update on today's work:",
+    `• Order No: ${e.orderNumber || '-'}`,
+    `• Area: ${e.areaName || '-'}`,
+    `• Task: ${e.taskType || e.department || '-'}`,
+    `• Time spent: ${Number(e.minutes) || 0} min`,
+    `• Software used: ${e.software || '-'}`,
+    '',
+    '— Celestile-TaskManager',
+  ].join('\n');
+}
+
 function IconCalendar(props) { return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>; }
 function IconUsers(props)    { return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>; }
 function IconList(props)    { return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>; }
@@ -98,6 +122,20 @@ export default function DailyReportsClient({ isAdmin }) {
   const downloadPDF = () => window.print();
 
   function resetFilters() { setMonth(curMonth()); setFrom(''); setTo(''); setQ(''); setDoer('All'); setClient('All'); }
+
+  // Opens WhatsApp with the client update pre-filled — you review and hit
+  // send yourself, nothing goes out automatically. Falls back to copying the
+  // text if this entry has no client number to open a chat with.
+  function sendToClient(e) {
+    const msg = clientUpdateMessage(e);
+    const phone = formatClientPhone(e.clientNumber);
+    if (phone) {
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+      navigator.clipboard?.writeText(msg).catch(() => {});
+      setNote(`⚠️ No client number on this entry (${e.client || 'row'}) — message copied to clipboard instead, paste it into WhatsApp manually.`);
+    }
+  }
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -234,7 +272,7 @@ export default function DailyReportsClient({ isAdmin }) {
                   <th className="table-th whitespace-nowrap">Date</th><th className="table-th">Doer</th><th className="table-th">Client</th>
                   <th className="table-th">Order #</th><th className="table-th">Area</th>
                   <th className="table-th">Task Type</th><th className="table-th">Software</th>
-                  <th className="table-th">Rev</th><th className="table-th">Min</th>
+                  <th className="table-th">Rev</th><th className="table-th">Min</th><th className="table-th"></th>
                 </tr>
               </thead>
               <tbody>
@@ -249,6 +287,9 @@ export default function DailyReportsClient({ isAdmin }) {
                     <td className="table-td">{e.software || '—'}</td>
                     <td className="table-td">{e.revision === 'Yes' ? '✅' : '—'}</td>
                     <td className="table-td">{e.minutes}</td>
+                    <td className="table-td">
+                      {e.client && <button className="btn-secondary !px-2 !py-1 !text-[11px]" onClick={() => sendToClient(e)}>📤 Client Msg</button>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
