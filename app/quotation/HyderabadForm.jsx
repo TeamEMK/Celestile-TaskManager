@@ -20,13 +20,21 @@ const fmtDate = (s) => { if (!s) return ''; const d = new Date(s); if (isNaN(d))
 function nextRevRef(ref) { const m = String(ref || '').match(/^(.*?)(?:-REV(\d+))?$/i); return m[1] + '-REV' + ((m[2] ? +m[2] : 0) + 1); }
 
 const blankStone = () => ({ desc:'', area:'', sizeWt:'', sizeHt:'', mat:'', thk:'', unit:'', module:false, price:'', qty:'', gst:DEFAULT_GST, img:'' });
+// Wall-fixing rate card (per 100 SFT coverage, priced by stone type). `slab:true`
+// rows bill in whole 100-SFT blocks — see fixAmount() — rather than qty × price.
 const DEFAULT_FIXING = [
-  ['WHITE','ADHESIVE','20KG','BAG','2060'], ['CREAM','JOINTING CHEMICAL','','KG','1250'],
-  ['CREAM PIGMENT','CHEMICAL','20 GMS','GMS','650'], ['STONE CLEANER','CLEANER','LITER','LITER','300'],
-  ['DRY SEALER','SEALER','LITER','LITER','500'], ['W SEALER','SEALER','LITER','LITER','2050'],
-  ['W2 SEALER','SEALER','LITER','LITER','6800'], ['CLEAR','JOINTING CHEMICAL','','KG','4400'],
-  ['PLY WOOD','CHEMICAL','10KG','KG','13000'],
-].map(([desc, mat, size, unit, price]) => ({ desc, mat, size, unit, price, qty: '' }));
+  ['SANDSTONE','Wall Fixing','31040'], ['INDIAN','Wall Fixing','23290'],
+  ['NERO MARBLE','Wall Fixing','24690'], ['VIETNAM WHITE','Wall Fixing','23290'],
+].map(([desc, mat, price]) => ({ desc, mat, size:'100 SFT', unit:'SFT', price, qty:'', slab:true }));
+
+// A slab-priced ("100 SFT") fixing row bills in whole 100-SFT blocks: up to
+// 100 SFT = 1x the rate, 101–200 SFT = 2x, etc. — i.e. rate × ceil(SFT/100),
+// never a fraction of the rate. Non-slab rows keep plain qty × price.
+function fixAmount(r) {
+  const price = parseFloat(r.price) || 0;
+  const qty = parseFloat(r.qty) || 0;
+  return r.slab ? price * Math.ceil(qty / 100) : price * qty;
+}
 
 /* Hyderabad totals math (mirrors updateTotals) */
 function compute(stoneRows, fixRows, charges) {
@@ -47,7 +55,7 @@ function compute(stoneRows, fixRows, charges) {
   const installation = parseFloat(charges.installationCharges) || 0;
   const packing = parseFloat(charges.packingCharges) || 0;
   const swg = netStone + designFees + totalGst;
-  const fixSum = fixRows.reduce((s, r) => s + (parseFloat(r.price) || 0) * (parseFloat(r.qty) || 0), 0);
+  const fixSum = fixRows.reduce((s, r) => s + fixAmount(r), 0);
   const grandTotal = swg + fixSum + installation + packing;
   return { perStone, stoneSum, discPct, discAmt, netStone, designFees, totalGst, swg, fixSum, installation, packing, grandTotal };
 }
@@ -131,7 +139,7 @@ export default function HyderabadForm({ initialRef = '' }) {
   }
   /* fixing rows */
   const setFix = (i, k, v) => setFixRows((rs) => rs.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
-  const addFix = () => setFixRows((rs) => [...rs, { desc:'', mat:'', size:'', unit:'', price:'', qty:'' }]);
+  const addFix = () => setFixRows((rs) => [...rs, { desc:'', mat:'', size:'', unit:'', price:'', qty:'', slab:false }]);
   const delFix = (i) => setFixRows((rs) => rs.filter((_, idx) => idx !== i));
 
   function onConsultantBlur() {
@@ -200,7 +208,7 @@ export default function HyderabadForm({ initialRef = '' }) {
       const items = Array.isArray(q.stoneItems) ? q.stoneItems : [];
       setStoneRows(items.length ? items.map((it) => ({ ...blankStone(), ...it, module: !!it.module, gst: it.gst ?? DEFAULT_GST })) : [blankStone()]);
       const fix = Array.isArray(q.fixingItems) ? q.fixingItems : [];
-      setFixRows(fix.length ? fix.map((f) => ({ desc: f.desc || f.col1 || '', mat: f.mat || '', size: f.size || '', unit: f.unit || '', price: f.price || '', qty: f.qty || '' })) : []);
+      setFixRows(fix.length ? fix.map((f) => ({ desc: f.desc || f.col1 || '', mat: f.mat || '', size: f.size || '', unit: f.unit || '', price: f.price || '', qty: f.qty || '', slab: !!f.slab })) : []);
       setStatus('Loaded ' + q.refNo + ' → revising as ' + nextRevRef(q.refNo));
     } catch (e) { setStatus('❌ ' + e.message); }
   }
@@ -351,18 +359,18 @@ export default function HyderabadForm({ initialRef = '' }) {
           <div style={{ overflowX: 'auto' }}>
             <table className="qh-items-table">
               <colgroup>
-                <col style={{ width: 24 }} /><col style={{ width: 180 }} /><col style={{ width: 120 }} /><col style={{ width: 100 }} />
-                <col style={{ width: 70 }} /><col style={{ width: 70 }} /><col style={{ width: 46 }} /><col style={{ width: 78 }} /><col style={{ width: 24 }} />
+                <col style={{ width: 24 }} /><col style={{ width: 160 }} /><col style={{ width: 100 }} /><col style={{ width: 90 }} />
+                <col style={{ width: 70 }} /><col style={{ width: 50 }} /><col style={{ width: 70 }} /><col style={{ width: 46 }} /><col style={{ width: 78 }} /><col style={{ width: 24 }} />
               </colgroup>
               <thead>
                 <tr>
                   <th>#</th><th>Description</th><th>Material</th><th>Size / Thickness</th><th>Unit</th>
-                  <th>Rate (₹)</th><th>Qty</th><th style={{ textAlign: 'right' }}>Amount</th><th></th>
+                  <th>100 SFT</th><th>Rate (₹)</th><th>Qty / SFT</th><th style={{ textAlign: 'right' }}>Amount</th><th></th>
                 </tr>
               </thead>
               <tbody>
                 {fixRows.map((r, i) => {
-                  const amt = (parseFloat(r.price) || 0) * (parseFloat(r.qty) || 0);
+                  const amt = fixAmount(r);
                   return (
                     <tr key={i} className={i % 2 === 1 ? 'qh-row-even' : ''}>
                       <td className="qh-sno-cell">{i + 1}</td>
@@ -370,8 +378,14 @@ export default function HyderabadForm({ initialRef = '' }) {
                       <td><input value={r.mat} onChange={(e) => setFix(i, 'mat', e.target.value)} /></td>
                       <td><input value={r.size} onChange={(e) => setFix(i, 'size', e.target.value)} /></td>
                       <td><input value={r.unit} onChange={(e) => setFix(i, 'unit', e.target.value)} /></td>
+                      <td className="qh-rate-type-cell">
+                        <label className="qh-rate-type-toggle" title="Rate applies per 100 SFT block: up to 100 SFT = 1x rate, 101-200 SFT = 2x rate, etc.">
+                          <input type="checkbox" checked={!!r.slab} onChange={(e) => setFix(i, 'slab', e.target.checked)} />
+                          <span>Slab</span>
+                        </label>
+                      </td>
                       <td><CalcInput className="qh-num-input" value={r.price} onChange={(v) => setFix(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
-                      <td><CalcInput className="qh-num-input" value={r.qty} onChange={(v) => setFix(i, 'qty', v)} /></td>
+                      <td><CalcInput className="qh-num-input" value={r.qty} onChange={(v) => setFix(i, 'qty', v)} title={r.slab ? 'Enter total SFT — billed in 100 SFT blocks' : 'Qty'} /></td>
                       <td className="qh-amt-cell">{amt ? inr2(amt) : '₹ 0.00'}</td>
                       <td><button className="qh-del-btn" onClick={() => delFix(i)}>✕</button></td>
                     </tr>
@@ -395,6 +409,10 @@ export default function HyderabadForm({ initialRef = '' }) {
 
             <div className="qh-totals-panel">
               <div className="qh-total-row"><span className="qh-label">Basic Sale Value (Stone)</span><span className="qh-value">{inr2(calc.stoneSum)}</span></div>
+              <div className="qh-total-row">
+                <span className="qh-label">Design Fees</span>
+                <div className="qh-total-input-wrap"><span>₹</span><CalcInput className="qh-total-input" value={charges.designFees} onChange={(v) => setC('designFees', v)} /></div>
+              </div>
               <div className="qh-total-row qh-discount-row">
                 <span className="qh-label">Discount</span>
                 <div className="qh-total-input-wrap">
@@ -404,20 +422,16 @@ export default function HyderabadForm({ initialRef = '' }) {
                 </div>
               </div>
               {calc.discAmt > 0 && <div className="qh-total-row qh-subtotal-row"><span className="qh-label">Net Stone Value</span><span className="qh-value">{inr2(calc.netStone)}</span></div>}
-              <div className="qh-total-row">
-                <span className="qh-label">Design Fees</span>
-                <div className="qh-total-input-wrap"><span>₹</span><CalcInput className="qh-total-input" value={charges.designFees} onChange={(v) => setC('designFees', v)} /></div>
-              </div>
-              <div className="qh-total-row"><span className="qh-label">GST (Total)</span><span className="qh-value">{inr2(calc.totalGst)}</span></div>
-              <div className="qh-total-row qh-subtotal-row"><span className="qh-label">Stone Total (Incl. GST)</span><span className="qh-value">{inr2(calc.swg)}</span></div>
               <div className="qh-total-row"><span className="qh-label">Fixing Material Total</span><span className="qh-value">{inr2(calc.fixSum)}</span></div>
-              <div className="qh-total-row">
-                <span className="qh-label">Installation Charges</span>
-                <div className="qh-total-input-wrap"><span>₹</span><CalcInput className="qh-total-input" value={charges.installationCharges} onChange={(v) => setC('installationCharges', v)} /></div>
-              </div>
               <div className="qh-total-row">
                 <span className="qh-label">Packing Charges</span>
                 <div className="qh-total-input-wrap"><span>₹</span><CalcInput className="qh-total-input" value={charges.packingCharges} onChange={(v) => setC('packingCharges', v)} /></div>
+              </div>
+              <div className="qh-total-row"><span className="qh-label">GST (Total)</span><span className="qh-value">{inr2(calc.totalGst)}</span></div>
+              <div className="qh-total-row qh-subtotal-row"><span className="qh-label">Stone Total (Incl. GST)</span><span className="qh-value">{inr2(calc.swg)}</span></div>
+              <div className="qh-total-row">
+                <span className="qh-label">Installation Charges <span className="qh-nogst-tag">No GST</span></span>
+                <div className="qh-total-input-wrap"><span>₹</span><CalcInput className="qh-total-input" value={charges.installationCharges} onChange={(v) => setC('installationCharges', v)} /></div>
               </div>
               <div className="qh-total-row qh-grand">
                 <span className="qh-label">Grand Total</span>
@@ -548,6 +562,7 @@ export default function HyderabadForm({ initialRef = '' }) {
         .qh-value{font-weight:600;color:var(--qh-text);white-space:nowrap;font-family:Arial,sans-serif;font-size:0.9rem;}
         .qh-subtotal-row{background:rgba(34,64,154,0.045);}
         .qh-discount-row .qh-label,.qh-discount-row span{color:#9a3a1f;}
+        .qh-nogst-tag{font-size:0.6rem;letter-spacing:1px;text-transform:uppercase;color:var(--qh-gold-dark);background:rgba(176,141,87,0.14);border:1px solid rgba(176,141,87,0.4);border-radius:3px;padding:1px 5px;margin-left:6px;font-weight:600;}
         .qh-total-row.qh-grand{background:var(--qh-beige);padding:12px 14px;border-bottom:none;border-top:2px solid rgba(176,141,87,0.4);}
         .qh-total-row.qh-grand .qh-label{color:#5a4a30;font-size:0.76rem;letter-spacing:1px;text-transform:uppercase;}
         .qh-total-row.qh-grand .qh-value{color:var(--qh-blue);font-size:1.15rem;font-family:Arial,sans-serif;font-weight:700;}
