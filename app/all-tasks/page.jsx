@@ -12,7 +12,10 @@ export default async function AllTasksPage() {
   let delegations = [], users = [], masters = [], completions = [], fmsTasks = [];
 
   if (hasDB) {
-    [delegations, users, masters, completions] = await Promise.all([
+    // FMS pending-rows (a separate, independent Google Sheets fetch) used to
+    // run *after* this Promise.all resolved instead of alongside it, adding
+    // its full latency serially to every All Tasks page load.
+    [delegations, users, masters, completions, fmsTasks] = await Promise.all([
       pool.query(`SELECT id, description, doer_id AS doerId, doer, delegated_by AS delegatedBy,
                          due_date AS dueDate, client, status, type, priority, approval,
                          approver_id AS approverId, approver, url, remarks, image,
@@ -27,8 +30,8 @@ export default async function AllTasksPage() {
         .then(([r]) => r).catch(() => []),
       pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()')
         .then(([r]) => r).catch(() => []),
+      FMS_ENABLED ? getMyFmsPendingRows({ isAdmin: true }).catch(() => []) : Promise.resolve([]),
     ]);
-    if (FMS_ENABLED) fmsTasks = await getMyFmsPendingRows({ isAdmin: true }).catch(() => []);
   } else {
     const store = await readStore();
     delegations = (store.delegations || [])

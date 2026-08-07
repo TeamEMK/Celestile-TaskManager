@@ -70,6 +70,16 @@ async function loadBranchRows(branch) {
   return rows.slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
 }
 
+// Lightweight variant for callers that only need ref numbers (the ref-picker
+// dropdown) — skips pulling the MEDIUMTEXT stone_items/totals_config/
+// fixing_items blobs for every quotation ever saved just to read one field.
+async function loadBranchRefs(branch) {
+  const [rows] = (!branch || branch === 'all')
+    ? await pool.query('SELECT ref_no, created_at FROM quotations')
+    : await pool.query('SELECT ref_no, created_at FROM quotations WHERE branch = ?', [normalizeBranch(branch)]);
+  return rows.slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+}
+
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
   try {
@@ -85,14 +95,20 @@ export async function GET(req) {
       return NextResponse.json({ quotations: rows.map(rowToQuo).reverse() });
     }
 
-    const rows = await loadBranchRows(normalizeBranch(branchParam));
     if (ref) {
-      const match = rows.filter((r) => String(r.ref_no).trim() === String(ref).trim()).pop();
+      // Single quotation lookup — go straight for the exact row instead of
+      // pulling every quotation in the branch just to filter one out in JS.
+      const [rows] = await pool.query(
+        'SELECT * FROM quotations WHERE branch = ? AND ref_no = ? ORDER BY created_at ASC',
+        [normalizeBranch(branchParam), String(ref).trim()]
+      );
+      const match = rows[rows.length - 1];
       if (!match) return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
       return NextResponse.json(rowToQuo(match));
     }
 
     // default: list of ref numbers, newest first
+    const rows = await loadBranchRefs(normalizeBranch(branchParam));
     const refs = rows.map((r) => String(r.ref_no || '').trim()).filter(Boolean).reverse();
     return NextResponse.json({ refs });
   } catch (err) {
@@ -121,8 +137,18 @@ export async function POST(req) {
     const branch = normalizeBranch(data.branch);
     if (!data.refNo) return NextResponse.json({ error: 'refNo required' }, { status: 400 });
 
-    const rows = await loadBranchRows(branch);
-    const prevRow = isRevision(data.refNo) ? findPreviousVersion(rows, data.refNo) : null;
+    // Only look up prior versions for an actual revision save — a brand-new
+    // quotation has none, so skip the (previously unconditional) SELECT * of
+    // every quotation in the branch just to maybe find one prior row.
+    let prevRow = null;
+    if (isRevision(data.refNo)) {
+      const base = baseRef(data.refNo);
+      const [candidates] = await pool.query(
+        'SELECT * FROM quotations WHERE branch = ? AND (ref_no = ? OR ref_no LIKE ?) ORDER BY created_at ASC',
+        [branch, base, `${base}-REV%`]
+      );
+      prevRow = findPreviousVersion(candidates, data.refNo);
+    }
 
     const id = 'Q' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
     const createdAt = new Date().toISOString();

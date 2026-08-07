@@ -42,7 +42,12 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 
   useEffect(() => {
     if (!isAdmin) return;
-    const t = setInterval(() => router.refresh(), 60000);
+    // Only refresh while the tab is actually visible — a backgrounded tab
+    // was still re-running the full dashboard server query (readStore() +
+    // FMS pending rows) every 60s for nothing.
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') router.refresh();
+    }, 60000);
     return () => clearInterval(t);
   }, [isAdmin, router]);
 

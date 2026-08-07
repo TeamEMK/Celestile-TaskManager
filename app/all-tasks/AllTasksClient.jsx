@@ -138,8 +138,8 @@ export default function AllTasksClient({ grouped, users }) {
           body: JSON.stringify({ id: fileTask.id, status: 'done', completionFile: dataUrl }),
         });
       }
-      setFileTask(null); setCompletionInput(null);
-      window.location.reload();
+      setFileTask(null); setCompletionInput(null); setFileUploading(false);
+      router.refresh();
     } catch { setFileUploading(false); }
   }
 
@@ -150,7 +150,7 @@ export default function AllTasksClient({ grouped, users }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
     });
-    window.location.reload();
+    router.refresh();
   }
 
   async function markChecklistDone(taskId) {
@@ -159,7 +159,7 @@ export default function AllTasksClient({ grouped, users }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ masterId: taskId }),
     });
-    window.location.reload();
+    router.refresh();
   }
 
   async function openFmsDone(task) {
@@ -199,7 +199,7 @@ export default function AllTasksClient({ grouped, users }) {
         body: JSON.stringify({ id: task.id, status: 'pending' }),
       });
     }
-    window.location.reload();
+    router.refresh();
   }
 
   async function confirmRevise() {
@@ -218,7 +218,7 @@ export default function AllTasksClient({ grouped, users }) {
         }),
       });
       setReviseTask(null); setReviseNote(''); setReviseDate('');
-      window.location.reload();
+      router.refresh();
     } finally { setReviseSaving(false); }
   }
 
@@ -229,7 +229,7 @@ export default function AllTasksClient({ grouped, users }) {
       } else {
         await fetch('/api/delegations?id=' + id, { method: 'DELETE' });
       }
-      window.location.reload();
+      router.refresh();
     });
   }
 
@@ -511,8 +511,8 @@ export default function AllTasksClient({ grouped, users }) {
           onSaved={() => { setEditTask(null); router.refresh(); }}
         />
       )}
-      <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} users={users} grouped={grouped} onDone={() => { setTransferOpen(false); window.location.reload(); }} />
-      <MyTransferModal open={myTransferOpen} onClose={() => setMyTransferOpen(false)} users={users} grouped={grouped} fromName={currentUserName} onDone={() => { setMyTransferOpen(false); window.location.reload(); }} />
+      <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} users={users} grouped={grouped} onDone={() => { setTransferOpen(false); router.refresh(); }} />
+      <MyTransferModal open={myTransferOpen} onClose={() => setMyTransferOpen(false)} users={users} grouped={grouped} fromName={currentUserName} onDone={() => { setMyTransferOpen(false); router.refresh(); }} />
 
       {ConfirmUI}
 

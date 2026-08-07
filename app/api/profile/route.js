@@ -15,8 +15,6 @@ export async function PATCH(req) {
     if (!id) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
     const body = await req.json();
-    // Ensure picture column exists
-    try { await pool.query('ALTER TABLE users ADD COLUMN picture MEDIUMTEXT DEFAULT NULL'); } catch {}
     // Update core fields without picture first
     await pool.query(
       `UPDATE users SET

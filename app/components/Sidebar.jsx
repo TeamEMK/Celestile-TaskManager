@@ -67,6 +67,10 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
 
   useEffect(() => {
     const fetchCount = async () => {
+      // Skip while the tab is backgrounded — this poll runs on every page for
+      // every signed-in user, so a background tab was still hitting the API
+      // (and, behind it, a DB query) every 15s for no visible benefit.
+      if (document.visibilityState !== 'visible') return;
       try {
         const res = await fetch('/api/approvals/pending-count');
         if (!res.ok) return;
@@ -75,8 +79,9 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
       } catch {}
     };
     fetchCount();
-    const t = setInterval(fetchCount, 15000);
-    return () => clearInterval(t);
+    const t = setInterval(fetchCount, 20000);
+    document.addEventListener('visibilitychange', fetchCount);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', fetchCount); };
   }, []);
 
   const visible = (n) =>

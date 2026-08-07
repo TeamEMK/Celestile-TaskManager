@@ -65,6 +65,15 @@ async function findUser(email) {
   }
 }
 
+// NextAuth's jwt() callback below re-runs getUserAuthState() on essentially
+// every getServerSession() call (not just at login) — so a single page load
+// that hits 5-10 API routes was firing 5-10 identical "SELECT ... FROM users"
+// queries within the same second. A few seconds of staleness on role/access/
+// force-logout checks is a fine trade for collapsing that into ~1 query per
+// window; force-logout still lands within AUTH_STATE_TTL_MS of being set.
+const AUTH_STATE_TTL_MS = 5000;
+const _authStateCache = new Map(); // userId -> { state, at }
+
 // Fresh auth state for a session refresh: force-logout stamp + current roles +
 // current per-page access (so role/access edits apply without a re-login).
 async function getUserAuthState(userId) {
@@ -72,6 +81,14 @@ async function getUserAuthState(userId) {
   if (userId === HARDCODED_ADMIN.id) {
     return { forceLogoutAfter: 0, roles: HARDCODED_ADMIN.roles, access: HARDCODED_ADMIN.access, branch: '' };
   }
+  const cached = _authStateCache.get(userId);
+  if (cached && Date.now() - cached.at < AUTH_STATE_TTL_MS) return cached.state;
+  const state = await fetchUserAuthState(userId);
+  _authStateCache.set(userId, { state, at: Date.now() });
+  return state;
+}
+
+async function fetchUserAuthState(userId) {
   try {
     const hasMySQL = !!(process.env.DB_HOST);
     if (hasMySQL) {

@@ -14,10 +14,16 @@ export default async function DashboardPage() {
   const currentUserId = session?.user?.id;
   const currentName   = session?.user?.name;
 
-  const [store, completions] = await Promise.all([
+  // FMS pending-rows read (a separate, independent Google Sheets fetch) used
+  // to run *after* this Promise.all resolved instead of alongside it, adding
+  // its full latency serially to every dashboard load / 60s refresh.
+  const [store, completions, fmsTasks] = await Promise.all([
     readStore(),
     pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()')
       .then(([rows]) => rows).catch(() => []),
+    FMS_ENABLED
+      ? getMyFmsPendingRows({ userId: currentUserId, userName: currentName, isAdmin }).catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   const completedToday = new Set(completions.map((c) => c.master_id));
@@ -42,9 +48,7 @@ export default async function DashboardPage() {
   const performance = computePerformance(store, from.toISOString(), to.toISOString());
   const pendingApprovals = computePendingApprovals(store, { currentUserId });
 
-  if (FMS_ENABLED) {
-    const fmsTasks = await getMyFmsPendingRows({ userId: currentUserId, userName: currentName, isAdmin })
-      .catch(() => []);
+  if (fmsTasks.length) {
     data.total   += fmsTasks.length;
     data.pending += fmsTasks.length;
     data.pendingTasks = [...data.pendingTasks, ...fmsTasks]
