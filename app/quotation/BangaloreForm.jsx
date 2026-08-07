@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { CELESTILE_LOGO } from '@/lib/celestile-logo';
+import { CELESTILE_LOGO, CELESTILE_MARK_RED } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
 
@@ -292,6 +292,7 @@ export default function BangaloreForm({ initialRef = '' }) {
         <div className="qb-doc-header">
           <div className="qb-header-top">
             <div className="qb-header-left">
+              <img className="qb-header-mark" src={CELESTILE_MARK_RED} alt="" />
               <img className="qb-header-logo" src={CELESTILE_LOGO} alt="Celestile" />
               <div>
                 <div className="qb-brand-name">CELESTILE</div>
@@ -528,6 +529,7 @@ export default function BangaloreForm({ initialRef = '' }) {
         .qb-header-top{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;flex-wrap:wrap;gap:12px;}
         .qb-header-left{display:flex;align-items:center;gap:18px;}
         .qb-header-logo{width:74px;height:74px;border-radius:50%;background:#000;box-shadow:0 0 0 1px rgba(176,141,87,0.5),0 4px 14px rgba(0,0,0,0.3);object-fit:cover;flex-shrink:0;}
+        .qb-header-mark{width:48px;height:48px;background:#fff;border-radius:6px;padding:4px;box-shadow:0 0 0 1px rgba(176,141,87,0.5),0 4px 14px rgba(0,0,0,0.3);object-fit:contain;flex-shrink:0;}
         .qb-brand-name{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:400;color:var(--qb-gold-light);letter-spacing:7px;line-height:1;}
         .qb-brand-tagline{font-size:0.6rem;letter-spacing:4.5px;text-transform:uppercase;color:var(--qb-gold);margin-top:6px;}
         .qb-doc-type-block{text-align:right;}

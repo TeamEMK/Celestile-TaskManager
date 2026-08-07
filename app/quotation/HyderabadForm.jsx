@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { CELESTILE_LOGO } from '@/lib/celestile-logo';
+import { CELESTILE_LOGO, CELESTILE_MARK_RED } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
 
@@ -249,6 +249,7 @@ export default function HyderabadForm({ initialRef = '' }) {
         <div className="qh-doc-header">
           <div className="qh-header-top">
             <div className="qh-header-left">
+              <img className="qh-header-mark" src={CELESTILE_MARK_RED} alt="" />
               <img className="qh-header-logo" src={CELESTILE_LOGO} alt="Celestile" />
               <div>
                 <div className="qh-brand-name">CELESTILE</div>
@@ -500,6 +501,7 @@ export default function HyderabadForm({ initialRef = '' }) {
         .qh-header-top{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;flex-wrap:wrap;gap:12px;}
         .qh-header-left{display:flex;align-items:center;gap:18px;}
         .qh-header-logo{width:74px;height:74px;border-radius:50%;background:#000;box-shadow:0 0 0 1px rgba(176,141,87,0.5),0 4px 14px rgba(0,0,0,0.3);object-fit:cover;flex-shrink:0;}
+        .qh-header-mark{width:48px;height:48px;background:#fff;border-radius:6px;padding:4px;box-shadow:0 0 0 1px rgba(176,141,87,0.5),0 4px 14px rgba(0,0,0,0.3);object-fit:contain;flex-shrink:0;}
         .qh-brand-name{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:400;color:var(--qh-gold-light);letter-spacing:7px;line-height:1;}
         .qh-brand-tagline{font-size:0.6rem;letter-spacing:4.5px;text-transform:uppercase;color:rgba(212,180,131,0.85);margin-top:6px;}
         .qh-doc-type-block{text-align:right;}
