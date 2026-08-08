@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
 
 const blank = () => ({
@@ -46,7 +45,6 @@ const Field = ({ label, required, children }) => (
 
 export default function AddDelegateModal({ open, onClose, users: propUsers = [] }) {
   const router = useRouter();
-  const { data: session } = useSession();
   const [form, setForm] = useState(blank());
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -90,7 +88,9 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
     try {
       const res = await fetch('/api/delegations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, requireFile: form.requireFile ? 1 : 0, delegatedBy: session?.user?.id }),
+        // delegatedBy is derived server-side from the authenticated session,
+        // not sent from here — see app/api/delegations/route.js.
+        body: JSON.stringify({ ...form, requireFile: form.requireFile ? 1 : 0 }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
       setForm(blank());
@@ -109,7 +109,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
       if (!rows.length) { setMsg('No valid rows found in CSV.'); setSaving(false); return; }
       const res = await fetch('/api/delegations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bulk: rows, delegatedBy: session?.user?.id }),
+        body: JSON.stringify({ bulk: rows }),
       });
       const out = await res.json();
       if (!res.ok) throw new Error(out.error || 'Upload failed');

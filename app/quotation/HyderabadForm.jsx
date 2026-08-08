@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { CELESTILE_LOGO, CELESTILE_MARK_RED } from '@/lib/celestile-logo';
+import { CELESTILE_LOGO_FULL, CELESTILE_MARK_RED } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
 
@@ -20,12 +20,16 @@ const fmtDate = (s) => { if (!s) return ''; const d = new Date(s); if (isNaN(d))
 function nextRevRef(ref) { const m = String(ref || '').match(/^(.*?)(?:-REV(\d+))?$/i); return m[1] + '-REV' + ((m[2] ? +m[2] : 0) + 1); }
 
 const blankStone = () => ({ desc:'', area:'', sizeWt:'', sizeHt:'', mat:'', thk:'', unit:'', module:false, price:'', qty:'', gst:DEFAULT_GST, img:'' });
-// Wall-fixing rate card (per 100 SFT coverage, priced by stone type). `slab:true`
-// rows bill in whole 100-SFT blocks — see fixAmount() — rather than qty × price.
-const DEFAULT_FIXING = [
-  ['SANDSTONE','Wall Fixing','31040'], ['INDIAN','Wall Fixing','23290'],
-  ['NERO MARBLE','Wall Fixing','24690'], ['VIETNAM WHITE','Wall Fixing','23290'],
-].map(([desc, mat, price]) => ({ desc, mat, size:'100 SFT', unit:'SFT', price, qty:'', slab:true }));
+// Wall-fixing rate card (per 100 SFT coverage, priced by stone type) — single
+// source of truth for both the default rows below and the Fixing Material
+// dropdown's auto-fill (picking a stone there sets its rate from here).
+const FIXING_RATE_CARD = [
+  { name:'SANDSTONE', rate:'31040' }, { name:'INDIAN', rate:'23290' },
+  { name:'NERO MARBLE', rate:'24690' }, { name:'VIETNAM WHITE', rate:'23290' },
+];
+// `slab:true` rows bill in whole 100-SFT blocks — see fixAmount() — rather than qty × price.
+const DEFAULT_FIXING = FIXING_RATE_CARD.map(({ name, rate }) =>
+  ({ desc:name, mat:'Wall Fixing', size:'100 SFT', unit:'SFT', price:rate, qty:'', slab:true }));
 
 // A slab-priced ("100 SFT") fixing row bills in whole 100-SFT blocks: up to
 // 100 SFT = 1x the rate, 101–200 SFT = 2x, etc. — i.e. rate × ceil(SFT/100),
@@ -148,6 +152,14 @@ export default function HyderabadForm({ initialRef = '' }) {
   const setFix = (i, k, v) => setFixRows((rs) => rs.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
   const addFix = () => setFixRows((rs) => [...rs, { desc:'', mat:'', size:'', unit:'', price:'', qty:'', slab:false }]);
   const delFix = (i) => setFixRows((rs) => rs.filter((_, idx) => idx !== i));
+  // Picking a stone from the dropdown pulls its rate straight from the rate
+  // card — no manual typing/lookup needed.
+  function setFixDesc(i, desc) {
+    const preset = FIXING_RATE_CARD.find((f) => f.name === desc);
+    setFixRows((rs) => rs.map((r, idx) => idx === i
+      ? { ...r, desc, ...(preset ? { price: preset.rate, slab: true, mat: 'Wall Fixing', size: '100 SFT', unit: 'SFT' } : {}) }
+      : r));
+  }
 
   function onConsultantBlur() {
     const c = consultants.find((x) => x.name.toLowerCase() === header.consultant.trim().toLowerCase());
@@ -235,7 +247,6 @@ export default function HyderabadForm({ initialRef = '' }) {
   return (
     <div className="qh-scope">
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600;700&display=swap" />
-      <datalist id="qh-mat">{MATERIAL_LIST.map((m) => <option key={m} value={m} />)}</datalist>
       <datalist id="qh-consult">{consultants.map((c) => <option key={c.name} value={c.name} />)}</datalist>
       <datalist id="qh-consult-email">{consultants.map((c) => c.email && <option key={c.email} value={c.email} />)}</datalist>
 
@@ -257,7 +268,7 @@ export default function HyderabadForm({ initialRef = '' }) {
           <div className="qh-header-top">
             <div className="qh-header-left">
               <img className="qh-header-mark" src={CELESTILE_MARK_RED} alt="" />
-              <img className="qh-header-logo" src={CELESTILE_LOGO} alt="Celestile" />
+              <img className="qh-header-logo" src={CELESTILE_LOGO_FULL} alt="Celestile" />
               <div>
                 <div className="qh-brand-name">CELESTILE</div>
                 <div className="qh-brand-tagline">Hyderabad Boutique</div>
@@ -328,7 +339,12 @@ export default function HyderabadForm({ initialRef = '' }) {
                       <td><input value={r.area} placeholder="—" onChange={(e) => setStone(i, 'area', e.target.value)} /></td>
                       <td><input value={r.sizeWt} placeholder="Wt" onChange={(e) => setStone(i, 'sizeWt', e.target.value)} /></td>
                       <td><input value={r.sizeHt} placeholder="Ht" onChange={(e) => setStone(i, 'sizeHt', e.target.value)} /></td>
-                      <td><input list="qh-mat" value={r.mat} placeholder="Material" onChange={(e) => setStone(i, 'mat', e.target.value)} /></td>
+                      <td>
+                        <select value={r.mat} onChange={(e) => setStone(i, 'mat', e.target.value)}>
+                          <option value="">—</option>
+                          {MATERIAL_LIST.map((m) => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </td>
                       <td><input value={r.thk} placeholder="Thk" onChange={(e) => setStone(i, 'thk', e.target.value)} /></td>
                       <td>
                         <select value={r.unit} onChange={(e) => setStone(i, 'unit', e.target.value)}>
@@ -367,13 +383,12 @@ export default function HyderabadForm({ initialRef = '' }) {
           <div style={{ overflowX: 'auto' }}>
             <table className="qh-items-table">
               <colgroup>
-                <col style={{ width: 24 }} /><col style={{ width: 160 }} /><col style={{ width: 100 }} /><col style={{ width: 90 }} />
-                <col style={{ width: 70 }} /><col style={{ width: 50 }} /><col style={{ width: 70 }} /><col style={{ width: 46 }} /><col style={{ width: 78 }} /><col style={{ width: 24 }} />
+                <col style={{ width: 24 }} /><col style={{ width: 220 }} /><col style={{ width: 100 }} />
+                <col style={{ width: 90 }} /><col style={{ width: 90 }} /><col style={{ width: 24 }} />
               </colgroup>
               <thead>
                 <tr>
-                  <th>#</th><th>Description</th><th>Material</th><th>Size / Thickness</th><th>Unit</th>
-                  <th>100 SFT</th><th>Rate (₹)</th><th>Qty / SFT</th><th style={{ textAlign: 'right' }}>Amount</th><th></th>
+                  <th>#</th><th>Description</th><th>Rate (₹)</th><th>Qty / SFT</th><th style={{ textAlign: 'right' }}>Amount</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -382,15 +397,11 @@ export default function HyderabadForm({ initialRef = '' }) {
                   return (
                     <tr key={i} className={i % 2 === 1 ? 'qh-row-even' : ''}>
                       <td className="qh-sno-cell">{i + 1}</td>
-                      <td><input value={r.desc} onChange={(e) => setFix(i, 'desc', e.target.value)} /></td>
-                      <td><input value={r.mat} onChange={(e) => setFix(i, 'mat', e.target.value)} /></td>
-                      <td><input value={r.size} onChange={(e) => setFix(i, 'size', e.target.value)} /></td>
-                      <td><input value={r.unit} onChange={(e) => setFix(i, 'unit', e.target.value)} /></td>
-                      <td className="qh-rate-type-cell">
-                        <label className="qh-rate-type-toggle" title="Rate applies per 100 SFT block: up to 100 SFT = 1x rate, 101-200 SFT = 2x rate, etc.">
-                          <input type="checkbox" checked={!!r.slab} onChange={(e) => setFix(i, 'slab', e.target.checked)} />
-                          <span>Slab</span>
-                        </label>
+                      <td>
+                        <select value={r.desc} onChange={(e) => setFixDesc(i, e.target.value)}>
+                          <option value="">Select material…</option>
+                          {FIXING_RATE_CARD.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+                        </select>
                       </td>
                       <td><CalcInput className="qh-num-input" value={r.price} onChange={(v) => setFix(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
                       <td><CalcInput className="qh-num-input" value={r.qty} onChange={(v) => setFix(i, 'qty', v)} title={r.slab ? 'Enter total SFT — billed in 100 SFT blocks' : 'Qty'} /></td>
@@ -438,7 +449,7 @@ export default function HyderabadForm({ initialRef = '' }) {
               <div className="qh-total-row"><span className="qh-label">GST (Total)</span><span className="qh-value">{inr2(calc.totalGst)}</span></div>
               <div className="qh-total-row qh-subtotal-row"><span className="qh-label">Stone Total (Incl. GST)</span><span className="qh-value">{inr2(calc.swg)}</span></div>
               <div className="qh-total-row">
-                <span className="qh-label">Installation Charges <span className="qh-nogst-tag">No GST</span></span>
+                <span className="qh-label">Installation Charges</span>
                 <div className="qh-total-input-wrap"><span>₹</span><CalcInput className="qh-total-input" value={charges.installationCharges} onChange={(v) => setC('installationCharges', v)} /></div>
               </div>
               <div className="qh-total-row qh-grand">
@@ -507,7 +518,7 @@ export default function HyderabadForm({ initialRef = '' }) {
         .qh-doc-header::before{content:'';position:absolute;top:-60px;right:-60px;width:240px;height:240px;border:1px solid rgba(176,141,87,0.14);border-radius:50%;pointer-events:none;}
         .qh-header-top{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;flex-wrap:wrap;gap:12px;}
         .qh-header-left{display:flex;align-items:center;gap:18px;}
-        .qh-header-logo{width:74px;height:74px;border-radius:50%;background:#000;box-shadow:0 0 0 1px rgba(176,141,87,0.5),0 4px 14px rgba(0,0,0,0.3);object-fit:cover;flex-shrink:0;}
+        .qh-header-logo{height:64px;width:auto;border-radius:6px;box-shadow:0 0 0 1px rgba(176,141,87,0.5),0 4px 14px rgba(0,0,0,0.3);object-fit:contain;flex-shrink:0;}
         .qh-header-mark{width:48px;height:48px;background:#fff;border-radius:6px;padding:4px;box-shadow:0 0 0 1px rgba(176,141,87,0.5),0 4px 14px rgba(0,0,0,0.3);object-fit:contain;flex-shrink:0;}
         .qh-brand-name{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:400;color:var(--qh-gold-light);letter-spacing:7px;line-height:1;}
         .qh-brand-tagline{font-size:0.6rem;letter-spacing:4.5px;text-transform:uppercase;color:rgba(212,180,131,0.85);margin-top:6px;}
@@ -571,7 +582,6 @@ export default function HyderabadForm({ initialRef = '' }) {
         .qh-value{font-weight:600;color:var(--qh-text);white-space:nowrap;font-family:Arial,sans-serif;font-size:0.9rem;}
         .qh-subtotal-row{background:rgba(34,64,154,0.045);}
         .qh-discount-row .qh-label,.qh-discount-row span{color:#9a3a1f;}
-        .qh-nogst-tag{font-size:0.6rem;letter-spacing:1px;text-transform:uppercase;color:var(--qh-gold-dark);background:rgba(176,141,87,0.14);border:1px solid rgba(176,141,87,0.4);border-radius:3px;padding:1px 5px;margin-left:6px;font-weight:600;}
         .qh-total-row.qh-grand{background:var(--qh-beige);padding:12px 14px;border-bottom:none;border-top:2px solid rgba(176,141,87,0.4);}
         .qh-total-row.qh-grand .qh-label{color:#5a4a30;font-size:0.76rem;letter-spacing:1px;text-transform:uppercase;}
         .qh-total-row.qh-grand .qh-value{color:var(--qh-blue);font-size:1.15rem;font-family:Arial,sans-serif;font-weight:700;}

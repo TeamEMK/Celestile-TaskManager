@@ -3,7 +3,7 @@ import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sendWhatsApp, delegationMessage, taskDoneMessage, approvalWaitingMessage, isWhatsappConfigured } from '@/lib/whatsapp';
-import { requireUser } from '@/lib/api';
+import { requireUser, currentUser } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 // Fire a WhatsApp "task delegated" notice to the doer (best-effort).
@@ -117,7 +117,13 @@ async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, 
 }
 
 export async function POST(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  // delegatedBy must come from the server-verified session, never from the
+  // request body — trusting a client-supplied id let a stale/not-yet-loaded
+  // session (or a wrong value) silently attribute a task to nobody/someone
+  // else, so it would never show up under the real delegator's "Delegate by
+  // Me" tab (that tab filters strictly on delegatedBy === session.user.id).
+  const sessionUser = await currentUser();
+  if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const body = await req.json();
     const resolvedApproval = body.approval || 'No Approval';
@@ -142,11 +148,11 @@ export async function POST(req) {
         }
         const del = await insertOne({
           description: desc, doerId: users[0].id, doerName: users[0].name,
-          delegatedBy: body.delegatedBy, dueDate,
+          delegatedBy: sessionUser.id, dueDate,
           priority: row.priority, approval: rowApproval, approverId, approverName,
           url: row.url, remarks: row.remarks,
         });
-        await notifyDelegation({ doerUser: users[0], delegatedById: body.delegatedBy, del });
+        await notifyDelegation({ doerUser: users[0], delegatedById: sessionUser.id, del });
         inserted++;
       }
       return NextResponse.json({ success: true, inserted, errors }, { status: 201 });
@@ -165,13 +171,13 @@ export async function POST(req) {
     }
     const row = await insertOne({
       description: body.description, doerId: body.doerId, doerName: users[0]?.name,
-      delegatedBy: body.delegatedBy, dueDate: normDate(body.dueDate) || body.dueDate,
+      delegatedBy: sessionUser.id, dueDate: normDate(body.dueDate) || body.dueDate,
       client: body.client, priority: body.priority, approval: resolvedApproval,
       approverId: body.approverId, approverName,
       url: body.url, remarks: body.remarks, image: body.image,
       requireFile: body.requireFile, attachment: body.attachment,
     });
-    await notifyDelegation({ doerUser: users[0], delegatedById: body.delegatedBy, del: row });
+    await notifyDelegation({ doerUser: users[0], delegatedById: sessionUser.id, del: row });
     return NextResponse.json(row, { status: 201 });
   } catch (err) {
     console.error(err);
