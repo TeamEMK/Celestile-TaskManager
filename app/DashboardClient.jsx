@@ -11,6 +11,27 @@ import { FMS_ENABLED } from '@/lib/config';
 import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 
+// FMS answers are raw sheet values, so an uploaded file or a pasted link
+// would otherwise print as a wall of URL text in the details strip (the
+// "Quotation pdf" field is the worst offender). Show a thumbnail for images
+// and a short "Click here" for anything else that is openable.
+function DetailValue({ value }) {
+  const v = typeof value === 'string' ? value.trim() : '';
+  if (isImageAttachment(v)) {
+    return <ZoomImg src={v} className="w-6 h-6 rounded object-cover border border-slate-200" />;
+  }
+  const isFile = v.includes('/api/drive/') || v.startsWith('data:application/pdf');
+  if (isFile || /^https?:\/\//i.test(v)) {
+    return (
+      <a href={v} target="_blank" rel="noopener noreferrer" title={v}
+        className="text-primary-600 hover:text-primary-700 hover:underline font-medium">
+        {isFile ? '📄' : '🔗'} Click here
+      </a>
+    );
+  }
+  return <>{value || '—'}</>;
+}
+
 export default function DashboardClient({ data, performance, pendingApprovals, holidays, users = [], isAdmin, userName = '' }) {
   const router = useRouter();
 
@@ -367,9 +388,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                             {t.details.map(({ header, value }) => (
                               <span key={header} className="inline-flex items-center gap-1">
                                 <span className="font-semibold text-slate-600">{header}:</span>
-                                {isImageAttachment(value)
-                                  ? <ZoomImg src={value} className="w-6 h-6 rounded object-cover border border-slate-200" />
-                                  : (value || '—')}
+                                <DetailValue value={value} />
                               </span>
                             ))}
                           </div>
