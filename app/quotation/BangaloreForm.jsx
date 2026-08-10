@@ -4,6 +4,7 @@ import { CELESTILE_LOGO, CELESTILE_MARK_RED } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
 import { ZoomImg } from '@/app/components/ImageLightbox';
+import { useQuotationMaster, AddItemModal, ADD_ITEM_VALUE } from './useQuotationMaster';
 
 /* ── constants (ported from IndexBng) ─────────────────────────────────── */
 const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
@@ -148,6 +149,12 @@ export default function BangaloreForm({ initialRef = '' }) {
   const [saving, setSaving] = useState(false);
   const [consultants, setConsultants] = useState([]);
 
+  // Item + thickness come from the team's master sheet; `addFor` remembers
+  // which row opened the "+ Add new item" dialog so the new name lands there.
+  const master = useQuotationMaster();
+  const [addFor, setAddFor] = useState(null);
+  const matOptions = master.items.length ? master.items : MATERIAL_LIST;
+
   const setH = (k, v) => setHeader((h) => ({ ...h, [k]: v }));
   const calc = useMemo(() => compute(rows, totals), [rows, totals]);
 
@@ -270,9 +277,20 @@ export default function BangaloreForm({ initialRef = '' }) {
   return (
     <div className="qb-scope">
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600;700&display=swap" />
-      <datalist id="bq-mat">{MATERIAL_LIST.map((m) => <option key={m} value={m} />)}</datalist>
+      <datalist id="bq-thk">{master.thicknesses.map((t) => <option key={t} value={t} />)}</datalist>
       <datalist id="bq-unit">{UNIT_OPTIONS.map((u) => <option key={u} value={u} />)}</datalist>
       <datalist id="bq-consult">{consultants.map((c) => <option key={c.name} value={c.name} />)}</datalist>
+
+      {addFor !== null && (
+        <AddItemModal
+          thicknesses={master.thicknesses}
+          onAdd={master.addItem}
+          onClose={(name) => { if (name) setRow(addFor, 'mat', name); setAddFor(null); }}
+        />
+      )}
+      {master.error && (
+        <div className="qb-master-warn">⚠ Item master: {master.error}</div>
+      )}
 
       {/* toolbar */}
       <div className="qb-toolbar">
@@ -377,8 +395,18 @@ export default function BangaloreForm({ initialRef = '' }) {
                       <td><input value={r.desc} placeholder="Description" onChange={(e) => setRow(i, 'desc', e.target.value)} /></td>
                       <td><input value={r.area} placeholder="—" onChange={(e) => setRow(i, 'area', e.target.value)} /></td>
                       <td><input value={r.size} placeholder="5×7" onChange={(e) => setRow(i, 'size', e.target.value)} /></td>
-                      <td><input list="bq-mat" value={r.mat} placeholder="Material" onChange={(e) => setRow(i, 'mat', e.target.value)} /></td>
-                      <td><input value={r.thk} placeholder="18MM" onChange={(e) => setRow(i, 'thk', e.target.value)} /></td>
+                      <td>
+                        <select value={r.mat} onChange={(e) => {
+                          if (e.target.value === ADD_ITEM_VALUE) { setAddFor(i); return; }
+                          setRow(i, 'mat', e.target.value);
+                        }}>
+                          <option value="">—</option>
+                          {r.mat && !matOptions.includes(r.mat) && <option value={r.mat}>{r.mat}</option>}
+                          {matOptions.map((m) => <option key={m} value={m}>{m}</option>)}
+                          <option value={ADD_ITEM_VALUE}>＋ Add new item…</option>
+                        </select>
+                      </td>
+                      <td><input list="bq-thk" value={r.thk} placeholder="18MM" onChange={(e) => setRow(i, 'thk', e.target.value)} /></td>
                       <td className="qb-unit-wrap"><input list="bq-unit" value={r.unit} placeholder="—" onChange={(e) => setRow(i, 'unit', e.target.value)} /></td>
                       <td className="qb-rate-type-cell">
                         <label className="qb-rate-type-toggle" title="Rate per SFT (qty = size W×H)">
@@ -579,6 +607,9 @@ export default function BangaloreForm({ initialRef = '' }) {
         .qb-del-btn:hover{color:#c0392b;}
         .qb-add-row-btn{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 14px;border:1px dashed rgba(176,141,87,0.4);background:transparent;color:var(--qb-gold-dark);font-family:'Jost',sans-serif;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;}
         .qb-add-row-btn:hover{background:rgba(176,141,87,0.08);border-color:var(--qb-gold);}
+
+        .qb-master-warn{margin:0 0 10px;padding:6px 10px;border:1px solid #f0d090;background:#fdf6e3;color:#8a6100;font-family:Arial,sans-serif;font-size:0.72rem;}
+        @media print { .qb-master-warn{display:none;} }
 
         .qb-img-cell{width:50px;}
         .qb-img-container{width:40px;height:40px;display:block;cursor:pointer;}

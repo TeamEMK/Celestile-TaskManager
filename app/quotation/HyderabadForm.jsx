@@ -4,6 +4,7 @@ import { CELESTILE_LOGO_FULL, CELESTILE_MARK_RED } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
 import { ZoomImg } from '@/app/components/ImageLightbox';
+import { useQuotationMaster, AddItemModal, ADD_ITEM_VALUE } from './useQuotationMaster';
 
 const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
 const UNIT_OPTIONS = ['','Piece','Module','SFT','RFT','BAG','KG','GMS','LITER'];
@@ -126,6 +127,12 @@ export default function HyderabadForm({ initialRef = '' }) {
   const [selRef, setSelRef] = useState('');
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Item + thickness come from the team's master sheet; `addFor` remembers
+  // which row opened the "+ Add new item" dialog so the new name lands there.
+  const master = useQuotationMaster();
+  const [addFor, setAddFor] = useState(null);
+  const matOptions = master.items.length ? master.items : MATERIAL_LIST;
 
   const setH = (k, v) => setHeader((h) => ({ ...h, [k]: v }));
   const setC = (k, v) => setCharges((c) => ({ ...c, [k]: v }));
@@ -250,6 +257,18 @@ export default function HyderabadForm({ initialRef = '' }) {
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600;700&display=swap" />
       <datalist id="qh-consult">{consultants.map((c) => <option key={c.name} value={c.name} />)}</datalist>
       <datalist id="qh-consult-email">{consultants.map((c) => c.email && <option key={c.email} value={c.email} />)}</datalist>
+      <datalist id="qh-thk">{master.thicknesses.map((t) => <option key={t} value={t} />)}</datalist>
+
+      {addFor !== null && (
+        <AddItemModal
+          thicknesses={master.thicknesses}
+          onAdd={master.addItem}
+          onClose={(name) => { if (name) setStone(addFor, 'mat', name); setAddFor(null); }}
+        />
+      )}
+      {master.error && (
+        <div className="qh-master-warn">⚠ Item master: {master.error}</div>
+      )}
 
       <div className="qh-toolbar">
         <div className="qh-toolbar-left">
@@ -351,12 +370,19 @@ export default function HyderabadForm({ initialRef = '' }) {
                       <td><input value={r.sizeWt} placeholder="Wt" onChange={(e) => setStone(i, 'sizeWt', e.target.value)} /></td>
                       <td><input value={r.sizeHt} placeholder="Ht" onChange={(e) => setStone(i, 'sizeHt', e.target.value)} /></td>
                       <td>
-                        <select value={r.mat} onChange={(e) => setStone(i, 'mat', e.target.value)}>
+                        <select value={r.mat} onChange={(e) => {
+                          if (e.target.value === ADD_ITEM_VALUE) { setAddFor(i); return; }
+                          setStone(i, 'mat', e.target.value);
+                        }}>
                           <option value="">—</option>
-                          {MATERIAL_LIST.map((m) => <option key={m} value={m}>{m}</option>)}
+                          {r.mat && !matOptions.includes(r.mat) && <option value={r.mat}>{r.mat}</option>}
+                          {matOptions.map((m) => <option key={m} value={m}>{m}</option>)}
+                          <option value={ADD_ITEM_VALUE}>＋ Add new item…</option>
                         </select>
                       </td>
-                      <td><input value={r.thk} placeholder="Thk" onChange={(e) => setStone(i, 'thk', e.target.value)} /></td>
+                      <td>
+                        <input list="qh-thk" value={r.thk} placeholder="Thk" onChange={(e) => setStone(i, 'thk', e.target.value)} />
+                      </td>
                       <td>
                         <select value={r.unit} onChange={(e) => setStone(i, 'unit', e.target.value)}>
                           {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u || '—'}</option>)}
@@ -569,6 +595,9 @@ export default function HyderabadForm({ initialRef = '' }) {
         .qh-del-btn:hover{color:#c0392b;}
         .qh-add-row-btn{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 14px;border:1px dashed rgba(34,64,154,0.35);background:transparent;color:var(--qh-blue);font-family:'Jost',sans-serif;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;}
         .qh-add-row-btn:hover{background:rgba(34,64,154,0.06);border-color:var(--qh-blue);}
+
+        .qh-master-warn{margin:0 0 10px;padding:6px 10px;border:1px solid #f0d090;background:#fdf6e3;color:#8a6100;font-family:Arial,sans-serif;font-size:0.72rem;}
+        @media print { .qh-master-warn{display:none;} }
 
         .qh-img-cell{width:46px;}
         .qh-img-container{width:38px;height:38px;display:block;cursor:pointer;}
