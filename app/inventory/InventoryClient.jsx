@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
+import { Lightbox, ZoomImg } from '@/app/components/ImageLightbox';
 
 const num = (v) => parseFloat(v) || 0;
 const sftOf = (l, w) => Math.round((num(l) * num(w) / 144) * 100) / 100;
@@ -179,10 +180,13 @@ function Inward({ masters, reloadMasters, onSaved }) {
             <F label="Size W (in)*"><input type="number" className="input !py-1" value={r.sizeW} onChange={(e) => setSize(i, 'sizeW', e.target.value)} placeholder="48" /></F>
             <F label="SFT*"><input type="number" className="input !py-1 tabular-nums" value={r.sft} onChange={(e) => set(i, 'sft', e.target.value)} placeholder="auto" /></F>
             <F label="Photo">
-              <label className="cursor-pointer flex items-center justify-center h-9 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 hover:bg-primary-50/30 transition-colors">
-                {r.photo ? <img src={r.photo} alt="" className="h-9 object-cover" /> : <span className="text-slate-400 text-[11px]">+ Photo</span>}
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => pickPhoto(i, e.target.files[0])} />
-              </label>
+              <div className="flex items-center gap-1.5">
+                {r.photo && <ZoomImg src={r.photo} className="h-9 w-9 rounded-lg object-cover border border-slate-200 shrink-0" />}
+                <label className="cursor-pointer flex-1 flex items-center justify-center h-9 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 hover:bg-primary-50/30 transition-colors">
+                  <span className={r.photo ? 'text-primary-600 text-[11px]' : 'text-slate-400 text-[11px]'}>{r.photo ? 'Change' : '+ Photo'}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => pickPhoto(i, e.target.files[0])} />
+                </label>
+              </div>
             </F>
             <F label="Remarks" wide><input className="input !py-1" value={r.remarks} onChange={(e) => set(i, 'remarks', e.target.value)} placeholder="Any remarks / issues" /></F>
             <div className="flex justify-end"><button className="btn-danger !px-2 !py-1" onClick={() => delRow(i)}>✕</button></div>
@@ -448,11 +452,21 @@ function Stock({ inv, loading, masters, reload }) {
           </div>
           <F label="Remarks"><input className="input" value={edit.remarks} onChange={(e) => setEdit({ ...edit, remarks: e.target.value })} /></F>
           <F label="Photo">
-            <label className="cursor-pointer flex items-center justify-center h-12 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">
-              {edit.photo ? <img src={edit.photo} alt="" className="h-12 object-cover" /> : <span className="text-[11px] text-slate-400">+ Replace photo</span>}
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => editPhoto(e.target.files[0])} />
-            </label>
-            {edit.photo && <button type="button" className="text-[11px] text-primary-600 hover:underline mt-1" onClick={() => setPhoto(edit.photo)}>View full image</button>}
+            <div className="flex items-center gap-2">
+              {edit.photo && (
+                <img
+                  src={edit.photo}
+                  alt=""
+                  title="Click to view full image"
+                  className="h-12 w-12 rounded-lg object-cover border border-slate-200 shrink-0 cursor-zoom-in"
+                  onClick={() => setPhoto(edit.photo)}
+                />
+              )}
+              <label className="cursor-pointer flex-1 flex items-center justify-center h-12 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">
+                <span className="text-[11px] text-slate-400">{edit.photo ? 'Replace photo' : '+ Add photo'}</span>
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => editPhoto(e.target.files[0])} />
+              </label>
+            </div>
           </F>
           <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setEdit(null)}>Cancel</button><button className="btn-warn" onClick={saveEdit}>Save</button></div>
         </Modal>
@@ -813,10 +827,13 @@ const STOCK_BADGE = (s) => ({
 function ImgUpload({ label, value, imgStatus, onPick }) {
   return (
     <F label={label}>
-      <label className="cursor-pointer flex items-center justify-center h-9 px-2 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">
-        {value ? <img src={value} className="h-9" alt="" /> : <span className="text-[11px] text-slate-400">+ {label.replace(' Photo', '')}</span>}
-        <input type="file" accept="image/*" className="hidden" onChange={(e) => onPick(e.target.files[0])} />
-      </label>
+      <div className="flex items-center gap-1.5">
+        {value && <ZoomImg src={value} className="h-9 w-9 rounded-lg object-cover border border-slate-200 shrink-0" />}
+        <label className="cursor-pointer flex-1 flex items-center justify-center h-9 px-2 rounded-lg border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors">
+          <span className={`text-[11px] ${value ? 'text-primary-600' : 'text-slate-400'}`}>{value ? 'Change' : `+ ${label.replace(' Photo', '')}`}</span>
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => onPick(e.target.files[0])} />
+        </label>
+      </div>
       {imgStatus === 'ready' && <span className="text-[10px] text-emerald-600 mt-0.5">✓ Ready</span>}
       {imgStatus === 'toolarge' && <span className="text-[10px] text-red-600 mt-0.5">File too large — max 4MB</span>}
     </F>
@@ -958,23 +975,6 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirm', danger, onConf
           <button className={danger ? 'btn-danger' : 'btn-warn'} onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// Click-to-enlarge for slab photos — the table thumbnail is only ~28px, which
-// is too small to judge a slab by. Sits above the modals (z-50 / z-[60]) so it
-// also works on the photo inside the Edit dialog.
-function Lightbox({ src, onClose }) {
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-6 animate-fade-in" style={{ background: 'rgba(15,23,42,0.82)' }} onClick={onClose}>
-      <button className="absolute top-3 right-4 text-white/70 hover:text-white text-3xl leading-none" onClick={onClose} aria-label="Close">×</button>
-      <img src={src} alt="" className="max-h-[85vh] max-w-[92vw] object-contain rounded-xl shadow-2xl bg-white" onClick={(e) => e.stopPropagation()} />
     </div>
   );
 }

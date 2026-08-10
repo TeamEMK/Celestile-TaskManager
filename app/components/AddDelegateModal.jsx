@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
+import { ZoomImg } from './ImageLightbox';
 
 const blank = () => ({
   description: '', doerId: '', dueDate: '', client: '',
@@ -221,7 +222,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
             <label className="flex items-center gap-2 px-2.5 py-1.5 border border-dashed border-primary-200 rounded-lg cursor-pointer bg-white hover:bg-primary-50 hover:border-primary-300 transition-colors shrink-0">
               <div className="w-7 h-7 rounded-md bg-primary-50 grid place-items-center overflow-hidden shrink-0">
                 {form.image
-                  ? <img src={form.image} alt="" className="w-7 h-7 object-cover" />
+                  ? <ZoomImg src={form.image} className="w-7 h-7 object-cover" />
                   : form.attachment
                   ? <span className="text-sm">📄</span>
                   : <svg className="w-3.5 h-3.5 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>

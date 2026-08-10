@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useConfirmToast } from '../components/ConfirmToast';
+import { ZoomImg } from '../components/ImageLightbox';
+import { isImageAttachment } from '@/lib/attachmentType';
 
 const fmt = (iso) => {
   if (!iso) return '—';
@@ -222,12 +224,12 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                         {(t.image || t.attachment || t.url) && (
                           <div className="flex items-center gap-1.5 mt-1">
                             {t.image && (
-                              <a href={t.image} target="_blank" rel="noopener noreferrer" title="View attached photo">
-                                <img src={t.image} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" />
-                              </a>
+                              <ZoomImg src={t.image} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0" />
                             )}
                             {t.attachment && (
-                              <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0">📄 View PDF</a>
+                              isImageAttachment(t.attachment)
+                                ? <ZoomImg src={t.attachment} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0" />
+                                : <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0">📄 View PDF</a>
                             )}
                             {t.url && (
                               <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0" title={t.url}>🔗 Link</a>

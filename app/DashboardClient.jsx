@@ -9,6 +9,7 @@ import { DonutChart, HorizBarChart } from './components/Charts';
 import FmsDoneModal from './components/FmsDoneModal';
 import { FMS_ENABLED } from '@/lib/config';
 import { isImageAttachment } from '@/lib/attachmentType';
+import { ZoomImg } from '@/app/components/ImageLightbox';
 
 export default function DashboardClient({ data, performance, pendingApprovals, holidays, users = [], isAdmin, userName = '' }) {
   const router = useRouter();
@@ -349,20 +350,27 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                             </a>
                           )}
                           {t.image && (
-                            <a href={t.image} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5" title="View photo">
-                              <img src={t.image} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" />
-                            </a>
+                            <ZoomImg src={t.image} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0 mt-0.5" />
                           )}
                           {t.attachment && (
-                            <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-primary-500 hover:text-primary-700" title="View attachment">
-                              {isImageAttachment(t.attachment) ? <img src={t.attachment} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" /> : <span>📄</span>}
-                            </a>
+                            isImageAttachment(t.attachment)
+                              ? <ZoomImg src={t.attachment} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0 mt-0.5" />
+                              : (
+                                <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-primary-500 hover:text-primary-700" title="View attachment">
+                                  <span>📄</span>
+                                </a>
+                              )
                           )}
                         </div>
                         {t.type === 'FMS' && t.details?.length > 0 && (
                           <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
                             {t.details.map(({ header, value }) => (
-                              <span key={header}><span className="font-semibold text-slate-600">{header}:</span> {value || '—'}</span>
+                              <span key={header} className="inline-flex items-center gap-1">
+                                <span className="font-semibold text-slate-600">{header}:</span>
+                                {isImageAttachment(value)
+                                  ? <ZoomImg src={value} className="w-6 h-6 rounded object-cover border border-slate-200" />
+                                  : (value || '—')}
+                              </span>
                             ))}
                           </div>
                         )}

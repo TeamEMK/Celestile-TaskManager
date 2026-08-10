@@ -8,6 +8,7 @@ import FmsDoneModal     from '../components/FmsDoneModal';
 import { useConfirmToast } from '../components/ConfirmToast';
 import { FMS_ENABLED } from '@/lib/config';
 import { isImageAttachment } from '@/lib/attachmentType';
+import { ZoomImg } from '@/app/components/ImageLightbox';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -443,14 +444,16 @@ export default function AllTasksClient({ grouped, users }) {
                                       </a>
                                     )}
                                     {t.image && (
-                                      <a href={t.image} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5" title="View photo">
-                                        <img src={t.image} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" />
-                                      </a>
+                                      <ZoomImg src={t.image} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0 mt-0.5" />
                                     )}
                                     {t.attachment && (
-                                      <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-primary-500 hover:text-primary-700" title="View attachment">
-                                        {isImageAttachment(t.attachment) ? <img src={t.attachment} alt="" className="w-6 h-6 rounded object-cover border border-slate-200" /> : <span>📄</span>}
-                                      </a>
+                                      isImageAttachment(t.attachment)
+                                        ? <ZoomImg src={t.attachment} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0 mt-0.5" />
+                                        : (
+                                          <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-primary-500 hover:text-primary-700" title="View attachment">
+                                            <span>📄</span>
+                                          </a>
+                                        )
                                     )}
                                     {!!t.requireFile && t.status !== 'done' && (
                                       <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 rounded px-1 shrink-0">📎 File req.</span>

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { ZoomImg } from '@/app/components/ImageLightbox';
 
 /* ── Bangalore Site Engineer constants ───────────────────────────────── */
 const BLR_PURPOSE_OPTIONS = [
@@ -448,7 +449,7 @@ export default function DailyTaskClient() {
                                 onChange={(e) => handlePreInstallImage(e, i)} />
                               {r.preInstallImage && (
                                 <div className="relative w-24 h-24">
-                                  <img src={r.preInstallImage} alt="Pre-install"
+                                  <ZoomImg src={r.preInstallImage} alt="Pre-install"
                                     className="w-24 h-24 object-cover rounded border border-slate-200" />
                                   <button
                                     className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center"
@@ -591,7 +592,7 @@ export default function DailyTaskClient() {
                         </span>
                       )}
                       {e.preInstallImage && (
-                        <img src={e.preInstallImage} alt="Pre-install"
+                        <ZoomImg src={e.preInstallImage} alt="Pre-install"
                           className="w-14 h-14 object-cover rounded border border-slate-200 shrink-0" />
                       )}
                       {e.preInstallComment && (

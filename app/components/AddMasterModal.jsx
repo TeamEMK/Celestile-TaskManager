@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { isImageAttachment } from '@/lib/attachmentType';
+import { ZoomImg } from './ImageLightbox';
 
 const FREQS = [
   { label: 'Daily (365 tasks/year)',            value: 'Daily'            },
@@ -199,17 +200,24 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
           <div>
             <label className="label">Photo / PDF <span className="text-slate-400 font-normal">(optional)</span></label>
             <div className="flex items-center gap-3">
-              <label className="cursor-pointer flex items-center justify-center w-16 h-16 rounded-xl border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors shrink-0">
-                {form.attachment
-                  ? (isImageAttachment(form.attachment)
-                    ? <img src={form.attachment} alt="" className="w-16 h-16 object-cover" />
-                    : <span className="text-2xl">📄</span>)
-                  : <span className="text-slate-400 text-xl leading-none">+</span>}
-                <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => pickAttachment(e.target.files?.[0])} />
-              </label>
+              {isImageAttachment(form.attachment) ? (
+                <ZoomImg src={form.attachment} className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0" />
+              ) : (
+                <label className="cursor-pointer flex items-center justify-center w-16 h-16 rounded-xl border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors shrink-0">
+                  {form.attachment
+                    ? <span className="text-2xl">📄</span>
+                    : <span className="text-slate-400 text-xl leading-none">+</span>}
+                  <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => pickAttachment(e.target.files?.[0])} />
+                </label>
+              )}
               {form.attachment && (
                 <div className="flex flex-col gap-1">
-                  {!isImageAttachment(form.attachment) && (
+                  {isImageAttachment(form.attachment) ? (
+                    <label className="text-[12px] text-primary-600 hover:underline cursor-pointer">
+                      Change photo
+                      <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => pickAttachment(e.target.files?.[0])} />
+                    </label>
+                  ) : (
                     <a href={form.attachment} target="_blank" rel="noopener noreferrer" className="text-[12px] text-primary-600 hover:underline">View PDF</a>
                   )}
                   <button type="button" className="text-[12px] text-red-500 hover:text-red-600 text-left" onClick={() => setForm((p) => ({ ...p, attachment: '' }))}>Remove</button>

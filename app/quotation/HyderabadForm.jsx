@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CELESTILE_LOGO_FULL, CELESTILE_MARK_RED } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
+import { ZoomImg } from '@/app/components/ImageLightbox';
 
 const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
 const UNIT_OPTIONS = ['','Piece','Module','SFT','RFT','BAG','KG','GMS','LITER'];
@@ -330,10 +331,20 @@ export default function HyderabadForm({ initialRef = '' }) {
                     <tr key={i} className={i % 2 === 1 ? 'qh-row-even' : ''}>
                       <td className="qh-sno-cell">{i + 1}</td>
                       <td className="qh-img-cell">
-                        <label className="qh-img-container">
-                          {r.img ? <img className="qh-img-preview-thumb" src={r.img} alt="" /> : <div className={`qh-img-placeholder ${needsImage ? 'qh-img-required' : ''}`}>+</div>}
-                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
-                        </label>
+                        {r.img ? (
+                          <div className="qh-img-wrap">
+                            <ZoomImg className="qh-img-preview-thumb" src={r.img} />
+                            <label className="qh-img-change" title="Replace image">
+                              ✎
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
+                            </label>
+                          </div>
+                        ) : (
+                          <label className="qh-img-container">
+                            <div className={`qh-img-placeholder ${needsImage ? 'qh-img-required' : ''}`}>+</div>
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
+                          </label>
+                        )}
                       </td>
                       <td><input value={r.desc} placeholder="Description" onChange={(e) => setStone(i, 'desc', e.target.value)} /></td>
                       <td><input value={r.area} placeholder="—" onChange={(e) => setStone(i, 'area', e.target.value)} /></td>
@@ -563,7 +574,11 @@ export default function HyderabadForm({ initialRef = '' }) {
         .qh-img-container{width:38px;height:38px;display:block;cursor:pointer;}
         .qh-img-placeholder{width:38px;height:38px;border:1px dashed rgba(34,64,154,0.3);background:rgba(34,64,154,0.04);display:flex;align-items:center;justify-content:center;color:rgba(34,64,154,0.45);font-size:1.05rem;}
         .qh-img-placeholder.qh-img-required{border:1px dashed #c0392b;background:rgba(192,57,43,0.06);color:#c0392b;}
-        .qh-img-preview-thumb{width:38px;height:38px;object-fit:cover;border:1px solid var(--qh-border);}
+        .qh-img-preview-thumb{width:38px;height:38px;object-fit:cover;border:1px solid var(--qh-border);cursor:zoom-in;}
+        /* Thumb is click-to-enlarge, so replacing the image moved to this badge. */
+        .qh-img-wrap{position:relative;width:38px;height:38px;}
+        .qh-img-change{position:absolute;right:-5px;bottom:-5px;width:15px;height:15px;border-radius:50%;background:#fff;border:1px solid var(--qh-border);color:var(--qh-blue);font-size:8px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.18);}
+        .qh-img-change:hover{background:var(--qh-cream);}
 
         .qh-rate-type-cell{text-align:center;}
         .qh-rate-type-toggle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-size:0.54rem;color:var(--qh-muted);letter-spacing:1px;text-transform:uppercase;font-weight:600;}

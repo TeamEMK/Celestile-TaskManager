@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { fileToThumbnail } from '../quotation/imageThumb';
+import { ZoomImg } from './ImageLightbox';
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
 // The resulting data: URI is swapped for a Drive URL server-side (writeStepDone)
@@ -213,7 +214,7 @@ function UploadField({ value, onChange }) {
         <div className="flex items-center gap-2 mt-1.5">
           {isPdf
             ? <span className="text-[11.5px] text-slate-600">📄 PDF attached</span>
-            : <img src={value} alt="" className="w-10 h-10 object-cover rounded border border-slate-200" />}
+            : <ZoomImg src={value} className="w-10 h-10 object-cover rounded border border-slate-200" />}
           <button type="button" className="text-[11px] text-red-500 hover:underline" onClick={() => onChange('')}>Remove</button>
         </div>
       )}

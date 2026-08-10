@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CELESTILE_LOGO, CELESTILE_MARK_RED } from '@/lib/celestile-logo';
 import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
+import { ZoomImg } from '@/app/components/ImageLightbox';
 
 /* ── constants (ported from IndexBng) ─────────────────────────────────── */
 const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
@@ -358,10 +359,20 @@ export default function BangaloreForm({ initialRef = '' }) {
                     <tr key={i} className={i % 2 === 1 ? 'qb-row-even' : ''}>
                       <td className="qb-sno-cell">{i + 1}</td>
                       <td className="qb-img-cell">
-                        <label className="qb-img-container">
-                          {r.img ? <img className="qb-img-preview-thumb" src={r.img} alt="" /> : <div className={`qb-img-placeholder ${needsImage ? 'qb-img-required' : ''}`}>+</div>}
-                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
-                        </label>
+                        {r.img ? (
+                          <div className="qb-img-wrap">
+                            <ZoomImg className="qb-img-preview-thumb" src={r.img} />
+                            <label className="qb-img-change" title="Replace image">
+                              ✎
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
+                            </label>
+                          </div>
+                        ) : (
+                          <label className="qb-img-container">
+                            <div className={`qb-img-placeholder ${needsImage ? 'qb-img-required' : ''}`}>+</div>
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
+                          </label>
+                        )}
                       </td>
                       <td><input value={r.desc} placeholder="Description" onChange={(e) => setRow(i, 'desc', e.target.value)} /></td>
                       <td><input value={r.area} placeholder="—" onChange={(e) => setRow(i, 'area', e.target.value)} /></td>
@@ -573,7 +584,11 @@ export default function BangaloreForm({ initialRef = '' }) {
         .qb-img-container{width:40px;height:40px;display:block;cursor:pointer;}
         .qb-img-placeholder{width:40px;height:40px;border:1px dashed rgba(176,141,87,0.35);background:rgba(176,141,87,0.04);display:flex;align-items:center;justify-content:center;color:rgba(176,141,87,0.5);font-size:1.1rem;}
         .qb-img-placeholder.qb-img-required{border:1px dashed #c0392b;background:rgba(192,57,43,0.06);color:#c0392b;}
-        .qb-img-preview-thumb{width:40px;height:40px;object-fit:cover;border:1px solid var(--qb-border);}
+        .qb-img-preview-thumb{width:40px;height:40px;object-fit:cover;border:1px solid var(--qb-border);cursor:zoom-in;}
+        /* Thumb is click-to-enlarge, so replacing the image moved to this badge. */
+        .qb-img-wrap{position:relative;width:40px;height:40px;}
+        .qb-img-change{position:absolute;right:-5px;bottom:-5px;width:15px;height:15px;border-radius:50%;background:#fff;border:1px solid var(--qb-border);color:var(--qb-gold,#b08d57);font-size:8px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.18);}
+        .qb-img-change:hover{background:rgba(176,141,87,0.08);}
 
         .qb-rate-type-cell{text-align:center;}
         .qb-rate-type-toggle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-size:0.56rem;color:var(--qb-muted);letter-spacing:1px;text-transform:uppercase;font-weight:600;}

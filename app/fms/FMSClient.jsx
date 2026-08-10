@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
 import { fileToThumbnail } from '../quotation/imageThumb';
 import PcView from './PcView';
+import { ZoomImg } from '../components/ImageLightbox';
 
 const FIELD_TYPES = [
   { value: 'text',     label: '📝 Text' },
@@ -907,7 +908,7 @@ function UploadField({ value, onChange }) {
         <div className="flex items-center gap-2 mt-1.5">
           {isPdf
             ? <span className="text-[11.5px] text-slate-600">📄 PDF attached</span>
-            : <img src={value} alt="" className="w-10 h-10 object-cover rounded border border-slate-200" />}
+            : <ZoomImg src={value} className="w-10 h-10 object-cover rounded border border-slate-200" />}
           <button type="button" className="text-[11px] text-red-500 hover:underline" onClick={() => onChange('')}>Remove</button>
         </div>
       )}
