@@ -34,7 +34,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
 
   return (
     <header className="sticky top-0 z-20 backdrop-blur-md"
-      style={{ background: 'rgba(251,247,240,0.85)', borderBottom: '1px solid rgba(185,111,61,0.14)' }}>
+      style={{ background: 'rgba(255,253,247,0.88)', borderBottom: '1px solid rgba(238,188,46,0.22)' }}>
       <div className="px-4 lg:px-8 h-14 flex items-center gap-3 lg:gap-4">
 
         <button onClick={onMenuClick} aria-label="Open menu"

@@ -56,7 +56,7 @@ const SECTIONS = [
   ]},
 ];
 
-export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
+export default function Sidebar({ mobileOpen = false, onClose = () => {}, collapsed = true, onToggleCollapse = () => {} }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const roles = session?.user?.roles || [];
@@ -84,6 +84,10 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
     return () => { clearInterval(t); document.removeEventListener('visibilitychange', fetchCount); };
   }, []);
 
+  // On lg+ the rail is toggled, never hover-expanded — a hover overlay used to
+  // sit on top of the page and hide whatever was underneath it.
+  const lgLabel = collapsed ? 'lg:opacity-0' : 'lg:opacity-100';
+
   const visible = (n) =>
     !n.hidden &&
     (n.flag !== 'fms'  || FMS_ENABLED) &&
@@ -98,10 +102,30 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={onClose} aria-hidden="true" />
       )}
 
-      <aside className={`group/sb fixed left-0 top-0 h-screen flex flex-col z-40 overflow-hidden transition-all duration-200 ease-out
+      {/* Desktop collapse toggle — rides the sidebar's right edge */}
+      <button
+        onClick={onToggleCollapse}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="hidden lg:grid fixed top-[46px] z-50 w-6 h-6 rounded-full place-items-center transition-all duration-200 ease-out"
+        style={{
+          left: collapsed ? 52 : 218,
+          background: '#111111',
+          border: '1px solid rgba(238,188,46,0.40)',
+          color: '#EEBC2E',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.45)',
+        }}
+      >
+        <svg className={`w-3 h-3 transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m9 18 6-6-6-6"/>
+        </svg>
+      </button>
+
+      <aside className={`fixed left-0 top-0 h-screen flex flex-col z-40 overflow-hidden transition-all duration-200 ease-out
         w-[230px] ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 md:w-[230px]
-        lg:w-16 lg:hover:w-[230px]`}
+        ${collapsed ? 'lg:w-16' : 'lg:w-[230px]'}`}
         style={{
           background: 'linear-gradient(180deg, #000000 0%, #111111 100%)',
           borderRight: '1px solid rgba(238,188,46,0.14)',
@@ -112,13 +136,14 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
       <div className="h-14 px-3 flex items-center gap-2.5 shrink-0"
         style={{ borderBottom: '1px solid rgba(238,188,46,0.14)' }}>
         {/* Single logo icon — always visible */}
-        <div className="relative w-9 h-9 rounded-lg shrink-0 overflow-hidden grid place-items-center bg-white">
-          <img src="/logo.jpeg" alt="IA" className="w-9 h-9 object-contain" />
+        <div className="relative w-9 h-9 rounded-lg shrink-0 overflow-hidden grid place-items-center"
+          style={{ background: '#000000', border: '1px solid rgba(238,188,46,0.30)' }}>
+          <img src="/logo.jpeg" alt="Celestile" className="w-9 h-9 object-contain" />
           <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2"
             style={{ background: '#34d399', borderColor: '#000000' }}></span>
         </div>
         {/* Brand name — fades in when sidebar expands */}
-        <div className="leading-tight min-w-0 opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+        <div className={`leading-tight min-w-0 opacity-100 md:opacity-100 ${lgLabel} transition-opacity duration-200 whitespace-nowrap`}>
           <div className="font-display text-[15px] font-semibold tracking-tight" style={{ color: '#FBEAB8' }}>Celestile</div>
           <div className="text-[9px] font-medium tracking-wide" style={{ color: '#6B7280' }}>Task Manager</div>
         </div>
@@ -167,7 +192,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
                           </span>
                         )}
                       </span>
-                      <span className="whitespace-nowrap opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200">
+                      <span className={`whitespace-nowrap opacity-100 md:opacity-100 ${lgLabel} transition-opacity duration-200`}>
                         {n.label}
                       </span>
                     </Link>
@@ -187,7 +212,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
             style={{ background: 'linear-gradient(135deg, #F7DA85, #EEBC2E 60%, #B78A16)' }}>
             {session?.user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
           </div>
-          <div className="min-w-0 flex-1 opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover/sb:opacity-100 transition-opacity duration-200">
+          <div className={`min-w-0 flex-1 opacity-100 md:opacity-100 ${lgLabel} transition-opacity duration-200`}>
             <div className="text-[12px] font-medium truncate whitespace-nowrap" style={{ color: '#F5F5F5' }}>{session?.user?.name || 'User'}</div>
             <div className="text-[10px] truncate whitespace-nowrap" style={{ color: '#6B7280' }}>
               {session?.user?.roles?.join(' · ') || 'User'}
@@ -204,7 +229,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
             onClick={() => signOut({ callbackUrl: '/login' })}
             title="Sign out"
             aria-label="Sign out"
-            className="p-1 rounded-md opacity-100 md:opacity-100 lg:opacity-50 lg:group-hover/sb:opacity-100 transition-all duration-200"
+            className={`p-1 rounded-md opacity-100 md:opacity-100 ${collapsed ? 'lg:opacity-60' : 'lg:opacity-100'} transition-all duration-200`}
             style={{ color: '#A3A3A3' }}
             onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; }}
             onMouseLeave={e => { e.currentTarget.style.color = '#A3A3A3'; e.currentTarget.style.background = 'transparent'; }}
