@@ -93,8 +93,10 @@ function HorizBar({ name, value, max, color, gradEnd, unit = '', rank }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-1.5">
+        {/* leading-none matters: the global 26.4px line-height gives bare text a
+            line box far taller than the badge, which pushes the digit out of it */}
         <span
-          className="shrink-0 w-4 h-4 rounded-full grid place-items-center text-[8px] font-bold text-white"
+          className="shrink-0 w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] leading-none font-bold text-white tabular-nums"
           style={{ background: color }}
         >
           {rank}
@@ -104,7 +106,7 @@ function HorizBar({ name, value, max, color, gradEnd, unit = '', rank }) {
           <span className="text-[11px] font-bold shrink-0 tabular-nums" style={{ color }}>{value}{unit}</span>
         </div>
       </div>
-      <div className="h-[6px] bg-slate-100 rounded-full overflow-hidden ml-5">
+      <div className="h-[6px] bg-slate-100 rounded-full overflow-hidden ml-6">
         <svg width="100%" height="6" style={{ display: 'block' }}>
           <defs>
             <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -130,7 +132,7 @@ export function HorizBarChart({ title, items = [], valueKey = 'value', color, ic
     <div className="card p-4 flex flex-col gap-3">
       <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
         {icon && (
-          <span className="w-7 h-7 rounded-lg grid place-items-center text-[14px] shrink-0"
+          <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[14px] leading-none shrink-0"
             style={{ background: `${color || PALETTE[0]}15` }}>
             {icon}
           </span>
@@ -139,7 +141,7 @@ export function HorizBarChart({ title, items = [], valueKey = 'value', color, ic
           <div className="text-[12px] font-bold text-slate-900">{title}</div>
           {subtitle && <div className="text-[10px] text-slate-400 mt-0.5">{subtitle}</div>}
         </div>
-        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] leading-none font-bold tabular-nums shrink-0"
           style={{ background: `${color || PALETTE[0]}15`, color: color || PALETTE[0] }}>
           {items.length}
         </span>
