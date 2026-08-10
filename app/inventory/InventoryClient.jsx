@@ -14,6 +14,11 @@ const TAB_IDS = ['inward', 'stock', 'step2'];
 const STEP2_MATERIALS = ['Tile', 'Stone', 'Wood Vineer', 'Acralic', 'WPC', 'PLY Wood', 'MOP'];
 const STEP2_ISSUES = ['No', 'Chiping', 'Breakage', 'Grain Opening', 'Flaking', 'Color Matching'];
 const MAX_IMG_BYTES = 4 * 1024 * 1024;
+// Slab photos are click-to-enlarge in the Stock table, so they are stored
+// bigger than the 220px thumbnail they used to be — the file lands in Google
+// Drive (see maybeUploadToDrive), not inline in a row, so the extra size only
+// costs upload bandwidth, which the 3-row submit batching already handles.
+const SLAB_IMG_PX = 900;
 
 export default function InventoryClient() {
   // Lets a link land directly on a specific tab — e.g. an FMS step's "Open
@@ -81,7 +86,7 @@ function Inward({ masters, reloadMasters, onSaved }) {
   }));
   const addRow = () => setRows((rs) => [...rs, { ...blankRow(), material: rs[0]?.material || '', thickness: rs[0]?.thickness || '' }]);
   const delRow = (i) => setRows((rs) => rs.length === 1 ? [blankRow()] : rs.filter((_, idx) => idx !== i));
-  async function pickPhoto(i, file) { if (!file) return; try { set(i, 'photo', await fileToThumbnail(file, 220, 0.7)); } catch {} }
+  async function pickPhoto(i, file) { if (!file) return; try { set(i, 'photo', await fileToThumbnail(file, SLAB_IMG_PX, 0.7)); } catch {} }
 
   const thicknessOpts = masters.thicknessMap[rows[0]?.material] || [];
 
@@ -214,23 +219,58 @@ function Stock({ inv, loading, masters, reload }) {
   const [block, setBlock] = useState(null); // {id, orderNo, client, area}
   const [edit, setEdit] = useState(null);   // {id, slab, material, thickness, sizeL, sizeW, sft, remarks, photo}
   const [confirm, setConfirm] = useState(null); // {title, message, danger, onConfirm}
+  const [photo, setPhoto] = useState(null); // enlarged slab photo (lightbox)
 
   const thicknessOpts = useMemo(() => {
     const s = new Set(); inv.forEach((r) => { if (!mat || r.material === mat) { if (r.thickness) s.add(r.thickness); } });
     return Array.from(s).sort();
   }, [inv, mat]);
 
+  // The stock list stays empty until at least one filter is set — with ~200
+  // slabs, dumping everything on load is noise; the operator always arrives
+  // here looking for a specific size/material.
+  const hasFilters = !!(minSft || mat || thk || search.trim() || statusF !== 'All');
+
   const filtered = useMemo(() => {
-    const t = search.toLowerCase();
-    return inv.filter((r) => {
-      if (minSft && num(r.sft) < num(minSft)) return false;
+    const t = search.trim().toLowerCase();
+    const base = inv.filter((r) => {
       if (mat && r.material !== mat) return false;
       if (thk && r.thickness !== thk) return false;
       if (statusF !== 'All' && r.status !== statusF) return false;
       if (t && !((r.slab + ' ' + r.material + ' ' + r.client + ' ' + r.orderNo + ' ' + r.area).toLowerCase().includes(t))) return false;
       return true;
     });
+
+    // Min SFT reads as "the piece I need to cut", not a floor: show every slab
+    // up to that size, plus the single next-larger slab in each material +
+    // thickness group so there is always one piece big enough to cut from.
+    // e.g. need 10 with stock 5, 7, 8, 12, 15 → 5, 7, 8 and 12 (15 is skipped).
+    const bySft = (a, b) => num(a.sft) - num(b.sft);
+    let out = base;
+    if (minSft) {
+      const limit = num(minSft);
+      const groups = new Map();
+      base.forEach((r) => {
+        const k = `${r.material}|${r.thickness}`;
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(r);
+      });
+      out = [];
+      groups.forEach((group) => {
+        const sorted = [...group].sort(bySft);
+        out.push(...sorted.filter((r) => num(r.sft) <= limit));
+        const next = sorted.find((r) => num(r.sft) > limit);
+        if (next) out.push(next);
+      });
+    }
+
+    return [...out].sort((a, b) =>
+      String(a.material).localeCompare(String(b.material))
+      || String(a.thickness).localeCompare(String(b.thickness))
+      || bySft(a, b));
   }, [inv, minSft, mat, thk, statusF, search]);
+
+  const rows = hasFilters ? filtered : [];
 
   const stats = useMemo(() => {
     let avail = 0, blocked = 0, used = 0, availSft = 0;
@@ -270,13 +310,13 @@ function Stock({ inv, loading, masters, reload }) {
       sizeL: edit.sizeL, sizeW: edit.sizeW, sft: edit.sft, remarks: edit.remarks, slabPhoto: edit.photo });
     setEdit(null);
   }
-  async function editPhoto(file) { if (!file) return; try { const url = await fileToThumbnail(file, 220, 0.7); setEdit((x) => ({ ...x, photo: url })); } catch {} }
+  async function editPhoto(file) { if (!file) return; try { const url = await fileToThumbnail(file, SLAB_IMG_PX, 0.7); setEdit((x) => ({ ...x, photo: url })); } catch {} }
   const editThkOpts = (edit && masters.thicknessMap[edit.material]) || [];
 
   function csv() {
     const head = ['Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Status', 'Order', 'Client', 'Area', 'Remarks'];
     const cell = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
-    const lines = filtered.map((r) => [cell(r.slab), cell(r.material), r.thickness, r.sizeL, r.sizeW, r.sft, r.status, cell(r.orderNo), cell(r.client), cell(r.area), cell(r.remarks)].join(','));
+    const lines = rows.map((r) => [cell(r.slab), cell(r.material), r.thickness, r.sizeL, r.sizeW, r.sft, r.status, cell(r.orderNo), cell(r.client), cell(r.area), cell(r.remarks)].join(','));
     const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stock.csv'; a.click();
   }
@@ -301,7 +341,10 @@ function Stock({ inv, loading, masters, reload }) {
           <svg className="absolute left-2.5 top-1/2 mt-[3px] -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           <input className="input !py-1 pl-8 w-full" placeholder="slab / client / order…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <button className="btn-secondary" onClick={csv}>⬇ Export CSV</button>
+        <button className="btn-secondary" disabled={!rows.length} onClick={csv}>⬇ Export CSV</button>
+        <div className="w-full text-[11px] text-slate-400 -mt-1">
+          Min SFT = required piece size — slabs up to that size are listed, plus the next bigger slab of the same material &amp; thickness.
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -315,7 +358,15 @@ function Stock({ inv, loading, masters, reload }) {
         <div className="overflow-x-auto">
           {loading ? (
             <div className="p-10 text-center text-slate-400 text-[12.5px]">Loading…</div>
-          ) : filtered.length === 0 ? (
+          ) : !hasFilters ? (
+            <div className="p-14 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
+                <IconSearch className="w-6 h-6 text-primary-500" />
+              </div>
+              <div className="text-[13.5px] font-semibold text-slate-700">Set a filter to see stock</div>
+              <div className="text-[12px] text-slate-500 mt-0.5">Enter Min SFT, or pick a material / thickness / status — matching slabs will be listed here.</div>
+            </div>
+          ) : rows.length === 0 ? (
             <div className="p-14 text-center">
               <div className="w-12 h-12 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
                 <IconBox className="w-6 h-6 text-primary-500" />
@@ -333,13 +384,22 @@ function Stock({ inv, loading, masters, reload }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => (
+                {rows.map((r, i) => (
                   <tr key={r.id} className="table-row">
                     <td className="table-td text-slate-400">{i + 1}</td>
                     <td className="table-td font-medium text-slate-800 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <span>{r.slab}</span>
-                        {r.slabPhoto ? <img src={r.slabPhoto} alt="" className="w-6 h-6 object-cover rounded" /> : null}
+                        {r.slabPhoto ? (
+                          <button
+                            type="button"
+                            title="Click to enlarge"
+                            onClick={() => setPhoto(r.slabPhoto)}
+                            className="w-7 h-7 rounded overflow-hidden border border-slate-200 hover:ring-2 hover:ring-primary-300 transition-shadow shrink-0"
+                          >
+                            <img src={r.slabPhoto} alt={r.slab} className="w-full h-full object-cover" />
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                     <td className="table-td">{r.material}</td><td className="table-td">{r.thickness}</td>
@@ -392,6 +452,7 @@ function Stock({ inv, loading, masters, reload }) {
               {edit.photo ? <img src={edit.photo} alt="" className="h-12 object-cover" /> : <span className="text-[11px] text-slate-400">+ Replace photo</span>}
               <input type="file" accept="image/*" className="hidden" onChange={(e) => editPhoto(e.target.files[0])} />
             </label>
+            {edit.photo && <button type="button" className="text-[11px] text-primary-600 hover:underline mt-1" onClick={() => setPhoto(edit.photo)}>View full image</button>}
           </F>
           <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setEdit(null)}>Cancel</button><button className="btn-warn" onClick={saveEdit}>Save</button></div>
         </Modal>
@@ -401,6 +462,8 @@ function Stock({ inv, loading, masters, reload }) {
         <ConfirmModal title={confirm.title} message={confirm.message} danger={confirm.danger}
           onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
       )}
+
+      {photo && <Lightbox src={photo} onClose={() => setPhoto(null)} />}
     </div>
   );
 }
@@ -895,6 +958,23 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirm', danger, onConf
           <button className={danger ? 'btn-danger' : 'btn-warn'} onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Click-to-enlarge for slab photos — the table thumbnail is only ~28px, which
+// is too small to judge a slab by. Sits above the modals (z-50 / z-[60]) so it
+// also works on the photo inside the Edit dialog.
+function Lightbox({ src, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-6 animate-fade-in" style={{ background: 'rgba(15,23,42,0.82)' }} onClick={onClose}>
+      <button className="absolute top-3 right-4 text-white/70 hover:text-white text-3xl leading-none" onClick={onClose} aria-label="Close">×</button>
+      <img src={src} alt="" className="max-h-[85vh] max-w-[92vw] object-contain rounded-xl shadow-2xl bg-white" onClick={(e) => e.stopPropagation()} />
     </div>
   );
 }
