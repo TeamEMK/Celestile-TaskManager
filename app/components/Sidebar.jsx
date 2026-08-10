@@ -56,7 +56,7 @@ const SECTIONS = [
   ]},
 ];
 
-export default function Sidebar({ mobileOpen = false, onClose = () => {}, collapsed = true, onToggleCollapse = () => {} }) {
+export default function Sidebar({ mobileOpen = false, onClose = () => {}, expanded = false, onExpandChange = () => {} }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const roles = session?.user?.roles || [];
@@ -84,9 +84,9 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, collap
     return () => { clearInterval(t); document.removeEventListener('visibilitychange', fetchCount); };
   }, []);
 
-  // On lg+ the rail is toggled, never hover-expanded — a hover overlay used to
-  // sit on top of the page and hide whatever was underneath it.
-  const lgLabel = collapsed ? 'lg:opacity-0' : 'lg:opacity-100';
+  // On lg+ the rail expands on hover / keyboard focus. AppShell owns the state
+  // so the page content shifts with it rather than being covered by it.
+  const lgLabel = expanded ? 'lg:opacity-100' : 'lg:opacity-0';
 
   const visible = (n) =>
     !n.hidden &&
@@ -102,30 +102,15 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, collap
         <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={onClose} aria-hidden="true" />
       )}
 
-      {/* Desktop collapse toggle — rides the sidebar's right edge */}
-      <button
-        onClick={onToggleCollapse}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        className="hidden lg:grid fixed top-[46px] z-50 w-6 h-6 rounded-full place-items-center transition-all duration-200 ease-out"
-        style={{
-          left: collapsed ? 52 : 218,
-          background: '#111111',
-          border: '1px solid rgba(238,188,46,0.40)',
-          color: '#EEBC2E',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.45)',
-        }}
-      >
-        <svg className={`w-3 h-3 transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`}
-          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m9 18 6-6-6-6"/>
-        </svg>
-      </button>
-
-      <aside className={`fixed left-0 top-0 h-screen flex flex-col z-40 overflow-hidden transition-all duration-200 ease-out
+      <aside
+        onMouseEnter={() => onExpandChange(true)}
+        onMouseLeave={() => onExpandChange(false)}
+        onFocus={() => onExpandChange(true)}
+        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) onExpandChange(false); }}
+        className={`fixed left-0 top-0 h-screen flex flex-col z-40 overflow-hidden transition-all duration-200 ease-out
         w-[230px] ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 md:w-[230px]
-        ${collapsed ? 'lg:w-16' : 'lg:w-[230px]'}`}
+        ${expanded ? 'lg:w-[230px]' : 'lg:w-16'}`}
         style={{
           background: 'linear-gradient(180deg, #000000 0%, #111111 100%)',
           borderRight: '1px solid rgba(238,188,46,0.14)',
@@ -229,7 +214,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, collap
             onClick={() => signOut({ callbackUrl: '/login' })}
             title="Sign out"
             aria-label="Sign out"
-            className={`p-1 rounded-md opacity-100 md:opacity-100 ${collapsed ? 'lg:opacity-60' : 'lg:opacity-100'} transition-all duration-200`}
+            className={`p-1 rounded-md opacity-100 md:opacity-100 ${expanded ? 'lg:opacity-100' : 'lg:opacity-50'} transition-all duration-200`}
             style={{ color: '#A3A3A3' }}
             onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; }}
             onMouseLeave={e => { e.currentTarget.style.color = '#A3A3A3'; e.currentTarget.style.background = 'transparent'; }}
