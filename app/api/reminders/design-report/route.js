@@ -37,14 +37,16 @@ export async function GET(req) {
 
   await ensureSchema();
   const today = istDateStr();
-  const [rows] = await pool.query(
-    `SELECT doer, client, client_number AS clientNumber, order_number AS orderNumber,
-            area_name AS areaName, minutes, software
-     FROM daily_tasks
-     WHERE DATE(entry_date) = ? AND LOWER(department) LIKE '%design%'
-     ORDER BY doer, created_at`,
-    [today]
-  );
+  // Plain `SELECT *`, then filter in JS: with Google Sheets as the database
+  // the SQL engine (lib/sql-sheets.js) supports neither DATE(col) nor LIKE,
+  // so the old `WHERE DATE(entry_date) = ? AND LOWER(department) LIKE …`
+  // threw before a single message went out. daily_tasks is a small table.
+  const [all] = await pool.query('SELECT * FROM daily_tasks');
+  const rows = (all || [])
+    .filter((r) => String(r.entry_date || '').slice(0, 10) === today
+      && String(r.department || '').toLowerCase().includes('design'))
+    .sort((a, b) => String(a.doer || '').localeCompare(String(b.doer || ''))
+      || String(a.created_at || '').localeCompare(String(b.created_at || '')));
 
   // Group today's rows by designer — each row becomes one numbered client
   // block in that designer's message.
@@ -53,8 +55,8 @@ export async function GET(req) {
     const name = (r.doer || '').trim();
     if (!name) continue;
     (byDoer[name] = byDoer[name] || []).push({
-      client: r.client, clientNumber: r.clientNumber, orderNumber: r.orderNumber,
-      areaName: r.areaName, minutes: r.minutes, software: r.software,
+      client: r.client, clientNumber: r.client_number, orderNumber: r.order_number,
+      areaName: r.area_name, minutes: r.minutes, software: r.software,
     });
   }
 

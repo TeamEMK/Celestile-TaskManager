@@ -35,12 +35,12 @@ export async function POST(req) {
     await ensureSchema();
     const today = new Date().toISOString().slice(0, 10);
 
-    // Who has already filled today?
-    const [filled] = await pool.query(
-      'SELECT DISTINCT doer FROM daily_tasks WHERE DATE(entry_date) = ?',
-      [today]
-    );
-    const filledSet = new Set((filled || []).map((r) => (r.doer || '').toLowerCase()));
+    // Who has already filled today? Filtered in JS rather than in SQL — the
+    // Sheets SQL engine has no DATE(), and this query used to throw there.
+    const [entries] = await pool.query('SELECT * FROM daily_tasks');
+    const filledSet = new Set((entries || [])
+      .filter((r) => String(r.entry_date || '').slice(0, 10) === today)
+      .map((r) => (r.doer || '').toLowerCase()));
 
     // All active users with their phones and departments
     const [allUsers] = await pool.query(
