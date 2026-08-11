@@ -1,23 +1,20 @@
 import { NextResponse } from 'next/server';
-import { pool, ensureSchema } from '@/lib/db';
 import { requireUser } from '@/lib/api';
+import { listMaterials, addMaterial } from '@/lib/imsSheet';
 
-const uid = () => 'SM' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+// Material + thickness master = the IMS spreadsheet's "Stone Name" tab, the
+// same list the old Inward form's dropdowns read from.
 
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
   try {
-    await ensureSchema();
-    const [rows] = await pool.query('SELECT material, thickness FROM stone_master');
+    const rows = await listMaterials();
     const set = new Set();
     const thicknessMap = {};
-    rows.forEach((r) => {
-      const m = String(r.material || '').trim();
-      const t = String(r.thickness || '').trim();
-      if (!m) return;
-      set.add(m);
-      if (!thicknessMap[m]) thicknessMap[m] = [];
-      if (t && !thicknessMap[m].includes(t)) thicknessMap[m].push(t);
+    rows.forEach(({ material, thickness }) => {
+      set.add(material);
+      if (!thicknessMap[material]) thicknessMap[material] = [];
+      if (thickness && !thicknessMap[material].includes(thickness)) thicknessMap[material].push(thickness);
     });
     return NextResponse.json({ materials: Array.from(set).sort(), thicknessMap });
   } catch (err) {
@@ -28,7 +25,6 @@ export async function GET() {
 export async function POST(req) {
   const gate = await requireUser(); if (gate) return gate;
   try {
-    await ensureSchema();
     let { material, thickness } = await req.json();
     material = String(material || '').trim();
     thickness = String(thickness || '').trim();
@@ -36,9 +32,13 @@ export async function POST(req) {
     if (!/mm$/i.test(thickness)) thickness = thickness.replace(/[^0-9]/g, '') + 'MM';
     else thickness = thickness.toUpperCase();
 
-    // de-dup exact pair
-    const [ex] = await pool.query('SELECT id FROM stone_master WHERE material = ? AND thickness = ?', [material, thickness]);
-    if (!ex.length) await pool.query('INSERT INTO stone_master (id, material, thickness) VALUES (?, ?, ?)', [uid(), material, thickness]);
+    // de-dup exact pair (case-insensitively — the sheet is hand-edited)
+    const rows = await listMaterials();
+    const exists = rows.some((r) =>
+      r.material.toLowerCase() === material.toLowerCase() &&
+      r.thickness.toLowerCase() === thickness.toLowerCase());
+    if (!exists) await addMaterial(material, thickness);
+
     return NextResponse.json({ ok: true, material, thickness });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

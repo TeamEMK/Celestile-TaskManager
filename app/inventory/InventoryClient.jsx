@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
 import { Lightbox, ZoomImg } from '@/app/components/ImageLightbox';
@@ -7,6 +7,12 @@ import { Lightbox, ZoomImg } from '@/app/components/ImageLightbox';
 const num = (v) => parseFloat(v) || 0;
 const sftOf = (l, w) => Math.round((num(l) * num(w) / 144) * 100) / 100;
 const blankRow = () => ({ slab: '', material: '', thickness: '', sizeL: '', sizeW: '', sft: '', photo: '', remarks: '' });
+const shortDate = (iso) => {
+  const d = new Date(iso);
+  if (!iso || isNaN(d.getTime())) return '—';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)}`;
+};
 const TAB_IDS = ['inward', 'stock', 'step2'];
 
 // Step 2 form fields keep a fixed vocabulary (matches the original SK Tiles
@@ -105,8 +111,8 @@ function Inward({ masters, reloadMasters, onSaved }) {
   // and lets earlier batches survive if a later one fails.
   const SUBMIT_BATCH_SIZE = 3;
 
-  async function postEntriesBatch(entries) {
-    const res = await fetch('/api/inventory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries }) });
+  async function postEntriesBatch(entries, lotKey) {
+    const res = await fetch('/api/inventory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries, lotKey }) });
     const text = await res.text();
     let d;
     try { d = JSON.parse(text); } catch { throw new Error(text || `Request failed (${res.status})`); }
@@ -131,11 +137,15 @@ function Inward({ masters, reloadMasters, onSaved }) {
       sft: r.sft, slabPhoto: r.photo, status: 'Available', remarks: r.remarks,
     }));
     let saved = 0;
+    // The register stamps one Uniquekey per submission, so every batch of this
+    // Submit All reuses the key the first batch came back with.
+    let lotKey = '';
     try {
       for (let i = 0; i < entries.length; i += SUBMIT_BATCH_SIZE) {
         const batch = entries.slice(i, i + SUBMIT_BATCH_SIZE);
         setStatus(`Saving ${i + 1}-${Math.min(i + batch.length, entries.length)} of ${entries.length}…`);
-        const d = await postEntriesBatch(batch);
+        const d = await postEntriesBatch(batch, lotKey);
+        lotKey = lotKey || d.lotKey || '';
         saved += d.count || batch.length;
       }
       setStatus(`✅ ${saved} slabs added`); setRows([blankRow()]); onSaved();
@@ -218,63 +228,82 @@ function Stock({ inv, loading, masters, reload }) {
   const [minSft, setMinSft] = useState('');
   const [mat, setMat] = useState('');
   const [thk, setThk] = useState('');
-  const [statusF, setStatusF] = useState('All');
+  const [statusF, setStatusF] = useState('Available');
   const [search, setSearch] = useState('');
-  const [block, setBlock] = useState(null); // {id, orderNo, client, area}
+  const [openLots, setOpenLots] = useState([]); // expanded lot keys
+  const [sel, setSel] = useState([]);           // slab ids ticked for blocking
+  const [block, setBlock] = useState(null);     // {orderNo, client, area} — bulk block form
   const [edit, setEdit] = useState(null);   // {id, slab, material, thickness, sizeL, sizeW, sft, remarks, photo}
   const [confirm, setConfirm] = useState(null); // {title, message, danger, onConfirm}
   const [photo, setPhoto] = useState(null); // enlarged slab photo (lightbox)
+  const [saving, setSaving] = useState(false);
 
   const thicknessOpts = useMemo(() => {
     const s = new Set(); inv.forEach((r) => { if (!mat || r.material === mat) { if (r.thickness) s.add(r.thickness); } });
     return Array.from(s).sort();
   }, [inv, mat]);
 
-  // The stock list stays empty until at least one filter is set — with ~200
-  // slabs, dumping everything on load is noise; the operator always arrives
-  // here looking for a specific size/material.
-  const hasFilters = !!(minSft || mat || thk || search.trim() || statusF !== 'All');
+  // Filter-first: the register carries ~2700 slabs, so dumping every lot on
+  // load is noise. Status doesn't count as a filter — it starts on Available.
+  const hasFilters = !!(minSft || mat || thk || search.trim());
 
-  const filtered = useMemo(() => {
+  const matched = useMemo(() => {
     const t = search.trim().toLowerCase();
-    const base = inv.filter((r) => {
+    return inv.filter((r) => {
       if (mat && r.material !== mat) return false;
       if (thk && r.thickness !== thk) return false;
       if (statusF !== 'All' && r.status !== statusF) return false;
-      if (t && !((r.slab + ' ' + r.material + ' ' + r.client + ' ' + r.orderNo + ' ' + r.area).toLowerCase().includes(t))) return false;
+      if (t && !((r.slab + ' ' + r.key + ' ' + r.material + ' ' + r.client + ' ' + r.orderNo + ' ' + r.area).toLowerCase().includes(t))) return false;
       return true;
     });
+  }, [inv, mat, thk, statusF, search]);
 
-    // Min SFT reads as "the piece I need to cut", not a floor: show every slab
-    // up to that size, plus the single next-larger slab in each material +
-    // thickness group so there is always one piece big enough to cut from.
-    // e.g. need 10 with stock 5, 7, 8, 12, 15 → 5, 7, 8 and 12 (15 is skipped).
-    const bySft = (a, b) => num(a.sft) - num(b.sft);
-    let out = base;
-    if (minSft) {
-      const limit = num(minSft);
-      const groups = new Map();
-      base.forEach((r) => {
-        const k = `${r.material}|${r.thickness}`;
-        if (!groups.has(k)) groups.set(k, []);
-        groups.get(k).push(r);
+  // Stock is worked lot by lot, not slab by slab: one Inward submission = one
+  // Uniquekey = one lot of ~19 slabs, and that is the unit the floor picks
+  // from. So the list shows lots, and slabs only appear once a lot is opened.
+  // Min SFT is read as "how much material do I need" — a lot qualifies when
+  // its matching slabs ADD UP to that, even if no single slab is that big.
+  const lots = useMemo(() => {
+    const need = num(minSft);
+    const groups = new Map();
+    matched.forEach((r) => {
+      const k = String(r.key || '').trim() || '—';
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(r);
+    });
+    const out = [];
+    groups.forEach((slabs, key) => {
+      const sfts = slabs.map((s) => num(s.sft));
+      const total = Math.round(sfts.reduce((a, b) => a + b, 0) * 100) / 100;
+      if (need && total < need) return;
+      const mats = Array.from(new Set(slabs.map((s) => s.material).filter(Boolean)));
+      const thks = Array.from(new Set(slabs.map((s) => s.thickness).filter(Boolean)));
+      out.push({
+        key, total, count: slabs.length,
+        minSft: Math.min(...sfts), maxSft: Math.max(...sfts),
+        material: mats.length > 1 ? `Mixed (${mats.length})` : (mats[0] || '—'),
+        thickness: thks.length > 1 ? 'Mixed' : (thks[0] || '—'),
+        createdAt: slabs.map((s) => s.createdAt).sort().pop() || '',
+        slabs: [...slabs].sort((a, b) => num(a.sft) - num(b.sft)),
       });
-      out = [];
-      groups.forEach((group) => {
-        const sorted = [...group].sort(bySft);
-        out.push(...sorted.filter((r) => num(r.sft) <= limit));
-        const next = sorted.find((r) => num(r.sft) > limit);
-        if (next) out.push(next);
-      });
-    }
-
-    return [...out].sort((a, b) =>
+    });
+    return out.sort((a, b) =>
       String(a.material).localeCompare(String(b.material))
       || String(a.thickness).localeCompare(String(b.thickness))
-      || bySft(a, b));
-  }, [inv, minSft, mat, thk, statusF, search]);
+      || String(b.createdAt).localeCompare(String(a.createdAt)));
+  }, [matched, minSft]);
 
-  const rows = hasFilters ? filtered : [];
+  const rows = hasFilters ? lots : [];
+  const totalSlabs = rows.reduce((n, l) => n + l.count, 0);
+
+  // Only Available slabs can be blocked; the rest stay visible but un-tickable.
+  const lotIds = (lot) => lot.slabs.filter((s) => s.status === 'Available').map((s) => s.id);
+  const toggleLot = (k) => setOpenLots((o) => o.includes(k) ? o.filter((x) => x !== k) : [...o, k]);
+  const toggleSlab = (id) => setSel((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
+  const toggleLotSel = (lot, on) => {
+    const ids = lotIds(lot);
+    setSel((s) => on ? Array.from(new Set([...s, ...ids])) : s.filter((x) => !ids.includes(x)));
+  };
 
   const stats = useMemo(() => {
     let avail = 0, blocked = 0, used = 0, availSft = 0;
@@ -305,9 +334,14 @@ function Stock({ inv, loading, masters, reload }) {
     message: `"${r.slab}" will be set back to Available.`,
     onConfirm: () => { setConfirm(null); patch({ id: r.id, status: 'Available' }); },
   });
+  // One PATCH for the whole selection — the ticked slabs may span several lots.
   async function confirmBlock() {
-    await patch({ id: block.id, status: 'Blocked', orderNo: block.orderNo, client: block.client, area: block.area });
-    setBlock(null);
+    if (!sel.length) return;
+    setSaving(true);
+    try {
+      await patch({ ids: sel, status: 'Blocked', orderNo: block.orderNo, client: block.client, area: block.area });
+      setSel([]); setBlock(null);
+    } finally { setSaving(false); }
   }
   async function saveEdit() {
     await patch({ id: edit.id, slab: edit.slab, material: edit.material, thickness: edit.thickness,
@@ -318,9 +352,10 @@ function Stock({ inv, loading, masters, reload }) {
   const editThkOpts = (edit && masters.thicknessMap[edit.material]) || [];
 
   function csv() {
-    const head = ['Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Status', 'Order', 'Client', 'Area', 'Remarks'];
+    const head = ['Lot', 'Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Status', 'Order', 'Client', 'Area', 'Remarks'];
     const cell = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
-    const lines = rows.map((r) => [cell(r.slab), cell(r.material), r.thickness, r.sizeL, r.sizeW, r.sft, r.status, cell(r.orderNo), cell(r.client), cell(r.area), cell(r.remarks)].join(','));
+    const lines = rows.flatMap((lot) => lot.slabs.map((r) =>
+      [cell(lot.key), cell(r.slab), cell(r.material), r.thickness, r.sizeL, r.sizeW, r.sft, r.status, cell(r.orderNo), cell(r.client), cell(r.area), cell(r.remarks)].join(',')));
     const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stock.csv'; a.click();
   }
@@ -347,7 +382,7 @@ function Stock({ inv, loading, masters, reload }) {
         </div>
         <button className="btn-secondary" disabled={!rows.length} onClick={csv}>⬇ Export CSV</button>
         <div className="w-full text-[11px] text-slate-400 -mt-1">
-          Min SFT = required piece size — slabs up to that size are listed, plus the next bigger slab of the same material &amp; thickness.
+          Min SFT = material you need — lots whose slabs add up to at least that much are listed. Open a lot to pick and block its slabs.
         </div>
       </div>
 
@@ -357,6 +392,16 @@ function Stock({ inv, loading, masters, reload }) {
         <Kpi label="Used" value={stats.used} tone="stone" icon={<IconArchive />} />
         <Kpi label="Available SFT" value={stats.availSft} tone="gold" icon={<IconRuler />} />
       </div>
+
+      {sel.length > 0 && (
+        <div className="card p-3 flex items-center justify-between gap-3 flex-wrap sticky top-2 z-20 border-primary-200 bg-primary-50/70 backdrop-blur">
+          <div className="text-[12.5px] text-slate-700"><b>{sel.length}</b> slab{sel.length > 1 ? 's' : ''} selected</div>
+          <div className="flex gap-2">
+            <button className="btn-ghost !px-2 !py-1" onClick={() => setSel([])}>Clear</button>
+            <button className="btn-warn !px-3 !py-1" onClick={() => setBlock({ orderNo: '', client: '', area: '' })}>Block Selected</button>
+          </div>
+        </div>
+      )}
 
       <div className="card p-0 overflow-hidden">
         <div className="overflow-x-auto">
@@ -368,74 +413,133 @@ function Stock({ inv, loading, masters, reload }) {
                 <IconSearch className="w-6 h-6 text-primary-500" />
               </div>
               <div className="text-[13.5px] font-semibold text-slate-700">Set a filter to see stock</div>
-              <div className="text-[12px] text-slate-500 mt-0.5">Enter Min SFT, or pick a material / thickness / status — matching slabs will be listed here.</div>
+              <div className="text-[12px] text-slate-500 mt-0.5">Enter Min SFT, or pick a material / thickness — matching lots will be listed here.</div>
             </div>
           ) : rows.length === 0 ? (
             <div className="p-14 text-center">
               <div className="w-12 h-12 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
                 <IconBox className="w-6 h-6 text-primary-500" />
               </div>
-              <div className="text-[13.5px] font-semibold text-slate-700">No slabs found</div>
-              <div className="text-[12px] text-slate-500 mt-0.5">Try adjusting your filters, or add new stock from the Inward tab.</div>
+              <div className="text-[13.5px] font-semibold text-slate-700">No lots found</div>
+              <div className="text-[12px] text-slate-500 mt-0.5">Try a smaller Min SFT or different filters, or add new stock from the Inward tab.</div>
             </div>
           ) : (
             <table className="w-full text-[12px]">
               <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
                 <tr>
-                  {['#', 'Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Status', 'Order', 'Client', 'Area', 'Remarks', ''].map((h, i) => (
-                    <th key={i} className={`table-th whitespace-nowrap ${['L', 'W', 'SFT'].includes(h) ? 'text-right' : ''}`}>{h}</th>
+                  <th className="table-th w-8"></th>
+                  {['Lot', 'Material', 'Thk', statusF === 'Available' ? 'Avail' : 'Slabs', 'SFT Range', 'Total SFT', 'Date'].map((h) => (
+                    <th key={h} className={`table-th whitespace-nowrap ${['Avail', 'Slabs', 'SFT Range', 'Total SFT'].includes(h) ? 'text-right' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.id} className="table-row">
-                    <td className="table-td text-slate-400">{i + 1}</td>
-                    <td className="table-td font-medium text-slate-800 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <span>{r.slab}</span>
-                        {r.slabPhoto ? (
-                          <button
-                            type="button"
-                            title="Click to enlarge"
-                            onClick={() => setPhoto(r.slabPhoto)}
-                            className="w-7 h-7 rounded overflow-hidden border border-slate-200 hover:ring-2 hover:ring-primary-300 transition-shadow shrink-0"
-                          >
-                            <img src={r.slabPhoto} alt={r.slab} className="w-full h-full object-cover" />
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="table-td">{r.material}</td><td className="table-td">{r.thickness}</td>
-                    <td className="table-td text-right tabular-nums">{r.sizeL}</td>
-                    <td className="table-td text-right tabular-nums">{r.sizeW}</td>
-                    <td className="table-td text-right tabular-nums font-semibold text-slate-700">{r.sft}</td>
-                    <td className="table-td"><span className={`pill ${badge(r.status)}`}>{r.status}</span></td>
-                    <td className="table-td">{r.orderNo || '—'}</td><td className="table-td">{r.client || '—'}</td><td className="table-td">{r.area || '—'}</td>
-                    <td className="table-td max-w-[140px] truncate" title={r.remarks}>{r.remarks || '—'}</td>
-                    <td className="table-td whitespace-nowrap">
-                      <div className="flex gap-1 justify-end">
-                        {r.status === 'Available' && <button className="btn-danger !px-2 !py-1" onClick={() => setBlock({ id: r.id, orderNo: '', client: '', area: '' })}>Block</button>}
-                        {r.status === 'Available' && <button className="btn-ghost !px-2 !py-1" onClick={() => askMarkSold(r)}>Mark Sold</button>}
-                        {r.status === 'Blocked' && <button className="btn-success !px-2 !py-1" onClick={() => askUnblock(r)}>Unblock</button>}
-                        {r.status === 'Sold' && <button className="btn-success !px-2 !py-1" onClick={() => askRevertSold(r)}>Revert</button>}
-                        <button className="btn-ghost !px-2 !py-1" onClick={() => setEdit({ id: r.id, slab: r.slab, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, remarks: r.remarks, photo: r.slabPhoto })}>Edit</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((lot) => {
+                  const open = openLots.includes(lot.key);
+                  const ids = lotIds(lot);
+                  const picked = ids.filter((id) => sel.includes(id)).length;
+                  return (
+                    <Fragment key={lot.key}>
+                      <tr className={`table-row cursor-pointer ${open ? 'bg-primary-50/40' : ''}`} onClick={() => toggleLot(lot.key)}>
+                        <td className="table-td text-slate-400">
+                          <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>▸</span>
+                        </td>
+                        <td className="table-td font-semibold text-slate-800 whitespace-nowrap">
+                          {lot.key}
+                          {picked > 0 && <span className="ml-1.5 pill bg-primary-100 text-primary-700 border border-primary-200">{picked} picked</span>}
+                        </td>
+                        <td className="table-td">{lot.material}</td>
+                        <td className="table-td">{lot.thickness}</td>
+                        <td className="table-td text-right tabular-nums font-semibold text-slate-700">{lot.count}</td>
+                        <td className="table-td text-right tabular-nums text-slate-500">{lot.minSft} – {lot.maxSft}</td>
+                        <td className="table-td text-right tabular-nums font-semibold text-slate-800">{lot.total}</td>
+                        <td className="table-td text-slate-500 whitespace-nowrap">{shortDate(lot.createdAt)}</td>
+                      </tr>
+
+                      {open && (
+                        <tr>
+                          <td colSpan={8} className="p-0 bg-slate-50/60">
+                            <div className="px-3 py-2.5">
+                              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                <label className="flex items-center gap-1.5 text-[11.5px] text-slate-600 cursor-pointer">
+                                  <input type="checkbox" disabled={!ids.length}
+                                    checked={!!ids.length && picked === ids.length}
+                                    onChange={(e) => toggleLotSel(lot, e.target.checked)} />
+                                  Select all available ({ids.length})
+                                </label>
+                                <span className="text-[11px] text-slate-400">{lot.count} slab(s) in this lot</span>
+                              </div>
+                              <table className="w-full text-[12px] bg-white rounded-lg overflow-hidden">
+                                <thead>
+                                  <tr>
+                                    {['', 'Slab', 'L', 'W', 'SFT', 'Status', 'Order', 'Client', 'Area', 'Remarks', ''].map((h, i) => (
+                                      <th key={i} className={`table-th whitespace-nowrap ${['L', 'W', 'SFT'].includes(h) ? 'text-right' : ''}`}>{h}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {lot.slabs.map((r) => (
+                                    <tr key={r.id} className="table-row">
+                                      <td className="table-td">
+                                        <input type="checkbox" disabled={r.status !== 'Available'}
+                                          checked={sel.includes(r.id)} onChange={() => toggleSlab(r.id)} />
+                                      </td>
+                                      <td className="table-td font-medium text-slate-800 whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5">
+                                          <span>{r.slab}</span>
+                                          {r.slabPhoto ? (
+                                            <button
+                                              type="button"
+                                              title="Click to enlarge"
+                                              onClick={() => setPhoto(r.slabPhoto)}
+                                              className="w-7 h-7 rounded overflow-hidden border border-slate-200 hover:ring-2 hover:ring-primary-300 transition-shadow shrink-0"
+                                            >
+                                              <img src={r.slabPhoto} alt={r.slab} className="w-full h-full object-cover" />
+                                            </button>
+                                          ) : null}
+                                        </div>
+                                      </td>
+                                      <td className="table-td text-right tabular-nums">{r.sizeL}</td>
+                                      <td className="table-td text-right tabular-nums">{r.sizeW}</td>
+                                      <td className="table-td text-right tabular-nums font-semibold text-slate-700">{r.sft}</td>
+                                      <td className="table-td"><span className={`pill ${badge(r.status)}`}>{r.status}</span></td>
+                                      <td className="table-td">{r.orderNo || '—'}</td><td className="table-td">{r.client || '—'}</td><td className="table-td">{r.area || '—'}</td>
+                                      <td className="table-td max-w-[140px] truncate" title={r.remarks}>{r.remarks || '—'}</td>
+                                      <td className="table-td whitespace-nowrap">
+                                        <div className="flex gap-1 justify-end">
+                                          {r.status === 'Available' && <button className="btn-ghost !px-2 !py-1" onClick={() => askMarkSold(r)}>Mark Sold</button>}
+                                          {r.status === 'Blocked' && <button className="btn-success !px-2 !py-1" onClick={() => askUnblock(r)}>Unblock</button>}
+                                          {r.status === 'Sold' && <button className="btn-success !px-2 !py-1" onClick={() => askRevertSold(r)}>Revert</button>}
+                                          <button className="btn-ghost !px-2 !py-1" onClick={() => setEdit({ id: r.id, slab: r.slab, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, remarks: r.remarks, photo: r.slabPhoto })}>Edit</button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </div>
       </div>
 
+      {hasFilters && rows.length > 0 && (
+        <div className="text-[11.5px] text-slate-500 px-1">{rows.length} lot(s) · {totalSlabs} slab(s) matching</div>
+      )}
+
       {block && (
-        <Modal title="Block Slab" onClose={() => setBlock(null)}>
+        <Modal title={`Block ${sel.length} Slab${sel.length > 1 ? 's' : ''}`} onClose={() => setBlock(null)}>
           <F label="Order No."><input className="input" value={block.orderNo} onChange={(e) => setBlock({ ...block, orderNo: e.target.value })} placeholder="ORD-2026-001" /></F>
           <F label="Client Name"><input className="input" value={block.client} onChange={(e) => setBlock({ ...block, client: e.target.value })} /></F>
           <F label="Area / Project"><input className="input" value={block.area} onChange={(e) => setBlock({ ...block, area: e.target.value })} /></F>
-          <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setBlock(null)}>Cancel</button><button className="btn-warn" onClick={confirmBlock}>Block Slab</button></div>
+          <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setBlock(null)}>Cancel</button><button className="btn-warn" disabled={saving} onClick={confirmBlock}>{saving ? 'Blocking…' : `Block ${sel.length} Slab${sel.length > 1 ? 's' : ''}`}</button></div>
         </Modal>
       )}
 
@@ -478,6 +582,7 @@ function Stock({ inv, loading, masters, reload }) {
       )}
 
       {photo && <Lightbox src={photo} onClose={() => setPhoto(null)} />}
+      {saving && <SaveLoader text="Blocking slabs…" />}
     </div>
   );
 }

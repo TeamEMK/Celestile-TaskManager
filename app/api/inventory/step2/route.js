@@ -3,24 +3,28 @@ import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireUser } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
+import { findByOrder, resolveRow, writeRows, appendSlabs } from '@/lib/imsSheet';
+
+// Slabs come from the IMS spreadsheet (lib/imsSheet.js). The Step-2 header
+// record has no home in that sheet's layout, so it stays in the app's own
+// fsm_step2 table.
 
 const NOTIFY = () => process.env.INVENTORY_NOTIFY || '918008002121';
 const uid = (p) => p + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
 const num = (v) => parseFloat(v) || 0;
 
-// GET ?orderNo=... → every slab ever attached to that order (self-contained:
-// from inventory), any status — Used/Sold rows stay visible for context, the
-// UI just disables editing on them. Use the `status` field to gate actions.
+// GET ?orderNo=... → every slab ever attached to that order, any status —
+// Used/Sold rows stay visible for context, the UI just disables editing on
+// them. Use the `status` field to gate actions.
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
   try {
-    await ensureSchema();
     const orderNo = (new URL(req.url).searchParams.get('orderNo') || '').trim();
     if (!orderNo) return NextResponse.json({ error: 'orderNo required' }, { status: 400 });
-    const [rows] = await pool.query('SELECT * FROM inventory WHERE order_no = ?', [orderNo]);
+    const rows = await findByOrder(orderNo);
     const slabs = rows.map((r) => ({
       id: r.id, slab: r.slab, material: r.material, thickness: r.thickness,
-      sizeL: r.size_l, sizeW: r.size_w, sft: r.sft, status: r.status, key: r.inv_key,
+      sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, status: r.status, key: r.key,
       client: r.client, area: r.area,
     }));
     if (!slabs.length) return NextResponse.json({ orderNo, key: orderNo, client: '', area: '', slabs: [] });
@@ -33,24 +37,24 @@ export async function GET(req) {
 }
 
 // PATCH { orderNo, from, to } → bulk-transition every slab in an order between
-// two statuses in one query (e.g. Blocked → Step2 to start review, or back).
+// two statuses (e.g. Blocked → Step2 to start review, or back).
 export async function PATCH(req) {
   const gate = await requireUser(); if (gate) return gate;
   try {
-    await ensureSchema();
     const { orderNo, from, to } = await req.json();
     if (!orderNo || !from || !to) return NextResponse.json({ error: 'orderNo, from, to required' }, { status: 400 });
-    const [result] = await pool.query(
-      'UPDATE inventory SET status=?, updated_at=? WHERE order_no=? AND status=?',
-      [to, new Date().toISOString(), orderNo, from]
-    );
-    return NextResponse.json({ ok: true, count: result.affectedRows });
+    const updatedAt = new Date().toISOString();
+    const updates = (await findByOrder(orderNo))
+      .filter((r) => String(r.status) === from)
+      .map((r) => ({ row: r.__row, obj: { ...r, status: to, updatedAt } }));
+    await writeRows(updates);
+    return NextResponse.json({ ok: true, count: updates.length });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
-// POST submit Step 2: update cutting, mark Used, create remnants, log + WhatsApp
+// POST submit Step 2: record cutting, mark Used, create remnants, log + WhatsApp
 export async function POST(req) {
   const gate = await requireUser(); if (gate) return gate;
   try {
@@ -64,24 +68,33 @@ export async function POST(req) {
     const hasIssue = info.issue && String(info.issue).toLowerCase() !== 'no';
     const createdAt = new Date().toISOString();
 
+    // Resolve every slab first, then write once — each sheet write invalidates
+    // the cache, so interleaving them would re-read the register per slab.
+    const byOrder = await findByOrder(orderNo);
+    const updates = [];
+    const remnants = [];
+
     for (const row of cuttingRows) {
-      // match by id (preferred) else by slab + order
-      const [found] = row.id
-        ? await pool.query('SELECT * FROM inventory WHERE id = ?', [row.id])
-        : await pool.query('SELECT * FROM inventory WHERE order_no = ? AND slab = ?', [orderNo, row.slab]);
-      if (!found.length) continue;
-      const r = found[0];
+      const r = row.id
+        ? await resolveRow(row.id)
+        : byOrder.find((x) => String(x.slab) === String(row.slab));
+      if (!r) continue;
       // Skip slabs that already moved past Step 2 (Used/Sold) — a stale form
       // re-submit must not drag a sold slab back into the cutting workflow.
       if (!['Blocked', 'Step2'].includes(String(r.status))) continue;
 
-      const origL = num(r.size_l), origW = num(r.size_w);
+      const origL = num(r.sizeL), origW = num(r.sizeW);
       const origSFT = (origL * origW) / 144;
 
-      await pool.query(
-        `UPDATE inventory SET cutting=?, cutting_reason=?, cutting_size_l=?, cutting_size_w=?, status='Used', updated_at=? WHERE id=?`,
-        [row.cutting || '', row.cuttingReason || '', row.cuttingSizeL || '', row.cuttingSizeW || '', createdAt, r.id]
-      );
+      updates.push({
+        row: r.__row,
+        obj: {
+          ...r,
+          cutting: row.cutting || '', cuttingReason: row.cuttingReason || '',
+          cuttingSizeL: row.cuttingSizeL || '', cuttingSizeW: row.cuttingSizeW || '',
+          status: 'Used', updatedAt: createdAt,
+        },
+      });
 
       message += `🔹 *Material:* ${r.material} -- ${r.thickness}\n🧾 *Order No:* ${orderNo}\n\n`;
       message += `📦 *Slab:* ${r.slab}\nOrg :- ${origL} x ${origW}  |  SFT : ${origSFT.toFixed(2)}\n`;
@@ -93,19 +106,23 @@ export async function POST(req) {
         message += `Cut :- ${usedL} x ${usedW}  |  SFT : ${cutSFT.toFixed(2)}  |  Reason : ${row.cuttingReason || '-'}\n\n`;
 
         const remL = Math.max(origL - usedL, 0), remW = Math.max(origW - usedW, 0);
-        const remSFT = (remL * remW) / 144;
         if (remL > 0 && remW > 0) {
-          await pool.query(
-            `INSERT INTO inventory (id, created_at, inv_key, slab, block, material, thickness, size_l, size_w, sft, status)
-             VALUES (?,?,?,?,?,?,?,?,?,?, 'Available')`,
-            [uid('INV'), createdAt, (r.inv_key || '') + '-R', (r.slab || '') + '-REM', r.block || '-',
-             r.material || '', r.thickness || '', remL, remW, remSFT.toFixed(2)]
-          );
+          remnants.push({
+            createdAt, key: (r.key || '') + '-R', slab: (r.slab || '') + '-REM', block: r.block || '-',
+            material: r.material || '', thickness: r.thickness || '',
+            sizeL: remL, sizeW: remW, sft: ((remL * remW) / 144).toFixed(2),
+            slabPhoto: '', status: 'Available', updatedAt: '',
+            orderNo: '', client: '', area: '', cutting: '', cuttingReason: '',
+            cuttingSizeL: '', cuttingSizeW: '', remarks: `Remnant of ${r.slab}`,
+          });
         }
       } else {
         message += 'Cut :- ❌ No Cutting\n\n';
       }
     }
+
+    await writeRows(updates);
+    await appendSlabs(remnants);
 
     if (hasIssue) message += `⚠️ *Material Issue:* ${info.issue}\n\n`;
 
@@ -125,7 +142,7 @@ export async function POST(req) {
       try { await sendWhatsApp(NOTIFY(), message); } catch (err) { console.error('[step2 notify]', err.message); }
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, count: updates.length });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
