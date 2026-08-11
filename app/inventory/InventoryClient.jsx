@@ -334,13 +334,16 @@ function Stock({ inv, loading, masters, reload }) {
     message: `"${r.slab}" will be set back to Available.`,
     onConfirm: () => { setConfirm(null); patch({ id: r.id, status: 'Available' }); },
   });
-  // One PATCH for the whole selection — the ticked slabs may span several lots.
+  // One PATCH for whatever the dialog was opened with — a single row's Block
+  // button, or the ticked selection, which may span several lots.
   async function confirmBlock() {
-    if (!sel.length) return;
+    const ids = block?.ids || [];
+    if (!ids.length) return;
     setSaving(true);
     try {
-      await patch({ ids: sel, status: 'Blocked', orderNo: block.orderNo, client: block.client, area: block.area });
-      setSel([]); setBlock(null);
+      await patch({ ids, status: 'Blocked', orderNo: block.orderNo, client: block.client, area: block.area });
+      setSel((s) => s.filter((x) => !ids.includes(x)));
+      setBlock(null);
     } finally { setSaving(false); }
   }
   async function saveEdit() {
@@ -398,7 +401,7 @@ function Stock({ inv, loading, masters, reload }) {
           <div className="text-[12.5px] text-slate-700"><b>{sel.length}</b> slab{sel.length > 1 ? 's' : ''} selected</div>
           <div className="flex gap-2">
             <button className="btn-ghost !px-2 !py-1" onClick={() => setSel([])}>Clear</button>
-            <button className="btn-warn !px-3 !py-1" onClick={() => setBlock({ orderNo: '', client: '', area: '' })}>Block Selected</button>
+            <button className="btn-warn !px-3 !py-1" onClick={() => setBlock({ ids: sel, orderNo: '', client: '', area: '' })}>Block Selected</button>
           </div>
         </div>
       )}
@@ -507,10 +510,10 @@ function Stock({ inv, loading, masters, reload }) {
                                       <td className="table-td max-w-[140px] truncate" title={r.remarks}>{r.remarks || '—'}</td>
                                       <td className="table-td whitespace-nowrap">
                                         <div className="flex gap-1 justify-end">
-                                          {r.status === 'Available' && <button className="btn-ghost !px-2 !py-1" onClick={() => askMarkSold(r)}>Mark Sold</button>}
+                                          {r.status === 'Available' && <button className="btn-danger !px-2 !py-1" onClick={() => setBlock({ ids: [r.id], slab: r.slab, orderNo: '', client: '', area: '' })}>Block</button>}
                                           {r.status === 'Blocked' && <button className="btn-success !px-2 !py-1" onClick={() => askUnblock(r)}>Unblock</button>}
                                           {r.status === 'Sold' && <button className="btn-success !px-2 !py-1" onClick={() => askRevertSold(r)}>Revert</button>}
-                                          <button className="btn-ghost !px-2 !py-1" onClick={() => setEdit({ id: r.id, slab: r.slab, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, remarks: r.remarks, photo: r.slabPhoto })}>Edit</button>
+                                          <button className="btn-ghost !px-2 !py-1" onClick={() => setEdit({ id: r.id, slab: r.slab, status: r.status, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, remarks: r.remarks, photo: r.slabPhoto })}>Edit</button>
                                         </div>
                                       </td>
                                     </tr>
@@ -535,11 +538,11 @@ function Stock({ inv, loading, masters, reload }) {
       )}
 
       {block && (
-        <Modal title={`Block ${sel.length} Slab${sel.length > 1 ? 's' : ''}`} onClose={() => setBlock(null)}>
+        <Modal title={block.slab ? `Block Slab ${block.slab}` : `Block ${block.ids.length} Slab${block.ids.length > 1 ? 's' : ''}`} onClose={() => setBlock(null)}>
           <F label="Order No."><input className="input" value={block.orderNo} onChange={(e) => setBlock({ ...block, orderNo: e.target.value })} placeholder="ORD-2026-001" /></F>
           <F label="Client Name"><input className="input" value={block.client} onChange={(e) => setBlock({ ...block, client: e.target.value })} /></F>
           <F label="Area / Project"><input className="input" value={block.area} onChange={(e) => setBlock({ ...block, area: e.target.value })} /></F>
-          <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setBlock(null)}>Cancel</button><button className="btn-warn" disabled={saving} onClick={confirmBlock}>{saving ? 'Blocking…' : `Block ${sel.length} Slab${sel.length > 1 ? 's' : ''}`}</button></div>
+          <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setBlock(null)}>Cancel</button><button className="btn-warn" disabled={saving} onClick={confirmBlock}>{saving ? 'Blocking…' : `Block ${block.ids.length} Slab${block.ids.length > 1 ? 's' : ''}`}</button></div>
         </Modal>
       )}
 
@@ -572,7 +575,17 @@ function Stock({ inv, loading, masters, reload }) {
               </label>
             </div>
           </F>
-          <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setEdit(null)}>Cancel</button><button className="btn-warn" onClick={saveEdit}>Save</button></div>
+          {/* Selling a slab is rare next to blocking, so it lives here rather
+              than as a button on every row of an open lot. */}
+          <div className="flex gap-2 justify-between items-center mt-3">
+            {edit.status === 'Available'
+              ? <button className="btn-ghost !text-slate-500" onClick={() => { const r = edit; setEdit(null); askMarkSold(r); }}>Mark Sold</button>
+              : <span />}
+            <div className="flex gap-2">
+              <button className="btn-ghost" onClick={() => setEdit(null)}>Cancel</button>
+              <button className="btn-warn" onClick={saveEdit}>Save</button>
+            </div>
+          </div>
         </Modal>
       )}
 
