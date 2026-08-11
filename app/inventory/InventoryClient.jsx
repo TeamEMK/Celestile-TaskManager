@@ -5,6 +5,10 @@ import { fileToThumbnail } from '@/app/quotation/imageThumb';
 import { Lightbox, ZoomImg } from '@/app/components/ImageLightbox';
 
 const num = (v) => parseFloat(v) || 0;
+// The register is hand-fed by the old forms, so the same material/thickness
+// shows up spelled several ways ("Mint" / "mint ", "40MM" / "40 MM").
+const normMat = (v) => String(v ?? '').trim().toLowerCase();
+const normThk = (v) => String(v ?? '').toUpperCase().replace(/\s+/g, '');
 const sftOf = (l, w) => Math.round((num(l) * num(w) / 144) * 100) / 100;
 const blankRow = () => ({ slab: '', material: '', thickness: '', sizeL: '', sizeW: '', sft: '', photo: '', remarks: '' });
 const shortDate = (iso) => {
@@ -238,9 +242,25 @@ function Stock({ inv, loading, masters, reload }) {
   const [photo, setPhoto] = useState(null); // enlarged slab photo (lightbox)
   const [saving, setSaving] = useState(false);
 
+  // Both dropdowns are built from the register itself, NOT from the "Stone
+  // Name" master tab: the register carries 65 distinct material names against
+  // the master's 59, and 1500+ slabs sit under names the master never had
+  // ("Mint", "Camel Brown", …). Listing master names here made those slabs
+  // unreachable — the filter matched on a name the dropdown couldn't offer.
+  // Matching is case/space-tolerant for the same reason ("40 MM" vs "40MM").
+  const materialOpts = useMemo(() => {
+    const m = new Map();
+    inv.forEach((r) => { const k = normMat(r.material); if (k && !m.has(k)) m.set(k, String(r.material).trim()); });
+    return Array.from(m.values()).sort((a, b) => a.localeCompare(b));
+  }, [inv]);
+
   const thicknessOpts = useMemo(() => {
-    const s = new Set(); inv.forEach((r) => { if (!mat || r.material === mat) { if (r.thickness) s.add(r.thickness); } });
-    return Array.from(s).sort();
+    const m = new Map();
+    inv.forEach((r) => {
+      if (mat && normMat(r.material) !== normMat(mat)) return;
+      const k = normThk(r.thickness); if (k && !m.has(k)) m.set(k, String(r.thickness).trim());
+    });
+    return Array.from(m.values()).sort((a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0));
   }, [inv, mat]);
 
   // Filter-first: the register carries ~2700 slabs, so dumping every lot on
@@ -250,8 +270,8 @@ function Stock({ inv, loading, masters, reload }) {
   const matched = useMemo(() => {
     const t = search.trim().toLowerCase();
     return inv.filter((r) => {
-      if (mat && r.material !== mat) return false;
-      if (thk && r.thickness !== thk) return false;
+      if (mat && normMat(r.material) !== normMat(mat)) return false;
+      if (thk && normThk(r.thickness) !== normThk(thk)) return false;
       if (statusF !== 'All' && r.status !== statusF) return false;
       if (t && !((r.slab + ' ' + r.key + ' ' + r.material + ' ' + r.client + ' ' + r.orderNo + ' ' + r.area).toLowerCase().includes(t))) return false;
       return true;
@@ -276,8 +296,15 @@ function Stock({ inv, loading, masters, reload }) {
       const sfts = slabs.map((s) => num(s.sft));
       const total = Math.round(sfts.reduce((a, b) => a + b, 0) * 100) / 100;
       if (need && total < need) return;
-      const mats = Array.from(new Set(slabs.map((s) => s.material).filter(Boolean)));
-      const thks = Array.from(new Set(slabs.map((s) => s.thickness).filter(Boolean)));
+      // Dedupe on the normalised name, show the spelling the sheet used —
+      // otherwise "Mint" and "mint " in one lot read as "Mixed (2)".
+      const uniq = (vals, norm) => {
+        const m = new Map();
+        vals.filter(Boolean).forEach((v) => { const k = norm(v); if (!m.has(k)) m.set(k, String(v).trim()); });
+        return Array.from(m.values());
+      };
+      const mats = uniq(slabs.map((s) => s.material), normMat);
+      const thks = uniq(slabs.map((s) => s.thickness), normThk);
       out.push({
         key, total, count: slabs.length,
         minSft: Math.min(...sfts), maxSft: Math.max(...sfts),
@@ -375,7 +402,7 @@ function Stock({ inv, loading, masters, reload }) {
     <div className="space-y-4">
       <div className="card p-4 flex flex-wrap items-end gap-3">
         <F label="Min SFT"><input type="number" className="input !py-1 w-28" value={minSft} onChange={(e) => setMinSft(e.target.value)} placeholder="e.g. 35" /></F>
-        <F label="Material"><select className="input !py-1 w-40" value={mat} onChange={(e) => { setMat(e.target.value); setThk(''); }}><option value="">All</option>{masters.materials.map((m) => <option key={m} value={m}>{m}</option>)}</select></F>
+        <F label="Material"><select className="input !py-1 w-40" value={mat} onChange={(e) => { setMat(e.target.value); setThk(''); }}><option value="">All</option>{materialOpts.map((m) => <option key={m} value={m}>{m}</option>)}</select></F>
         <F label="Thickness"><select className="input !py-1 w-32" value={thk} onChange={(e) => setThk(e.target.value)}><option value="">All</option>{thicknessOpts.map((t) => <option key={t} value={t}>{t}</option>)}</select></F>
         <F label="Status"><select className="input !py-1 w-32" value={statusF} onChange={(e) => setStatusF(e.target.value)}>{['All', 'Available', 'Blocked', 'Step2', 'Sold', 'Used'].map((s) => <option key={s}>{s}</option>)}</select></F>
         <div className="relative flex-1 min-w-[180px]">
