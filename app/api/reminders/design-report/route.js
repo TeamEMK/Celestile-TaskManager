@@ -23,10 +23,11 @@ function istDateStr() {
 
 // Designer daily report — one WhatsApp message PER designer (not one
 // rolled-up message for the whole department) into the design group, every
-// day except Sunday at 8:30 PM IST. Wire an external cron (Hostinger cron
+// day except Sunday at 9:30 PM IST. Wire an external cron (Hostinger cron
 // job / cron-job.org / Vercel Cron) to hit this URL with
-// `Authorization: Bearer <CRON_SECRET>` on schedule "30 20 * * 1-6" IST
-// (= "0 15 * * 1-6" UTC).
+// `Authorization: Bearer <CRON_SECRET>` on schedule "30 21 * * 1-6" IST
+// (= "0 16 * * 1-6" UTC). The schedule itself lives in the cron provider, not
+// here — this route only refuses to run on a Sunday.
 export async function GET(req) {
   const gate = requireCron(req); if (gate) return gate;
   if (!isWhatsappConfigured())
