@@ -9,6 +9,7 @@ import { useConfirmToast } from '../components/ConfirmToast';
 import { FMS_ENABLED } from '@/lib/config';
 import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from '@/app/components/ImageLightbox';
+import { stepOpenUrl } from '@/lib/fmsOpenUrl';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -167,7 +168,7 @@ export default function AllTasksClient({ grouped, users }) {
     // Opened synchronously, before the await below, so it still counts as a
     // direct response to the click — an async-deferred window.open gets
     // silently popup-blocked by most browsers.
-    if (task.openUrl) window.open(task.openUrl, '_blank', 'noopener');
+    if (task.openUrl) window.open(stepOpenUrl(task.openUrl, task), '_blank', 'noopener');
     setFmsDoneLoading(true);
     try {
       const d = await fetch(`/api/fms-tasks/${task.fmsId}`).then((r) => r.json());
@@ -178,6 +179,7 @@ export default function AllTasksClient({ grouped, users }) {
         row: {
           sheetRowNumber: task.rowNumber,
           planValue: task.planValue,
+          orderNo: task.orderNo || '',
           data: Object.fromEntries((task.details || []).map((x) => [x.header, x.value])),
         },
       });

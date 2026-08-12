@@ -72,7 +72,7 @@ export default function InventoryClient() {
 
       {tab === 'inward' && <Inward masters={masters} reloadMasters={loadMasters} onSaved={loadInv} />}
       {tab === 'stock' && <Stock inv={inv} loading={loading} masters={masters} reload={loadInv} />}
-      {tab === 'step2' && <Step2 inv={inv} reload={loadInv} />}
+      {tab === 'step2' && <Step2 inv={inv} reload={loadInv} initialOrder={searchParams.get('orderNo') || ''} />}
     </div>
   );
 }
@@ -632,8 +632,8 @@ function Stock({ inv, loading, masters, reload }) {
 // tab) → Used (on final submit) — with Sold as a side-exit straight from
 // Available. Order dropdown only lists orders still in Blocked/Step2 since
 // those are the only ones with anything left to do here.
-function Step2({ inv, reload }) {
-  const [orderNo, setOrderNo] = useState('');
+function Step2({ inv, reload, initialOrder = '' }) {
+  const [orderNo, setOrderNo] = useState(initialOrder);
   const [data, setData] = useState(null); // {key, client, area, slabs}
   const [cut, setCut] = useState({}); // { [slabId]: {cutting, cuttingReason, cuttingSizeL, cuttingSizeW} }
   const [hdr, setHdr] = useState({ material: '', allPieces: '', grain: '', issue: '', sizesPacking: '', grainImg: '', matImg: '' });
@@ -650,8 +650,12 @@ function Step2({ inv, reload }) {
       const o = (r.orderNo || '').trim();
       if (o && (r.status === 'Blocked' || r.status === 'Step2')) seen.add(o);
     });
+    // An order arriving from an FMS step may have no blocked slabs yet, which
+    // is exactly when the doer needs to add them — keep it selectable rather
+    // than silently falling back to "Choose an order".
+    if (initialOrder.trim()) seen.add(initialOrder.trim());
     return Array.from(seen).sort();
-  }, [inv]);
+  }, [inv, initialOrder]);
 
   const availableSlabs = useMemo(() => inv.filter((r) => r.status === 'Available'), [inv]);
 
@@ -671,6 +675,15 @@ function Step2({ inv, reload }) {
     } catch (e) { setStatus('❌ ' + e.message); }
   }
   function chooseOrder(o) { setOrderNo(o); load(o); }
+
+  // Landed here from an FMS step's "Open Page on this Step" link, which now
+  // carries ?orderNo=… — load it straight away so the doer never has to pick
+  // their own order out of the dropdown.
+  useEffect(() => {
+    const o = initialOrder.trim();
+    if (o) { setOrderNo(o); load(o); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOrder]);
 
   const setC = (id, k, v) => setCut((c) => ({ ...c, [id]: { ...c[id], [k]: v } }));
   async function pick(key, setter, file) {

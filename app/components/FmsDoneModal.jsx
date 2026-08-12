@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { fileToThumbnail } from '../quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
+import { stepOpenUrl } from '@/lib/fmsOpenUrl';
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
 // The resulting data: URI is swapped for a Drive URL server-side (writeStepDone)
@@ -56,7 +57,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   // synchronously, before this modal even mounts, so it survives popup
   // blockers; this is just the manual reopen if that got blocked anyway or
   // the tab was closed.
-  const openUrl = step?.open_url || '';
+  const openUrl = stepOpenUrl(step?.open_url, row);
 
   const actualDisplay = useMemo(() => {
     const now = new Date();
