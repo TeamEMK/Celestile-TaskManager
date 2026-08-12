@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
@@ -574,8 +574,22 @@ export default function FMSClient() {
 
 function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDuplicate, onMove, fmsSheetId, fmsSheetName, fmsHeaderRow, onLoadedDoers }) {
   const [doerDropOpen, setDoerDropOpen] = useState(false);
+  const [doerQuery, setDoerQuery] = useState('');
   const [loadingDoers, setLoadingDoers] = useState(false);
   const [loadDoersMsg, setLoadDoersMsg] = useState('');
+  const doerBoxRef = useRef(null);
+
+  // The picker stays open while several doers are ticked, so it needs its own
+  // way out: a click anywhere outside it, or Escape. Without this it only
+  // closed by hitting the field again and sat on top of the fields below.
+  useEffect(() => {
+    if (!doerDropOpen) return;
+    const onDown = (e) => { if (!doerBoxRef.current?.contains(e.target)) setDoerDropOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setDoerDropOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [doerDropOpen]);
 
   const colOptions = (value, onPick) => (
     headers.length ? (
@@ -604,6 +618,7 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
     onChange({ doers: has ? step.doers.filter((d) => d !== uid) : [...step.doers, uid] });
   };
   const doerNames = users.filter((u) => step.doers.includes(u.id)).map((u) => u.name);
+  const doerMatches = users.filter((u) => String(u.name || '').toLowerCase().includes(doerQuery.trim().toLowerCase()));
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 relative">
@@ -622,20 +637,42 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
           <label className="label">Step Name</label>
           <input className="input !text-[12px]" value={step.stepName} onChange={(e) => onChange({ stepName: e.target.value })} placeholder="Step Name" />
         </div>
-        <div className="relative">
+        <div className="relative" ref={doerBoxRef}>
           <label className="label">Step Doer(s)</label>
-          <div onClick={() => setDoerDropOpen((v) => !v)}
+          <div onClick={() => { setDoerDropOpen((v) => !v); setDoerQuery(''); }}
             className="input !text-[12px] cursor-pointer flex flex-wrap gap-1 min-h-[34px] items-center">
             {doerNames.length ? doerNames.map((n) => <span key={n} className="pill bg-primary-50 text-primary-700 !text-[10px]">{n}</span>) : <span className="text-slate-400">Select users…</span>}
           </div>
           {doerDropOpen && (
-            <div className="absolute z-20 mt-1 w-full max-h-[180px] overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-elevated">
-              {users.map((u) => (
-                <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 text-[12px] hover:bg-slate-50 cursor-pointer">
-                  <input type="checkbox" checked={step.doers.includes(u.id)} onChange={() => toggleDoer(u.id)} className="accent-primary-600" />
-                  {u.name}
-                </label>
-              ))}
+            <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-elevated overflow-hidden">
+              <div className="p-1.5 border-b border-slate-100">
+                <input
+                  autoFocus
+                  className="input !text-[12px] !py-1"
+                  placeholder="Type a name…"
+                  value={doerQuery}
+                  onChange={(e) => setDoerQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Enter picks the only match left, so a name can be added
+                    // without reaching for the mouse.
+                    if (e.key === 'Enter' && doerMatches.length === 1) { e.preventDefault(); toggleDoer(doerMatches[0].id); setDoerQuery(''); }
+                  }}
+                />
+              </div>
+              <div className="max-h-[180px] overflow-y-auto">
+                {doerMatches.length === 0 ? (
+                  <div className="px-3 py-3 text-[12px] text-slate-400">No user matches “{doerQuery}”</div>
+                ) : doerMatches.map((u) => (
+                  <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 text-[12px] hover:bg-slate-50 cursor-pointer">
+                    <input type="checkbox" checked={step.doers.includes(u.id)} onChange={() => toggleDoer(u.id)} className="accent-primary-600" />
+                    {u.name}
+                  </label>
+                ))}
+              </div>
+              <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-t border-slate-100 bg-slate-50/60">
+                <span className="text-[11px] text-slate-400">{step.doers.length} selected</span>
+                <button type="button" className="btn-ghost !px-2 !py-0.5 !text-[11px]" onClick={() => setDoerDropOpen(false)}>Done</button>
+              </div>
             </div>
           )}
         </div>
