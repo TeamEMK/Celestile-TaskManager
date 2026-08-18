@@ -2,10 +2,15 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
+import { Gallery } from '../components/ImageLightbox';
+import {
+  buildPriorityStats, detectColumns, extractLinks, imageCandidates, linkKind,
+  priorityOf, branchOf, isRowDone, rowTone, textWithoutLinks,
+  PRIORITY_PILL, PRIORITY_ROW, DONE_ROW,
+} from '@/lib/liveTrackingView';
 
 const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1 });
 const REFRESH_MS = 30000;
-const isLinkValue = (s) => /^https?:\/\/\S+$/i.test(s);
 const DEFAULT_COL_WIDTH = 160;
 const MIN_COL_WIDTH = 60;
 
@@ -23,6 +28,9 @@ export default function LiveTrackingClient() {
   const [dataErr, setDataErr]     = useState('');
   const [updatedAt, setUpdatedAt] = useState(null);
   const [q, setQ] = useState('');
+  // Clicking a cell in the priority summary narrows the table to that
+  // branch/priority combination. null = no narrowing.
+  const [statFilter, setStatFilter] = useState(null); // { branch, priority }
 
   const [modal, setModal] = useState(null); // 'add' | 'edit' | null
   const [form, setForm]   = useState(blankForm());
@@ -92,19 +100,46 @@ export default function LiveTrackingClient() {
   }, [activeId]);
 
   useEffect(() => {
-    setData(null); setDataErr(''); setQ('');
+    setData(null); setDataErr(''); setQ(''); setStatFilter(null);
     if (!activeId) return;
     loadData(false);
     const t = setInterval(() => loadData(true), REFRESH_MS);
     return () => clearInterval(t);
   }, [activeId, loadData]);
 
+  // Which columns carry the priority, the branch and the "actual complete"
+  // date. Sheets are connected as-is with no per-column config, so these are
+  // sniffed from the headers (see lib/liveTrackingView.js).
+  const cols = useMemo(
+    () => detectColumns(data?.headers || [], data?.rows || []),
+    [data],
+  );
+
+  const stats = useMemo(() => buildPriorityStats(data?.rows || [], cols), [data, cols]);
+
   const filteredRows = useMemo(() => {
     if (!data?.rows) return [];
+    let rows = data.rows;
     const t = q.trim().toLowerCase();
-    if (!t) return data.rows;
-    return data.rows.filter((row) => row.some((c) => String(c ?? '').toLowerCase().includes(t)));
-  }, [data, q]);
+    if (t) rows = rows.filter((row) => row.some((c) => String(c ?? '').toLowerCase().includes(t)));
+    if (statFilter) {
+      rows = rows.filter((row) => {
+        if (statFilter.priority && priorityOf(row[cols.priorityIdx]) !== statFilter.priority) return false;
+        if (statFilter.branch) {
+          const b = cols.branchIdx >= 0 ? (branchOf(row[cols.branchIdx]) || 'Other') : 'Other';
+          if (b !== statFilter.branch) return false;
+        }
+        return true;
+      });
+    }
+    return rows;
+  }, [data, q, statFilter, cols]);
+
+  // A stat cell toggles: clicking the one already applied clears it.
+  const toggleStatFilter = useCallback((branch, priority) => {
+    setStatFilter((cur) =>
+      cur && cur.branch === branch && cur.priority === priority ? null : { branch, priority });
+  }, []);
 
   function openAdd() { setForm(blankForm()); setFormErr(''); setModal('add'); }
   function openEdit() {
@@ -209,6 +244,12 @@ export default function LiveTrackingClient() {
               {data ? `${filteredRows.length} of ${data.rows.length} row${data.rows.length !== 1 ? 's' : ''}` : ''}
               {updatedAt && ` · updated ${updatedAt.toLocaleTimeString()}`}
             </span>
+            {statFilter && (
+              <button onClick={() => setStatFilter(null)}
+                className="pill bg-primary-50 text-primary-700 border border-primary-200 hover:bg-primary-100">
+                {statFilter.branch} · {statFilter.priority} ✕
+              </button>
+            )}
             <div className="flex items-center gap-1.5 sm:ml-auto flex-wrap">
               {sheetUrl && (
                 <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary !text-[12px]">🔗 Open in Sheets ↗</a>
@@ -225,6 +266,26 @@ export default function LiveTrackingClient() {
             </div>
           </div>
 
+          {/* Priority stats — branch-wise (Bangalore / Hyderabad), only shown
+              when the connected sheet actually has a priority column. */}
+          {stats && (
+            <PriorityStats stats={stats} filter={statFilter} onPick={toggleStatFilter} />
+          )}
+
+          {/* Row-colour legend, so the tints on the table below are readable
+              without guessing what green vs amber means. */}
+          {(stats || cols.doneIdx >= 0) && (
+            <div className="flex items-center gap-3 flex-wrap text-[11px] text-slate-500">
+              {cols.doneIdx >= 0 && (
+                <LegendDot color={DONE_ROW.accent} bg={DONE_ROW.bg}
+                  label={`Completed (${data?.headers?.[cols.doneIdx] || 'actual date'} filled)`} />
+              )}
+              {stats && ['High', 'Medium', 'Low'].map((p) => (
+                <LegendDot key={p} color={PRIORITY_ROW[p].accent} bg={PRIORITY_ROW[p].bg} label={`${p} priority`} />
+              ))}
+            </div>
+          )}
+
           {/* Live data */}
           <div className="card overflow-hidden">
             {dataErr ? (
@@ -237,7 +298,10 @@ export default function LiveTrackingClient() {
             ) : !data || data.rows.length === 0 ? (
               <div className="p-10 text-center text-slate-400 text-[13px]">No data rows found in this tab.</div>
             ) : filteredRows.length === 0 ? (
-              <div className="p-10 text-center text-slate-400 text-[13px]">No rows match "{q}".</div>
+              <div className="p-10 text-center text-slate-400 text-[13px]">
+                No rows match {q ? `"${q}"` : ''}{q && statFilter ? ' + ' : ''}
+                {statFilter ? `${statFilter.branch} · ${statFilter.priority}` : ''}.
+              </div>
             ) : (
               <div className="overflow-auto max-h-[70vh]">
                 <table className="text-[12.5px]" style={{ tableLayout: 'fixed', width: data.headers.reduce((sum, _, i) => sum + (colWidths[i] || DEFAULT_COL_WIDTH), 0) }}>
@@ -259,20 +323,37 @@ export default function LiveTrackingClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRows.map((row, ri) => (
-                      <tr key={ri} className="table-row">
-                        {row.map((c, ci) => {
-                          const val = String(c ?? '').trim();
-                          return (
-                            <td key={ci} className="table-td whitespace-nowrap" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {isLinkValue(val)
-                                ? <a href={val} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">Click here ↗</a>
-                                : (val || '—')}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                    {filteredRows.map((row, ri) => {
+                      const tone = rowTone(row, cols);
+                      const done = isRowDone(row, cols.doneIdx);
+                      return (
+                        <tr key={ri} className="table-row"
+                          style={tone ? { background: tone.bg, color: tone.text } : undefined}
+                          title={done ? 'Completed — actual date is filled' : undefined}>
+                          {row.map((c, ci) => {
+                            const val = String(c ?? '').trim();
+                            const isPriorityCell = ci === cols.priorityIdx;
+                            const pill = isPriorityCell ? PRIORITY_PILL[priorityOf(val)] : null;
+                            return (
+                              <td key={ci} className="table-td whitespace-nowrap"
+                                style={{
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  ...(tone ? { color: tone.text } : null),
+                                  // Accent stripe down the left edge of the row —
+                                  // inset shadow rather than a border so the fixed
+                                  // column widths don't shift.
+                                  ...(ci === 0 && tone ? { boxShadow: `inset 4px 0 0 ${tone.accent}` } : null),
+                                }}>
+                                {pill
+                                  ? <span className={`pill !text-[11px] !py-0.5 ${pill}`}>{val}</span>
+                                  : <CellValue value={c} />}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -330,6 +411,141 @@ export default function LiveTrackingClient() {
         </div>
       )}
     </div>
+  );
+}
+
+/* ── one table cell ───────────────────────────────────────────────────
+   Sheet cells are plain text, so an attachment arrives as a bare URL (or,
+   for a Form's multi-file upload question, several comma-separated URLs in
+   one cell). Print "Click here" instead of the URL, and open the images in
+   the viewer rather than dumping the user into Drive. */
+function CellValue({ value }) {
+  const [galleryAt, setGalleryAt] = useState(null);
+  const val = String(value ?? '').trim();
+  const links = useMemo(() => extractLinks(val), [val]);
+  const images = useMemo(
+    () => links.filter((l) => linkKind(l) === 'image')
+      .map((l) => ({ href: l, candidates: imageCandidates(l) })),
+    [links],
+  );
+  const files = useMemo(() => links.filter((l) => linkKind(l) !== 'image'), [links]);
+  const rest = useMemo(() => textWithoutLinks(val), [val]);
+
+  if (!val) return <>—</>;
+  if (!links.length) return <>{val}</>;
+
+  return (
+    <span className="inline-flex items-center gap-2 align-middle">
+      {rest && <span>{rest}</span>}
+      {images.length > 0 && (
+        <button type="button" onClick={() => setGalleryAt(0)}
+          title={images.length > 1 ? `${images.length} images — click to view` : 'Click to view'}
+          className="text-primary-600 hover:text-primary-700 hover:underline font-medium">
+          📷 Click here{images.length > 1 ? ` (${images.length})` : ''}
+        </button>
+      )}
+      {files.map((f, i) => (
+        <a key={f} href={f} target="_blank" rel="noopener noreferrer" title={f}
+          className="text-primary-600 hover:text-primary-700 hover:underline font-medium">
+          📄 Click here{files.length > 1 ? ` ${i + 1}` : ''} ↗
+        </a>
+      ))}
+      {galleryAt !== null && (
+        <Gallery items={images} start={galleryAt} onClose={() => setGalleryAt(null)} />
+      )}
+    </span>
+  );
+}
+
+/* ── priority × branch summary ────────────────────────────────────── */
+function PriorityStats({ stats, filter, onPick }) {
+  const { priorities, branches, at, rowTotal, colTotal, grand, hasDone, hasBranch } = stats;
+
+  const Cell = ({ branch, priority, count, clickable = true }) => {
+    const active = clickable && filter && filter.branch === branch && filter.priority === priority;
+    const tint = PRIORITY_ROW[priority];
+    return (
+      <td className="table-td text-center !py-1.5">
+        <button
+          type="button"
+          disabled={!clickable || count.total === 0}
+          onClick={() => onPick(branch, priority)}
+          className={`min-w-[54px] rounded-lg px-2 py-1 transition-colors ${
+            count.total === 0 ? 'text-slate-300 cursor-default'
+              : active ? 'ring-2 ring-primary-400' : 'hover:brightness-95 cursor-pointer'
+          }`}
+          style={count.total > 0 && tint ? { background: tint.bg, color: tint.text } : undefined}
+        >
+          <span className="block text-[15px] font-semibold leading-tight">{count.total}</span>
+          {hasDone && count.total > 0 && (
+            <span className="block text-[10px] opacity-70 leading-tight">{count.done} done</span>
+          )}
+        </button>
+      </td>
+    );
+  };
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-transparent flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h2 className="text-[13px] font-semibold text-slate-900">Priority Breakdown</h2>
+          <p className="text-[11px] text-slate-500">
+            {hasBranch ? 'Bangalore vs Hyderabad' : 'No branch column in this sheet — showing combined'}
+            {' · click a number to filter the table'}
+          </p>
+        </div>
+        <span className="pill bg-slate-100 text-slate-600">
+          {grand.total} row{grand.total !== 1 ? 's' : ''}{hasDone ? ` · ${grand.done} completed` : ''}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[12.5px]">
+          <thead>
+            <tr>
+              <th className="table-th">Branch</th>
+              {priorities.map((p) => <th key={p} className="table-th text-center">{p}</th>)}
+              <th className="table-th text-center">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {branches.map((b) => (
+              <tr key={b} className="table-row">
+                <td className="table-td font-semibold text-slate-700 whitespace-nowrap">{b}</td>
+                {priorities.map((p) => <Cell key={p} branch={b} priority={p} count={at(b, p)} />)}
+                <td className="table-td text-center font-semibold text-slate-800">
+                  {rowTotal(b).total}
+                  {hasDone && rowTotal(b).total > 0 && (
+                    <span className="block text-[10px] font-normal text-slate-400">{rowTotal(b).done} done</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            <tr className="table-row bg-slate-50/70">
+              <td className="table-td font-semibold text-slate-700">All branches</td>
+              {priorities.map((p) => (
+                <td key={p} className="table-td text-center font-semibold text-slate-800">
+                  {colTotal(p).total}
+                  {hasDone && colTotal(p).total > 0 && (
+                    <span className="block text-[10px] font-normal text-slate-400">{colTotal(p).done} done</span>
+                  )}
+                </td>
+              ))}
+              <td className="table-td text-center font-bold text-slate-900">{grand.total}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function LegendDot({ color, bg, label }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="w-3.5 h-3.5 rounded" style={{ background: bg, boxShadow: `inset 3px 0 0 ${color}` }} />
+      {label}
+    </span>
   );
 }
 
