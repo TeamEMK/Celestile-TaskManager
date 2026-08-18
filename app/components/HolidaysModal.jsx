@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from './ConfirmToast';
+import Icon from './Icon';
 
 const fmt = (d) =>
   new Date(d).toLocaleDateString('en-IN', {
@@ -45,13 +46,15 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const { ask, ConfirmUI } = useConfirmToast();
-  const [msg, setMsg] = useState('');
+  // { text, ok } — see AddDelegateModal: a prefix sniffed off the string
+  // made every un-prefixed validation error render as a success.
+  const [msg, setMsg] = useState(null);
   const [file, setFile] = useState(null);
 
   // refresh from server whenever modal opens
   useEffect(() => {
     if (!open) return;
-    setMsg('');
+    setMsg(null);
     fetch('/api/holidays').then((r) => r.json()).then((d) => {
       if (Array.isArray(d)) setList(d);
     }).catch(() => {});
@@ -60,8 +63,8 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
   if (!open) return null;
 
   async function addOne() {
-    if (!date || !name.trim()) { setMsg('Date and Holiday Name are required.'); return; }
-    setSaving(true); setMsg('');
+    if (!date || !name.trim()) { setMsg({ text: 'Date and Holiday Name are required.', ok: false }); return; }
+    setSaving(true); setMsg(null);
     try {
       const res = await fetch('/api/holidays', {
         method: 'POST',
@@ -72,10 +75,10 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
       setDate(''); setName('');
       const d = await fetch('/api/holidays').then((r) => r.json());
       if (Array.isArray(d)) setList(d);
-      setMsg('✅ Added');
+      setMsg({ text: 'Added', ok: true });
       router.refresh();
     } catch (e) {
-      setMsg('❌ ' + e.message);
+      setMsg({ text: e.message, ok: false });
     } finally { setSaving(false); }
   }
 
@@ -88,12 +91,12 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
   }
 
   async function uploadCsv() {
-    if (!file) { setMsg('Please choose a file first.'); return; }
-    setSaving(true); setMsg('');
+    if (!file) { setMsg({ text: 'Please choose a file first.', ok: false }); return; }
+    setSaving(true); setMsg(null);
     try {
       const text = await file.text();
       const rows = parseCSV(text);
-      if (rows.length === 0) { setMsg('No valid rows found in CSV.'); setSaving(false); return; }
+      if (rows.length === 0) { setMsg({ text: 'No valid rows found in CSV.', ok: false }); setSaving(false); return; }
       const res = await fetch('/api/holidays', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -101,13 +104,13 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
       });
       const out = await res.json();
       if (!res.ok) throw new Error(out.error || 'Upload failed');
-      setMsg(`✅ ${out.inserted} added${out.skipped ? `, ${out.skipped} skipped` : ''}`);
+      setMsg({ text: `${out.inserted} added${out.skipped ? `, ${out.skipped} skipped` : ''}`, ok: true });
       setFile(null);
       const d = await fetch('/api/holidays').then((r) => r.json());
       if (Array.isArray(d)) setList(d);
       router.refresh();
     } catch (e) {
-      setMsg('❌ ' + e.message);
+      setMsg({ text: e.message, ok: false });
     } finally { setSaving(false); }
   }
 
@@ -173,8 +176,9 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
               </div>
 
               {msg && (
-                <div className={`text-[12px] rounded-lg px-3 py-2 border ${msg.startsWith('❌') ? 'bg-red-50 text-red-600 border-red-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
-                  {msg}
+                <div className={`text-[12px] rounded-lg px-3 py-2 border flex items-center gap-1.5 ${msg.ok ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                  <Icon name={msg.ok ? 'check' : 'alert'} className="w-3.5 h-3.5" />
+                  {msg.text}
                 </div>
               )}
             </>

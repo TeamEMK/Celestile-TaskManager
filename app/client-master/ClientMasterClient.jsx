@@ -83,9 +83,9 @@ export default function ClientMasterClient({ canEdit }) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
-          <input className="input max-w-xs" placeholder="🔍 Search name / contact / email…"
+          <input className="input max-w-xs" placeholder="Search name / contact / email…"
             value={q} onChange={(e) => setQ(e.target.value)} />
-          <select className="input w-auto" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select className="select w-auto" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option>All</option><option>Active</option><option>Inactive</option>
           </select>
           {canEdit && (

@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
+import Icon from '../components/Icon';
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; };
@@ -52,7 +53,7 @@ export default function RaceTrackerClient({ delegations = [], users = [] }) {
       const behind = finished ? 0 : Math.max(0, -score);
       return {
         ...r, score, finished, pct,
-        behindLabel: finished ? 'Finished 🏁' : `${behind.toFixed(1)} behind`,
+        behindLabel: finished ? 'Finished ' : `${behind.toFixed(1)} behind`,
         pctLabel: finished ? '0.0%' : `${(100 - pct).toFixed(1)}%`,
         department: userMap[r.doer]?.department || '',
       };
@@ -108,9 +109,9 @@ export default function RaceTrackerClient({ delegations = [], users = [] }) {
 
           <div className="p-5">
             <div className="flex items-center justify-between text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-4 px-2">
-              <span className="text-red-500">▶ START · −100</span>
+              <span className="text-red-500 inline-flex items-center gap-1"><Icon name="chevronRight" className="w-3 h-3" /> START · −100</span>
               <span className="hidden sm:inline">Score: lower → behind · higher → ahead</span>
-              <span className="text-emerald-600">0 · FINISH 🏁</span>
+              <span className="text-emerald-600">0 · FINISH <Icon name="flag" className="w-3.5 h-3.5" /></span>
             </div>
 
             <div className="space-y-3 overflow-x-auto">
@@ -146,7 +147,7 @@ export default function RaceTrackerClient({ delegations = [], users = [] }) {
                           ${i < 3 ? CAR_TAG[i] : 'bg-emerald-500 text-white'}`}>
                           {initials(r.doer)}
                         </div>
-                        <span className="text-[18px] leading-none">🚗</span>
+                        <span className="text-[18px] leading-none"><Icon name="car" className="w-3.5 h-3.5" /></span>
                       </div>
                     </div>
                   </div>

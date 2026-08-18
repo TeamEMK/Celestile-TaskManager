@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -10,6 +10,7 @@ import { FMS_ENABLED } from '@/lib/config';
 import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
+import Icon from '../components/Icon';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -431,7 +432,7 @@ export default function AllTasksClient({ grouped, users }) {
                                     )}
                                     {t.status === 'done' && (
                                       <button title="Undo Done" onClick={() => undoTask(t)}
-                                        className="pill bg-slate-100 text-slate-600 hover:bg-orange-50 hover:text-orange-600 cursor-pointer text-[11px]">↩ Undo</button>
+                                        className="pill bg-slate-100 text-slate-600 hover:bg-orange-50 hover:text-orange-600 cursor-pointer text-[11px]"><Icon name="refresh" className="w-3 h-3" /> Undo</button>
                                     )}
                                   </div>
                                 </td>
@@ -453,17 +454,17 @@ export default function AllTasksClient({ grouped, users }) {
                                         ? <ZoomImg src={t.attachment} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0 mt-0.5" />
                                         : (
                                           <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-primary-500 hover:text-primary-700" title="View attachment">
-                                            <span>📄</span>
+                                            <span><Icon name="file" className="w-3.5 h-3.5" /></span>
                                           </a>
                                         )
                                     )}
                                     {!!t.requireFile && t.status !== 'done' && (
-                                      <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 rounded px-1 shrink-0">📎 File req.</span>
+                                      <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 rounded px-1 shrink-0"><Icon name="paperclip" className="w-3.5 h-3.5" /> File req.</span>
                                     )}
                                   </div>
                                   {t.transferredFrom && (
                                     <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium border border-amber-100 mt-0.5">
-                                      🔄 from {t.transferredFrom}
+                                      <Icon name="refresh" className="w-3.5 h-3.5" /> from {t.transferredFrom}
                                     </span>
                                   )}
                                 </td>
@@ -487,7 +488,7 @@ export default function AllTasksClient({ grouped, users }) {
                                     'bg-red-50 text-red-600'
                                   }`}>
                                     {t.status === 'done' ? 'Done' :
-                                     t.status === 'approval_pending' ? `⏳ Awaiting ${t.approver || 'Approval'}` :
+                                     t.status === 'approval_pending' ? `Awaiting ${t.approver || 'Approval'}` :
                                      t.status === 'revise' ? 'Revise' :
                                      t.status === 'revise_requested' ? 'Revise Req.' : 'Pending'}
                                   </span>
@@ -545,8 +546,8 @@ export default function AllTasksClient({ grouped, users }) {
             <p className="text-[12px] text-slate-600 bg-slate-50 rounded-lg p-3 mb-4 line-clamp-2">{fileTask.description}</p>
             <label className="block cursor-pointer border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-primary-300 hover:bg-primary-50 transition mb-4">
               {completionInput
-                ? <span className="text-sm font-medium text-slate-700">📎 {completionInput.name}</span>
-                : <><span className="text-2xl block mb-1">⬆</span><span className="text-sm text-slate-500">Click to choose Photo or PDF</span></>}
+                ? <span className="text-sm font-medium text-slate-700"><Icon name="paperclip" className="w-3.5 h-3.5" /> {completionInput.name}</span>
+                : <><span className="text-2xl block mb-1"><Icon name="arrowUp" className="w-3.5 h-3.5" /></span><span className="text-sm text-slate-500">Click to choose Photo or PDF</span></>}
               <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setCompletionInput(e.target.files?.[0] || null)} />
             </label>
             <div className="flex gap-2 justify-end">

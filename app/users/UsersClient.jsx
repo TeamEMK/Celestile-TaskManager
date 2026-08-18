@@ -1,10 +1,11 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
+import Icon from '../components/Icon';
 
 const ROLES = ['Admin', 'User', 'HOD'];
 
@@ -295,7 +296,8 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
   const [saving,         setSaving]        = useState(false);
   const [bulkFile,       setBulkFile]      = useState(null);
   const [bulkSaving,     setBulkSaving]    = useState(false);
-  const [bulkMsg,        setBulkMsg]       = useState('');
+  // { text, ok } rather than an emoji-prefixed string — see AddDelegateModal.
+  const [bulkMsg,        setBulkMsg]       = useState(null);
 
   function parseUserCSV(text) {
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -314,21 +316,21 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
 
   async function uploadBulkUsers() {
     if (!bulkFile) return;
-    setBulkSaving(true); setBulkMsg('');
+    setBulkSaving(true); setBulkMsg(null);
     try {
       const rows = parseUserCSV(await bulkFile.text());
-      if (!rows.length) { setBulkMsg('No valid rows found.'); setBulkSaving(false); return; }
+      if (!rows.length) { setBulkMsg({ text: 'No valid rows found.', ok: false }); setBulkSaving(false); return; }
       const res = await fetch('/api/users', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bulk: rows }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed');
-      setBulkMsg(`✅ ${d.inserted} added${d.errors?.length ? ` · ${d.errors.length} skipped` : ''}`);
+      setBulkMsg({ text: `${d.inserted} added${d.errors?.length ? ` · ${d.errors.length} skipped` : ''}`, ok: true });
       setBulkFile(null);
       onSaved();
     } catch (e) {
-      setBulkMsg('❌ ' + e.message);
+      setBulkMsg({ text: e.message, ok: false });
     } finally { setBulkSaving(false); }
   }
 
@@ -487,7 +489,7 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
               )}
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary !px-3 !py-1.5 !text-[12px]">
+              <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary btn-sm !px-3 !py-1.5">
                 Upload Photo
               </button>
               {picture && (
@@ -523,10 +525,10 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
                     onChange={(e) => setNewDeptName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveNewDepartment(); } if (e.key === 'Escape') setAddingDept(false); }}
                   />
-                  <button type="button" onClick={saveNewDepartment} disabled={savingDept || !newDeptName.trim()} className="btn-success !px-3 !text-[12px]">
+                  <button type="button" onClick={saveNewDepartment} disabled={savingDept || !newDeptName.trim()} className="btn-success btn-sm !px-3">
                     {savingDept ? '…' : 'Add'}
                   </button>
-                  <button type="button" onClick={() => setAddingDept(false)} className="btn-ghost !px-2">✕</button>
+                  <button type="button" onClick={() => setAddingDept(false)} className="btn-ghost !px-2"><Icon name="x" className="w-3.5 h-3.5" /></button>
                 </div>
               ) : (
                 <select value={form.department||''} onChange={e=>handleDeptSelect(e.target.value)} className="input">
@@ -580,16 +582,20 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
             <div className="rounded-lg border border-dashed border-slate-200 p-3">
               <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Bulk Add Users (CSV)</div>
               <div className="flex flex-wrap items-center gap-2">
-                <input type="file" accept=".csv,text/csv" onChange={(e)=>{setBulkFile(e.target.files?.[0]||null);setBulkMsg('');}}
+                <input type="file" accept=".csv,text/csv" onChange={(e)=>{setBulkFile(e.target.files?.[0]||null);setBulkMsg(null);}}
                   className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1 file:text-[11px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
-                <button className="btn-success !px-3 !py-1 !text-[11.5px]"
+                <button className="btn-success btn-sm !px-3 !py-1"
                   disabled={bulkSaving||!bulkFile} onClick={uploadBulkUsers}>
-                  {bulkSaving?'⏳ Uploading…':'⬆ Upload CSV'}
+                  {bulkSaving?'Uploading…':'Upload CSV'}
                 </button>
-                <button className="btn-secondary !px-3 !py-1 !text-[11.5px]"
-                  onClick={downloadUserSample}>⬇ Sample</button>
+                <button className="btn-secondary btn-sm !px-3 !py-1"
+                  onClick={downloadUserSample}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Sample</button>
               </div>
-              {bulkMsg && <div className={`text-[12px] mt-1.5 font-medium ${bulkMsg.startsWith('✅') ? 'text-emerald-600' : 'text-red-600'}`}>{bulkMsg}</div>}
+              {bulkMsg && (
+                <div className={`text-[12px] mt-1.5 font-medium flex items-center gap-1.5 ${bulkMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>
+                  <Icon name={bulkMsg.ok ? 'check' : 'alert'} className="w-3.5 h-3.5" /> {bulkMsg.text}
+                </div>
+              )}
               <div className="text-[10px] text-slate-400 mt-1.5">Format: name, email, password, role, user_role, phone, department</div>
             </div>
           )}

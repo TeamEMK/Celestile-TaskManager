@@ -23,9 +23,9 @@ export default function LoginPage() {
     const res = await signIn('credentials', { email, password, redirect: false });
     setLoading(false);
     if (res?.error) {
-      showToast('Invalid email or password ❌', 'error');
+      showToast('Invalid email or password ', 'error');
     } else {
-      showToast('Login successful! Redirecting… ✅', 'success');
+      showToast('Login successful! Redirecting… ', 'success');
       setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   }
@@ -164,7 +164,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <h1 className="font-display" style={{ margin: '0 0 6px', fontSize: 30, fontWeight: 600, color: '#FAFAFA' }}>Welcome back 👋</h1>
+                <h1 className="font-display" style={{ margin: '0 0 6px', fontSize: 30, fontWeight: 600, color: '#FAFAFA' }}>Welcome back </h1>
                 <p style={{ margin: '0 0 26px', fontSize: 14, color: '#9CA3AF' }}>Sign in to your Celestile workspace</p>
               </div>
 

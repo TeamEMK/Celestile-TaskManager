@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import Icon from '../components/Icon';
 
 const numOf = (s) => parseFloat(String(s || '').replace(/[^\d.]/g, '')) || 0;
 const fmtINR = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
@@ -13,7 +14,7 @@ const STATUS_STYLE = {
 };
 function StatusPill({ status }) {
   const s = (status || 'pending').toLowerCase();
-  const label = s === 'approved' ? '✓ Approved' : s === 'rejected' ? '✗ Rejected' : '⏳ Pending';
+  const label = s === 'approved' ? 'Approved' : s === 'rejected' ? 'Rejected' : 'Pending';
   return <span className={`pill whitespace-nowrap ${STATUS_STYLE[s] || STATUS_STYLE.pending}`}>{label}</span>;
 }
 
@@ -189,30 +190,30 @@ export default function QuotationAdminClient() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <select className="input !w-auto" value={branch} onChange={(e) => setBranch(e.target.value)}>
+          <select className="select w-auto" value={branch} onChange={(e) => setBranch(e.target.value)}>
             <option value="all">All Branches</option><option value="bangalore">Bangalore</option><option value="hyderabad">Hyderabad</option>
           </select>
-          <select className="input !w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <select className="select w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="all">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
           </select>
-          <input className="input flex-1 min-w-[200px]" placeholder="🔍 Ref / client / consultant…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input flex-1 min-w-[200px]" placeholder="Ref / client / consultant…" value={q} onChange={(e) => setQ(e.target.value)} />
           <input type="month" className="input !w-auto" value={month} onChange={(e) => { setMonth(e.target.value); setFrom(''); setTo(''); }} />
           <span className="text-[11px] text-slate-400">or</span>
           <input type="date" className="input !w-auto" value={from} onChange={(e) => { setFrom(e.target.value); setMonth(''); }} />
           <input type="date" className="input !w-auto" value={to} onChange={(e) => { setTo(e.target.value); setMonth(''); }} />
-          <button className="btn-ghost" onClick={reset}>↺ Reset</button>
+          <button className="btn-ghost" onClick={reset}><Icon name="refresh" className="w-3.5 h-3.5" /> Reset</button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Total" value={summary.count} icon="📄" grad="linear-gradient(135deg,#3b82f6,#4f46e5)" shadow="rgba(59,130,246,0.35)" />
-          <StatCard label="Total Value" value={fmtINR(summary.total)} icon="💰" grad="linear-gradient(135deg,#D9A81F,#8F6B10)" shadow="rgba(238,188,46,0.35)" />
-          <StatCard label="Bangalore" value={summary.bng} icon="🏢" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
-          <StatCard label="Hyderabad" value={summary.hyd} icon="🏙" grad="linear-gradient(135deg,#7c3aed,#a855f7)" shadow="rgba(124,58,237,0.35)" />
+          <StatCard label="Total" value={summary.count} icon="file" grad="linear-gradient(135deg,#3b82f6,#4f46e5)" shadow="rgba(59,130,246,0.35)" />
+          <StatCard label="Total Value" value={fmtINR(summary.total)} icon="rupee" grad="linear-gradient(135deg,#D9A81F,#8F6B10)" shadow="rgba(238,188,46,0.35)" />
+          <StatCard label="Bangalore" value={summary.bng} icon="building" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
+          <StatCard label="Hyderabad" value={summary.hyd} icon="building" grad="linear-gradient(135deg,#7c3aed,#a855f7)" shadow="rgba(124,58,237,0.35)" />
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <StatCard label="Pending" value={summary.pending} icon="⏳" grad="linear-gradient(135deg,#f59e0b,#f97316)" shadow="rgba(245,158,11,0.35)" />
-          <StatCard label="Approved" value={summary.approved} icon="✓" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
-          <StatCard label="Rejected" value={summary.rejected} icon="✗" grad="linear-gradient(135deg,#ef4444,#dc2626)" shadow="rgba(239,68,68,0.35)" />
+          <StatCard label="Pending" value={summary.pending} icon="clock" grad="linear-gradient(135deg,#f59e0b,#f97316)" shadow="rgba(245,158,11,0.35)" />
+          <StatCard label="Approved" value={summary.approved} icon="check" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
+          <StatCard label="Rejected" value={summary.rejected} icon="x" grad="linear-gradient(135deg,#ef4444,#dc2626)" shadow="rgba(239,68,68,0.35)" />
         </div>
       </div>
 
@@ -278,7 +279,7 @@ export default function QuotationAdminClient() {
                               >Reject</button>
                             </>
                           )}
-                          <a className="btn-secondary !px-2.5 !py-1 !text-[11.5px] whitespace-nowrap" href={`/quotation?branch=${r.branch}&ref=${encodeURIComponent(r.refNo)}`}>Open</a>
+                          <a className="btn-secondary btn-sm !px-2.5 !py-1 whitespace-nowrap" href={`/quotation?branch=${r.branch}&ref=${encodeURIComponent(r.refNo)}`}>Open</a>
                         </div>
                       </td>
                     </tr>
@@ -307,7 +308,7 @@ function StatCard({ label, value, icon, grad, shadow }) {
           <div className="text-[18px] font-black tabular-nums text-white leading-none mt-1.5 truncate">{value}</div>
         </div>
         <div className="w-7 h-7 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
-          <span className="text-white text-[13px] leading-none">{icon}</span>
+          <Icon name={icon} className="w-4 h-4 text-white" />
         </div>
       </div>
     </div>

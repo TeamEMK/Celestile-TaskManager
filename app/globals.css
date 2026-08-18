@@ -78,7 +78,7 @@
   }
 
   /* Buttons */
-  .btn { @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-[15px] font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none; }
+  .btn { @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-[13.5px] font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none; }
   .btn-primary   { @apply btn relative overflow-hidden text-black hover:-translate-y-px;
     background: linear-gradient(135deg, #F3C955 0%, #EEBC2E 55%, #D9A81F 100%);
     box-shadow: 0 1px 0 rgba(255,255,255,0.35) inset, 0 4px 14px rgba(238,188,46,0.35);
@@ -89,10 +89,13 @@
   .btn-danger    { @apply btn bg-red-600 text-white hover:bg-red-500; box-shadow: 0 4px 14px rgba(220,38,38,0.32); }
   .btn-success   { @apply btn bg-emerald-600 text-white hover:bg-emerald-500; box-shadow: 0 4px 14px rgba(16,185,129,0.32); }
   .btn-warn      { @apply btn bg-amber-500 text-white hover:bg-amber-400; box-shadow: 0 4px 14px rgba(245,158,11,0.32); }
+  /* The one small button. Sits after the .btn-* rules so it wins on
+     source order; before this, toolbars picked their own size by hand. */
+  .btn-sm        { @apply text-[12px] px-2.5 py-1.5 gap-1; }
 
   /* Form */
   .pill  { @apply inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-medium rounded-full; }
-  .input { @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[15px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-400 transition; }
+  .input { @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-400 transition; }
   .input:focus { box-shadow: 0 0 0 3px rgba(238,188,46,0.18), 0 0 14px rgba(238,188,46,0.10); }
   .label { @apply block text-[12px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5; }
 
@@ -103,14 +106,64 @@
 
   /* Segmented control */
   .seg            { @apply inline-flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5; }
-  .seg-btn        { @apply px-3.5 py-1.5 rounded-md text-[14px] font-medium text-slate-500 transition-all duration-150; }
+  .seg-btn        { @apply px-3.5 py-1.5 rounded-md text-[13px] font-medium text-slate-500 transition-all duration-150; }
   .seg-btn-active { @apply bg-white shadow-sm text-slate-900 font-semibold; }
 
   /* Table */
   .table-th  { @apply text-left px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-400 bg-slate-50/80; }
-  .table-td  { @apply px-3 py-2.5 text-[14px] text-slate-600; }
+  .table-td  { @apply px-3 py-2.5 text-[13px] text-slate-600; }
   .table-row { @apply border-t border-slate-100 transition-colors duration-100; }
   .table-row:hover { background: rgba(253,246,227,0.6); }
+
+  /* ── Controls ──────────────────────────────────────────────────────
+     One height (36px) and one type size for every control in a toolbar, so
+     a filter row lines up whether it is built from inputs, selects, native
+     date pickers or buttons. Before this each page invented its own, which
+     is why `!text-[12px]` appeared ~70 times across the app. */
+  .ctl {
+    @apply h-9 bg-white border border-slate-200 rounded-lg text-[13px] text-slate-700
+           transition focus:outline-none focus:border-primary-400 hover:border-slate-300;
+  }
+  .ctl:focus { box-shadow: 0 0 0 3px rgba(238,188,46,0.18); }
+  /* Native select/date rendering is kept on purpose: a hand-rolled chevron
+     costs an inline data-URI in a class name and breaks the OS date picker. */
+  .select    { @apply ctl pl-2.5 pr-7 cursor-pointer; }
+  .input-ctl { @apply ctl px-2.5 w-full placeholder:text-slate-400; }
+  .date-ctl  { @apply ctl px-2.5; }
+
+  /* Icon-only button — for a row of table actions, where a labelled button
+     would crowd the row out. Always give it a title/aria-label. */
+  .icon-btn {
+    @apply inline-grid place-items-center w-8 h-8 rounded-lg text-slate-500
+           border border-transparent transition hover:bg-slate-100 hover:text-slate-900;
+  }
+  .icon-btn-danger { @apply icon-btn hover:bg-red-50 hover:text-red-600; }
+
+  /* ── Badges ────────────────────────────────────────────────────────
+     A status word in a table cell. `.pill` stays for the rounder, softer
+     tags; a badge is the squarer, denser one that belongs inside a row. */
+  .badge         { @apply inline-flex items-center gap-1 px-2 py-0.5 text-[11.5px] font-semibold rounded-md border whitespace-nowrap; }
+  .badge-neutral { @apply badge bg-slate-50 text-slate-600 border-slate-200; }
+  .badge-success { @apply badge bg-emerald-50 text-emerald-700 border-emerald-200; }
+  .badge-warn    { @apply badge bg-amber-50 text-amber-700 border-amber-200; }
+  .badge-danger  { @apply badge bg-red-50 text-red-700 border-red-200; }
+  .badge-info    { @apply badge bg-blue-50 text-blue-700 border-blue-200; }
+  .badge-gold    { @apply badge bg-primary-50 text-primary-700 border-primary-200; }
+
+  /* Removable filter chip */
+  .chip {
+    @apply inline-flex items-center gap-1 pl-2.5 pr-1.5 h-6 rounded-full text-[11.5px] font-medium
+           bg-primary-50 text-primary-700 border border-primary-200 transition hover:bg-primary-100;
+  }
+
+  /* ── Toolbar / table shells ────────────────────────────────────────
+     The filter strip that sits above a table, and the frame around the
+     table itself. Both were re-invented per page before. */
+  .toolbar    { @apply card p-3 flex items-center gap-2 flex-wrap; }
+  .table-wrap { @apply overflow-auto rounded-xl border border-slate-200 bg-white; }
+
+  /* Sticky header for a scrolling table body */
+  .table-th-sticky { @apply table-th sticky top-0 z-10; }
 
   /* Gradient text utilities */
   .text-gradient-blue {

@@ -5,6 +5,7 @@ import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 import { useQuotationMaster, AddItemModal, ADD_ITEM_VALUE } from './useQuotationMaster';
+import Icon from '../components/Icon';
 
 /* ── constants (ported from IndexBng) ─────────────────────────────────── */
 const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
@@ -198,7 +199,7 @@ export default function BangaloreForm({ initialRef = '' }) {
   async function save() {
     const activeRows = rows.filter((r) => r.desc || r.area || Number(r.price) || Number(r.qty));
     if (activeRows.some((r) => !r.img)) {
-      setStatus('❌ Please add an image for every item before saving.');
+      setStatus('Please add an image for every item before saving.');
       return;
     }
     setSaving(true); setStatus('Saving…');
@@ -217,7 +218,7 @@ export default function BangaloreForm({ initialRef = '' }) {
       const d = await res.json();
       if (!res.ok || d.status === 'error') throw new Error(d.message || 'Save failed');
       const isRev = String(header.refNo).toUpperCase().includes('-REV');
-      const savedMsg = '✅ Saved (' + d.refNo + ')' + (isRev ? '' : ' — Approval WhatsApp sent');
+      const savedMsg = 'Saved (' + d.refNo + ')' + (isRev ? '' : ' — Approval WhatsApp sent');
       // clear the form for the next quotation, keeping the success message visible
       setHeader((h) => ({ ...h, refNo:'', clientName:'', architectName:'', architectFirm:'', consultant:'', consultantNumber:'',
         consultantEmail:'', clientContact:'', clientEmail:'', billingAddress:'', siteAddress:'',
@@ -226,7 +227,7 @@ export default function BangaloreForm({ initialRef = '' }) {
       setTotals(defaultTotals());
       fetch('/api/quotations/next-ref?branch=bangalore').then((r) => r.json()).then((x) => setH('refNo', x.refNo || '001')).catch(() => {});
       setStatus(savedMsg);
-    } catch (e) { setStatus('❌ ' + e.message); }
+    } catch (e) { setStatus(e.message); }
     finally { setSaving(false); }
   }
 
@@ -238,7 +239,7 @@ export default function BangaloreForm({ initialRef = '' }) {
       setReviseList(Array.isArray(d.refs) ? d.refs : []);
       setSelRef((d.refs || [])[0] || '');
       setShowRevise(true);
-    } catch { setStatus('❌ Could not load list'); }
+    } catch { setStatus('Could not load list'); }
   }
   const loadSelected = () => loadRef(selRef);
   async function loadRef(ref) {
@@ -261,7 +262,7 @@ export default function BangaloreForm({ initialRef = '' }) {
       setRows(items.length ? items.map((it) => ({ ...blankRow(), ...it, module: !!it.module, gst: it.gst ?? DEFAULT_GST })) : [blankRow()]);
       setTotals(Array.isArray(q.totalsConfig) && q.totalsConfig.length ? q.totalsConfig : defaultTotals());
       setStatus('Loaded ' + q.refNo + ' → revising as ' + nextRevRef(q.refNo));
-    } catch (e) { setStatus('❌ ' + e.message); }
+    } catch (e) { setStatus(e.message); }
   }
 
   function reset() {
@@ -289,7 +290,7 @@ export default function BangaloreForm({ initialRef = '' }) {
         />
       )}
       {master.error && (
-        <div className="qb-master-warn">⚠ Item master: {master.error}</div>
+        <div className="qb-master-warn"><Icon name="alert" className="w-3.5 h-3.5" /> Item master: {master.error}</div>
       )}
 
       {/* toolbar */}
@@ -300,9 +301,9 @@ export default function BangaloreForm({ initialRef = '' }) {
         </div>
         <div className="qb-tbtn-group">
           {status && <span className="qb-status-text">{status}</span>}
-          <button className="qb-tbtn" onClick={reset}>↺ Reset</button>
+          <button className="qb-tbtn" onClick={reset}><Icon name="refresh" className="w-3.5 h-3.5" /> Reset</button>
           <button className="qb-tbtn" onClick={openRevise}>Revise</button>
-          <button className="qb-tbtn qb-tbtn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
+          <button className="qb-tbtn qb-tbtn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
 
@@ -381,7 +382,7 @@ export default function BangaloreForm({ initialRef = '' }) {
                           <div className="qb-img-wrap">
                             <ZoomImg className="qb-img-preview-thumb" src={r.img} />
                             <label className="qb-img-change" title="Replace image">
-                              ✎
+                              <Icon name="edit" className="w-3.5 h-3.5" />
                               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
                             </label>
                           </div>
@@ -422,7 +423,7 @@ export default function BangaloreForm({ initialRef = '' }) {
                       </td>
                       <td><CalcInput className="qb-num-input" value={r.gst} onChange={(v) => setRow(i, 'gst', v)} /></td>
                       <td className="qb-amt-cell">{eff.hasInput ? inr0(eff.gross) : ''}</td>
-                      <td><button className="qb-del-btn" onClick={() => delRow(i)}>✕</button></td>
+                      <td><button className="qb-del-btn" onClick={() => delRow(i)}><Icon name="x" className="w-3.5 h-3.5" /></button></td>
                     </tr>
                   );
                 })}
@@ -479,7 +480,7 @@ export default function BangaloreForm({ initialRef = '' }) {
                     <div className="qb-total-input-wrap">
                       <span>₹</span>
                       <CalcInput className="qb-total-input" value={t.value} onChange={(v) => setTotal(t.id, { value: v })} />
-                      {isCustom && <button className="qb-del-btn" onClick={() => removeTotal(t.id)}>✕</button>}
+                      {isCustom && <button className="qb-del-btn" onClick={() => removeTotal(t.id)}><Icon name="x" className="w-3.5 h-3.5" /></button>}
                     </div>
                   </div>
                 );

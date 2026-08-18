@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { fileToThumbnail } from '../quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
+import Icon from '../components/Icon';
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
 // The resulting data: URI is swapped for a Drive URL server-side (writeStepDone)
@@ -111,9 +112,9 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
 
           {openUrl && (
             <div className="rounded-lg bg-violet-50 border border-violet-200 p-3 flex items-center justify-between gap-2">
-              <span className="text-[12.5px] text-violet-800">📎 This step has a linked form — it should have opened in a new tab when you clicked Mark Done.</span>
+              <span className="text-[12.5px] text-violet-800"><Icon name="paperclip" className="w-3.5 h-3.5" /> This step has a linked form — it should have opened in a new tab when you clicked Mark Done.</span>
               <button type="button" onClick={() => window.open(openUrl, '_blank', 'noopener')}
-                className="btn-secondary !text-[11px] !py-1.5 !px-2.5 whitespace-nowrap">↗ Open Form</button>
+                className="btn-secondary btn-sm !py-1.5 !px-2.5 whitespace-nowrap"><Icon name="external" className="w-3 h-3" /> Open Form</button>
             </div>
           )}
 
@@ -139,14 +140,14 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
 
           {delayed && (
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-              <div className="text-[12.5px] font-semibold text-amber-800 mb-2">⚠️ Delay Detected — Reason Required</div>
+              <div className="text-[12.5px] font-semibold text-amber-800 mb-2"><Icon name="alert" className="w-3.5 h-3.5" /> Delay Detected — Reason Required</div>
               <input value={delayReason} onChange={(e) => setDelayReason(e.target.value)} placeholder="Reason for delay…" className="input" />
             </div>
           )}
 
           {extraRows.length > 0 && (
             <div>
-              <div className="text-[12.5px] font-semibold text-slate-700 mb-2 pb-1.5 border-b border-slate-100">📝 Additional Fields</div>
+              <div className="text-[12.5px] font-semibold text-slate-700 mb-2 pb-1.5 border-b border-slate-100"><Icon name="edit" className="w-3.5 h-3.5" /> Additional Fields</div>
               <div className="space-y-3">
                 {extraRows.map((r) => (
                   <ExtraField key={r.col_letter} row={r} value={extraValues[r.col_letter] || ''}
@@ -214,7 +215,7 @@ function UploadField({ value, onChange }) {
       {!busy && value && (
         <div className="flex items-center gap-2 mt-1.5">
           {isPdf
-            ? <span className="text-[11.5px] text-slate-600">📄 PDF attached</span>
+            ? <span className="text-[11.5px] text-slate-600"><Icon name="file" className="w-3.5 h-3.5" /> PDF attached</span>
             : <ZoomImg src={value} className="w-10 h-10 object-cover rounded border border-slate-200" />}
           <button type="button" className="text-[11px] text-red-500 hover:underline" onClick={() => onChange('')}>Remove</button>
         </div>

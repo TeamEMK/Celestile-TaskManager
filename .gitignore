@@ -31,3 +31,6 @@ node_modules
 data/store.json
 credentials.json
 .vercel
+
+# Claude Code local settings
+.claude/

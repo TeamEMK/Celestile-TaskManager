@@ -6,14 +6,15 @@ import { useConfirmToast } from '../components/ConfirmToast';
 import { fileToThumbnail } from '../quotation/imageThumb';
 import PcView from './PcView';
 import { ZoomImg } from '../components/ImageLightbox';
+import Icon from '../components/Icon';
 
 const FIELD_TYPES = [
-  { value: 'text',     label: '📝 Text' },
-  { value: 'number',   label: '🔢 Number' },
-  { value: 'date',     label: '📅 Date' },
-  { value: 'link',     label: '🔗 Link' },
-  { value: 'dropdown', label: '🔽 Dropdown' },
-  { value: 'upload',   label: '📎 Upload' },
+  { value: 'text',     label: 'Text' },
+  { value: 'number',   label: 'Number' },
+  { value: 'date',     label: 'Date' },
+  { value: 'link',     label: 'Link' },
+  { value: 'dropdown', label: 'Dropdown' },
+  { value: 'upload',   label: 'Upload' },
 ];
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail
@@ -332,7 +333,7 @@ export default function FMSClient() {
             <div className="text-[11px] text-slate-500 mt-0.5">{sheets.length} flow{sheets.length === 1 ? '' : 's'} · each points at a live Google Sheet</div>
           </div>
         </div>
-        {isAdmin && <button className="btn-primary !text-[12px]" onClick={openAdd}><PlusIcon /> Add New FMS</button>}
+        {isAdmin && <button className="btn-primary btn-sm" onClick={openAdd}><PlusIcon /> Add New FMS</button>}
       </div>
 
       {loadingList ? (
@@ -372,7 +373,7 @@ export default function FMSClient() {
                       <td className="table-td whitespace-nowrap">
                         {isActive && sheetUrl && (
                           <a href={sheetUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                            className="text-primary-600 hover:underline">🔗 {detail?.sheet?.sheet_name} ↗</a>
+                            className="text-primary-600 hover:underline"><Icon name="link" className="w-3.5 h-3.5" /> {detail?.sheet?.sheet_name} <Icon name="external" className="w-3 h-3" /></a>
                         )}
                       </td>
                       <td className="table-td">
@@ -381,15 +382,15 @@ export default function FMSClient() {
                             <span className="text-slate-400 text-[12px]">Loading…</span>
                           ) : detail && (
                             <div className="flex gap-2 flex-wrap justify-end" onClick={(e) => e.stopPropagation()}>
-                              <button className="btn-secondary !text-[12px]" onClick={togglePc}>👤 {showPc ? 'Hide' : ''} PC Report</button>
+                              <button className="btn-secondary btn-sm" onClick={togglePc}><Icon name="user" className="w-3.5 h-3.5" /> {showPc ? 'Hide' : ''} PC Report</button>
                               {canSubmitIntake && submitFields.length > 0 && (
-                                <button className="btn-primary !text-[12px]" onClick={() => setShowSubmitForm(true)}>📝 {submitFormName || 'Submit Entry'}</button>
+                                <button className="btn-primary btn-sm" onClick={() => setShowSubmitForm(true)}><Icon name="edit" className="w-3.5 h-3.5" /> {submitFormName || 'Submit Entry'}</button>
                               )}
                               {isAdmin && (
                                 <>
-                                  <button className="btn-secondary !text-[12px]" onClick={openIntake}>📋 Intake Form</button>
-                                  <button className="btn-secondary !text-[12px]" onClick={openEdit}>✏️ Edit</button>
-                                  <button className="btn-danger !text-[12px]" onClick={deleteSheet}>🗑 Delete</button>
+                                  <button className="btn-secondary btn-sm" onClick={openIntake}><Icon name="clipboard" className="w-3.5 h-3.5" /> Intake Form</button>
+                                  <button className="btn-secondary btn-sm" onClick={openEdit}><Icon name="edit" className="w-3.5 h-3.5" /> Edit</button>
+                                  <button className="btn-danger btn-sm" onClick={deleteSheet}><Icon name="trash" className="w-3.5 h-3.5" /> Delete</button>
                                 </>
                               )}
                             </div>
@@ -424,7 +425,7 @@ export default function FMSClient() {
                 <h2 className="text-base font-semibold text-slate-900">{modal === 'edit' ? 'Edit FMS' : 'New FMS Flow'}</h2>
                 <p className="text-[12px] text-slate-500 mt-0.5">Point at a Google Sheet, then configure each step's columns</p>
               </div>
-              <button className="btn-secondary !text-[12px]" onClick={addStep}>+ Add Step</button>
+              <button className="btn-secondary btn-sm" onClick={addStep}>+ Add Step</button>
               <button onClick={closeModal} disabled={saving} className="btn-ghost w-8 h-8 !p-0 shrink-0">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
               </button>
@@ -458,9 +459,9 @@ export default function FMSClient() {
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <button className="btn-secondary w-full !text-[12px]" disabled={headersLoading || !form.sheetId.trim()}
+                  <button className="btn-secondary btn-sm w-full" disabled={headersLoading || !form.sheetId.trim()}
                     onClick={() => fetchHeaders(form.sheetId, form.sheetName, form.headerRow)}>
-                    {headersLoading ? 'Fetching…' : headers.length ? `✅ ${headers.length} columns loaded — click to refetch` : '🔍 Fetch Column Headers'}
+                    {headersLoading ? 'Fetching…' : headers.length ? `${headers.length} columns loaded — click to refetch` : 'Fetch Column Headers'}
                   </button>
                 </div>
               </div>
@@ -482,7 +483,7 @@ export default function FMSClient() {
               <span className="text-[11.5px] text-slate-400">{form.steps.length} step{form.steps.length === 1 ? '' : 's'}</span>
               <div className="flex gap-2">
                 <button className="btn-secondary" onClick={closeModal} disabled={saving}>Cancel</button>
-                <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : modal === 'edit' ? '💾 Save Changes' : '💾 Create FMS'}</button>
+                <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : modal === 'edit' ? 'Save Changes' : 'Create FMS'}</button>
               </div>
             </div>
           </div>
@@ -494,7 +495,7 @@ export default function FMSClient() {
         <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !intakeSaving && closeIntake()}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0">
-              <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">📋</div>
+              <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0"><Icon name="clipboard" className="w-3.5 h-3.5" /></div>
               <div className="flex-1">
                 <h2 className="text-base font-semibold text-slate-900">Intake Form</h2>
                 <p className="text-[12px] text-slate-500 mt-0.5">The "starting form" — submitting it appends a brand-new row to the sheet configured below</p>
@@ -525,9 +526,9 @@ export default function FMSClient() {
                   <input type="number" min="1" className="input" value={intakeHeaderRow} onChange={(e) => setIntakeHeaderRow(Number(e.target.value) || 1)} />
                 </div>
                 <div className="col-span-2">
-                  <button className="btn-secondary w-full !text-[12px]" disabled={intakeHeadersLoading || !intakeSheetId.trim()}
+                  <button className="btn-secondary btn-sm w-full" disabled={intakeHeadersLoading || !intakeSheetId.trim()}
                     onClick={() => fetchIntakeHeaders(intakeSheetId, intakeSheetName, intakeHeaderRow)}>
-                    {intakeHeadersLoading ? 'Fetching…' : intakeHeaders.length ? `✅ ${intakeHeaders.length} columns loaded — click to refetch` : '🔍 Fetch Column Headers'}
+                    {intakeHeadersLoading ? 'Fetching…' : intakeHeaders.length ? `${intakeHeaders.length} columns loaded — click to refetch` : 'Fetch Column Headers'}
                   </button>
                 </div>
               </div>
@@ -543,14 +544,14 @@ export default function FMSClient() {
                   />
                 ))}
               </div>
-              <button type="button" className="btn-secondary !text-[11px]" onClick={addIntakeField}>+ Add Field</button>
+              <button type="button" className="btn-secondary btn-sm" onClick={addIntakeField}>+ Add Field</button>
             </div>
 
             <div className="px-6 py-4 border-t border-slate-100 flex justify-between items-center shrink-0">
               <span className="text-[11.5px] text-slate-400">{intakeFields.length} field{intakeFields.length === 1 ? '' : 's'}</span>
               <div className="flex gap-2">
                 <button className="btn-secondary" onClick={closeIntake} disabled={intakeSaving}>Cancel</button>
-                <button className="btn-primary" onClick={saveIntake} disabled={intakeSaving || intakeHeadersLoading}>{intakeSaving ? 'Saving…' : '💾 Save'}</button>
+                <button className="btn-primary" onClick={saveIntake} disabled={intakeSaving || intakeHeadersLoading}>{intakeSaving ? 'Saving…' : 'Save'}</button>
               </div>
             </div>
           </div>
@@ -593,7 +594,7 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
 
   const colOptions = (value, onPick) => (
     headers.length ? (
-      <select className="input !text-[12px]" value={value} onChange={(e) => onPick(e.target.value)}>
+      <select className="select" value={value} onChange={(e) => onPick(e.target.value)}>
         <option value="">-- Select Column --</option>
         {headers.map((h) => <option key={h.col} value={h.col}>{h.name} (COL {h.col})</option>)}
       </select>
@@ -608,9 +609,9 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
     const r = await fetch(`/api/fms/sheet-column-values?sheetId=${encodeURIComponent(fmsSheetId)}&tabName=${encodeURIComponent(fmsSheetName)}&col=${encodeURIComponent(step.doerNameCol)}&headerRow=${fmsHeaderRow}`)
       .then((res) => res.json()).catch((e) => ({ error: e.message }));
     setLoadingDoers(false);
-    if (r.error) { setLoadDoersMsg('❌ ' + r.error); return; }
+    if (r.error) { setLoadDoersMsg(r.error); return; }
     onLoadedDoers(r.matched.map((m) => m.user_id));
-    setLoadDoersMsg(`✅ Matched ${r.matched.length}/${r.total_unique}${r.unmatched.length ? ` — unmatched: ${r.unmatched.join(', ')}` : ''}`);
+    setLoadDoersMsg(`Matched ${r.matched.length}/${r.total_unique}${r.unmatched.length ? ` — unmatched: ${r.unmatched.join(', ')}` : ''}`);
   }
 
   const toggleDoer = (uid) => {
@@ -625,10 +626,10 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
       <div className="flex items-center gap-2 mb-3">
         <div className="text-[11px] font-bold text-primary-600 uppercase tracking-wide">Step {idx + 1}</div>
         <div className="ml-auto flex items-center gap-1">
-          <button title="Move up" disabled={idx === 0} onClick={() => onMove(-1)} className="btn-ghost !p-1.5 disabled:opacity-30">▲</button>
-          <button title="Move down" disabled={idx === total - 1} onClick={() => onMove(1)} className="btn-ghost !p-1.5 disabled:opacity-30">▼</button>
-          <button title="Duplicate" onClick={onDuplicate} className="btn-ghost !p-1.5 text-violet-500">📋</button>
-          <button title="Delete step" disabled={total === 1} onClick={onRemove} className="btn-ghost !p-1.5 text-red-500 disabled:opacity-30">🗑</button>
+          <button title="Move up" disabled={idx === 0} onClick={() => onMove(-1)} className="btn-ghost !p-1.5 disabled:opacity-30"><Icon name="chevronUp" className="w-3.5 h-3.5" /></button>
+          <button title="Move down" disabled={idx === total - 1} onClick={() => onMove(1)} className="btn-ghost !p-1.5 disabled:opacity-30"><Icon name="chevronDown" className="w-3.5 h-3.5" /></button>
+          <button title="Duplicate" onClick={onDuplicate} className="btn-ghost !p-1.5 text-violet-500"><Icon name="clipboard" className="w-3.5 h-3.5" /></button>
+          <button title="Delete step" disabled={total === 1} onClick={onRemove} className="btn-ghost !p-1.5 text-red-500 disabled:opacity-30"><Icon name="trash" className="w-3.5 h-3.5" /></button>
         </div>
       </div>
 
@@ -671,7 +672,7 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
               </div>
               <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-t border-slate-100 bg-slate-50/60">
                 <span className="text-[11px] text-slate-400">{step.doers.length} selected</span>
-                <button type="button" className="btn-ghost !px-2 !py-0.5 !text-[11px]" onClick={() => setDoerDropOpen(false)}>Done</button>
+                <button type="button" className="btn-ghost btn-sm !px-2 !py-0.5" onClick={() => setDoerDropOpen(false)}>Done</button>
               </div>
             </div>
           )}
@@ -707,7 +708,7 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
         {(() => {
           const val = step.delayReasonCol;
           return headers.length ? (
-            <select className="input !text-[12px]" value={val} onChange={(e) => onChange({ delayReasonCol: e.target.value })}>
+            <select className="select" value={val} onChange={(e) => onChange({ delayReasonCol: e.target.value })}>
               <option value="">-- None --</option>
               {headers.map((h) => <option key={h.col} value={h.col}>{h.name} (COL {h.col})</option>)}
             </select>
@@ -721,7 +722,7 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
         <label className="label">Doer Name Column <span className="text-slate-400 font-normal normal-case">(auto-saved on completion)</span></label>
         <div className="flex gap-2">
           {headers.length ? (
-            <select className="input !text-[12px] flex-1" value={step.doerNameCol} onChange={(e) => onChange({ doerNameCol: e.target.value })}>
+            <select className="select flex-1" value={step.doerNameCol} onChange={(e) => onChange({ doerNameCol: e.target.value })}>
               <option value="">-- None --</option>
               {headers.map((h) => <option key={h.col} value={h.col}>{h.name} (COL {h.col})</option>)}
             </select>
@@ -729,8 +730,8 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
             <input className="input !text-[12px] flex-1" value={step.doerNameCol} onChange={(e) => onChange({ doerNameCol: e.target.value })} placeholder="e.g. L" />
           )}
           <button type="button" onClick={loadDoersFromColumn} disabled={loadingDoers || !step.doerNameCol}
-            className="btn-success !text-[11px] !px-3 whitespace-nowrap">
-            {loadingDoers ? '…' : '🔄 Load Doers'}
+            className="btn-success btn-sm !px-3 whitespace-nowrap">
+            {loadingDoers ? '…' : 'Load Doers'}
           </button>
         </div>
         {loadDoersMsg && <div className="text-[11px] mt-1.5 text-slate-500">{loadDoersMsg}</div>}
@@ -743,7 +744,7 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
 
       <div className="mt-3">
         <label className="label">Extra Input</label>
-        <select className="input !text-[12px] !w-auto" value={step.extraInput} onChange={(e) => onChange({ extraInput: e.target.value })}>
+        <select className="select w-auto" value={step.extraInput} onChange={(e) => onChange({ extraInput: e.target.value })}>
           <option value="no">No</option>
           <option value="yes">Yes</option>
         </select>
@@ -757,7 +758,7 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
               onRemove={() => onChange({ extraRows: step.extraRows.filter((_, eri) => eri !== ri) })}
             />
           ))}
-          <button type="button" className="btn-secondary !text-[11px]" onClick={() => onChange({ extraRows: [...step.extraRows, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1 }] })}>
+          <button type="button" className="btn-secondary btn-sm" onClick={() => onChange({ extraRows: [...step.extraRows, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1 }] })}>
             + Add Row
           </button>
         </div>
@@ -771,7 +772,7 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill }) {
   return (
     <div className={`bg-white border border-slate-200 rounded-lg p-2.5 grid ${gridCols} gap-2 items-start`}>
       {headers.length ? (
-        <select className="input !text-[11.5px]" value={row.col_letter} onChange={(e) => {
+        <select className="select" value={row.col_letter} onChange={(e) => {
           const h = headers.find((x) => x.col === e.target.value);
           onChange({ col_letter: e.target.value, label: row.label || h?.name || '' });
         }}>
@@ -782,22 +783,22 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill }) {
         <input className="input !text-[11.5px]" value={row.col_letter} onChange={(e) => onChange({ col_letter: e.target.value })} placeholder="Col e.g. AS" />
       )}
       <input className="input !text-[11.5px]" value={row.label} onChange={(e) => onChange({ label: e.target.value })} placeholder="Label" />
-      <select className="input !text-[11.5px]" value={row.field_type} onChange={(e) => onChange({ field_type: e.target.value })}>
+      <select className="select" value={row.field_type} onChange={(e) => onChange({ field_type: e.target.value })}>
         {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
       </select>
       {showAutoFill && (
-        <select className="input !text-[11.5px]" value={row.auto_fill || ''} onChange={(e) => onChange({ auto_fill: e.target.value })} title="Auto-fill — skips this field on the submit form and fills it in automatically">
-          <option value="">📝 Manual entry</option>
-          <option value="timestamp">⏱ Current date/time</option>
-          <option value="user_name">🧑 Logged-in user's name</option>
-          <option value="fixed">📌 Fixed value</option>
+        <select className="select" value={row.auto_fill || ''} onChange={(e) => onChange({ auto_fill: e.target.value })} title="Auto-fill — skips this field on the submit form and fills it in automatically">
+          <option value="">Manual entry</option>
+          <option value="timestamp">Current date/time</option>
+          <option value="user_name">Logged-in user's name</option>
+          <option value="fixed">Fixed value</option>
         </select>
       )}
       <label className="flex items-center gap-1 text-[10.5px] text-slate-500 whitespace-nowrap pt-2">
         <input type="checkbox" checked={!!row.required} onChange={(e) => onChange({ required: e.target.checked ? 1 : 0 })} className="accent-primary-600" disabled={!!row.auto_fill} />
         Req.
       </label>
-      <button type="button" onClick={onRemove} className="btn-ghost !p-1.5 text-red-500">✕</button>
+      <button type="button" onClick={onRemove} className="btn-ghost !p-1.5 text-red-500"><Icon name="x" className="w-3.5 h-3.5" /></button>
       {row.field_type === 'dropdown' && (
         <input className="input !text-[11.5px]" style={{ gridColumn: '1 / -1' }} value={row.dropdown_options} onChange={(e) => onChange({ dropdown_options: e.target.value })} placeholder="Comma-separated options e.g. Yes,No,Partial" />
       )}
@@ -865,7 +866,7 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
     <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !saving && onClose()}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">📝</div>
+          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0"><Icon name="edit" className="w-3.5 h-3.5" /></div>
           <div className="flex-1">
             <h2 className="text-base font-semibold text-slate-900">{formName || 'New Entry'}</h2>
             <p className="text-[12px] text-slate-500 mt-0.5">Submitting adds a new row to this FMS's connected sheet</p>
@@ -877,10 +878,10 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
 
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
           {err && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{err}</div>}
-          {savedInfo && <div className="rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 text-[12.5px] px-3 py-2">✅ {savedInfo}</div>}
+          {savedInfo && <div className="rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 text-[12.5px] px-3 py-2"><Icon name="check" className="w-3.5 h-3.5" /> {savedInfo}</div>}
           {autoFields.length > 0 && (
             <div className="text-[11.5px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
-              ⏱ Auto-filled on submit: {autoFields.map((f) => f.field_label || f.col_letter).join(', ')}
+              <Icon name="clock" className="w-3.5 h-3.5" /> Auto-filled on submit: {autoFields.map((f) => f.field_label || f.col_letter).join(', ')}
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
@@ -944,7 +945,7 @@ function UploadField({ value, onChange }) {
       {!busy && value && (
         <div className="flex items-center gap-2 mt-1.5">
           {isPdf
-            ? <span className="text-[11.5px] text-slate-600">📄 PDF attached</span>
+            ? <span className="text-[11.5px] text-slate-600"><Icon name="file" className="w-3.5 h-3.5" /> PDF attached</span>
             : <ZoomImg src={value} className="w-10 h-10 object-cover rounded border border-slate-200" />}
           <button type="button" className="text-[11px] text-red-500 hover:underline" onClick={() => onChange('')}>Remove</button>
         </div>

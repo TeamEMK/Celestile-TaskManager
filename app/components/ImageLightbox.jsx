@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import Icon from '../components/Icon';
 
 // Shared click-to-enlarge viewer. Thumbnails across the app are 6–40px, which
 // is far too small to actually look at a photo, so every uploaded image is
@@ -95,12 +96,12 @@ export function SmartImg({ candidates = [], alt = '', className = '', href = '',
     if (onFail) return onFail;
     return (
       <div className="text-center text-white/80 text-[13px] px-6 py-10">
-        <div className="text-3xl mb-2">📄</div>
+        <div className="text-3xl mb-2"><Icon name="file" className="w-3.5 h-3.5" /></div>
         <div>This file can&apos;t be previewed here.</div>
         {href && (
           <a href={href} target="_blank" rel="noopener noreferrer"
             className="inline-block mt-2 underline underline-offset-2 text-white">
-            Open it in a new tab ↗
+            Open it in a new tab <Icon name="external" className="w-3.5 h-3.5" />
           </a>
         )}
       </div>
@@ -171,10 +172,10 @@ export function Gallery({ items = [], start = 0, onClose }) {
         <>
           <button type="button" aria-label="Previous"
             onClick={(e) => { e.stopPropagation(); setI((n) => (n - 1 + count) % count); }}
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 text-white text-2xl leading-none grid place-items-center">‹</button>
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 text-white grid place-items-center"><Icon name="chevronLeft" className="w-6 h-6" /></button>
           <button type="button" aria-label="Next"
             onClick={(e) => { e.stopPropagation(); setI((n) => (n + 1) % count); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 text-white text-2xl leading-none grid place-items-center">›</button>
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 text-white grid place-items-center"><Icon name="chevronRight" className="w-6 h-6" /></button>
         </>
       )}
 

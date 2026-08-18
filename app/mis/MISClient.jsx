@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 import { useState, useEffect } from 'react';
 import { HorizBarChart } from '@/app/components/Charts';
+import Icon from '@/app/components/Icon';
 
 export default function MISClient({ initialRows = [], initialSummary = {}, initialStart, initialEnd, initialType }) {
   const [start,      setStart]      = useState(initialStart);
@@ -115,7 +116,7 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
             subtitle="Higher is better"
             items={rows.filter(r => r.score >= 0).map(r => ({ name: r.name, value: r.score }))}
             color="#10b981"
-            icon="🏆"
+            icon="trophy"
             unit="%"
           />
           <HorizBarChart
@@ -123,7 +124,7 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
             subtitle="Total tasks done in range"
             items={rows.map(r => ({ name: r.name, value: r.completed })).sort((a, b) => b.value - a.value)}
             color="#2563eb"
-            icon="✅"
+            icon="check"
           />
         </div>
       )}
@@ -229,14 +230,14 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
               )}
               <div className="flex flex-wrap gap-3 mt-2">
                 {[
-                  { label: 'Total',     val: modal.row.total,     color: 'text-slate-700',   icon: '📋' },
-                  { label: 'Done',      val: modal.row.completed, color: 'text-emerald-600', icon: '✅' },
-                  { label: 'Pending',   val: modal.row.pending,   color: 'text-orange-500',  icon: '⏳' },
-                  { label: 'Delayed',   val: modal.row.delayed,   color: 'text-red-500',     icon: '🔴' },
-                  { label: 'Revised',   val: modal.row.revised,   color: 'text-amber-500',   icon: '🔄' },
+                  { label: 'Total',     val: modal.row.total,     color: 'text-slate-700',   icon: 'clipboard' },
+                  { label: 'Done',      val: modal.row.completed, color: 'text-emerald-600', icon: 'check' },
+                  { label: 'Pending',   val: modal.row.pending,   color: 'text-orange-500',  icon: 'clock' },
+                  { label: 'Delayed',   val: modal.row.delayed,   color: 'text-red-500',     icon: 'dot' },
+                  { label: 'Revised',   val: modal.row.revised,   color: 'text-amber-500',   icon: 'refresh' },
                 ].map(({ label, val, color, icon }) => (
                   <div key={label} className={`text-sm font-semibold ${color} flex items-center gap-1`}>
-                    <span>{icon}</span> {label}: <span className="font-bold">{val}</span>
+                    <Icon name={icon} className="w-3.5 h-3.5" /> {label}: <span className="font-bold">{val}</span>
                   </div>
                 ))}
               </div>

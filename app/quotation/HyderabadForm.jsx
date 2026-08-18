@@ -5,6 +5,7 @@ import { fileToThumbnail } from './imageThumb';
 import { CalcInput } from './calcExpr';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 import { useQuotationMaster, AddItemModal, ADD_ITEM_VALUE } from './useQuotationMaster';
+import Icon from '../components/Icon';
 
 const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
 const UNIT_OPTIONS = ['','Piece','Module','SFT','RFT','BAG','KG','GMS','LITER'];
@@ -177,7 +178,7 @@ export default function HyderabadForm({ initialRef = '' }) {
   async function save() {
     const activeStoneRows = stoneRows.filter((r) => r.desc || Number(r.price) || Number(r.qty) || r.module);
     if (activeStoneRows.some((r) => !r.img)) {
-      setStatus('❌ Please add an image for every item before saving.');
+      setStatus('Please add an image for every item before saving.');
       return;
     }
     setSaving(true); setStatus('Saving…');
@@ -199,9 +200,9 @@ export default function HyderabadForm({ initialRef = '' }) {
       const d = await res.json();
       if (!res.ok || d.status === 'error') throw new Error(d.message || 'Save failed');
       const isRev = String(header.refNo).toUpperCase().includes('-REV');
-      setStatus('✅ Saved (' + d.refNo + ')' + (isRev ? '' : ' — Approval WhatsApp sent'));
+      setStatus('Saved (' + d.refNo + ')' + (isRev ? '' : ' — Approval WhatsApp sent'));
       setH('status', 'pending');
-    } catch (e) { setStatus('❌ ' + e.message); }
+    } catch (e) { setStatus(e.message); }
     finally { setSaving(false); }
   }
 
@@ -212,7 +213,7 @@ export default function HyderabadForm({ initialRef = '' }) {
       setReviseList(Array.isArray(d.refs) ? d.refs : []);
       setSelRef((d.refs || [])[0] || '');
       setShowRevise(true);
-    } catch { setStatus('❌ Could not load list'); }
+    } catch { setStatus('Could not load list'); }
   }
   const loadSelected = () => loadRef(selRef);
   async function loadRef(ref) {
@@ -237,7 +238,7 @@ export default function HyderabadForm({ initialRef = '' }) {
       const fix = Array.isArray(q.fixingItems) ? q.fixingItems : [];
       setFixRows(fix.length ? fix.map((f) => ({ desc: f.desc || f.col1 || '', mat: f.mat || '', size: f.size || '', unit: f.unit || '', price: f.price || '', qty: f.qty || '', slab: !!f.slab })) : []);
       setStatus('Loaded ' + q.refNo + ' → revising as ' + nextRevRef(q.refNo));
-    } catch (e) { setStatus('❌ ' + e.message); }
+    } catch (e) { setStatus(e.message); }
   }
 
   function reset() {
@@ -267,7 +268,7 @@ export default function HyderabadForm({ initialRef = '' }) {
         />
       )}
       {master.error && (
-        <div className="qh-master-warn">⚠ Item master: {master.error}</div>
+        <div className="qh-master-warn"><Icon name="alert" className="w-3.5 h-3.5" /> Item master: {master.error}</div>
       )}
 
       <div className="qh-toolbar">
@@ -277,9 +278,9 @@ export default function HyderabadForm({ initialRef = '' }) {
         </div>
         <div className="qh-tbtn-group">
           {status && <span className="qh-status-text">{status}</span>}
-          <button className="qh-tbtn" onClick={reset}>↺ Reset</button>
+          <button className="qh-tbtn" onClick={reset}><Icon name="refresh" className="w-3.5 h-3.5" /> Reset</button>
           <button className="qh-tbtn" onClick={openRevise}>Revise</button>
-          <button className="qh-tbtn qh-tbtn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save'}</button>
+          <button className="qh-tbtn qh-tbtn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
 
@@ -354,7 +355,7 @@ export default function HyderabadForm({ initialRef = '' }) {
                           <div className="qh-img-wrap">
                             <ZoomImg className="qh-img-preview-thumb" src={r.img} />
                             <label className="qh-img-change" title="Replace image">
-                              ✎
+                              <Icon name="edit" className="w-3.5 h-3.5" />
                               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(i, e.target.files[0], e.target)} />
                             </label>
                           </div>
@@ -402,7 +403,7 @@ export default function HyderabadForm({ initialRef = '' }) {
                       </td>
                       <td><CalcInput className="qh-num-input" value={r.gst} onChange={(v) => setStone(i, 'gst', v)} /></td>
                       <td className="qh-amt-cell">{eff.hasInput ? inr2(eff.amt) : ''}</td>
-                      <td><button className="qh-del-btn" onClick={() => delStone(i)}>✕</button></td>
+                      <td><button className="qh-del-btn" onClick={() => delStone(i)}><Icon name="x" className="w-3.5 h-3.5" /></button></td>
                     </tr>
                   );
                 })}
@@ -443,7 +444,7 @@ export default function HyderabadForm({ initialRef = '' }) {
                       <td><CalcInput className="qh-num-input" value={r.price} onChange={(v) => setFix(i, 'price', v)} title="Type a formula, e.g. 2850*45" /></td>
                       <td><CalcInput className="qh-num-input" value={r.qty} onChange={(v) => setFix(i, 'qty', v)} title={r.slab ? 'Enter total SFT — billed in 100 SFT blocks' : 'Qty'} /></td>
                       <td className="qh-amt-cell">{amt ? inr2(amt) : '₹ 0.00'}</td>
-                      <td><button className="qh-del-btn" onClick={() => delFix(i)}>✕</button></td>
+                      <td><button className="qh-del-btn" onClick={() => delFix(i)}><Icon name="x" className="w-3.5 h-3.5" /></button></td>
                     </tr>
                   );
                 })}

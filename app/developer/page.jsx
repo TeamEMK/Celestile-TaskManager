@@ -333,7 +333,7 @@ export default function DeveloperPage() {
                         <button
                           onClick={() => setConfirmRestore(b)}
                           disabled={!!restoring}
-                          className="btn-danger !px-3 !py-1.5 !text-[11px] shrink-0"
+                          className="btn-danger btn-sm !px-3 !py-1.5 shrink-0"
                         >
                           {restoring === b.id ? '…' : 'Restore'}
                         </button>
@@ -489,7 +489,7 @@ export default function DeveloperPage() {
                   <button
                     onClick={() => deleteUsers(mode)}
                     disabled={usersInput !== 'DELETE' || deletingUsers}
-                    className="btn-danger !px-3 !py-1.5 !text-[11px] shrink-0"
+                    className="btn-danger btn-sm !px-3 !py-1.5 shrink-0"
                   >
                     {deletingUsers ? '…' : 'Delete'}
                   </button>

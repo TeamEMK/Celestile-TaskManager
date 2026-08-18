@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { DonutChart, HorizBarChart } from '@/app/components/Charts';
+import Icon from '../components/Icon';
 
 const ymd    = (v) => (v ? String(v).split('T')[0].slice(0, 10) : '');
 const today  = () => new Date().toISOString().slice(0, 10);
@@ -216,11 +217,11 @@ export default function DailyTaskAdminClient() {
               <label className="label !mb-0 !text-[10px]">To</label>
               <input type="date" className="input !w-auto !py-1.5 !text-[12px]" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
-            <select className="input !w-auto !py-1.5 !text-[12px]" value={doer} onChange={(e) => setDoer(e.target.value)}>
+            <select className="select w-auto" value={doer} onChange={(e) => setDoer(e.target.value)}>
               <option>All</option>
               {allDoers.map((d) => <option key={d}>{d}</option>)}
             </select>
-            <button className="btn-ghost !text-[12px]" onClick={reset}>↺ Reset</button>
+            <button className="btn-ghost btn-sm" onClick={reset}><Icon name="refresh" className="w-3.5 h-3.5" /> Reset</button>
           </div>
         </div>
       </div>
@@ -245,11 +246,11 @@ export default function DailyTaskAdminClient() {
         <div className="space-y-4">
           {/* ── KPI stat cards ──────────────────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <StatCard label="Entries"       value={agg.entries}   icon="📋" grad="linear-gradient(135deg,#3b82f6,#4f46e5)" shadow="rgba(59,130,246,0.35)" />
-            <StatCard label="Total Minutes" value={agg.minutes}   icon="⏱"  grad="linear-gradient(135deg,#7c3aed,#a855f7)" shadow="rgba(124,58,237,0.35)" />
-            <StatCard label="Hours Logged"  value={agg.hours}     icon="🕐" grad="linear-gradient(135deg,#0891b2,#06b6d4)" shadow="rgba(8,145,178,0.35)"  />
-            <StatCard label="Revisions"     value={agg.revisions} icon="🔄" grad="linear-gradient(135deg,#f59e0b,#f97316)" shadow="rgba(245,158,11,0.35)" />
-            <StatCard label="Active Doers"  value={agg.doers}     icon="👤" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
+            <StatCard label="Entries"       value={agg.entries}   icon="clipboard" grad="linear-gradient(135deg,#3b82f6,#4f46e5)" shadow="rgba(59,130,246,0.35)" />
+            <StatCard label="Total Minutes" value={agg.minutes}   icon="clock"  grad="linear-gradient(135deg,#7c3aed,#a855f7)" shadow="rgba(124,58,237,0.35)" />
+            <StatCard label="Hours Logged"  value={agg.hours}     icon="clock" grad="linear-gradient(135deg,#0891b2,#06b6d4)" shadow="rgba(8,145,178,0.35)"  />
+            <StatCard label="Revisions"     value={agg.revisions} icon="refresh" grad="linear-gradient(135deg,#f59e0b,#f97316)" shadow="rgba(245,158,11,0.35)" />
+            <StatCard label="Active Doers"  value={agg.doers}     icon="user" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
           </div>
 
           {/* ── Today fill status + donut ────────────────────────────── */}
@@ -334,17 +335,17 @@ export default function DailyTaskAdminClient() {
 
           {/* ── Bar charts ───────────────────────────────────────────── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <HorizBarChart title="Minutes by Person"       subtitle="Time logged per employee"       items={agg.byDoer}   icon="👤" unit=" min" />
-            <HorizBarChart title="Minutes by Client"       subtitle="Client-wise time distribution"  items={agg.byClient} icon="🏷" unit=" min" />
-            <HorizBarChart title="Minutes by Task Type"    subtitle="Work category breakdown"         items={agg.byTask}   icon="🗂" unit=" min" />
-            <HorizBarChart title="Minutes by Software"     subtitle="Tool usage distribution"         items={agg.bySoft}   icon="💻" unit=" min" />
-            <HorizBarChart title="Minutes by Order Number" subtitle="Order-wise time distribution"    items={agg.byOrder}  icon="🔢" unit=" min" />
+            <HorizBarChart title="Minutes by Person"       subtitle="Time logged per employee"       items={agg.byDoer}   icon="user" unit=" min" />
+            <HorizBarChart title="Minutes by Client"       subtitle="Client-wise time distribution"  items={agg.byClient} icon="tag" unit=" min" />
+            <HorizBarChart title="Minutes by Task Type"    subtitle="Work category breakdown"         items={agg.byTask}   icon="folder" unit=" min" />
+            <HorizBarChart title="Minutes by Software"     subtitle="Tool usage distribution"         items={agg.bySoft}   icon="laptop" unit=" min" />
+            <HorizBarChart title="Minutes by Order Number" subtitle="Order-wise time distribution"    items={agg.byOrder}  icon="hash" unit=" min" />
           </div>
 
           {/* ── Recent entries table ─────────────────────────────────── */}
           <div className="card overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-transparent flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 grid place-items-center text-base">📝</div>
+              <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 grid place-items-center text-base"><Icon name="edit" className="w-3.5 h-3.5" /></div>
               <div>
                 <div className="text-[13px] font-bold text-slate-900">Recent Entries</div>
                 <div className="text-[11.5px] text-slate-500">{recent.length} records shown (up to 50)</div>
@@ -411,7 +412,7 @@ export default function DailyTaskAdminClient() {
               <button className="btn-ghost !px-2.5 !py-1.5" onClick={() => shiftCalMonth(-1)}>←</button>
               <div className="text-[14px] font-bold text-slate-900 min-w-[150px] text-center">{calMonthLabel}</div>
               <button className="btn-ghost !px-2.5 !py-1.5" onClick={() => shiftCalMonth(1)}>→</button>
-              <button className="btn-ghost !text-[12px]" onClick={() => { setCalMonth(today().slice(0, 7)); setSelectedDay(null); }}>Today</button>
+              <button className="btn-ghost btn-sm" onClick={() => { setCalMonth(today().slice(0, 7)); setSelectedDay(null); }}>Today</button>
             </div>
             <div className="text-[12px] text-slate-500">
               {doer === 'All' ? 'All employees' : doer} · <span className="font-bold text-slate-800">{calMonthMinutes}</span> min this month
@@ -465,7 +466,7 @@ export default function DailyTaskAdminClient() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-700 grid place-items-center text-lg shrink-0">📅</div>
+                <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-700 grid place-items-center text-lg shrink-0"><Icon name="calendar" className="w-3.5 h-3.5" /></div>
                 <div>
                   <div className="text-[15px] font-bold text-slate-900">{fmtDate(selectedDay)}</div>
                   <div className="text-[12px] text-slate-500">
@@ -516,10 +517,10 @@ export default function DailyTaskAdminClient() {
         <div className="space-y-4">
           {/* ── Revision KPI cards ───────────────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard label="Revision Entries" value={agg.revisions}          icon="🔄" grad="linear-gradient(135deg,#f59e0b,#f97316)" shadow="rgba(245,158,11,0.35)" />
-            <StatCard label="Revision Minutes" value={agg.revMinutes}         icon="⏱"  grad="linear-gradient(135deg,#7c3aed,#a855f7)" shadow="rgba(124,58,237,0.35)" />
-            <StatCard label="Designers Active" value={agg.revByDoer.length}   icon="👤" grad="linear-gradient(135deg,#3b82f6,#4f46e5)" shadow="rgba(59,130,246,0.35)" />
-            <StatCard label="Softwares Used"   value={agg.revSoftCols.length} icon="💻" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
+            <StatCard label="Revision Entries" value={agg.revisions}          icon="refresh" grad="linear-gradient(135deg,#f59e0b,#f97316)" shadow="rgba(245,158,11,0.35)" />
+            <StatCard label="Revision Minutes" value={agg.revMinutes}         icon="clock"  grad="linear-gradient(135deg,#7c3aed,#a855f7)" shadow="rgba(124,58,237,0.35)" />
+            <StatCard label="Designers Active" value={agg.revByDoer.length}   icon="user" grad="linear-gradient(135deg,#3b82f6,#4f46e5)" shadow="rgba(59,130,246,0.35)" />
+            <StatCard label="Softwares Used"   value={agg.revSoftCols.length} icon="laptop" grad="linear-gradient(135deg,#10b981,#059669)" shadow="rgba(16,185,129,0.35)" />
           </div>
 
           {/* ── Revision bar charts ──────────────────────────────────── */}
@@ -528,7 +529,7 @@ export default function DailyTaskAdminClient() {
               title="Revision Minutes by Designer"
               subtitle="Who spent most time on revisions"
               items={agg.revByDoer}
-              icon="👤"
+              icon=""
               unit=" min"
               color="#f59e0b"
             />
@@ -536,7 +537,7 @@ export default function DailyTaskAdminClient() {
               title="Revision Minutes by Software"
               subtitle="Which tools are used for revisions"
               items={agg.revBySoft}
-              icon="💻"
+              icon=""
               unit=" min"
               color="#7c3aed"
             />
@@ -545,7 +546,7 @@ export default function DailyTaskAdminClient() {
           {/* ── Designer × Software matrix ───────────────────────────── */}
           <div className="card overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-amber-50/80 to-transparent flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 grid place-items-center text-base">🗂</div>
+              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 grid place-items-center text-base"><Icon name="folder" className="w-3.5 h-3.5" /></div>
               <div>
                 <div className="text-[13px] font-bold text-slate-900">Designer × Software Revision Matrix</div>
                 <div className="text-[11.5px] text-slate-500">Minutes spent on revisions — per person, per tool</div>
@@ -631,7 +632,7 @@ function StatCard({ label, value, icon, grad, shadow }) {
           <div className="text-[28px] font-black tabular-nums text-white leading-none mt-1.5">{value}</div>
         </div>
         <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
-          <span className="text-white text-sm leading-none">{icon}</span>
+          <Icon name={icon} className="w-4 h-4 text-white" />
         </div>
       </div>
     </div>

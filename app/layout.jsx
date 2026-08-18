@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import Providers from './components/Providers';
 import AppShell from './components/AppShell';
 import { isAccessEnabled } from '@/lib/access';
+import Icon from './components/Icon';
 
 export const metadata = {
   title: 'Celestile-TaskManager',
@@ -52,7 +53,7 @@ export default async function RootLayout({ children }) {
                   background: '#f8fafc', borderRadius: '10px', padding: '14px 18px',
                   fontSize: '13px', color: '#94a3b8',
                 }}>
-                  📧 akhileshvyas@e-marketingtech.in
+                  <Icon name="mail" className="w-3.5 h-3.5" /> akhileshvyas@e-marketingtech.in
                 </div>
               </div>
             </div>

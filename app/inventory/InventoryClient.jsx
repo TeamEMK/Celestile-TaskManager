@@ -3,6 +3,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
 import { Lightbox, ZoomImg } from '@/app/components/ImageLightbox';
+import Icon from '../components/Icon';
 
 const num = (v) => parseFloat(v) || 0;
 // The register is hand-fed by the old forms, so the same material/thickness
@@ -106,7 +107,7 @@ function Inward({ masters, reloadMasters, onSaved }) {
     try {
       await fetch('/api/inventory/material', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ material: newMat, thickness: newThk }) });
       setShowAddMat(false); setNewMat(''); setNewThk(''); await reloadMasters();
-    } catch (e) { setStatus('❌ ' + e.message); }
+    } catch (e) { setStatus(e.message); }
   }
 
   // Photos are base64 data-URIs, so a single request with many rows can grow
@@ -134,7 +135,7 @@ function Inward({ masters, reloadMasters, onSaved }) {
       if (!r.sizeW) errs.push(`Row ${i + 1}: Size W`);
       if (!r.sft) errs.push(`Row ${i + 1}: SFT`);
     });
-    if (errs.length) { setStatus('❌ Required: ' + errs.slice(0, 4).join(', ') + (errs.length > 4 ? '…' : '')); return; }
+    if (errs.length) { setStatus('Required: ' + errs.slice(0, 4).join(', ') + (errs.length > 4 ? '…' : '')); return; }
     setSaving(true); setStatus('Saving…');
     const entries = rows.map((r) => ({
       slab: r.slab, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW,
@@ -152,8 +153,8 @@ function Inward({ masters, reloadMasters, onSaved }) {
         lotKey = lotKey || d.lotKey || '';
         saved += d.count || batch.length;
       }
-      setStatus(`✅ ${saved} slabs added`); setRows([blankRow()]); onSaved();
-    } catch (e) { setStatus(`❌ ${e.message} (${saved} of ${entries.length} saved)`); }
+      setStatus(`${saved} slabs added`); setRows([blankRow()]); onSaved();
+    } catch (e) { setStatus(`${e.message} (${saved} of ${entries.length} saved)`); }
     finally { setSaving(false); }
   }
 
@@ -187,7 +188,7 @@ function Inward({ masters, reloadMasters, onSaved }) {
             </F>
             <F label="Thickness*">
               {i === 0
-                ? <select className="input !py-1" value={r.thickness} onChange={(e) => setThk(e.target.value)}><option value="">Select</option>{thicknessOpts.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+                ? <select className="select" value={r.thickness} onChange={(e) => setThk(e.target.value)}><option value="">Select</option>{thicknessOpts.map((t) => <option key={t} value={t}>{t}</option>)}</select>
                 : <input className="input !py-1 bg-slate-100 text-slate-500" value={r.thickness} readOnly />}
             </F>
             <F label="Size L (in)*"><input type="number" className="input !py-1" value={r.sizeL} onChange={(e) => setSize(i, 'sizeL', e.target.value)} placeholder="102" /></F>
@@ -203,7 +204,7 @@ function Inward({ masters, reloadMasters, onSaved }) {
               </div>
             </F>
             <F label="Remarks" wide><input className="input !py-1" value={r.remarks} onChange={(e) => set(i, 'remarks', e.target.value)} placeholder="Any remarks / issues" /></F>
-            <div className="flex justify-end"><button className="btn-danger !px-2 !py-1" onClick={() => delRow(i)}>✕</button></div>
+            <div className="flex justify-end"><button className="btn-danger !px-2 !py-1" onClick={() => delRow(i)}><Icon name="x" className="w-3.5 h-3.5" /></button></div>
           </div>
         ))}
       </div>
@@ -402,15 +403,15 @@ function Stock({ inv, loading, masters, reload }) {
     <div className="space-y-4">
       <div className="card p-4 flex flex-wrap items-end gap-3">
         <F label="Min SFT"><input type="number" className="input !py-1 w-28" value={minSft} onChange={(e) => setMinSft(e.target.value)} placeholder="e.g. 35" /></F>
-        <F label="Material"><select className="input !py-1 w-40" value={mat} onChange={(e) => { setMat(e.target.value); setThk(''); }}><option value="">All</option>{materialOpts.map((m) => <option key={m} value={m}>{m}</option>)}</select></F>
-        <F label="Thickness"><select className="input !py-1 w-32" value={thk} onChange={(e) => setThk(e.target.value)}><option value="">All</option>{thicknessOpts.map((t) => <option key={t} value={t}>{t}</option>)}</select></F>
-        <F label="Status"><select className="input !py-1 w-32" value={statusF} onChange={(e) => setStatusF(e.target.value)}>{['All', 'Available', 'Blocked', 'Step2', 'Sold', 'Used'].map((s) => <option key={s}>{s}</option>)}</select></F>
+        <F label="Material"><select className="select w-40" value={mat} onChange={(e) => { setMat(e.target.value); setThk(''); }}><option value="">All</option>{materialOpts.map((m) => <option key={m} value={m}>{m}</option>)}</select></F>
+        <F label="Thickness"><select className="select w-32" value={thk} onChange={(e) => setThk(e.target.value)}><option value="">All</option>{thicknessOpts.map((t) => <option key={t} value={t}>{t}</option>)}</select></F>
+        <F label="Status"><select className="select w-32" value={statusF} onChange={(e) => setStatusF(e.target.value)}>{['All', 'Available', 'Blocked', 'Step2', 'Sold', 'Used'].map((s) => <option key={s}>{s}</option>)}</select></F>
         <div className="relative flex-1 min-w-[180px]">
           <label className="label">Search</label>
           <svg className="absolute left-2.5 top-1/2 mt-[3px] -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           <input className="input !py-1 pl-8 w-full" placeholder="slab / client / order…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <button className="btn-secondary" disabled={!rows.length} onClick={csv}>⬇ Export CSV</button>
+        <button className="btn-secondary" disabled={!rows.length} onClick={csv}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Export CSV</button>
         <div className="w-full text-[11px] text-slate-400 -mt-1">
           Min SFT = material you need — lots whose slabs add up to at least that much are listed. Open a lot to pick and block its slabs.
         </div>
@@ -472,7 +473,7 @@ function Stock({ inv, loading, masters, reload }) {
                     <Fragment key={lot.key}>
                       <tr className={`table-row cursor-pointer ${open ? 'bg-primary-50/40' : ''}`} onClick={() => toggleLot(lot.key)}>
                         <td className="table-td text-slate-400">
-                          <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>▸</span>
+                          <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}><Icon name="chevronRight" className="w-3.5 h-3.5" /></span>
                         </td>
                         <td className="table-td font-semibold text-slate-800 whitespace-nowrap">
                           {lot.key}
@@ -672,7 +673,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
       setCut(c);
       setHdr((h) => ({ ...h, material: (d.slabs || [])[0]?.material || '' }));
       setStatus(d.slabs?.length ? '' : 'No slabs for this order (block slabs to this order first).');
-    } catch (e) { setStatus('❌ ' + e.message); }
+    } catch (e) { setStatus(e.message); }
   }
   function chooseOrder(o) { setOrderNo(o); load(o); }
 
@@ -708,7 +709,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed');
       await reload(); await load();
-    } catch (e) { setStatus('❌ ' + e.message); }
+    } catch (e) { setStatus(e.message); }
     finally { setSaving(false); }
   }
   const startReview = () => setConfirm({
@@ -745,7 +746,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
       if (!res.ok) throw new Error(d.error || 'Failed');
       setAddOpen(false); setAddSel([]);
       await reload(); await load();
-    } catch (e) { setStatus('❌ ' + e.message); }
+    } catch (e) { setStatus(e.message); }
     finally { setSaving(false); }
   }
 
@@ -753,7 +754,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
     if (!data) return;
     const html = buildStep2Report(orderNo.trim(), hdr, editableSlabs, cut);
     const w = window.open('', '_blank');
-    if (!w) { setStatus('❌ Popup blocked — allow popups to print.'); return; }
+    if (!w) { setStatus('Popup blocked — allow popups to print.'); return; }
     w.document.open(); w.document.write(html); w.document.close();
     setTimeout(() => { w.focus(); w.print(); }, 500);
   }
@@ -769,7 +770,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
   async function submit() {
     if (!data || !editableSlabs.length) return;
     const missing = cuttingErrors();
-    if (missing.length) { setStatus('❌ Cut L & Cut W required for: ' + missing.join(', ')); return; }
+    if (missing.length) { setStatus('Cut L & Cut W required for: ' + missing.join(', ')); return; }
     setSaving(true); setStatus('Submitting…');
     try {
       const cuttingRows = editableSlabs.map((s) => ({ id: s.id, slab: s.slab, ...cut[s.id] }));
@@ -777,9 +778,9 @@ function Step2({ inv, reload, initialOrder = '' }) {
       const res = await fetch('/api/inventory/step2', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed');
-      setStatus('✅ Saved — slabs marked Used, remnants created.');
+      setStatus('Saved — slabs marked Used, remnants created.');
       setData(null); setCut({}); setOrderNo(''); await reload();
-    } catch (e) { setStatus('❌ ' + e.message); }
+    } catch (e) { setStatus(e.message); }
     finally { setSaving(false); }
   }
 
@@ -895,7 +896,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
                         <td className="table-td text-right tabular-nums">{s.sizeL}</td>
                         <td className="table-td text-right tabular-nums">{s.sizeW}</td>
                         <td className="table-td text-right tabular-nums font-semibold text-slate-700">{s.sft}</td>
-                        <td className="table-td"><select className="input !py-1" value={c.cutting} onChange={(e) => setC(s.id, 'cutting', e.target.value)} disabled={!editable}><option>No</option><option>Yes</option></select></td>
+                        <td className="table-td"><select className="select" value={c.cutting} onChange={(e) => setC(s.id, 'cutting', e.target.value)} disabled={!editable}><option>No</option><option>Yes</option></select></td>
                         <td className="table-td"><input className="input !py-1" placeholder={needsCut ? 'Reason' : ''} value={c.cuttingReason} onChange={(e) => setC(s.id, 'cuttingReason', e.target.value)} disabled={!editable || !needsCut} /></td>
                         <td className="table-td w-16">
                           <input type="number" step="0.01" placeholder={needsCut ? 'Required' : ''}
@@ -920,7 +921,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
             return (
               <div className="flex flex-wrap justify-end items-center gap-2">
                 {missing.length > 0 && <span className="text-[12px] text-red-600">Cut L &amp; Cut W required for: {missing.join(', ')}</span>}
-                <button className="btn-secondary" onClick={printReport}>⬇ Cutting Report</button>
+                <button className="btn-secondary" onClick={printReport}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Cutting Report</button>
                 <button className="btn-warn" disabled={saving || !editableSlabs.length || missing.length > 0} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
               </div>
             );
@@ -992,7 +993,7 @@ function ImgUpload({ label, value, imgStatus, onPick }) {
           <input type="file" accept="image/*" className="hidden" onChange={(e) => onPick(e.target.files[0])} />
         </label>
       </div>
-      {imgStatus === 'ready' && <span className="text-[10px] text-emerald-600 mt-0.5">✓ Ready</span>}
+      {imgStatus === 'ready' && <span className="text-[10px] text-emerald-600 mt-0.5"><Icon name="check" className="w-3.5 h-3.5" /> Ready</span>}
       {imgStatus === 'toolarge' && <span className="text-[10px] text-red-600 mt-0.5">File too large — max 4MB</span>}
     </F>
   );

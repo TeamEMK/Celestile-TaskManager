@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import Icon from '../components/Icon';
 
 export default function AccessClient() {
   const [pages, setPages] = useState([]);
@@ -158,8 +159,8 @@ export default function AccessClient() {
                       <td className="px-3 py-2.5 text-right whitespace-nowrap">
                         {!admin && (
                           <div className="flex gap-1.5 justify-end items-center">
-                            {st === 'saved' && <span className="text-emerald-600 text-[11px] font-medium">✓ Saved</span>}
-                            {st === 'error' && <span className="text-rose-600 text-[11px] font-medium">✕ Error</span>}
+                            {st === 'saved' && <span className="text-emerald-600 text-[11px] font-medium"><Icon name="check" className="w-3.5 h-3.5" /> Saved</span>}
+                            {st === 'error' && <span className="text-rose-600 text-[11px] font-medium"><Icon name="x" className="w-3.5 h-3.5" /> Error</span>}
                             <button className="btn-warn !px-3 !py-1" disabled={st === 'saving'} onClick={() => save(u.id)}>
                               {st === 'saving' ? '…' : 'Save'}
                             </button>

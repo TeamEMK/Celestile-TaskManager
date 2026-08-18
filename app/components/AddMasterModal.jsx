@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from './ImageLightbox';
+import Icon from '../components/Icon';
 
 const FREQS = [
   { label: 'Daily (365 tasks/year)',            value: 'Daily'            },
@@ -121,11 +122,11 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
         });
         if (res.ok) inserted++; else errors.push(`Row ${i + 1}: save failed`);
       }
-      setMsg(`✅ ${inserted} added${errors.length ? ` · ${errors.length} skipped` : ''}`);
+      setMsg(`${inserted} added${errors.length ? ` · ${errors.length} skipped` : ''}`);
       setFile(null);
       router.refresh();
     } catch (e) {
-      setMsg('❌ ' + e.message);
+      setMsg(e.message);
     } finally { setSaving(false); }
   }
 
@@ -205,7 +206,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
               ) : (
                 <label className="cursor-pointer flex items-center justify-center w-16 h-16 rounded-xl border border-dashed border-slate-300 overflow-hidden hover:border-primary-400 transition-colors shrink-0">
                   {form.attachment
-                    ? <span className="text-2xl">📄</span>
+                    ? <span className="text-2xl"><Icon name="file" className="w-3.5 h-3.5" /></span>
                     : <span className="text-slate-400 text-xl leading-none">+</span>}
                   <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => pickAttachment(e.target.files?.[0])} />
                 </label>
@@ -246,8 +247,8 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
                 className="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50"
               />
-              <button className="btn-success" disabled={saving || !file} onClick={uploadCsv}>⬆ Upload CSV</button>
-              <button className="btn-secondary" onClick={downloadSample}>⬇ Sample</button>
+              <button className="btn-success" disabled={saving || !file} onClick={uploadCsv}><Icon name="arrowUp" className="w-3.5 h-3.5" /> Upload CSV</button>
+              <button className="btn-secondary" onClick={downloadSample}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Sample</button>
             </div>
             <div className="text-[10.5px] text-slate-400 mt-2">
               Format: user_email, frequency (daily/weekly/monthly/yearly/quarterly/alternative_week), start_date, description, remarks — tasks auto-generate!

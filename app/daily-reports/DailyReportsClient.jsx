@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import Icon from '../components/Icon';
 
 const monthRange = (ym) => {
   // ym = 'YYYY-MM'
@@ -133,7 +134,7 @@ export default function DailyReportsClient({ isAdmin }) {
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
     } else {
       navigator.clipboard?.writeText(msg).catch(() => {});
-      setNote(`⚠️ No client number on this entry (${e.client || 'row'}) — message copied to clipboard instead, paste it into WhatsApp manually.`);
+      setNote(`No client number on this entry (${e.client || 'row'}) — message copied to clipboard instead, paste it into WhatsApp manually.`);
     }
   }
 
@@ -174,7 +175,7 @@ export default function DailyReportsClient({ isAdmin }) {
             </div>
           </div>
           <button className="btn-warn shrink-0"
-            onClick={() => setNote('⚠️ WhatsApp sending is not configured. Connect a provider (Twilio / WhatsApp Business API) and a scheduler to enable auto-send.')}>
+            onClick={() => setNote('WhatsApp sending is not configured. Connect a provider (Twilio / WhatsApp Business API) and a scheduler to enable auto-send.')}>
             <IconSend className="w-3.5 h-3.5" /> Send Now
           </button>
         </div>
@@ -189,7 +190,7 @@ export default function DailyReportsClient({ isAdmin }) {
             </div>
           </div>
           <button className="btn-secondary shrink-0"
-            onClick={() => setNote('⚠️ WhatsApp sending is not configured. Connect a provider and a scheduler to enable auto-send.')}>
+            onClick={() => setNote('WhatsApp sending is not configured. Connect a provider and a scheduler to enable auto-send.')}>
             <IconSend className="w-3.5 h-3.5" /> Send Now
           </button>
         </div>
@@ -250,10 +251,10 @@ export default function DailyReportsClient({ isAdmin }) {
             <input className="input pl-8" placeholder="Search by name / client / description…"
               value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
-          <select className="input w-auto" value={doer} onChange={(e) => setDoer(e.target.value)}>
+          <select className="select w-auto" value={doer} onChange={(e) => setDoer(e.target.value)}>
             {doers.map((d) => <option key={d}>{d === 'All' ? 'All Doers' : d}</option>)}
           </select>
-          <select className="input w-auto" value={client} onChange={(e) => setClient(e.target.value)}>
+          <select className="select w-auto" value={client} onChange={(e) => setClient(e.target.value)}>
             {clients.map((c) => <option key={c}>{c === 'All' ? 'All Clients' : c}</option>)}
           </select>
         </div>
@@ -285,10 +286,10 @@ export default function DailyReportsClient({ isAdmin }) {
                     <td className="table-td max-w-[200px] truncate" title={e.areaName}>{e.areaName || '—'}</td>
                     <td className="table-td">{e.taskType || e.department || '—'}</td>
                     <td className="table-td">{e.software || '—'}</td>
-                    <td className="table-td">{e.revision === 'Yes' ? '✅' : '—'}</td>
+                    <td className="table-td">{e.revision === 'Yes' ? <Icon name="check" className="w-4 h-4 text-emerald-600" title="Revised" /> : '—'}</td>
                     <td className="table-td">{e.minutes}</td>
                     <td className="table-td">
-                      {e.client && <button className="btn-secondary !px-2 !py-1 !text-[11px]" onClick={() => sendToClient(e)}>📤 Client Msg</button>}
+                      {e.client && <button className="btn-secondary btn-sm !px-2 !py-1" onClick={() => sendToClient(e)}><Icon name="send" className="w-3.5 h-3.5" /> Client Msg</button>}
                     </td>
                   </tr>
                 ))}

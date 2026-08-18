@@ -143,14 +143,14 @@ export default function ApproveClient({ token, quotation: initial, initError }) 
                     <button
                       onClick={() => act('approved')}
                       disabled={submitting}
-                      className="btn-success flex-1 !py-3 !rounded-xl !text-[13.5px] !gap-2"
+                      className="btn-success btn-sm flex-1 !py-3 !rounded-xl !gap-2"
                     >
                       {submitting ? <Spinner /> : (<><CheckIcon /> Approve</>)}
                     </button>
                     <button
                       onClick={() => act('rejected')}
                       disabled={submitting}
-                      className="btn-danger flex-1 !py-3 !rounded-xl !text-[13.5px] !gap-2"
+                      className="btn-danger btn-sm flex-1 !py-3 !rounded-xl !gap-2"
                     >
                       {submitting ? <Spinner /> : (<><XIcon /> Reject</>)}
                     </button>

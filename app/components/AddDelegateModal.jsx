@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
+import Icon from '../components/Icon';
 
 const blank = () => ({
   description: '', doerId: '', dueDate: '', client: '',
@@ -48,7 +49,9 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
   const router = useRouter();
   const [form, setForm] = useState(blank());
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
+  // { text, ok } — never a bare string: the colour must come from the
+  // outcome, not from sniffing a prefix off the message.
+  const [msg, setMsg] = useState(null);
   const [file, setFile] = useState(null);
   const [users, setUsers] = useState(propUsers);
   const [csvOpen, setCsvOpen] = useState(false);
@@ -78,14 +81,14 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
 
   async function save() {
     if (!form.description.trim() || !form.doerId || !form.dueDate) {
-      setMsg('Description, Doer and Due Date are required.');
+      setMsg({ text: 'Description, Doer and Due Date are required.', ok: false });
       return;
     }
     if (form.approval === 'Approval Required' && !form.approverId) {
-      setMsg('Please select an approver.');
+      setMsg({ text: 'Please select an approver.', ok: false });
       return;
     }
-    setSaving(true); setMsg('');
+    setSaving(true); setMsg(null);
     try {
       const res = await fetch('/api/delegations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -98,27 +101,27 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
       onClose();
       router.refresh();
     } catch (e) {
-      setMsg('❌ ' + e.message);
+      setMsg({ text: e.message, ok: false });
     } finally { setSaving(false); }
   }
 
   async function uploadCsv() {
-    if (!file) { setMsg('Please choose a CSV file first.'); return; }
-    setSaving(true); setMsg('');
+    if (!file) { setMsg({ text: 'Please choose a CSV file first.', ok: false }); return; }
+    setSaving(true); setMsg(null);
     try {
       const rows = parseCSV(await file.text());
-      if (!rows.length) { setMsg('No valid rows found in CSV.'); setSaving(false); return; }
+      if (!rows.length) { setMsg({ text: 'No valid rows found in CSV.', ok: false }); setSaving(false); return; }
       const res = await fetch('/api/delegations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bulk: rows }),
       });
       const out = await res.json();
       if (!res.ok) throw new Error(out.error || 'Upload failed');
-      setMsg(`✅ ${out.inserted} added${out.errors?.length ? ` · ${out.errors.length} skipped` : ''}`);
+      setMsg({ text: `${out.inserted} added${out.errors?.length ? ` · ${out.errors.length} skipped` : ''}`, ok: true });
       setFile(null);
       router.refresh();
     } catch (e) {
-      setMsg('❌ ' + e.message);
+      setMsg({ text: e.message, ok: false });
     } finally { setSaving(false); }
   }
 
@@ -224,7 +227,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
                 {form.image
                   ? <ZoomImg src={form.image} className="w-7 h-7 object-cover" />
                   : form.attachment
-                  ? <span className="text-sm">📄</span>
+                  ? <span className="text-sm"><Icon name="file" className="w-3.5 h-3.5" /></span>
                   : <svg className="w-3.5 h-3.5 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                 }
               </div>
@@ -237,7 +240,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
             {hasAttachment && (
               <div className="flex gap-3 items-center">
                 {form.attachment && <a href={form.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline">View PDF</a>}
-                <button type="button" onClick={() => { set('image',''); set('attachment',''); }} className="text-[11px] text-red-500 hover:text-red-600 bg-transparent border-none cursor-pointer p-0">✕ Remove</button>
+                <button type="button" onClick={() => { set('image',''); set('attachment',''); }} className="text-[11px] text-red-500 hover:text-red-600 bg-transparent border-none cursor-pointer p-0"><Icon name="x" className="w-3.5 h-3.5" /> Remove</button>
               </div>
             )}
 
@@ -254,8 +257,9 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
           </div>
 
           {msg && (
-            <div className={`text-[12px] px-3 py-2 rounded-lg border ${msg.startsWith('❌') ? 'bg-red-50 text-red-600 border-red-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
-              {msg}
+            <div className={`text-[12px] px-3 py-2 rounded-lg border flex items-center gap-1.5 ${msg.ok ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+              <Icon name={msg.ok ? 'check' : 'alert'} className="w-3.5 h-3.5" />
+              {msg.text}
             </div>
           )}
 
@@ -275,8 +279,8 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
                 <div className="flex flex-wrap items-center gap-2">
                   <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] || null)}
                     className="text-[12px] flex-1 min-w-0 file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1 file:text-[11px] file:font-medium file:text-slate-700 hover:file:bg-slate-50 file:transition-colors" />
-                  <button className="btn-success" disabled={saving || !file} onClick={uploadCsv}>⬆ Upload</button>
-                  <button className="btn-secondary" onClick={downloadSample}>⬇ Sample</button>
+                  <button className="btn-success" disabled={saving || !file} onClick={uploadCsv}><Icon name="arrowUp" className="w-3.5 h-3.5" /> Upload</button>
+                  <button className="btn-secondary" onClick={downloadSample}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Sample</button>
                 </div>
                 <div className="text-[10.5px] text-slate-400 mt-1.5">
                   Format: doer_email, approver_email (if approval required), due_date, priority, approval, description, remarks, client_name
@@ -288,7 +292,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
 
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Assigning…' : '✓ Assign Task'}</button>
+          <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Assigning…' : 'Assign Task'}</button>
         </div>
       </div>
     </div>

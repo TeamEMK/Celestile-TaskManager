@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useConfirmToast } from '../components/ConfirmToast';
 import { ZoomImg } from '../components/ImageLightbox';
 import { isImageAttachment } from '@/lib/attachmentType';
+import Icon from '../components/Icon';
 
 const fmt = (iso) => {
   if (!iso) return '—';
@@ -11,9 +12,9 @@ const fmt = (iso) => {
 };
 
 const REVISE_STATUS = {
-  pending: { label: '⏳ Pending Admin',  cls: 'bg-amber-50 text-amber-700'    },
-  granted: { label: '✓ Granted',          cls: 'bg-emerald-50 text-emerald-700' },
-  denied:  { label: '✕ Denied',           cls: 'bg-red-50 text-red-700'         },
+  pending: { label: 'Pending Admin',  cls: 'bg-amber-50 text-amber-700'    },
+  granted: { label: 'Granted',          cls: 'bg-emerald-50 text-emerald-700' },
+  denied:  { label: 'Denied',           cls: 'bg-red-50 text-red-700'         },
 };
 
 function ReviseIcon(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>; }
@@ -126,10 +127,10 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
                             {t.attachment && (
                               isImageAttachment(t.attachment)
                                 ? <ZoomImg src={t.attachment} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0" />
-                                : <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0">📄 View PDF</a>
+                                : <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0"><Icon name="file" className="w-3.5 h-3.5" /> View PDF</a>
                             )}
                             {t.url && (
-                              <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0" title={t.url}>🔗 Link</a>
+                              <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0" title={t.url}><Icon name="link" className="w-3.5 h-3.5" /> Link</a>
                             )}
                           </div>
                         )}
@@ -243,10 +244,10 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
                             {t.attachment && (
                               isImageAttachment(t.attachment)
                                 ? <ZoomImg src={t.attachment} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0" />
-                                : <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0">📄 View PDF</a>
+                                : <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0"><Icon name="file" className="w-3.5 h-3.5" /> View PDF</a>
                             )}
                             {t.url && (
-                              <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0" title={t.url}>🔗 Link</a>
+                              <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0" title={t.url}><Icon name="link" className="w-3.5 h-3.5" /> Link</a>
                             )}
                           </div>
                         )}
@@ -261,7 +262,7 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
                         }`}>{t.priority || 'Low'}</span>
                       </td>
                       <td className="table-td">
-                        <span className="pill bg-violet-50 text-violet-700 font-semibold">⏳ Awaiting {t.approver || 'Approval'}</span>
+                        <span className="pill bg-violet-50 text-violet-700 font-semibold"><Icon name="clock" className="w-3 h-3" /> Awaiting {t.approver || 'Approval'}</span>
                       </td>
                     </tr>
                   ))}

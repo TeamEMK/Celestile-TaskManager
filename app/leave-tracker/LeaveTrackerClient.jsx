@@ -88,7 +88,7 @@ export default function LeaveTrackerClient({ userId, userName, canApprove }) {
               ))}
             </div>
             {canApprove && (
-              <select className="input w-auto" value={scope} onChange={(e) => setScope(e.target.value)}>
+              <select className="select w-auto" value={scope} onChange={(e) => setScope(e.target.value)}>
                 <option value="all">All employees</option>
                 <option value="mine">My leaves</option>
               </select>

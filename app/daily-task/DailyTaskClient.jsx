@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { ZoomImg } from '@/app/components/ImageLightbox';
+import Icon from '../components/Icon';
 
 /* ── Bangalore Site Engineer constants ───────────────────────────────── */
 const BLR_PURPOSE_OPTIONS = [
@@ -223,15 +224,15 @@ export default function DailyTaskClient() {
 
     if (isSiteEngineer) {
       const inc = clean.find((r) => !r.client || !r.orderNumber || !r.siteLocation || !r.areaName || !r.purposeOfVisit || !r.minutes);
-      if (inc) { setMsg('❌ All fields in every row are required.'); return; }
+      if (inc) { setMsg('All fields in every row are required.'); return; }
       const checksInc = clean.find((r) => r.purposeOfVisit === 'Checks' && !r.checksType);
-      if (checksInc) { setMsg('❌ Please select a Checks type for all "Checks" rows.'); return; }
+      if (checksInc) { setMsg('Please select a Checks type for all "Checks" rows.'); return; }
     } else if (isSales) {
       const inc = clean.find((r) => !r.client || !r.taskType || !r.minutes);
-      if (inc) { setMsg('❌ Client Name, Type of Task, and Duration are required.'); return; }
+      if (inc) { setMsg('Client Name, Type of Task, and Duration are required.'); return; }
     } else {
       const inc = clean.find((r) => !r.client || !r.orderNumber || !r.areaName || !r.taskType || !r.software || !r.minutes);
-      if (inc) { setMsg('❌ All fields in every row are required (Revision is optional).'); return; }
+      if (inc) { setMsg('All fields in every row are required (Revision is optional).'); return; }
     }
 
     setSaving(true); setMsg('');
@@ -242,11 +243,11 @@ export default function DailyTaskClient() {
         body: JSON.stringify({ entryDate, doerId, doer, rows: clean }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
-      setMsg('✅ Submitted!');
+      setMsg('Submitted!');
       setRows([blankRow()]);
       loadPast();
     } catch (e) {
-      setMsg('❌ ' + e.message);
+      setMsg(e.message);
     } finally {
       setSaving(false);
     }
@@ -454,7 +455,7 @@ export default function DailyTaskClient() {
                                   <button
                                     className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center"
                                     onClick={() => setRow(i, 'preInstallImage', '')}
-                                  >✕</button>
+                                  ><Icon name="x" className="w-3.5 h-3.5" /></button>
                                 </div>
                               )}
                               <textarea className="input !text-[12px]" rows="2"
@@ -572,7 +573,7 @@ export default function DailyTaskClient() {
               return (
                 <div key={date} className="border border-slate-200 rounded-lg p-3 card-hover transition-all duration-200">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className="text-[13px] font-semibold text-slate-800">📅 {fmt(date)}</span>
+                    <span className="text-[13px] font-semibold text-slate-800"><Icon name="calendar" className="w-3.5 h-3.5" /> {fmt(date)}</span>
                     <span className="pill bg-slate-100 text-slate-600">{entries.length} task</span>
                     <span className="pill bg-amber-50 text-amber-600">{dayTotal} min total</span>
                   </div>
@@ -582,7 +583,7 @@ export default function DailyTaskClient() {
                         <span className="pill bg-violet-50 text-violet-700 shrink-0">{e.branch}</span>
                       )}
                       {e.client       && <span className="pill bg-orange-50 text-orange-600 shrink-0">{e.client}</span>}
-                      {e.clientNumber && <span className="pill bg-slate-100 text-slate-600 shrink-0">📞 {e.clientNumber}</span>}
+                      {e.clientNumber && <span className="pill bg-slate-100 text-slate-600 shrink-0"><Icon name="phone" className="w-3.5 h-3.5" /> {e.clientNumber}</span>}
                       {e.orderNumber  && <span className="pill bg-slate-100 text-slate-600 shrink-0">#{e.orderNumber}</span>}
                       {e.siteLocation && <span className="pill bg-blue-50 text-blue-600 shrink-0">{e.siteLocation}</span>}
                       {e.areaName     && <span className="text-slate-700 shrink-0">{e.areaName}</span>}

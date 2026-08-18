@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AddMasterModal   from './components/AddMasterModal';
@@ -11,6 +11,7 @@ import { FMS_ENABLED } from '@/lib/config';
 import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
+import Icon from './components/Icon';
 
 // FMS answers are raw sheet values, so an uploaded file or a pasted link
 // would otherwise print as a wall of URL text in the details strip (the
@@ -26,7 +27,7 @@ function DetailValue({ value }) {
     return (
       <a href={v} target="_blank" rel="noopener noreferrer" title={v}
         className="text-primary-600 hover:text-primary-700 hover:underline font-medium">
-        {isFile ? '📄' : '🔗'} Click here
+        {isFile ? '' : ''} Click here
       </a>
     );
   }
@@ -246,7 +247,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-[21px] font-semibold tracking-tight text-slate-900">
-            {greeting}, <span className="text-gradient-gold">{firstName}</span> 👋
+            {greeting}, <span className="text-gradient-gold">{firstName}</span> 
           </h1>
           <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
             <span>{todayLabel}</span>
@@ -380,7 +381,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                               ? <ZoomImg src={t.attachment} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0 mt-0.5" />
                               : (
                                 <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5 text-primary-500 hover:text-primary-700" title="View attachment">
-                                  <span>📄</span>
+                                  <span><Icon name="file" className="w-3.5 h-3.5" /></span>
                                 </a>
                               )
                           )}
@@ -396,7 +397,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                           </div>
                         )}
                         {t.transferredFrom && (
-                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium border border-amber-100 mt-1" title={t.transferredBy ? `Transferred by ${t.transferredBy}` : ''}>🔄 from {t.transferredFrom}</span>
+                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium border border-amber-100 mt-1" title={t.transferredBy ? `Transferred by ${t.transferredBy}` : ''}><Icon name="refresh" className="w-3.5 h-3.5" /> from {t.transferredFrom}</span>
                         )}
                       </td>
                       <td className="table-td">
@@ -425,7 +426,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                       <td className="table-td">
                         <div className="flex gap-1.5 justify-end pr-2">
                           {t.type === 'Delegation' && t.status === 'approval_pending' ? (
-                            <span className="pill bg-violet-50 text-violet-700">⏳ Awaiting {t.approver || 'approval'}</span>
+                            <span className="pill bg-violet-50 text-violet-700"><Icon name="clock" className="w-3 h-3" /> Awaiting {t.approver || 'approval'}</span>
                           ) : t.type === 'Delegation' && t.status === 'revise_requested' ? (
                             isAdmin ? (
                               <>
@@ -433,12 +434,12 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                                 <button onClick={() => denyRevise(t)}   className="pill bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">Deny</button>
                               </>
                             ) : (
-                              <span className="pill bg-amber-50 text-amber-700">⏳ Pending</span>
+                              <span className="pill bg-amber-50 text-amber-700"><Icon name="clock" className="w-3 h-3" /> Pending</span>
                             )
                           ) : (
                             <>
                               {(t.type === 'FMS' || !isAdmin || t.doer === userName) && (
-                                <button onClick={() => handleDoneClick(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">✓ Done</button>
+                                <button onClick={() => handleDoneClick(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"><Icon name="check" className="w-3.5 h-3.5" /> Done</button>
                               )}
                               {t.type === 'Delegation' && (
                                 <button onClick={() => requestRevise(t)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Revise</button>
@@ -478,9 +479,9 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
           {/* Quick stats */}
           <div className="card p-4 space-y-3">
             <div className="text-[12px] font-bold text-slate-600 uppercase tracking-wide">Quick Stats</div>
-            <StatRow icon="🗓" label="Holidays" value={holidays.length} color="#7c3aed" />
-            <StatRow icon="👥" label="Team Members" value={users.length} color="#2563eb" />
-            {isAdmin && <StatRow icon="🔴" label="Overdue" value={overdueCount} color={overdueCount > 0 ? '#dc2626' : '#10b981'} />}
+            <StatRow icon="calendar" label="Holidays" value={holidays.length} color="#7c3aed" />
+            <StatRow icon="users" label="Team Members" value={users.length} color="#2563eb" />
+            {isAdmin && <StatRow icon="dot" label="Overdue" value={overdueCount} color={overdueCount > 0 ? '#dc2626' : '#10b981'} />}
           </div>
         </div>
       </div>
@@ -504,21 +505,21 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
               subtitle="Most tasks completed"
               items={perfTop5}
               color="#10b981"
-              icon="🏆"
+              icon="trophy"
             />
             <HorizBarChart
               title="Needs Attention"
               subtitle="Most pending tasks"
               items={perfBottom}
               color="#ef4444"
-              icon="📉"
+              icon="trendDown"
             />
             <HorizBarChart
               title="Most Active"
               subtitle="Highest total tasks"
               items={perfActive}
               color="#2563eb"
-              icon="⚡"
+              icon="zap"
             />
           </div>
         </div>
@@ -552,8 +553,8 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
             <p className="text-[12px] text-slate-600 bg-slate-50 rounded-lg p-3 mb-4 line-clamp-2">{fileTask.description}</p>
             <label className="block cursor-pointer border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-violet-300 hover:bg-violet-50 transition mb-4">
               {completionInput
-                ? <span className="text-sm font-medium text-slate-700">📎 {completionInput.name}</span>
-                : <><span className="text-2xl block mb-1">⬆</span><span className="text-sm text-slate-500">Click to choose Photo or PDF</span></>}
+                ? <span className="text-sm font-medium text-slate-700"><Icon name="paperclip" className="w-3.5 h-3.5" /> {completionInput.name}</span>
+                : <><span className="text-2xl block mb-1"><Icon name="arrowUp" className="w-3.5 h-3.5" /></span><span className="text-sm text-slate-500">Click to choose Photo or PDF</span></>}
               <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setCompletionInput(e.target.files?.[0] || null)} />
             </label>
             <div className="flex gap-2 justify-end">
@@ -665,7 +666,7 @@ function Kpi({ label, value, tone = 'blue', icon, sub, onClick }) {
           {sub && <div className="text-[10px] mt-1.5 font-medium" style={{ color: 'rgba(255,255,255,0.62)' }}>{sub}</div>}
         </div>
         <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
-          <span className="text-white text-sm">{icon}</span>
+          <Icon name={icon} className="w-4 h-4 text-white" />
         </div>
       </div>
     </Tag>
@@ -688,7 +689,7 @@ function StatRow({ icon, label, value, color }) {
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
       <div className="flex items-center gap-2">
-        <span className="text-base">{icon}</span>
+        <Icon name={icon} className="w-4 h-4" style={{ color }} />
         <span className="text-[12px] font-medium text-slate-600">{label}</span>
       </div>
       <span className="text-[14px] font-bold tabular-nums" style={{ color }}>{value}</span>
