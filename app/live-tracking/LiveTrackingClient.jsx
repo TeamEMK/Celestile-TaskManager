@@ -3,10 +3,17 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
 import { Gallery } from '../components/ImageLightbox';
+import Icon from '../components/Icon';
 import {
-  buildPriorityStats, detectColumns, extractLinks, imageCandidates, linkKind,
-  priorityOf, branchOf, isRowDone, rowTone, textWithoutLinks,
-  PRIORITY_PILL, PRIORITY_ROW, DONE_ROW,
+  PageHeader, MetaLine, LiveDot, EmptyState, ErrorState, LoadingState,
+  SearchInput, ActiveFilters, ResultCount, SectionTitle, GroupRule,
+} from '../components/ui';
+import {
+  buildPriorityStats, cellAttachments, detectColumns,
+  priorityOf, branchOf, isRowDone, rowTone,
+  parseSheetDate, formatSheetDate, dateToInput,
+  EMPTY_FILTERS, activeFilterCount, rowMatchesFilters,
+  BRANCHES, PRIORITIES, PRIORITY_PILL, PRIORITY_ROW, DONE_ROW,
 } from '@/lib/liveTrackingView';
 
 const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1 });
@@ -27,10 +34,14 @@ export default function LiveTrackingClient() {
   const [loadingData, setLoadingData] = useState(false);
   const [dataErr, setDataErr]     = useState('');
   const [updatedAt, setUpdatedAt] = useState(null);
-  const [q, setQ] = useState('');
-  // Clicking a cell in the priority summary narrows the table to that
-  // branch/priority combination. null = no narrowing.
-  const [statFilter, setStatFilter] = useState(null); // { branch, priority }
+
+  // Every way of narrowing the table lives in one object — the search box, the
+  // branch/priority/status pickers, and the date range. Clicking a card in the
+  // Priority Breakdown writes into the same place, so the toolbar always shows
+  // what the table is actually doing.
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const setFilter = useCallback((patch) => setFilters((f) => ({ ...f, ...patch })), []);
+  const clearFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
 
   const [modal, setModal] = useState(null); // 'add' | 'edit' | null
   const [form, setForm]   = useState(blankForm());
@@ -100,45 +111,68 @@ export default function LiveTrackingClient() {
   }, [activeId]);
 
   useEffect(() => {
-    setData(null); setDataErr(''); setQ(''); setStatFilter(null);
+    setData(null); setDataErr(''); setFilters(EMPTY_FILTERS);
     if (!activeId) return;
     loadData(false);
     const t = setInterval(() => loadData(true), REFRESH_MS);
     return () => clearInterval(t);
   }, [activeId, loadData]);
 
-  // Which columns carry the priority, the branch and the "actual complete"
-  // date. Sheets are connected as-is with no per-column config, so these are
-  // sniffed from the headers (see lib/liveTrackingView.js).
+  // Which columns carry the priority, the branch, the "actual complete" date
+  // and any other dates. Sheets are connected as-is with no per-column config,
+  // so these are sniffed from the headers (see lib/liveTrackingView.js).
   const cols = useMemo(
     () => detectColumns(data?.headers || [], data?.rows || []),
     [data],
   );
 
-  const stats = useMemo(() => buildPriorityStats(data?.rows || [], cols), [data, cols]);
+  // Does this sheet have a priority column at all? Computed over every row, so
+  // the breakdown block keeps its place when a filter empties it out.
+  const baseStats = useMemo(() => buildPriorityStats(data?.rows || [], cols), [data, cols]);
+
+  // The cards themselves are what set branch/priority, so folding those two
+  // back in would collapse the grid to the single card just clicked. Every
+  // other filter does narrow the breakdown — a date range that doesn't move
+  // the numbers above it is the thing that makes a dashboard untrustworthy.
+  const statRows = useMemo(() => {
+    if (!data?.rows) return [];
+    const order = cols.dateOrderByIdx?.[filters.dateIdx] || 'dmy';
+    const scoped = { ...filters, branch: '', priority: '' };
+    return data.rows.filter((row) => rowMatchesFilters(row, cols, scoped, order));
+  }, [data, filters, cols]);
+
+  const stats = useMemo(() => buildPriorityStats(statRows, cols), [statRows, cols]);
+
+  // Only the values the sheet actually uses get an option — an empty
+  // "Medium" in a High/Regular tracker is just a dead end for the user.
+  const branchOptions = useMemo(() => {
+    if (cols.branchIdx < 0 || !data?.rows) return [];
+    const seen = new Set(data.rows.map((r) => branchOf(r[cols.branchIdx]) || 'Other'));
+    return [...BRANCHES.filter((b) => seen.has(b)), ...(seen.has('Other') ? ['Other'] : [])];
+  }, [data, cols]);
+
+  const priorityOptions = useMemo(() => {
+    if (cols.priorityIdx < 0 || !data?.rows) return [];
+    const seen = new Set(data.rows.map((r) => priorityOf(r[cols.priorityIdx])).filter(Boolean));
+    return [
+      ...PRIORITIES.filter((p) => seen.has(p)),
+      ...[...seen].filter((p) => !PRIORITIES.includes(p)).sort(),
+    ];
+  }, [data, cols]);
 
   const filteredRows = useMemo(() => {
     if (!data?.rows) return [];
-    let rows = data.rows;
-    const t = q.trim().toLowerCase();
-    if (t) rows = rows.filter((row) => row.some((c) => String(c ?? '').toLowerCase().includes(t)));
-    if (statFilter) {
-      rows = rows.filter((row) => {
-        if (statFilter.priority && priorityOf(row[cols.priorityIdx]) !== statFilter.priority) return false;
-        if (statFilter.branch) {
-          const b = cols.branchIdx >= 0 ? (branchOf(row[cols.branchIdx]) || 'Other') : 'Other';
-          if (b !== statFilter.branch) return false;
-        }
-        return true;
-      });
-    }
-    return rows;
-  }, [data, q, statFilter, cols]);
+    const order = cols.dateOrderByIdx?.[filters.dateIdx] || 'dmy';
+    return data.rows.filter((row) => rowMatchesFilters(row, cols, filters, order));
+  }, [data, filters, cols]);
 
-  // A stat cell toggles: clicking the one already applied clears it.
-  const toggleStatFilter = useCallback((branch, priority) => {
-    setStatFilter((cur) =>
-      cur && cur.branch === branch && cur.priority === priority ? null : { branch, priority });
+  const nActive = activeFilterCount(filters);
+
+  // A stat card toggles: clicking the one already applied clears it.
+  const toggleStatCard = useCallback((branch, priority) => {
+    setFilters((f) => (f.branch === branch && f.priority === priority
+      ? { ...f, branch: '', priority: '' }
+      : { ...f, branch, priority }));
   }, []);
 
   function openAdd() { setForm(blankForm()); setFormErr(''); setModal('add'); }
@@ -193,32 +227,54 @@ export default function LiveTrackingClient() {
   return (
     <div className="space-y-4 animate-fade-in">
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0">
-            <LiveIcon className="w-[18px] h-[18px]" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="font-display text-[15px] font-semibold tracking-tight text-slate-900">Live Tracking</h1>
-            <p className="text-[11.5px] text-slate-500">{list.length} sheet{list.length !== 1 ? 's' : ''} connected · mirrors Google Sheets live</p>
-          </div>
-        </div>
-        {isAdmin && (
-          <button className="btn-primary !text-[12px] sm:ml-auto flex items-center gap-1.5" onClick={openAdd}>
-            <PlusIcon /> Connect Sheet
+      {/* Identity on the left, everything you can *do* to this tracker on the
+          right — so the toolbar below stays purely about filtering. */}
+      <PageHeader
+        icon="live"
+        title="Live Tracking"
+        subtitle={<MetaLine items={[
+          `${list.length} sheet${list.length !== 1 ? 's' : ''} connected`,
+          <LiveDot key="live" label="live from Google Sheets" />,
+          updatedAt && `updated ${updatedAt.toLocaleTimeString()}`,
+        ]} />}
+      >
+        {activeId && sheetUrl && (
+          <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary btn-sm">
+            <Icon name="sheet" className="w-3.5 h-3.5" /> Open in Sheets
+          </a>
+        )}
+        {activeId && (
+          <button className="btn-secondary btn-sm" onClick={() => loadData(false)} disabled={loadingData}>
+            <Icon name="refresh" className={`w-3.5 h-3.5 ${loadingData ? 'animate-spin' : ''}`} /> {loadingData ? 'Refreshing' : 'Refresh'}
           </button>
         )}
-      </div>
+        {isAdmin && activeId && (
+          <>
+            <button className="btn-secondary btn-sm" onClick={openEdit}><Icon name="edit" className="w-3.5 h-3.5" /> Edit</button>
+            <button className="btn-secondary btn-sm !text-red-600 hover:!bg-red-50 hover:!border-red-200" onClick={removeActive}>
+              <Icon name="trash" className="w-3.5 h-3.5" /> Remove
+            </button>
+          </>
+        )}
+        {isAdmin && (
+          <button className="btn-primary btn-sm" onClick={openAdd}>
+            <Icon name="plus" className="w-4 h-4" /> Connect Sheet
+          </button>
+        )}
+      </PageHeader>
 
       {loadingList ? (
-        <div className="card p-10 text-center text-slate-400 text-[13px]">Loading…</div>
+        <div className="card"><LoadingState /></div>
       ) : list.length === 0 ? (
-        <div className="card p-14 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3"><LiveIcon className="text-primary-500 w-6 h-6" /></div>
-          <div className="text-[13.5px] font-semibold text-slate-700">No live sheets connected {isAdmin ? 'yet' : ''}</div>
-          <div className="text-[12px] text-slate-500 mt-0.5">
-            {isAdmin ? 'Click "Connect Sheet" — paste the Google Sheet link and its tab name, and its data shows up here live.' : 'Ask an admin to connect a Google Sheet here.'}
-          </div>
+        <div className="card">
+          <EmptyState
+            icon="live" tone="gold"
+            title={`No live sheets connected${isAdmin ? ' yet' : ''}`}
+            hint={isAdmin
+              ? 'Paste a Google Sheet link and its tab name and its data shows up here live.'
+              : 'Ask an admin to connect a Google Sheet here.'}
+            action={isAdmin ? <button className="btn-primary btn-sm" onClick={openAdd}><Icon name="plus" className="w-3.5 h-3.5" /> Connect Sheet</button> : null}
+          />
         </div>
       ) : (
         <>
@@ -237,39 +293,30 @@ export default function LiveTrackingClient() {
             })}
           </div>
 
-          {/* Toolbar */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <input className="input max-w-xs" placeholder="🔍 Search this sheet…" value={q} onChange={(e) => setQ(e.target.value)} />
-            <span className="text-[11px] text-slate-400">
-              {data ? `${filteredRows.length} of ${data.rows.length} row${data.rows.length !== 1 ? 's' : ''}` : ''}
-              {updatedAt && ` · updated ${updatedAt.toLocaleTimeString()}`}
-            </span>
-            {statFilter && (
-              <button onClick={() => setStatFilter(null)}
-                className="pill bg-primary-50 text-primary-700 border border-primary-200 hover:bg-primary-100">
-                {statFilter.branch} · {statFilter.priority} ✕
-              </button>
-            )}
-            <div className="flex items-center gap-1.5 sm:ml-auto flex-wrap">
-              {sheetUrl && (
-                <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary !text-[12px]">🔗 Open in Sheets ↗</a>
-              )}
-              <button className="btn-secondary !text-[12px]" onClick={() => loadData(false)} disabled={loadingData}>
-                {loadingData ? 'Refreshing…' : '⟳ Refresh'}
-              </button>
-              {isAdmin && (
-                <>
-                  <button className="btn-secondary !text-[12px]" onClick={openEdit}>✏️ Edit</button>
-                  <button className="btn-danger !text-[12px]" onClick={removeActive}>🗑 Remove</button>
-                </>
-              )}
-            </div>
-          </div>
-
           {/* Priority stats — branch-wise (Bangalore / Hyderabad), only shown
               when the connected sheet actually has a priority column. */}
-          {stats && (
-            <PriorityStats stats={stats} filter={statFilter} onPick={toggleStatFilter} />
+          {stats ? (
+            <PriorityStats
+              stats={stats} filters={filters} onPick={toggleStatCard}
+              narrowed={statRows.length !== (data?.rows.length ?? 0)}
+              allRows={data?.rows.length ?? 0}
+            />
+          ) : baseStats ? (
+            <div className="card p-4 text-center text-[12px] text-slate-500">
+              No rows match the current search / status / date filters, so there is nothing to break down yet.
+            </div>
+          ) : null}
+
+          {/* Filters */}
+          {data && (
+            <FilterBar
+              filters={filters} setFilter={setFilter} onClear={clearFilters}
+              nActive={nActive}
+              branchOptions={branchOptions} priorityOptions={priorityOptions}
+              dateCols={cols.dateCols || []} hasDone={cols.doneIdx >= 0}
+              doneHeader={data.headers?.[cols.doneIdx]}
+              shown={filteredRows.length} total={data.rows.length}
+            />
           )}
 
           {/* Row-colour legend, so the tints on the table below are readable
@@ -286,22 +333,34 @@ export default function LiveTrackingClient() {
             </div>
           )}
 
+          {/* AppSheet upload columns hold a filename, not a link. If the app
+              can't reach the Drive folder holding those files, say so once
+              here rather than leaving every "Click here" quietly degraded. */}
+          {data?.fileLinkError && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11.5px] px-3 py-2">
+              <b>Uploaded files aren&apos;t linked yet.</b> {data.fileLinkError} Share that Drive folder
+              (Viewer is enough) with the app&apos;s Google service account and the uploads will open
+              in one click. Until then, &quot;Click here&quot; opens a Drive search for the file name.
+            </div>
+          )}
+
           {/* Live data */}
           <div className="card overflow-hidden">
             {dataErr ? (
-              <div className="p-10 text-center">
-                <div className="text-[13.5px] font-semibold text-red-600">{dataErr}</div>
-                <div className="text-[12px] text-slate-500 mt-1">Check the sheet link, tab name, and that it's shared with the service account.</div>
-              </div>
+              <ErrorState title={dataErr}
+                hint="Check the sheet link, the tab name, and that the sheet is shared with the app's service account." />
             ) : loadingData && !data ? (
-              <div className="p-10 text-center text-slate-400 text-[13px]">Loading live data…</div>
+              <LoadingState label="Loading live data…" />
             ) : !data || data.rows.length === 0 ? (
-              <div className="p-10 text-center text-slate-400 text-[13px]">No data rows found in this tab.</div>
+              <EmptyState icon="sheet" title="No data rows in this tab"
+                hint="The tab is reachable but empty below the header row." />
             ) : filteredRows.length === 0 ? (
-              <div className="p-10 text-center text-slate-400 text-[13px]">
-                No rows match {q ? `"${q}"` : ''}{q && statFilter ? ' + ' : ''}
-                {statFilter ? `${statFilter.branch} · ${statFilter.priority}` : ''}.
-              </div>
+              <EmptyState
+                icon="filter"
+                title="No rows match these filters"
+                hint={`All ${data.rows.length.toLocaleString()} rows are still here — widen or clear the filters to see them.`}
+                action={<button className="btn-secondary btn-sm" onClick={clearFilters}>Clear all filters</button>}
+              />
             ) : (
               <div className="overflow-auto max-h-[70vh]">
                 <table className="text-[12.5px]" style={{ tableLayout: 'fixed', width: data.headers.reduce((sum, _, i) => sum + (colWidths[i] || DEFAULT_COL_WIDTH), 0) }}>
@@ -334,11 +393,15 @@ export default function LiveTrackingClient() {
                             const val = String(c ?? '').trim();
                             const isPriorityCell = ci === cols.priorityIdx;
                             const pill = isPriorityCell ? PRIORITY_PILL[priorityOf(val)] : null;
+                            const dateOrder = cols.dateOrderByIdx?.[ci];
                             return (
-                              <td key={ci} className="table-td whitespace-nowrap"
+                              <td key={ci} className="table-td align-top"
                                 style={{
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
+                                  // Cells wrap instead of being cut off with an
+                                  // ellipsis — order/client names and uploaded
+                                  // filenames are routinely wider than a column.
+                                  whiteSpace: 'normal',
+                                  overflowWrap: 'anywhere',
                                   ...(tone ? { color: tone.text } : null),
                                   // Accent stripe down the left edge of the row —
                                   // inset shadow rather than a border so the fixed
@@ -347,7 +410,9 @@ export default function LiveTrackingClient() {
                                 }}>
                                 {pill
                                   ? <span className={`pill !text-[11px] !py-0.5 ${pill}`}>{val}</span>
-                                  : <CellValue value={c} />}
+                                  : dateOrder
+                                    ? <DateCell value={c} order={dateOrder} />
+                                    : <CellValue value={c} fileLinks={data.fileLinks} />}
                               </td>
                             );
                           })}
@@ -369,7 +434,7 @@ export default function LiveTrackingClient() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3.5 border-b border-slate-100 rounded-t-2xl flex items-center gap-2.5 bg-primary-50">
               <div className="w-9 h-9 rounded-lg shrink-0 grid place-items-center text-white shadow-sm bg-gradient-to-br from-primary-400 to-primary-700">
-                <LiveIcon className="w-[17px] h-[17px]" stroke="#fff" />
+                <Icon name="live" className="w-[17px] h-[17px]" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] font-bold text-primary-800">{modal === 'edit' ? 'Edit Connection' : 'Connect a Google Sheet'}</div>
@@ -400,7 +465,7 @@ export default function LiveTrackingClient() {
                 </div>
               </div>
               <div className="text-[11px] text-slate-400">
-                Make sure the sheet is shared (Viewer is enough) with the app's Google service account.
+                Make sure the sheet is shared (Viewer is enough) with the app&apos;s Google service account.
               </div>
             </div>
             <div className="px-5 py-3.5 border-t border-slate-100 flex justify-end gap-2 rounded-b-2xl bg-slate-50/60">
@@ -414,40 +479,185 @@ export default function LiveTrackingClient() {
   );
 }
 
+/* ── filter toolbar ───────────────────────────────────────────────────
+   Everything that narrows the table, in one strip: free-text search, the
+   dimensions the sheet actually has (branch / priority / completion), and a
+   date range on any date column. Options are built from the live data, so a
+   tracker without a branch column simply doesn't show a branch picker. */
+
+// Shared control chrome. Native select/date rendering is kept on purpose —
+// a hand-rolled chevron costs an inline data-URI in a class name and breaks
+// the OS date picker, and neither buys anything over the native control.
+const CTRL_CLS = 'h-9 bg-white border border-slate-200 rounded-lg text-[12.5px] text-slate-700 ' +
+  'focus:outline-none focus:border-primary-400 hover:border-slate-300 transition';
+const SELECT_CLS = `${CTRL_CLS} pl-2.5 pr-7 cursor-pointer`;
+const DATE_CLS   = `${CTRL_CLS} px-2.5`;
+
+// Ranges people actually ask for in a review meeting. Each returns
+// [from, to] as Date objects; the bar converts them for <input type="date">.
+const DATE_PRESETS = [
+  { key: 'today', label: 'Today', range: () => { const d = new Date(); return [startOfDay(d), startOfDay(d)]; } },
+  { key: '7d',    label: 'Last 7 days',  range: () => [daysAgo(6), startOfDay(new Date())] },
+  { key: '30d',   label: 'Last 30 days', range: () => [daysAgo(29), startOfDay(new Date())] },
+  { key: 'month', label: 'This month',   range: () => { const n = new Date(); return [new Date(n.getFullYear(), n.getMonth(), 1), startOfDay(n)]; } },
+  { key: 'year',  label: 'This year',    range: () => { const n = new Date(); return [new Date(n.getFullYear(), 0, 1), startOfDay(n)]; } },
+];
+
+function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return startOfDay(d); }
+
+function FilterBar({
+  filters, setFilter, onClear, nActive,
+  branchOptions, priorityOptions, dateCols, hasDone, doneHeader, shown, total,
+}) {
+  // Picking a preset before choosing a column would silently do nothing, so
+  // the first date column is assumed until the user says otherwise.
+  const dateIdx = filters.dateIdx >= 0 ? filters.dateIdx : (dateCols[0]?.idx ?? -1);
+  const applyPreset = (preset) => {
+    if (dateIdx < 0) return;
+    const [from, to] = preset.range();
+    setFilter({ dateIdx, from: dateToInput(from), to: dateToInput(to) });
+  };
+  const activePreset = DATE_PRESETS.find((p) => {
+    if (!filters.from || !filters.to) return false;
+    const [f, t] = p.range();
+    return dateToInput(f) === filters.from && dateToInput(t) === filters.to;
+  });
+
+  const chips = [];
+  if (filters.q.trim()) chips.push({ k: 'q', label: `“${filters.q.trim()}”`, clear: { q: '' } });
+  if (filters.branch)   chips.push({ k: 'b', label: filters.branch, clear: { branch: '' } });
+  if (filters.priority) chips.push({ k: 'p', label: `${filters.priority} priority`, clear: { priority: '' } });
+  if (filters.status)   chips.push({ k: 's', label: filters.status === 'done' ? 'Completed' : 'Pending', clear: { status: '' } });
+  if (filters.dateIdx >= 0 && (filters.from || filters.to)) {
+    const col = dateCols.find((d) => d.idx === filters.dateIdx);
+    const range = activePreset ? activePreset.label
+      : [filters.from && fmtInput(filters.from), filters.to && fmtInput(filters.to)].filter(Boolean).join(' → ');
+    chips.push({ k: 'd', label: `${col?.header || 'Date'}: ${range}`, clear: { from: '', to: '' } });
+  }
+
+  return (
+    <div className="card p-3 space-y-2.5">
+      <div className="flex items-center gap-2 flex-wrap">
+        <SearchInput value={filters.q} onChange={(q) => setFilter({ q })}
+          placeholder="Search anything in this sheet…" />
+
+        {branchOptions.length > 0 && (
+          <select className={SELECT_CLS} value={filters.branch} onChange={(e) => setFilter({ branch: e.target.value })} title="Branch">
+            <option value="">All branches</option>
+            {branchOptions.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        )}
+
+        {priorityOptions.length > 0 && (
+          <select className={SELECT_CLS} value={filters.priority} onChange={(e) => setFilter({ priority: e.target.value })} title="Priority">
+            <option value="">All priorities</option>
+            {priorityOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        )}
+
+        {hasDone && (
+          <select className={SELECT_CLS} value={filters.status} onChange={(e) => setFilter({ status: e.target.value })}
+            title={doneHeader ? `Based on "${doneHeader}"` : 'Completion status'}>
+            <option value="">Any status</option>
+            <option value="pending">Pending</option>
+            <option value="done">Completed</option>
+          </select>
+        )}
+
+        {/* Count sits at the end of the controls, where the eye lands after
+            changing one — not buried under the table. */}
+        <div className="ml-auto">
+          <ResultCount shown={nActive > 0 ? shown : total} total={total} />
+        </div>
+      </div>
+
+      {/* Date range — its own line, since it is three controls plus presets */}
+      {dateCols.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap border-t border-slate-100 pt-2.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1.5">
+            <Icon name="calendar" className="w-3.5 h-3.5" /> Date
+          </span>
+
+          {dateCols.length > 1 ? (
+            <select className={SELECT_CLS} value={dateIdx}
+              onChange={(e) => setFilter({ dateIdx: Number(e.target.value) })} title="Which date column to filter on">
+              {dateCols.map((d) => <option key={d.idx} value={d.idx}>{d.header}</option>)}
+            </select>
+          ) : (
+            <span className="text-[12px] text-slate-600 font-medium">{dateCols[0].header}</span>
+          )}
+
+          <input type="date" className={DATE_CLS} value={filters.from}
+            onChange={(e) => setFilter({ dateIdx, from: e.target.value })} title="From" />
+          <span className="text-slate-400 text-[12px]">→</span>
+          <input type="date" className={DATE_CLS} value={filters.to}
+            onChange={(e) => setFilter({ dateIdx, to: e.target.value })} title="To" />
+
+          <div className="flex items-center gap-1 flex-wrap">
+            {DATE_PRESETS.map((p) => (
+              <button key={p.key} onClick={() => applyPreset(p)}
+                className={`px-2.5 h-7 rounded-md text-[11.5px] font-medium transition ${
+                  activePreset?.key === p.key
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {(filters.from || filters.to) && (
+            <button onClick={() => setFilter({ from: '', to: '' })}
+              className="text-[11.5px] text-slate-500 hover:text-slate-800 underline underline-offset-2">reset dates</button>
+          )}
+        </div>
+      )}
+
+      {/* What is currently applied, each removable on its own */}
+      <ActiveFilters onClearAll={onClear}
+        chips={chips.map((c) => ({ key: c.k, label: c.label, onRemove: () => setFilter(c.clear) }))} />
+    </div>
+  );
+}
+
+// yyyy-mm-dd → dd-mm-yyyy, for the chip label.
+function fmtInput(s) {
+  const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : s;
+}
+
 /* ── one table cell ───────────────────────────────────────────────────
    Sheet cells are plain text, so an attachment arrives as a bare URL (or,
    for a Form's multi-file upload question, several comma-separated URLs in
    one cell). Print "Click here" instead of the URL, and open the images in
    the viewer rather than dumping the user into Drive. */
-function CellValue({ value }) {
+function CellValue({ value, fileLinks }) {
   const [galleryAt, setGalleryAt] = useState(null);
   const val = String(value ?? '').trim();
-  const links = useMemo(() => extractLinks(val), [val]);
-  const images = useMemo(
-    () => links.filter((l) => linkKind(l) === 'image')
-      .map((l) => ({ href: l, candidates: imageCandidates(l) })),
-    [links],
-  );
-  const files = useMemo(() => links.filter((l) => linkKind(l) !== 'image'), [links]);
-  const rest = useMemo(() => textWithoutLinks(val), [val]);
+  const att = useMemo(() => cellAttachments(val, fileLinks), [val, fileLinks]);
+  const { text, images, files } = att;
 
   if (!val) return <>—</>;
-  if (!links.length) return <>{val}</>;
+  if (!images.length && !files.length) return <>{val}</>;
 
   return (
-    <span className="inline-flex items-center gap-2 align-middle">
-      {rest && <span>{rest}</span>}
+    <span className="inline-flex items-center gap-2 align-middle flex-wrap">
+      {text && <span>{text}</span>}
       {images.length > 0 && (
         <button type="button" onClick={() => setGalleryAt(0)}
-          title={images.length > 1 ? `${images.length} images — click to view` : 'Click to view'}
+          title={images.length > 1 ? `${images.length} files — click to view` : (images[0].name || 'Click to view')}
           className="text-primary-600 hover:text-primary-700 hover:underline font-medium">
-          📷 Click here{images.length > 1 ? ` (${images.length})` : ''}
+          <Icon name="image" className="w-3.5 h-3.5" /> Click here{images.length > 1 ? ` (${images.length})` : ''}
         </button>
       )}
       {files.map((f, i) => (
-        <a key={f} href={f} target="_blank" rel="noopener noreferrer" title={f}
-          className="text-primary-600 hover:text-primary-700 hover:underline font-medium">
-          📄 Click here{files.length > 1 ? ` ${i + 1}` : ''} ↗
+        <a key={f.href} href={f.href} target="_blank" rel="noopener noreferrer"
+          title={f.unresolved
+            ? `${f.name}\n\nThis file lives in the AppSheet upload folder, which isn't shared with the app yet — opening Drive search for it instead.`
+            : f.name}
+          className={`hover:underline font-medium ${f.unresolved ? 'text-slate-500 hover:text-slate-700' : 'text-primary-600 hover:text-primary-700'}`}>
+          <Icon name={f.unresolved ? 'search' : 'file'} className="w-3.5 h-3.5" />
+          {' '}Click here{files.length > 1 ? ` ${i + 1}` : ''}
         </a>
       ))}
       {galleryAt !== null && (
@@ -457,85 +667,123 @@ function CellValue({ value }) {
   );
 }
 
-/* ── priority × branch summary ────────────────────────────────────── */
-function PriorityStats({ stats, filter, onPick }) {
-  const { priorities, branches, at, rowTotal, colTotal, grand, hasDone, hasBranch } = stats;
+// The sheet API hands dates back as serial numbers (see parseSheetDate), so
+// without this a Date column reads "46107". Anything that doesn't parse is
+// printed as-is rather than blanked — a stray note in a date column is still
+// information.
+function DateCell({ value, order }) {
+  const d = parseSheetDate(value, order);
+  if (!d) {
+    const s = String(value ?? '').trim();
+    return <>{s || '—'}</>;
+  }
+  return <span className="tabular-nums whitespace-nowrap">{formatSheetDate(d)}</span>;
+}
 
-  const Cell = ({ branch, priority, count, clickable = true }) => {
-    const active = clickable && filter && filter.branch === branch && filter.priority === priority;
-    const tint = PRIORITY_ROW[priority];
-    return (
-      <td className="table-td text-center !py-1.5">
-        <button
-          type="button"
-          disabled={!clickable || count.total === 0}
-          onClick={() => onPick(branch, priority)}
-          className={`min-w-[54px] rounded-lg px-2 py-1 transition-colors ${
-            count.total === 0 ? 'text-slate-300 cursor-default'
-              : active ? 'ring-2 ring-primary-400' : 'hover:brightness-95 cursor-pointer'
-          }`}
-          style={count.total > 0 && tint ? { background: tint.bg, color: tint.text } : undefined}
-        >
-          <span className="block text-[15px] font-semibold leading-tight">{count.total}</span>
-          {hasDone && count.total > 0 && (
-            <span className="block text-[10px] opacity-70 leading-tight">{count.done} done</span>
-          )}
-        </button>
-      </td>
-    );
-  };
+/* ── priority × branch summary ────────────────────────────────────── */
+
+// Same gradient language as the dashboard's KPI cards (DashboardClient's
+// KPI_GRADIENTS), so the two pages read as one product.
+const STAT_GRADIENTS = {
+  High:   { grad: 'linear-gradient(135deg, #f97316 0%, #dc2626 100%)', shadow: 'rgba(249,115,22,0.35)' },
+  Medium: { grad: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', shadow: 'rgba(245,158,11,0.35)' },
+  Low:    { grad: 'linear-gradient(135deg, #38bdf8 0%, #2563eb 100%)', shadow: 'rgba(56,189,248,0.35)' },
+  Total:  { grad: 'linear-gradient(135deg, #D9A81F 0%, #8F6B10 100%)', shadow: 'rgba(238,188,46,0.38)' },
+};
+
+// Sheets invent their own priority labels ("Regular" is the common one here).
+// Colour them from a fixed list by position so a label keeps the same colour
+// across refreshes instead of shifting as counts change.
+const EXTRA_GRADIENTS = [
+  { grad: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', shadow: 'rgba(45,212,191,0.35)' },
+  { grad: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', shadow: 'rgba(167,139,250,0.35)' },
+  { grad: 'linear-gradient(135deg, #f43f5e 0%, #be123c 100%)', shadow: 'rgba(244,63,94,0.35)'  },
+  { grad: 'linear-gradient(135deg, #94a3b8 0%, #475569 100%)', shadow: 'rgba(148,163,184,0.35)' },
+];
+
+function gradientFor(priority, priorities) {
+  if (STAT_GRADIENTS[priority]) return STAT_GRADIENTS[priority];
+  const extras = priorities.filter((p) => !STAT_GRADIENTS[p]);
+  return EXTRA_GRADIENTS[Math.max(0, extras.indexOf(priority)) % EXTRA_GRADIENTS.length];
+}
+
+function StatCard({ label, count, gradient: g, hasDone, active, onClick }) {
+  const Tag = onClick ? 'button' : 'div';
+  const pending = count.total - count.done;
+  const pct = count.total ? Math.round((count.done / count.total) * 100) : 0;
+  return (
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      title={onClick ? `Show only ${label} rows` : undefined}
+      className={`rounded-xl p-4 relative overflow-hidden text-left w-full transition ${
+        onClick ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default'}`}
+      style={{
+        background: g.grad,
+        opacity: count.total === 0 ? 0.45 : 1,
+        boxShadow: active
+          ? `0 0 0 3px #fff, 0 0 0 5px ${g.shadow.replace(/[\d.]+\)$/, '0.9)')}, 0 4px 20px ${g.shadow}`
+          : `0 0 0 1px ${g.shadow}44, 0 4px 20px ${g.shadow}, 0 0 40px ${g.shadow}55`,
+      }}
+    >
+      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
+      <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <div className="relative z-10">
+        <div className="text-[9.5px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</div>
+        <div className="text-[30px] leading-none font-black mt-1.5 tabular-nums text-white">{count.total}</div>
+        {hasDone && (
+          <>
+            <div className="text-[10px] mt-1.5 font-medium" style={{ color: 'rgba(255,255,255,0.62)' }}>
+              {count.total === 0 ? 'None' : `${count.done} done · ${pending} pending`}
+            </div>
+            {/* Progress rail — the done/pending numbers alone don't show at a
+                glance which bucket is actually moving. */}
+            {count.total > 0 && (
+              <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.22)' }}>
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'rgba(255,255,255,0.85)' }} />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Tag>
+  );
+}
+
+function PriorityStats({ stats, filters, onPick, narrowed, allRows }) {
+  const { priorities, branches, at, rowTotal, grand, hasDone, hasBranch } = stats;
 
   return (
-    <div className="card overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-transparent flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <h2 className="text-[13px] font-semibold text-slate-900">Priority Breakdown</h2>
-          <p className="text-[11px] text-slate-500">
-            {hasBranch ? 'Bangalore vs Hyderabad' : 'No branch column in this sheet — showing combined'}
-            {' · click a number to filter the table'}
-          </p>
-        </div>
-        <span className="pill bg-slate-100 text-slate-600">
-          {grand.total} row{grand.total !== 1 ? 's' : ''}{hasDone ? ` · ${grand.done} completed` : ''}
-        </span>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-[12.5px]">
-          <thead>
-            <tr>
-              <th className="table-th">Branch</th>
-              {priorities.map((p) => <th key={p} className="table-th text-center">{p}</th>)}
-              <th className="table-th text-center">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {branches.map((b) => (
-              <tr key={b} className="table-row">
-                <td className="table-td font-semibold text-slate-700 whitespace-nowrap">{b}</td>
-                {priorities.map((p) => <Cell key={p} branch={b} priority={p} count={at(b, p)} />)}
-                <td className="table-td text-center font-semibold text-slate-800">
-                  {rowTotal(b).total}
-                  {hasDone && rowTotal(b).total > 0 && (
-                    <span className="block text-[10px] font-normal text-slate-400">{rowTotal(b).done} done</span>
-                  )}
-                </td>
-              </tr>
+    <div className="space-y-3">
+      <SectionTitle
+        note={hasBranch ? 'branch-wise · click a card to filter the table' : 'no branch column in this sheet'}
+        right={
+          <span className={`pill !text-[11px] ${narrowed
+            ? 'bg-primary-50 text-primary-700 border border-primary-200'
+            : 'bg-slate-100 text-slate-600'}`}>
+            {grand.total}{narrowed ? ` of ${allRows}` : ''} row{grand.total !== 1 ? 's' : ''}
+            {hasDone ? ` · ${grand.done} completed` : ''}
+          </span>
+        }
+      >Priority Breakdown</SectionTitle>
+
+      {branches.map((b) => (
+        <div key={b} className="space-y-1.5">
+          <GroupRule label={b} right={`${rowTotal(b).total} total`} />
+          {/* auto-fit, so 2 priorities or 5 both lay out without a gap */}
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))' }}>
+            {priorities.map((p) => (
+              <StatCard
+                key={p} label={p} count={at(b, p)} hasDone={hasDone}
+                gradient={gradientFor(p, priorities)}
+                active={filters.branch === b && filters.priority === p}
+                onClick={at(b, p).total > 0 ? () => onPick(b, p) : undefined}
+              />
             ))}
-            <tr className="table-row bg-slate-50/70">
-              <td className="table-td font-semibold text-slate-700">All branches</td>
-              {priorities.map((p) => (
-                <td key={p} className="table-td text-center font-semibold text-slate-800">
-                  {colTotal(p).total}
-                  {hasDone && colTotal(p).total > 0 && (
-                    <span className="block text-[10px] font-normal text-slate-400">{colTotal(p).done} done</span>
-                  )}
-                </td>
-              ))}
-              <td className="table-td text-center font-bold text-slate-900">{grand.total}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+            <StatCard label={`${b} total`} count={rowTotal(b)} gradient={STAT_GRADIENTS.Total} hasDone={hasDone} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -549,5 +797,3 @@ function LegendDot({ color, bg, label }) {
   );
 }
 
-function PlusIcon() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
-function LiveIcon(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 18a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/><path d="M8.5 14.5a5 5 0 0 1 7 0"/><path d="M5 11a9 9 0 0 1 14 0"/></svg>; }
