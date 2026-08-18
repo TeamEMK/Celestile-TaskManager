@@ -716,30 +716,29 @@ function StatCard({ label, count, gradient: g, hasDone, active, onClick }) {
       type={onClick ? 'button' : undefined}
       onClick={onClick}
       title={onClick ? `Show only ${label} rows` : undefined}
-      className={`rounded-xl p-4 relative overflow-hidden text-left w-full transition ${
+      className={`rounded-lg p-2.5 relative overflow-hidden text-left w-[150px] shrink-0 transition ${
         onClick ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default'}`}
       style={{
         background: g.grad,
         opacity: count.total === 0 ? 0.45 : 1,
         boxShadow: active
-          ? `0 0 0 3px #fff, 0 0 0 5px ${g.shadow.replace(/[\d.]+\)$/, '0.9)')}, 0 4px 20px ${g.shadow}`
-          : `0 0 0 1px ${g.shadow}44, 0 4px 20px ${g.shadow}, 0 0 40px ${g.shadow}55`,
+          ? `0 0 0 2px #fff, 0 0 0 4px ${g.shadow.replace(/[\d.]+\)$/, '0.9)')}, 0 2px 10px ${g.shadow}`
+          : `0 1px 8px ${g.shadow}`,
       }}
     >
-      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
-      <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <div className="absolute -top-3 -right-3 w-12 h-12 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
       <div className="relative z-10">
-        <div className="text-[9.5px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</div>
-        <div className="text-[30px] leading-none font-black mt-1.5 tabular-nums text-white">{count.total}</div>
+        <div className="text-[9px] font-semibold uppercase tracking-wider truncate" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</div>
+        <div className="text-[22px] leading-none font-black mt-0.5 tabular-nums text-white">{count.total}</div>
         {hasDone && (
           <>
-            <div className="text-[10px] mt-1.5 font-medium" style={{ color: 'rgba(255,255,255,0.62)' }}>
+            <div className="text-[9.5px] mt-1 font-medium truncate" style={{ color: 'rgba(255,255,255,0.65)' }}>
               {count.total === 0 ? 'None' : `${count.done} done · ${pending} pending`}
             </div>
             {/* Progress rail — the done/pending numbers alone don't show at a
                 glance which bucket is actually moving. */}
             {count.total > 0 && (
-              <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.22)' }}>
+              <div className="mt-1.5 h-[3px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.25)' }}>
                 <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'rgba(255,255,255,0.85)' }} />
               </div>
             )}
@@ -768,10 +767,12 @@ function PriorityStats({ stats, filters, onPick, narrowed, allRows }) {
       >Priority Breakdown</SectionTitle>
 
       {branches.map((b) => (
-        <div key={b} className="space-y-1.5">
+        <div key={b} className="space-y-1">
           <GroupRule label={b} right={`${rowTotal(b).total} total`} />
-          {/* auto-fit, so 2 priorities or 5 both lay out without a gap */}
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))' }}>
+          {/* Wrapping row of fixed-width cards. A grid with 1fr columns
+              stretched three cards across the full page width, which is how a
+              two-digit count ended up in a slab the size of a table. */}
+          <div className="flex flex-wrap gap-2">
             {priorities.map((p) => (
               <StatCard
                 key={p} label={p} count={at(b, p)} hasDone={hasDone}
