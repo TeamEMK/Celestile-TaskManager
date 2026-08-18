@@ -8,7 +8,9 @@ import { listSlabs, resolveRow, appendSlabs, writeRows, deleteRow, nextLotKey, p
 // own database — the older Apps Script forms still write to it too. See
 // lib/imsSheet.js for the layout and the row-identity rules.
 
-const NOTIFY = () => process.env.INVENTORY_NOTIFY || '918008002121';
+// Slab block/release alerts go to the inventory WhatsApp *group*, not a single
+// number. formatNumber() passes a …@g.us JID through untouched.
+const NOTIFY = () => process.env.INVENTORY_NOTIFY || '918050005533-1494226049@g.us';
 
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
