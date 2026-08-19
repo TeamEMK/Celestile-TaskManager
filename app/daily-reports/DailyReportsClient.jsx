@@ -199,7 +199,7 @@ export default function DailyReportsClient({ isAdmin }) {
 
       {/* per-user summary */}
       <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/60">
           <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconUsers className="w-4 h-4" /></div>
           <div>
             <h2 className="text-[13.5px] font-semibold text-slate-900">Per-User Summary</h2>
@@ -238,7 +238,7 @@ export default function DailyReportsClient({ isAdmin }) {
 
       {/* all entries */}
       <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 flex-wrap bg-gradient-to-r from-slate-50/80 to-transparent">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 flex-wrap bg-slate-50/60">
           <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconList className="w-4 h-4" /></div>
           <div className="mr-auto">
             <h2 className="text-[13.5px] font-semibold text-slate-900">All Entries</h2>

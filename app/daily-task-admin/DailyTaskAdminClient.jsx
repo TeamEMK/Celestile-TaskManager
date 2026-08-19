@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DonutChart, HorizBarChart } from '@/app/components/Charts';
 import Icon from '../components/Icon';
+import { StatCard as UiStatCard } from '../components/ui';
 
 const ymd    = (v) => (v ? String(v).split('T')[0].slice(0, 10) : '');
 const today  = () => new Date().toISOString().slice(0, 10);
@@ -344,7 +345,7 @@ export default function DailyTaskAdminClient() {
 
           {/* ── Recent entries table ─────────────────────────────────── */}
           <div className="card overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-transparent flex items-center gap-2.5">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50/60 flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 grid place-items-center text-base"><Icon name="edit" className="w-3.5 h-3.5" /></div>
               <div>
                 <div className="text-[13px] font-bold text-slate-900">Recent Entries</div>
@@ -545,7 +546,7 @@ export default function DailyTaskAdminClient() {
 
           {/* ── Designer × Software matrix ───────────────────────────── */}
           <div className="card overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-amber-50/80 to-transparent flex items-center gap-2.5">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-amber-50/50 flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 grid place-items-center text-base"><Icon name="folder" className="w-3.5 h-3.5" /></div>
               <div>
                 <div className="text-[13px] font-bold text-slate-900">Designer × Software Revision Matrix</div>
@@ -618,32 +619,32 @@ export default function DailyTaskAdminClient() {
 }
 
 /* ── Sub-components ─────────────────────────────────────────────────────── */
-function StatCard({ label, value, icon, grad, shadow }) {
-  return (
-    <div
-      className="rounded-xl p-4 relative overflow-hidden card-hover cursor-default"
-      style={{ background: grad, boxShadow: `0 0 0 1px ${shadow}44, 0 4px 20px ${shadow}, 0 0 40px ${shadow}55` }}
-    >
-      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.13)' }} />
-      <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }} />
-      <div className="relative z-10 flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-[9.5px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</div>
-          <div className="text-[28px] font-black tabular-nums text-white leading-none mt-1.5">{value}</div>
-        </div>
-        <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
-          <Icon name={icon} className="w-4 h-4 text-white" />
-        </div>
-      </div>
-    </div>
-  );
+
+// Call sites still pass the old `grad`/`shadow` pair; `grad` now only decides
+// which accent rail the shared neutral card gets, so this page's stat row
+// didn't have to be rewritten to lose its gradients.
+const TONE_BY_HUE = [
+  ['#D9A81F', 'gold'], ['#8F6B10', 'gold'],
+  ['#10b981', 'emerald'], ['#059669', 'emerald'],
+  ['#f59e0b', 'amber'], ['#f97316', 'amber'],
+  ['#ef4444', 'red'], ['#dc2626', 'red'],
+  ['#7c3aed', 'violet'], ['#a855f7', 'violet'],
+  ['#3b82f6', 'blue'], ['#4f46e5', 'blue'],
+  ['#0891b2', 'teal'], ['#06b6d4', 'teal'],
+];
+function toneFromGrad(grad = '') {
+  const hit = TONE_BY_HUE.find(([hex]) => String(grad).includes(hex));
+  return hit ? hit[1] : 'slate';
+}
+
+function StatCard({ label, value, icon, grad }) {
+  return <UiStatCard label={label} value={value} icon={icon} tone={toneFromGrad(grad)} />;
 }
 
 function MiniAvatar({ name = '' }) {
   const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '?';
-  const palette = ['from-rose-400 to-pink-600', 'from-amber-400 to-orange-600', 'from-emerald-400 to-teal-600', 'from-primary-400 to-primary-600', 'from-violet-400 to-purple-600'];
   const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   return (
-    <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${palette[hash % palette.length]} text-white grid place-items-center text-[8px] font-bold shrink-0`}>{ini}</div>
+    <div className={`w-5 h-5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[8px] font-semibold shrink-0`}>{ini}</div>
   );
 }

@@ -86,7 +86,7 @@ export default function MeetingsClient({ createdBy, holidays = [], users = [] })
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
         {/* Calendar */}
         <div className="card overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3 bg-slate-50/60">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center shrink-0"><IconCalendar /></div>
               <div>
@@ -134,7 +134,7 @@ export default function MeetingsClient({ createdBy, holidays = [], users = [] })
 
         {/* Day panel */}
         <div className="card overflow-hidden flex flex-col">
-          <div className="px-4 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="px-4 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/60">
             <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 grid place-items-center shrink-0"><IconList /></div>
             <div>
               <h3 className="text-[13.5px] font-semibold text-slate-900">Day Agenda</h3>

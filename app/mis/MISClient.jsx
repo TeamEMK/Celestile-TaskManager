@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { HorizBarChart } from '@/app/components/Charts';
 import Icon from '@/app/components/Icon';
+import { StatCard } from '@/app/components/ui';
 
 export default function MISClient({ initialRows = [], initialSummary = {}, initialStart, initialEnd, initialType }) {
   const [start,      setStart]      = useState(initialStart);
@@ -131,7 +132,7 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
 
       {/* Table */}
       <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/60">
           <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><IconTable /></div>
           <div>
             <h2 className="text-[13.5px] font-semibold text-slate-900">Employee Report</h2>
@@ -308,29 +309,12 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
 }
 
 const SUMMARY_TONES = ['blue', 'emerald', 'amber', 'violet', 'red'];
-const SUMMARY_GRADIENTS = {
-  blue:    { grad: 'linear-gradient(135deg, #D9A81F 0%, #8F6B10 100%)', shadow: 'rgba(238,188,46,0.38)' },
-  emerald: { grad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', shadow: 'rgba(16,185,129,0.35)' },
-  amber:   { grad: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', shadow: 'rgba(245,158,11,0.35)' },
-  violet:  { grad: 'linear-gradient(135deg, #f43f5e 0%, #7c3aed 100%)', shadow: 'rgba(244,63,94,0.35)'  },
-  red:     { grad: 'linear-gradient(135deg, #f97316 0%, #dc2626 100%)', shadow: 'rgba(249,115,22,0.35)'  },
-};
+// The page's own tone names, mapped onto the shared card's accent rails.
+// "blue" was never blue here — it was the gold brand tone.
+const SUMMARY_TONE_MAP = { blue: 'gold', emerald: 'emerald', amber: 'amber', violet: 'violet', red: 'red' };
 
 function SummaryKpi({ label, value, tone = 'blue' }) {
-  const g = SUMMARY_GRADIENTS[tone] || SUMMARY_GRADIENTS.blue;
-  return (
-    <div
-      className="rounded-xl p-4 relative overflow-hidden card-hover cursor-default"
-      style={{ background: g.grad, boxShadow: `0 0 0 1px ${g.shadow}44, 0 4px 20px ${g.shadow}, 0 0 40px ${g.shadow}55` }}
-    >
-      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
-      <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
-      <div className="relative z-10 min-w-0">
-        <div className="text-[9.5px] font-semibold uppercase tracking-widest truncate" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</div>
-        <div className="text-[26px] leading-none font-black mt-1.5 tabular-nums text-white">{value}</div>
-      </div>
-    </div>
-  );
+  return <StatCard label={label} value={value} tone={SUMMARY_TONE_MAP[tone] || 'slate'} />;
 }
 
 function IconTable() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>; }

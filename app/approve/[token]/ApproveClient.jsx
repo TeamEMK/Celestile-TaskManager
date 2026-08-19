@@ -37,8 +37,6 @@ export default function ApproveClient({ token, quotation: initial, initError }) 
   if (error && !quotation) return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 overflow-y-auto">
       <div className="app-bg" aria-hidden="true">
-        <div className="orb" style={{ width: 460, height: 460, top: -140, left: -100, background: 'radial-gradient(circle, rgba(232,200,154,0.55), transparent 70%)', animation: 'app-drift1 20s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 400, height: 400, bottom: -160, right: -100, background: 'radial-gradient(circle, rgba(200,138,84,0.42), transparent 70%)', animation: 'app-drift2 24s ease-in-out infinite' }} />
       </div>
       <div className="relative z-10 w-full max-w-sm card-glass shadow-glass rounded-2xl p-8 text-center animate-pop-in">
         <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4">
@@ -59,9 +57,6 @@ export default function ApproveClient({ token, quotation: initial, initError }) 
   return (
     <div className="fixed inset-0 z-[200] overflow-y-auto">
       <div className="app-bg" aria-hidden="true">
-        <div className="orb" style={{ width: 560, height: 560, top: -180, left: -140, background: 'radial-gradient(circle, rgba(232,200,154,0.55), transparent 70%)', animation: 'app-drift1 20s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 500, height: 500, bottom: -200, right: -140, background: 'radial-gradient(circle, rgba(200,138,84,0.42), transparent 70%)', animation: 'app-drift2 24s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 420, height: 420, top: '35%', left: '55%', background: 'radial-gradient(circle, rgba(248,235,205,0.55), transparent 70%)', animation: 'app-drift3 26s ease-in-out infinite' }} />
       </div>
 
       <div className="relative z-10 min-h-full flex items-center justify-center p-4 sm:p-6">

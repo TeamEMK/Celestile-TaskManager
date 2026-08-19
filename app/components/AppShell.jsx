@@ -35,12 +35,9 @@ export default function AppShell({ children }) {
 
   return (
     <div className="min-h-screen relative">
-      {/* Light aurora backdrop — logo gold only, no terracotta/tan */}
-      <div className="app-bg" aria-hidden="true">
-        <div className="orb" style={{ width: 620, height: 620, top: -180, left: -140, background: 'radial-gradient(circle, rgba(238,188,46,0.30), transparent 70%)', animation: 'app-drift1 20s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 560, height: 560, bottom: -200, right: -140, background: 'radial-gradient(circle, rgba(217,168,31,0.22), transparent 70%)', animation: 'app-drift2 24s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 460, height: 460, top: '32%', left: '52%', background: 'radial-gradient(circle, rgba(251,234,184,0.45), transparent 70%)', animation: 'app-drift3 28s ease-in-out infinite' }} />
-      </div>
+      {/* No aurora backdrop. Three drifting gold orbs behind every page tinted
+          the cards on top of them and kept the whole app looking festive; the
+          flat body colour in globals.css is the backdrop now. */}
 
       <div className="relative z-10">
         <Sidebar

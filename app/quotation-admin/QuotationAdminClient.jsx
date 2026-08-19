@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '../components/Icon';
+import { StatCard as UiStatCard } from '../components/ui';
 
 const numOf = (s) => parseFloat(String(s || '').replace(/[^\d.]/g, '')) || 0;
 const fmtINR = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
@@ -218,7 +219,7 @@ export default function QuotationAdminClient() {
       </div>
 
       <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/60">
           <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><IconList className="w-4 h-4" /></div>
           <div>
             <h2 className="text-[13.5px] font-semibold text-slate-900">Quotations</h2>
@@ -294,25 +295,27 @@ export default function QuotationAdminClient() {
   );
 }
 
-function StatCard({ label, value, icon, grad, shadow }) {
-  return (
-    <div
-      className="rounded-xl p-3.5 relative overflow-hidden card-hover cursor-default"
-      style={{ background: grad, boxShadow: `0 0 0 1px ${shadow}44, 0 4px 20px ${shadow}, 0 0 40px ${shadow}55` }}
-    >
-      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.13)' }} />
-      <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }} />
-      <div className="relative z-10 flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-[9.5px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</div>
-          <div className="text-[18px] font-black tabular-nums text-white leading-none mt-1.5 truncate">{value}</div>
-        </div>
-        <div className="w-7 h-7 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
-          <Icon name={icon} className="w-4 h-4 text-white" />
-        </div>
-      </div>
-    </div>
-  );
+/* ── Sub-components ─────────────────────────────────────────────────────── */
+
+// Call sites still pass the old `grad`/`shadow` pair; `grad` now only decides
+// which accent rail the shared neutral card gets, so this page's stat row
+// didn't have to be rewritten to lose its gradients.
+const TONE_BY_HUE = [
+  ['#D9A81F', 'gold'], ['#8F6B10', 'gold'],
+  ['#10b981', 'emerald'], ['#059669', 'emerald'],
+  ['#f59e0b', 'amber'], ['#f97316', 'amber'],
+  ['#ef4444', 'red'], ['#dc2626', 'red'],
+  ['#7c3aed', 'violet'], ['#a855f7', 'violet'],
+  ['#3b82f6', 'blue'], ['#4f46e5', 'blue'],
+  ['#0891b2', 'teal'], ['#06b6d4', 'teal'],
+];
+function toneFromGrad(grad = '') {
+  const hit = TONE_BY_HUE.find(([hex]) => String(grad).includes(hex));
+  return hit ? hit[1] : 'slate';
+}
+
+function StatCard({ label, value, icon, grad }) {
+  return <UiStatCard label={label} value={value} icon={icon} tone={toneFromGrad(grad)} />;
 }
 
 function IconDocument(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>; }

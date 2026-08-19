@@ -98,7 +98,7 @@ export default function MastersClient({ masters, users = [] }) {
       </div>
 
       <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/60">
           <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><IconChecklist /></div>
           <div>
             <h2 className="text-[13.5px] font-semibold text-slate-900">Checklist Tasks</h2>
@@ -167,7 +167,7 @@ function EmptyState({ onAdd }) {
 
 function Avatar({ name = '' }) {
   const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  return <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-600 to-primary-800 text-white grid place-items-center text-[10px] font-bold shrink-0">{ini}</div>;
+  return <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[10px] font-bold shrink-0">{ini}</div>;
 }
 
 function IconChecklist() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>; }

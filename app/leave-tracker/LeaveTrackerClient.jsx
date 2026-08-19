@@ -67,7 +67,7 @@ export default function LeaveTrackerClient({ userId, userName, canApprove }) {
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3 bg-gradient-to-r from-slate-50/80 to-transparent">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3 bg-slate-50/60">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 grid place-items-center shrink-0"><IconLeave /></div>
             <div>
@@ -198,9 +198,8 @@ export default function LeaveTrackerClient({ userId, userName, canApprove }) {
 
 function Avatar({ name = '' }) {
   const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  const palette = ['from-rose-400 to-pink-600', 'from-amber-400 to-orange-600', 'from-emerald-400 to-teal-600', 'from-primary-400 to-primary-600', 'from-violet-400 to-purple-600'];
   const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${palette[hash % palette.length]} text-white grid place-items-center text-[9px] font-bold shrink-0`}>{ini}</div>;
+  return <div className={`w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[9px] font-semibold shrink-0`}>{ini}</div>;
 }
 
 function IconPlus()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }

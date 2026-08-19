@@ -127,9 +127,6 @@ export default function DeveloperPage() {
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 sm:p-6" style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif" }}>
       <div className="app-bg" aria-hidden="true">
-        <div className="orb" style={{ width: 560, height: 560, top: -180, left: -160, background: 'radial-gradient(circle, rgba(238,188,46,0.5), transparent 70%)', animation: 'app-drift1 22s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 500, height: 500, bottom: -200, right: -160, background: 'radial-gradient(circle, rgba(183,138,22,0.38), transparent 70%)', animation: 'app-drift2 26s ease-in-out infinite' }} />
-        <div className="orb" style={{ width: 420, height: 420, top: '35%', left: '55%', background: 'radial-gradient(circle, rgba(251,234,184,0.55), transparent 70%)', animation: 'app-drift3 30s ease-in-out infinite' }} />
       </div>
 
       <div className={`relative z-10 w-full ${authed ? 'max-w-2xl' : 'max-w-md'} animate-fade-in`}>

@@ -23,9 +23,8 @@ function SentIcon(p)   { return <svg {...p} viewBox="0 0 24 24" fill="none" stro
 
 function Avatar({ name = '' }) {
   const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  const palette = ['from-rose-400 to-pink-600','from-amber-400 to-orange-600','from-emerald-400 to-teal-600','from-primary-400 to-primary-600','from-violet-400 to-purple-600'];
   const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${palette[hash % palette.length]} text-white grid place-items-center text-[9px] font-bold shrink-0`}>{ini}</div>;
+  return <div className={`w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[9px] font-semibold shrink-0`}>{ini}</div>;
 }
 
 function EmptyState({ icon: Icon, label }) {
@@ -92,7 +91,7 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
       {/* Task Approvals — tasks I'm the chosen approver for */}
       {tab === 'myApprovals' && (
         <div className="card overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/60">
             <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><TaskIcon className="w-4 h-4" /></div>
             <div>
               <h2 className="text-[13.5px] font-semibold text-slate-900">Task Approvals</h2>
@@ -164,7 +163,7 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
       {/* Revise Requests tab */}
       {tab === 'revise' && (
         <div className="card overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/60">
             <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><ReviseIcon className="w-4 h-4" /></div>
             <div>
               <h2 className="text-[13.5px] font-semibold text-slate-900">Revise Requests</h2>
@@ -210,7 +209,7 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
       {/* My Submitted — my own tasks currently waiting on someone else's approval */}
       {tab === 'submitted' && (
         <div className="card overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/60">
             <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 grid place-items-center"><SentIcon className="w-4 h-4" /></div>
             <div>
               <h2 className="text-[13.5px] font-semibold text-slate-900">My Submitted</h2>

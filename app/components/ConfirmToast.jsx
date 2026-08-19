@@ -13,7 +13,7 @@ export function useConfirmToast() {
       position: 'fixed', bottom: '28px', left: '50%',
       transform: 'translateX(-50%)',
       zIndex: 9999,
-      background: 'linear-gradient(180deg, #1F2937, #111111)',
+      background: '#18181B',
       padding: '14px 20px',
       borderRadius: '14px',
       boxShadow: '0 12px 40px rgba(20,15,8,0.45)',

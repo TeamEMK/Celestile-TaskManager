@@ -7,13 +7,14 @@ import Icon from '../components/Icon';
 import {
   PageHeader, MetaLine, LiveDot, EmptyState, ErrorState, LoadingState,
   SearchInput, ActiveFilters, ResultCount, SectionTitle, GroupRule,
+  StatCard, StatGrid,
 } from '../components/ui';
 import {
   buildPriorityStats, cellAttachments, detectColumns,
-  priorityOf, branchOf, isRowDone, rowTone,
+  priorityOf, branchOf, isRowDone,
   parseSheetDate, formatSheetDate, dateToInput,
   EMPTY_FILTERS, activeFilterCount, rowMatchesFilters,
-  BRANCHES, PRIORITIES, PRIORITY_PILL, PRIORITY_ROW, DONE_ROW,
+  BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass,
 } from '@/lib/liveTrackingView';
 
 const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1 });
@@ -153,10 +154,11 @@ export default function LiveTrackingClient() {
 
   const priorityOptions = useMemo(() => {
     if (cols.priorityIdx < 0 || !data?.rows) return [];
-    const seen = new Set(data.rows.map((r) => priorityOf(r[cols.priorityIdx])).filter(Boolean));
+    const seen = new Set(data.rows.map((r) => priorityOf(r[cols.priorityIdx]) || NO_PRIORITY));
     return [
       ...PRIORITIES.filter((p) => seen.has(p)),
-      ...[...seen].filter((p) => !PRIORITIES.includes(p)).sort(),
+      ...[...seen].filter((p) => !PRIORITIES.includes(p) && p !== NO_PRIORITY).sort(),
+      ...(seen.has(NO_PRIORITY) ? [NO_PRIORITY] : []),
     ];
   }, [data, cols]);
 
@@ -319,20 +321,6 @@ export default function LiveTrackingClient() {
             />
           )}
 
-          {/* Row-colour legend, so the tints on the table below are readable
-              without guessing what green vs amber means. */}
-          {(stats || cols.doneIdx >= 0) && (
-            <div className="flex items-center gap-3 flex-wrap text-[11px] text-slate-500">
-              {cols.doneIdx >= 0 && (
-                <LegendDot color={DONE_ROW.accent} bg={DONE_ROW.bg}
-                  label={`Completed (${data?.headers?.[cols.doneIdx] || 'actual date'} filled)`} />
-              )}
-              {stats && ['High', 'Medium', 'Low'].map((p) => (
-                <LegendDot key={p} color={PRIORITY_ROW[p].accent} bg={PRIORITY_ROW[p].bg} label={`${p} priority`} />
-              ))}
-            </div>
-          )}
-
           {/* AppSheet upload columns hold a filename, not a link. If the app
               can't reach the Drive folder holding those files, say so once
               here rather than leaving every "Click here" quietly degraded. */}
@@ -391,17 +379,18 @@ export default function LiveTrackingClient() {
                   </thead>
                   <tbody>
                     {filteredRows.map((row, ri) => {
-                      const tone = rowTone(row, cols);
+                      // Rows stay white. Priority and completion are said with a
+                      // badge in their own column instead of by washing the whole
+                      // line in colour — 446 tinted rows read as a heat map, not
+                      // as a table you can work down.
                       const done = isRowDone(row, cols.doneIdx);
                       return (
-                        <tr key={ri} className="table-row"
-                          style={tone ? { background: tone.bg, color: tone.text } : undefined}
-                          title={done ? 'Completed — actual date is filled' : undefined}>
+                        <tr key={ri} className="table-row">
                           {row.map((c, ci) => {
                             const val = String(c ?? '').trim();
-                            const isPriorityCell = ci === cols.priorityIdx;
-                            const pill = isPriorityCell ? PRIORITY_PILL[priorityOf(val)] : null;
+                            const badge = ci === cols.priorityIdx ? priorityBadgeClass(val) : '';
                             const dateOrder = cols.dateOrderByIdx?.[ci];
+                            const isDoneCol = ci === cols.doneIdx;
                             return (
                               <td key={ci} className="table-td align-top"
                                 style={{
@@ -410,17 +399,17 @@ export default function LiveTrackingClient() {
                                   // filenames are routinely wider than a column.
                                   whiteSpace: 'normal',
                                   overflowWrap: 'anywhere',
-                                  ...(tone ? { color: tone.text } : null),
-                                  // Accent stripe down the left edge of the row —
-                                  // inset shadow rather than a border so the fixed
-                                  // column widths don't shift.
-                                  ...(ci === 0 && tone ? { boxShadow: `inset 4px 0 0 ${tone.accent}` } : null),
                                 }}>
-                                {pill
-                                  ? <span className={`pill !text-[11px] !py-0.5 ${pill}`}>{val}</span>
-                                  : dateOrder
-                                    ? <DateCell value={c} order={dateOrder} />
-                                    : <CellValue value={c} fileLinks={data.fileLinks} indexed={data.fileStats?.indexed} />}
+                                {badge
+                                  ? <span className={badge}>{val}</span>
+                                  : isDoneCol
+                                    ? (done
+                                        ? <span className="badge-success"><Icon name="check" className="w-3 h-3" />
+                                            <DateCell value={c} order={dateOrder} /></span>
+                                        : <span className="text-slate-300">—</span>)
+                                    : dateOrder
+                                      ? <DateCell value={c} order={dateOrder} />
+                                      : <CellValue value={c} fileLinks={data.fileLinks} indexed={data.fileStats?.indexed} />}
                               </td>
                             );
                           })}
@@ -441,7 +430,7 @@ export default function LiveTrackingClient() {
         <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={closeModal}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3.5 border-b border-slate-100 rounded-t-2xl flex items-center gap-2.5 bg-primary-50">
-              <div className="w-9 h-9 rounded-lg shrink-0 grid place-items-center text-white shadow-sm bg-gradient-to-br from-primary-400 to-primary-700">
+              <div className="w-9 h-9 rounded-lg shrink-0 grid place-items-center text-slate-700 bg-slate-100 border border-slate-200">
                 <Icon name="live" className="w-[17px] h-[17px]" />
               </div>
               <div className="flex-1 min-w-0">
@@ -691,71 +680,28 @@ function DateCell({ value, order }) {
 
 /* ── priority × branch summary ────────────────────────────────────── */
 
-// Same gradient language as the dashboard's KPI cards (DashboardClient's
-// KPI_GRADIENTS), so the two pages read as one product.
-const STAT_GRADIENTS = {
-  High:   { grad: 'linear-gradient(135deg, #f97316 0%, #dc2626 100%)', shadow: 'rgba(249,115,22,0.35)' },
-  Medium: { grad: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', shadow: 'rgba(245,158,11,0.35)' },
-  Low:    { grad: 'linear-gradient(135deg, #38bdf8 0%, #2563eb 100%)', shadow: 'rgba(56,189,248,0.35)' },
-  Total:  { grad: 'linear-gradient(135deg, #D9A81F 0%, #8F6B10 100%)', shadow: 'rgba(238,188,46,0.38)' },
+// Which accent rail a priority gets. Only the rail is coloured (see StatCard
+// in components/ui) — High needs to stand out from Regular at a glance, and
+// that is all the colour a stat needs to do.
+const PRIORITY_TONE = {
+  High: 'red', Medium: 'amber', Low: 'blue', [NO_PRIORITY]: 'neutral',
 };
 
 // Sheets invent their own priority labels ("Regular" is the common one here).
-// Colour them from a fixed list by position so a label keeps the same colour
-// across refreshes instead of shifting as counts change.
-const EXTRA_GRADIENTS = [
-  { grad: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', shadow: 'rgba(45,212,191,0.35)' },
-  { grad: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', shadow: 'rgba(167,139,250,0.35)' },
-  { grad: 'linear-gradient(135deg, #f43f5e 0%, #be123c 100%)', shadow: 'rgba(244,63,94,0.35)'  },
-  { grad: 'linear-gradient(135deg, #94a3b8 0%, #475569 100%)', shadow: 'rgba(148,163,184,0.35)' },
-];
+// Assign from a fixed list by position so a label keeps the same rail across
+// refreshes instead of shifting as counts change.
+const EXTRA_TONES = ['teal', 'violet', 'slate', 'emerald'];
 
-function gradientFor(priority, priorities) {
-  if (STAT_GRADIENTS[priority]) return STAT_GRADIENTS[priority];
-  const extras = priorities.filter((p) => !STAT_GRADIENTS[p]);
-  return EXTRA_GRADIENTS[Math.max(0, extras.indexOf(priority)) % EXTRA_GRADIENTS.length];
+function toneFor(priority, priorities) {
+  if (PRIORITY_TONE[priority]) return PRIORITY_TONE[priority];
+  const extras = priorities.filter((p) => !PRIORITY_TONE[p]);
+  return EXTRA_TONES[Math.max(0, extras.indexOf(priority)) % EXTRA_TONES.length];
 }
 
-function StatCard({ label, count, gradient: g, hasDone, active, onClick }) {
-  const Tag = onClick ? 'button' : 'div';
-  const pending = count.total - count.done;
-  const pct = count.total ? Math.round((count.done / count.total) * 100) : 0;
-  return (
-    <Tag
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-      title={onClick ? `Show only ${label} rows` : undefined}
-      className={`rounded-lg p-2.5 relative overflow-hidden text-left w-[150px] shrink-0 transition ${
-        onClick ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default'}`}
-      style={{
-        background: g.grad,
-        opacity: count.total === 0 ? 0.45 : 1,
-        boxShadow: active
-          ? `0 0 0 2px #fff, 0 0 0 4px ${g.shadow.replace(/[\d.]+\)$/, '0.9)')}, 0 2px 10px ${g.shadow}`
-          : `0 1px 8px ${g.shadow}`,
-      }}
-    >
-      <div className="absolute -top-3 -right-3 w-12 h-12 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
-      <div className="relative z-10">
-        <div className="text-[9px] font-semibold uppercase tracking-wider truncate" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</div>
-        <div className="text-[22px] leading-none font-black mt-0.5 tabular-nums text-white">{count.total}</div>
-        {hasDone && (
-          <>
-            <div className="text-[9.5px] mt-1 font-medium truncate" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              {count.total === 0 ? 'None' : `${count.done} done · ${pending} pending`}
-            </div>
-            {/* Progress rail — the done/pending numbers alone don't show at a
-                glance which bucket is actually moving. */}
-            {count.total > 0 && (
-              <div className="mt-1.5 h-[3px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.25)' }}>
-                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'rgba(255,255,255,0.85)' }} />
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </Tag>
-  );
+function countSub(count, hasDone) {
+  if (!hasDone) return '';
+  if (count.total === 0) return 'None';
+  return `${count.done} done · ${count.total - count.done} pending`;
 }
 
 function PriorityStats({ stats, filters, onPick, narrowed, allRows }) {
@@ -776,34 +722,28 @@ function PriorityStats({ stats, filters, onPick, narrowed, allRows }) {
       >Priority Breakdown</SectionTitle>
 
       {branches.map((b) => (
-        <div key={b} className="space-y-1">
+        <div key={b} className="space-y-1.5">
           <GroupRule label={b} right={`${rowTotal(b).total} total`} />
-          {/* Wrapping row of fixed-width cards. A grid with 1fr columns
-              stretched three cards across the full page width, which is how a
-              two-digit count ended up in a slab the size of a table. */}
-          <div className="flex flex-wrap gap-2">
+          <StatGrid cols={priorities.length + 1 > 4 ? 5 : 4}>
             {priorities.map((p) => (
               <StatCard
-                key={p} label={p} count={at(b, p)} hasDone={hasDone}
-                gradient={gradientFor(p, priorities)}
+                key={p} label={p} value={at(b, p).total}
+                sub={countSub(at(b, p), hasDone)}
+                tone={toneFor(p, priorities)}
+                progress={hasDone && at(b, p).total ? (at(b, p).done / at(b, p).total) * 100 : null}
                 active={filters.branch === b && filters.priority === p}
                 onClick={at(b, p).total > 0 ? () => onPick(b, p) : undefined}
               />
             ))}
-            <StatCard label={`${b} total`} count={rowTotal(b)} gradient={STAT_GRADIENTS.Total} hasDone={hasDone} />
-          </div>
+            <StatCard
+              label={`${b} total`} value={rowTotal(b).total}
+              sub={countSub(rowTotal(b), hasDone)} tone="gold"
+              progress={hasDone && rowTotal(b).total ? (rowTotal(b).done / rowTotal(b).total) * 100 : null}
+            />
+          </StatGrid>
         </div>
       ))}
     </div>
-  );
-}
-
-function LegendDot({ color, bg, label }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="w-3.5 h-3.5 rounded" style={{ background: bg, boxShadow: `inset 3px 0 0 ${color}` }} />
-      {label}
-    </span>
   );
 }
 

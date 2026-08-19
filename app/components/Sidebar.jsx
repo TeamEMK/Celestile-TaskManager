@@ -112,9 +112,9 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
         md:translate-x-0 md:w-[230px]
         ${expanded ? 'lg:w-[230px]' : 'lg:w-16'}`}
         style={{
-          background: 'linear-gradient(180deg, #000000 0%, #111111 100%)',
-          borderRight: '1px solid rgba(238,188,46,0.14)',
-          boxShadow: '4px 0 32px rgba(0,0,0,0.45)',
+          background: '#0B0B0C',
+          borderRight: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: 'none',
         }}>
 
       {/* Brand */}
@@ -163,7 +163,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
                     >
                       {active && (
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
-                          style={{ background: 'linear-gradient(180deg, #F7DA85, #EEBC2E)' }} />
+                          style={{ background: '#EEBC2E' }} />
                       )}
                       <span className="relative shrink-0">
                         <IconComp className="w-[17px] h-[17px]"
@@ -190,11 +190,11 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
       </nav>
 
       {/* User card */}
-      <div className="px-2 pb-3 pt-2 shrink-0" style={{ borderTop: '1px solid rgba(238,188,46,0.14)' }}>
+      <div className="px-2 pb-3 pt-2 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <div className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-lg transition-colors duration-150"
           style={{ cursor: 'default' }}>
-          <div className="w-8 h-8 rounded-full grid place-items-center text-black font-bold text-[11px] shrink-0"
-            style={{ background: 'linear-gradient(135deg, #F7DA85, #EEBC2E 60%, #B78A16)' }}>
+          <div className="w-8 h-8 rounded-full grid place-items-center text-white/80 font-semibold text-[11px] shrink-0"
+            style={{ background: 'rgba(255,255,255,0.10)' }}>
             {session?.user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
           </div>
           <div className={`min-w-0 flex-1 opacity-100 md:opacity-100 ${lgLabel} transition-opacity duration-200`}>

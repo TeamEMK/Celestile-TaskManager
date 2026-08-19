@@ -460,7 +460,7 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
 
         {/* Header */}
         <div className={`px-5 py-3.5 border-b border-slate-100 rounded-t-2xl flex items-center gap-2.5 shrink-0 ${user ? 'bg-emerald-50' : 'bg-primary-50'}`}>
-          <div className={`w-9 h-9 rounded-lg shrink-0 grid place-items-center text-white shadow-sm bg-gradient-to-br ${user ? 'from-emerald-500 to-emerald-700' : 'from-primary-400 to-primary-700'}`}>
+          <div className={`w-9 h-9 rounded-lg shrink-0 grid place-items-center text-slate-700 bg-slate-100 border border-slate-200`}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
@@ -483,7 +483,7 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
               {picture ? (
                 <img src={picture} alt="" className="w-12 h-12 rounded-lg object-cover shadow-sm" />
               ) : (
-                <div className={`w-12 h-12 rounded-lg grid place-items-center text-white text-base font-bold shadow-sm bg-gradient-to-br ${user ? 'from-emerald-500 to-emerald-700' : 'from-primary-400 to-primary-700'}`}>
+                <div className={`w-12 h-12 rounded-lg grid place-items-center text-slate-700 text-base font-semibold bg-slate-100 border border-slate-200`}>
                   {initials}
                 </div>
               )}
@@ -563,9 +563,9 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
               {ROLES.map(r => {
                 const active = normalizeRoles(form.roles).includes(r);
                 const activeCls = {
-                  Admin: 'bg-amber-100 text-amber-700 border-amber-300 shadow-[0_0_0_3px_rgba(245,158,11,0.15)]',
-                  User:  'bg-primary-100 text-primary-700 border-primary-300 shadow-[0_0_0_3px_rgba(185,111,61,0.15)]',
-                  HOD:   'bg-violet-100 text-violet-700 border-violet-300 shadow-[0_0_0_3px_rgba(124,58,237,0.15)]',
+                  Admin: 'bg-amber-50 text-amber-700 border-amber-300',
+                  User:  'bg-primary-50 text-primary-700 border-primary-300',
+                  HOD:   'bg-slate-100 text-slate-700 border-slate-300',
                 }[r] || 'bg-slate-100 text-slate-700 border-slate-300';
                 return (
                   <button key={r} type="button" onClick={()=>toggleRole(r)}
@@ -748,8 +748,6 @@ function UFieldC({ label, sublabel, placeholder, value, onChange, type = 'text',
   );
 }
 
-const AVATAR_PALETTE = ['from-rose-400 to-pink-600','from-amber-400 to-orange-600','from-emerald-400 to-teal-600','from-primary-400 to-primary-600','from-violet-400 to-purple-600'];
-
 function Avatar({ name = '', picture }) {
   const ini = name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase();
   if (picture) {
@@ -757,10 +755,8 @@ function Avatar({ name = '', picture }) {
       <img src={picture} alt={name} className="w-9 h-9 rounded-full object-cover shadow-sm shrink-0" />
     );
   }
-  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  const grad = AVATAR_PALETTE[hash % AVATAR_PALETTE.length] || AVATAR_PALETTE[0];
   return (
-    <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${grad} text-white grid place-items-center text-[11px] font-bold shadow-sm shrink-0`}>
+    <div className={`w-9 h-9 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[11px] font-semibold shrink-0`}>
       {ini || 'U'}
     </div>
   );

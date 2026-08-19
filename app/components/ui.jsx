@@ -193,4 +193,70 @@ export function GroupRule({ label, right }) {
   );
 }
 
+/* ── stat cards ───────────────────────────────────────────────────────
+   The one way this app states a number.
+
+   These used to be saturated gradient slabs with a coloured glow — five of
+   them across the top of a page turned the page into the number rather than
+   the number into information. A stat is now a white card whose only colour
+   is a 3px accent rail: enough to tell High from Regular at a glance, quiet
+   enough that a screenful of them still reads as a report. */
+
+export const STAT_TONES = {
+  neutral: '#94a3b8',
+  gold:    '#D9A81F',
+  red:     '#dc2626',
+  amber:   '#d97706',
+  emerald: '#059669',
+  blue:    '#2563eb',
+  violet:  '#7c3aed',
+  teal:    '#0d9488',
+  slate:   '#64748b',
+};
+
+export function StatCard({
+  label, value, sub, subTone = '', tone = 'neutral', icon,
+  active = false, onClick, progress = null,
+}) {
+  const rail = STAT_TONES[tone] || STAT_TONES.neutral;
+  const Tag = onClick ? 'button' : 'div';
+  const subColor = { red: 'text-red-600', amber: 'text-amber-600', emerald: 'text-emerald-600' }[subTone]
+    || 'text-slate-400';
+  return (
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-xl bg-white border text-left w-full px-4 py-3 transition
+        ${active ? 'border-slate-400 ring-1 ring-slate-300' : 'border-slate-200'}
+        ${onClick ? 'cursor-pointer hover:border-slate-300 hover:bg-slate-50/60' : 'cursor-default'}`}
+      style={{ boxShadow: '0 1px 2px rgba(9,9,11,0.04)' }}
+    >
+      <span aria-hidden="true" className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: rail }} />
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 truncate">{label}</div>
+          <div className="text-[26px] leading-none font-semibold tabular-nums text-slate-900 mt-1.5">{value}</div>
+          {sub && <div className={`text-[11px] mt-1.5 ${subColor}`}>{sub}</div>}
+        </div>
+        {icon && (
+          <span className="shrink-0 text-slate-300">
+            <Icon name={icon} className="w-4 h-4" />
+          </span>
+        )}
+      </div>
+      {progress != null && (
+        <div className="mt-2.5 h-1 rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, progress))}%`, background: rail }} />
+        </div>
+      )}
+    </Tag>
+  );
+}
+
+// The row a set of StatCards sits in.
+export function StatGrid({ children, cols = 5 }) {
+  const at = { 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5', 6: 'lg:grid-cols-6' }[cols] || 'lg:grid-cols-5';
+  return <div className={`grid grid-cols-2 sm:grid-cols-3 ${at} gap-3`}>{children}</div>;
+}
+
 export { Icon };

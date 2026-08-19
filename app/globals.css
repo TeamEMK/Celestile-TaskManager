@@ -6,14 +6,10 @@
 
 @layer base {
   html, body {
-    /* Neutral field + soft gold veining */
-    background:
-      radial-gradient(circle at 14% 18%, rgba(238,188,46,0.16), transparent 45%),
-      radial-gradient(circle at 88% 10%, rgba(238,188,46,0.10), transparent 48%),
-      radial-gradient(circle at 80% 90%, rgba(229,231,235,0.55), transparent 50%),
-      radial-gradient(circle at 22% 94%, rgba(238,188,46,0.08), transparent 48%),
-      linear-gradient(160deg, #FFFFFF 0%, #FAFAFA 100%);
-    background-attachment: fixed;
+    /* A flat, quiet field. The gold wash that used to sit here tinted every
+       white card on top of it, which is what made the whole app read as
+       "colourful" no matter how restrained an individual page was. */
+    background: #F7F7F8;
     color: #09090B;
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     font-size: 16px;
@@ -35,10 +31,10 @@
 .stone-grain::after {
   content: '';
   position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-  opacity: 0.05; mix-blend-mode: multiply;
+  opacity: 0.03; mix-blend-mode: multiply;
   background-image:
-    linear-gradient(115deg, transparent 40%, rgba(238,188,46,0.9) 41%, transparent 43%),
-    linear-gradient(65deg, transparent 60%, rgba(238,188,46,0.6) 61%, transparent 63%);
+    linear-gradient(115deg, transparent 40%, rgba(100,116,139,0.5) 41%, transparent 43%),
+    linear-gradient(65deg, transparent 60%, rgba(100,116,139,0.35) 61%, transparent 63%);
 }
 
 /* ── Skeleton loading pulse ─────────────────────────────────────── */
@@ -60,8 +56,10 @@
 @layer components {
 
   /* Cards */
-  .card        { @apply bg-white rounded-xl border border-slate-200; box-shadow: 0 1px 3px rgba(9,9,11,0.06), 0 4px 18px rgba(9,9,11,0.05); transition: box-shadow .25s, transform .25s, border-color .25s; }
-  .card:hover  { box-shadow: 0 0 0 1px rgba(238,188,46,0.18), 0 8px 28px rgba(238,188,46,0.12), 0 1px 4px rgba(9,9,11,0.05); }
+  /* One flat surface. Depth comes from the border, not from a coloured glow —
+     a card should not light up gold just because the pointer passed over it. */
+  .card        { @apply bg-white rounded-xl border border-slate-200; box-shadow: 0 1px 2px rgba(9,9,11,0.04); transition: box-shadow .18s, border-color .18s; }
+  .card:hover  { box-shadow: 0 1px 3px rgba(9,9,11,0.07); border-color: #cbd5e1; }
   .card-hover  { @apply transition-all duration-200 hover:-translate-y-[2px]; }
   .card-accent {
     @apply bg-white rounded-xl border border-slate-200;
@@ -79,16 +77,15 @@
 
   /* Buttons */
   .btn { @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-[13.5px] font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none; }
-  .btn-primary   { @apply btn relative overflow-hidden text-black hover:-translate-y-px;
-    background: linear-gradient(135deg, #F3C955 0%, #EEBC2E 55%, #D9A81F 100%);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.35) inset, 0 4px 14px rgba(238,188,46,0.35);
-  }
-  .btn-primary:hover { box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 8px 22px rgba(238,188,46,0.45); }
-  .btn-secondary { @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm; }
+  /* Gold stays, but flat and only on the primary action — one accent on a
+     page, not a gradient with a halo under it. */
+  .btn-primary   { @apply btn text-black; background: #EEBC2E; box-shadow: 0 1px 2px rgba(9,9,11,0.08); }
+  .btn-primary:hover { background: #E0AF1E; }
+  .btn-secondary { @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300; box-shadow: 0 1px 2px rgba(9,9,11,0.04); }
   .btn-ghost     { @apply btn text-slate-500 hover:bg-slate-100 hover:text-slate-700; }
-  .btn-danger    { @apply btn bg-red-600 text-white hover:bg-red-500; box-shadow: 0 4px 14px rgba(220,38,38,0.32); }
-  .btn-success   { @apply btn bg-emerald-600 text-white hover:bg-emerald-500; box-shadow: 0 4px 14px rgba(16,185,129,0.32); }
-  .btn-warn      { @apply btn bg-amber-500 text-white hover:bg-amber-400; box-shadow: 0 4px 14px rgba(245,158,11,0.32); }
+  .btn-danger    { @apply btn bg-red-600 text-white hover:bg-red-700; box-shadow: 0 1px 2px rgba(9,9,11,0.08); }
+  .btn-success   { @apply btn bg-emerald-600 text-white hover:bg-emerald-700; box-shadow: 0 1px 2px rgba(9,9,11,0.08); }
+  .btn-warn      { @apply btn bg-amber-500 text-white hover:bg-amber-600; box-shadow: 0 1px 2px rgba(9,9,11,0.08); }
   /* The one small button. Sits after the .btn-* rules so it wins on
      source order; before this, toolbars picked their own size by hand. */
   .btn-sm        { @apply text-[12px] px-2.5 py-1.5 gap-1; }
@@ -96,7 +93,7 @@
   /* Form */
   .pill  { @apply inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-medium rounded-full; }
   .input { @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-400 transition; }
-  .input:focus { box-shadow: 0 0 0 3px rgba(238,188,46,0.18), 0 0 14px rgba(238,188,46,0.10); }
+  .input:focus { box-shadow: 0 0 0 3px rgba(238,188,46,0.16); }
   .label { @apply block text-[12px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5; }
 
   /* Typography helpers — Fraunces serif for an editorial, atelier-grade voice */
@@ -113,7 +110,7 @@
   .table-th  { @apply text-left px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-400 bg-slate-50/80; }
   .table-td  { @apply px-3 py-2.5 text-[13px] text-slate-600; }
   .table-row { @apply border-t border-slate-100 transition-colors duration-100; }
-  .table-row:hover { background: rgba(253,246,227,0.6); }
+  .table-row:hover { background: #F8FAFC; }
 
   /* ── Controls ──────────────────────────────────────────────────────
      One height (36px) and one type size for every control in a toolbar, so
@@ -165,20 +162,9 @@
   /* Sticky header for a scrolling table body */
   .table-th-sticky { @apply table-th sticky top-0 z-10; }
 
-  /* Gradient text utilities */
-  .text-gradient-blue {
-    background: linear-gradient(135deg, #B78A16, #664D0B);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  .text-gradient-gold {
-    background: linear-gradient(135deg, #F7DA85, #EEBC2E, #8F6B10);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
+  /* Accent text — solid, not a gradient fill */
+  .text-gradient-blue { color: #8F6B10; }
+  .text-gradient-gold { color: #B78A16; }
 }
 
 /* ── Scrollbar ──────────────────────────────────────────────────── */

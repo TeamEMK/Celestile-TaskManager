@@ -1,10 +1,10 @@
 'use client';
 
 const TONES = {
-  emerald: { bar: 'from-emerald-400 to-emerald-600', dot: 'bg-emerald-500', text: 'text-emerald-700' },
-  red:     { bar: 'from-red-400 to-red-600',         dot: 'bg-red-500',     text: 'text-red-700' },
-  blue:    { bar: 'from-primary-400 to-primary-600', dot: 'bg-primary-500', text: 'text-primary-700' },
-  amber:   { bar: 'from-amber-400 to-amber-600',     dot: 'bg-amber-500',   text: 'text-amber-700' },
+  emerald: { bar: 'bg-emerald-500', dot: 'bg-emerald-500', text: 'text-emerald-700' },
+  red:     { bar: 'bg-red-500',     dot: 'bg-red-500',     text: 'text-red-700' },
+  blue:    { bar: 'bg-primary-500', dot: 'bg-primary-500', text: 'text-primary-700' },
+  amber:   { bar: 'bg-amber-500',   dot: 'bg-amber-500',   text: 'text-amber-700' },
 };
 
 function initialsOf(name = '') {
@@ -20,7 +20,7 @@ export default function BarList({ title, items, valueKey = 'completed', color = 
   return (
     <div className="card p-4">
       <div className="flex items-center gap-2 mb-3.5">
-        <div className={`w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold bg-gradient-to-br ${t.bar}`}>
+        <div className="w-7 h-7 rounded-lg grid place-items-center bg-slate-100 text-slate-500 text-xs font-semibold">
           {icon}
         </div>
         <h3 className="text-[13px] font-semibold text-slate-800">{title}</h3>
@@ -37,7 +37,7 @@ export default function BarList({ title, items, valueKey = 'completed', color = 
               <div className="w-20 truncate font-medium text-slate-700" title={i.name}>{i.name}</div>
               <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
                 <div
-                  className={`h-full rounded-full bg-gradient-to-r ${t.bar} transition-all duration-500`}
+                  className={`h-full rounded-full ${t.bar} transition-all duration-500`}
                   style={{ width: `${(i[valueKey] / max) * 100}%` }}
                 ></div>
               </div>

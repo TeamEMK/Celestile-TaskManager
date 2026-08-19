@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
 import { Lightbox, ZoomImg } from '@/app/components/ImageLightbox';
 import Icon from '../components/Icon';
+import { StatCard as UiStatCard } from '../components/ui';
 
 const num = (v) => parseFloat(v) || 0;
 // The register is hand-fed by the old forms, so the same material/thickness
@@ -175,8 +176,7 @@ function Inward({ masters, reloadMasters, onSaved }) {
         {rows.map((r, i) => (
           <div key={i} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 items-end border border-slate-200 rounded-xl p-3 relative bg-white/60 transition-colors hover:border-primary-200">
             <span
-              className="absolute -top-2 left-2 text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #F3C955 0%, #B78A16 100%)' }}
+              className="absolute -top-2 left-2 text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 px-1.5 py-0.5 rounded-full"
             >
               Row {i + 1}
             </span>
@@ -1053,32 +1053,11 @@ function F({ label, children, wide }) {
   return <div className={wide ? 'sm:col-span-2 lg:col-span-2' : ''}><label className="label">{label}</label>{children}</div>;
 }
 
-const KPI_TONES = {
-  emerald: { grad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', shadow: 'rgba(16,185,129,0.35)' },
-  red:     { grad: 'linear-gradient(135deg, #f87171 0%, #dc2626 100%)', shadow: 'rgba(220,38,38,0.32)' },
-  stone:   { grad: 'linear-gradient(135deg, #9CA3AF 0%, #52525B 100%)', shadow: 'rgba(82,82,91,0.30)' },
-  gold:    { grad: 'linear-gradient(135deg, #F3C955 0%, #B78A16 100%)', shadow: 'rgba(183,138,22,0.38)' },
-};
+// Tone names this page already used, mapped onto the shared card's rails.
+const KPI_TONE_MAP = { emerald: 'emerald', red: 'red', stone: 'slate', gold: 'gold' };
 
 function Kpi({ label, value, tone = 'gold', icon }) {
-  const g = KPI_TONES[tone] || KPI_TONES.gold;
-  return (
-    <div
-      className="rounded-xl p-3.5 relative overflow-hidden card-hover cursor-default"
-      style={{ background: g.grad, boxShadow: `0 0 0 1px ${g.shadow}44, 0 4px 18px ${g.shadow}` }}
-    >
-      <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
-      <div className="relative z-10 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-[9.5px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</div>
-          <div className="text-[22px] leading-none font-black mt-1.5 tabular-nums text-white">{value}</div>
-        </div>
-        <div className="w-7 h-7 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
-          <span className="text-white">{icon}</span>
-        </div>
-      </div>
-    </div>
-  );
+  return <UiStatCard label={label} value={value} icon={icon} tone={KPI_TONE_MAP[tone] || 'slate'} />;
 }
 
 function Stepper({ current }) {

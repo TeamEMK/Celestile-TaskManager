@@ -5,16 +5,17 @@ import Icon from '../components/Icon';
 const todayISO = () => new Date().toISOString().split('T')[0];
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; };
 
-// medal colors for top 3 — gold / silver / bronze
+// Rank 1/2/3 on a leaderboard genuinely means something, so the three keep a
+// colour — but flat and borderless-glow, like every other badge in the app.
 const MEDAL = [
-  'bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-[0_0_0_1px_rgba(217,158,26,0.3),0_4px_12px_rgba(217,158,26,0.35)]',
-  'bg-gradient-to-br from-slate-200 to-slate-400 text-slate-800 shadow-[0_0_0_1px_rgba(148,163,184,0.3),0_4px_12px_rgba(148,163,184,0.3)]',
-  'bg-gradient-to-br from-orange-300 to-orange-500 text-white shadow-[0_0_0_1px_rgba(234,124,38,0.3),0_4px_12px_rgba(234,124,38,0.3)]',
+  'bg-amber-100 text-amber-800 border border-amber-300',
+  'bg-slate-100 text-slate-700 border border-slate-300',
+  'bg-orange-100 text-orange-800 border border-orange-300',
 ];
 const CAR_TAG = [
-  'bg-gradient-to-br from-amber-300 to-amber-500 text-white',
-  'bg-gradient-to-br from-slate-300 to-slate-500 text-white',
-  'bg-gradient-to-br from-orange-300 to-orange-500 text-white',
+  'bg-amber-100 text-amber-800',
+  'bg-slate-100 text-slate-700',
+  'bg-orange-100 text-orange-800',
 ];
 
 export default function RaceTrackerClient({ delegations = [], users = [] }) {
@@ -99,7 +100,7 @@ export default function RaceTrackerClient({ delegations = [], users = [] }) {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/60">
             <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><IconTrophy /></div>
             <div>
               <h2 className="text-[13.5px] font-semibold text-slate-900">Leaderboard</h2>
@@ -138,7 +139,7 @@ export default function RaceTrackerClient({ delegations = [], users = [] }) {
                   {/* lane */}
                   <div className="relative h-10 bg-emerald-100/40 rounded-lg border-2 border-emerald-200 overflow-hidden">
                     <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent_0_22px,rgba(255,255,255,0.6)_22px_28px)]" />
-                    <div className="absolute right-0 top-0 bottom-0 w-2 bg-gradient-to-r from-transparent to-emerald-500" />
+                    <div className="absolute right-0 top-0 bottom-0 w-1 bg-emerald-500" />
                     {/* car */}
                     <div className="absolute top-1/2 -translate-y-1/2 transition-all duration-700"
                       style={{ left: `calc(${r.pct}% - 26px)` }}>

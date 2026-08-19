@@ -11,6 +11,7 @@ import { FMS_ENABLED } from '@/lib/config';
 import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
+import { StatCard, StatGrid } from './components/ui';
 import Icon from './components/Icon';
 
 // FMS answers are raw sheet values, so an uploaded file or a pasted link
@@ -247,7 +248,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-[21px] font-semibold tracking-tight text-slate-900">
-            {greeting}, <span className="text-gradient-gold">{firstName}</span> 
+            {greeting}, <span className="text-slate-900">{firstName}</span> 
           </h1>
           <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
             <span>{todayLabel}</span>
@@ -280,43 +281,38 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
       </div>
 
       {/* ── KPI cards ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Kpi
-          tone="blue" label="Total Tasks" value={total}
-          icon={<IconLayers />}
+      <StatGrid cols={5}>
+        <StatCard
+          tone="gold" label="Total Tasks" value={total} icon="clipboard"
           sub={filteringByEmployee ? userFilter : isAdmin ? 'All employees' : 'Assigned to you'}
         />
-        <Kpi
-          tone="emerald" label="Completed" value={completed}
-          icon={<IconCheck />}
-          sub={`${rate}% completion rate`}
+        <StatCard
+          tone="emerald" label="Completed" value={completed} icon="check"
+          sub={`${rate}% completion rate`} progress={rate}
         />
-        <Kpi
-          tone="red" label="Pending" value={pending}
-          icon={<IconClock />}
+        <StatCard
+          tone="amber" label="Pending" value={pending} icon="clock"
           sub={revisedCt > 0 ? `${revisedCt} in revision` : 'Awaiting action'}
           subTone={revisedCt > 0 ? 'amber' : ''}
         />
-        <Kpi
-          tone="violet" label="Overdue" value={overdueCount}
-          icon={<IconAlert />}
+        <StatCard
+          tone="red" label="Overdue" value={overdueCount} icon="alert"
           sub={overdueCount === 0 ? 'None overdue' : `${overdueCount} past due date`}
           subTone={overdueCount > 0 ? 'red' : ''}
         />
-        <Kpi
-          tone="amber" label="Pending Approval" value={approvalCount}
-          icon={<IconApproval />}
+        <StatCard
+          tone="slate" label="Pending Approval" value={approvalCount} icon="checkCircle"
           sub={approvalBranchSub}
           onClick={() => router.push('/approvals?tab=task')}
         />
-      </div>
+      </StatGrid>
 
       {/* ── Tasks + Overview ──────────────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4">
 
         {/* Tasks card */}
         <div className="card overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2 bg-gradient-to-r from-slate-50/80 to-transparent">
+          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2 bg-slate-50/60">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 grid place-items-center"><IconList /></div>
               <div>
@@ -493,7 +489,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 grid place-items-center"><IconTrophy /></div>
               <div>
-                <h2 className="text-[13.5px] font-bold text-gradient-gold">Performance &amp; Activity</h2>
+                <h2 className="text-[13.5px] font-semibold text-slate-900">Performance &amp; Activity</h2>
                 <p className="text-[11.5px] text-slate-500">Team leaderboard — last 30 days</p>
               </div>
             </div>
@@ -639,40 +635,6 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 }
 
 /* ── KPI card ───────────────────────────────────────────────────────────── */
-const KPI_GRADIENTS = {
-  blue:    { grad: 'linear-gradient(135deg, #D9A81F 0%, #8F6B10 100%)', shadow: 'rgba(238,188,46,0.38)' },
-  emerald: { grad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', shadow: 'rgba(16,185,129,0.35)' },
-  red:     { grad: 'linear-gradient(135deg, #f97316 0%, #dc2626 100%)', shadow: 'rgba(249,115,22,0.35)'  },
-  violet:  { grad: 'linear-gradient(135deg, #f43f5e 0%, #7c3aed 100%)', shadow: 'rgba(244,63,94,0.35)'  },
-  amber:   { grad: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', shadow: 'rgba(245,158,11,0.35)' },
-};
-
-function Kpi({ label, value, tone = 'blue', icon, sub, onClick }) {
-  const g = KPI_GRADIENTS[tone] || KPI_GRADIENTS.blue;
-  const Tag = onClick ? 'button' : 'div';
-  return (
-    <Tag
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-      className={`rounded-xl p-4 relative overflow-hidden card-hover text-left w-full ${onClick ? 'cursor-pointer hover:-translate-y-0.5 transition' : 'cursor-default'}`}
-      style={{ background: g.grad, boxShadow: `0 0 0 1px ${g.shadow}44, 0 4px 20px ${g.shadow}, 0 0 40px ${g.shadow}55` }}
-    >
-      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }} />
-      <div className="absolute -bottom-6 -left-3 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
-      <div className="relative z-10 flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-[9.5px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</div>
-          <div className="text-[30px] leading-none font-black mt-1.5 tabular-nums text-white">{value}</div>
-          {sub && <div className="text-[10px] mt-1.5 font-medium" style={{ color: 'rgba(255,255,255,0.62)' }}>{sub}</div>}
-        </div>
-        <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
-          <Icon name={icon} className="w-4 h-4 text-white" />
-        </div>
-      </div>
-    </Tag>
-  );
-}
-
 function Legend({ dot, label, value }) {
   return (
     <div className="text-center">
@@ -708,18 +670,13 @@ function TypePill({ type }) {
 
 function Avatar({ name = '' }) {
   const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  const palette = ['from-rose-400 to-pink-600','from-amber-400 to-orange-600','from-emerald-400 to-teal-600','from-primary-400 to-primary-600','from-violet-400 to-purple-600'];
-  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${palette[hash % palette.length]} text-white grid place-items-center text-[9px] font-bold shrink-0`}>{ini}</div>;
+  // One neutral chip. Initials in five rotating gradients made every table of
+  // names look like a chart legend.
+  return <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[9px] font-semibold shrink-0">{ini}</div>;
 }
 
 function PlusIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
 function CalIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>; }
-function IconLayers() { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>; }
-function IconCheck()  { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>; }
-function IconClock()  { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>; }
-function IconAlert()  { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
-function IconApproval() { return <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>; }
 function IconList()   { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>; }
 function IconChart()  { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M21 12A9 9 0 0 0 12 3v9z"/></svg>; }
 function IconTrophy() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4M6 5h12v6a6 6 0 0 1-12 0z"/><path d="M9 21h6M12 17v4"/></svg>; }

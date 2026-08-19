@@ -90,7 +90,7 @@ export default function ProfileClient({ me, notificationEmail }) {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6">
         {/* Identity card */}
         <div className="card overflow-hidden">
-          <div className="h-24 bg-gradient-to-br from-primary-500 via-primary-600 to-violet-600"></div>
+          <div className="h-24 bg-slate-100 border-b border-slate-200"></div>
           <div className="px-6 pb-6 -mt-12">
             <div className="relative w-24 h-24">
               {picture ? (
@@ -100,7 +100,7 @@ export default function ProfileClient({ me, notificationEmail }) {
                   className="w-24 h-24 rounded-2xl object-cover shadow-elevated ring-4 ring-white"
                 />
               ) : (
-                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-400 to-pink-500 grid place-items-center text-white text-2xl font-bold shadow-elevated ring-4 ring-white">
+                <div className="w-24 h-24 rounded-2xl bg-white border border-slate-200 grid place-items-center text-slate-600 text-2xl font-semibold ring-4 ring-white">
                   {initials}
                 </div>
               )}
