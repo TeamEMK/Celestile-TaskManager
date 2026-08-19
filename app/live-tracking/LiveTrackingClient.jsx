@@ -295,6 +295,19 @@ export default function LiveTrackingClient() {
             })}
           </div>
 
+          {/* Filters sit above the breakdown: they scope both the cards and the
+              table, so the control belongs ahead of what it changes. */}
+          {data && (
+            <FilterBar
+              filters={filters} setFilter={setFilter} onClear={clearFilters}
+              nActive={nActive}
+              branchOptions={branchOptions} priorityOptions={priorityOptions}
+              dateCols={cols.dateCols || []} hasDone={cols.doneIdx >= 0}
+              doneHeader={data.headers?.[cols.doneIdx]}
+              shown={filteredRows.length} total={data.rows.length}
+            />
+          )}
+
           {/* Priority stats — branch-wise (Bangalore / Hyderabad), only shown
               when the connected sheet actually has a priority column. */}
           {stats ? (
@@ -308,18 +321,6 @@ export default function LiveTrackingClient() {
               No rows match the current search / status / date filters, so there is nothing to break down yet.
             </div>
           ) : null}
-
-          {/* Filters */}
-          {data && (
-            <FilterBar
-              filters={filters} setFilter={setFilter} onClear={clearFilters}
-              nActive={nActive}
-              branchOptions={branchOptions} priorityOptions={priorityOptions}
-              dateCols={cols.dateCols || []} hasDone={cols.doneIdx >= 0}
-              doneHeader={data.headers?.[cols.doneIdx]}
-              shown={filteredRows.length} total={data.rows.length}
-            />
-          )}
 
           {/* AppSheet upload columns hold a filename, not a link. If the app
               can't reach the Drive folder holding those files, say so once
