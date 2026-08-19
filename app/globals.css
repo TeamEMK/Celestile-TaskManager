@@ -198,3 +198,42 @@
 
 /* ── Focus ring for accessibility ───────────────────────────────── */
 *:focus-visible { outline: 2px solid #EEBC2E; outline-offset: 2px; }
+
+/* ── Print ──────────────────────────────────────────────────────────
+   The production report is printed / saved as PDF daily, and that copy has
+   to look like the Excel it replaces: ruled tables, no app chrome, and no
+   department block split across two pages. */
+@media print {
+  html, body { background: #fff !important; }
+
+  /* App chrome — the nav rail, the top bar, and anything a page has marked
+     as screen-only (buttons, filters, tabs). */
+  aside, header, .print\:hidden { display: none !important; }
+
+  /* The shell indents the page for the sidebar that no longer prints. */
+  main { padding: 0 !important; }
+  main > div { max-width: none !important; min-width: 0 !important; }
+  body div.md\:ml-\[230px\], body div.lg\:ml-16, body div.lg\:ml-\[230px\] { margin-left: 0 !important; }
+
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 10px;
+  }
+
+  /* Ruled cells, the way the Excel prints. */
+  table { width: 100% !important; border-collapse: collapse !important; }
+  .table-th, .table-td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 3px 6px !important;
+    font-size: 10px !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+  .table-th { background: #f1f5f9 !important; font-weight: 700 !important; }
+  .table-row:hover { background: transparent !important; }
+
+  @page { size: A4 landscape; margin: 10mm; }
+}
