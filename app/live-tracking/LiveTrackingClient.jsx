@@ -7,7 +7,7 @@ import Icon from '../components/Icon';
 import {
   PageHeader, MetaLine, LiveDot, EmptyState, ErrorState, LoadingState,
   SearchInput, ActiveFilters, ResultCount, SectionTitle, GroupRule,
-  StatCard, StatGrid,
+  StatCard,
 } from '../components/ui';
 import {
   buildPriorityStats, cellAttachments, detectColumns,
@@ -721,28 +721,37 @@ function PriorityStats({ stats, filters, onPick, narrowed, allRows }) {
         }
       >Priority Breakdown</SectionTitle>
 
-      {branches.map((b) => (
-        <div key={b} className="space-y-1.5">
-          <GroupRule label={b} right={`${rowTotal(b).total} total`} />
-          <StatGrid cols={priorities.length + 1 > 4 ? 5 : 4}>
-            {priorities.map((p) => (
+      {/* Both branches on one line, side by side, so Bangalore and Hyderabad
+          can be compared across rather than by scrolling from one stacked
+          block to the next. They fall back to stacking below `lg`, where six
+          cards across would be unreadable. */}
+      <div className={`grid gap-x-6 gap-y-4 ${branches.length > 1 ? 'lg:grid-cols-2' : ''}`}>
+        {branches.map((b) => (
+          <div key={b} className="space-y-1.5 min-w-0">
+            <GroupRule label={b} right={`${rowTotal(b).total} total`} />
+            <div
+              className="grid gap-2.5"
+              style={{ gridTemplateColumns: `repeat(${priorities.length + 1}, minmax(0, 1fr))` }}
+            >
+              {priorities.map((p) => (
+                <StatCard
+                  key={p} label={p} value={at(b, p).total}
+                  sub={countSub(at(b, p), hasDone)}
+                  tone={toneFor(p, priorities)}
+                  progress={hasDone && at(b, p).total ? (at(b, p).done / at(b, p).total) * 100 : null}
+                  active={filters.branch === b && filters.priority === p}
+                  onClick={at(b, p).total > 0 ? () => onPick(b, p) : undefined}
+                />
+              ))}
               <StatCard
-                key={p} label={p} value={at(b, p).total}
-                sub={countSub(at(b, p), hasDone)}
-                tone={toneFor(p, priorities)}
-                progress={hasDone && at(b, p).total ? (at(b, p).done / at(b, p).total) * 100 : null}
-                active={filters.branch === b && filters.priority === p}
-                onClick={at(b, p).total > 0 ? () => onPick(b, p) : undefined}
+                label="Total" value={rowTotal(b).total}
+                sub={countSub(rowTotal(b), hasDone)} tone="gold"
+                progress={hasDone && rowTotal(b).total ? (rowTotal(b).done / rowTotal(b).total) * 100 : null}
               />
-            ))}
-            <StatCard
-              label={`${b} total`} value={rowTotal(b).total}
-              sub={countSub(rowTotal(b), hasDone)} tone="gold"
-              progress={hasDone && rowTotal(b).total ? (rowTotal(b).done / rowTotal(b).total) * 100 : null}
-            />
-          </StatGrid>
-        </div>
-      ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
