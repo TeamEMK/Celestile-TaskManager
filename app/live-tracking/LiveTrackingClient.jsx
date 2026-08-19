@@ -17,6 +17,16 @@ import {
   BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass,
 } from '@/lib/liveTrackingView';
 
+// A row is white, but carries a 3px rail: green when it is finished, its
+// priority colour while it isn't. Enough to scan a long table by, without the
+// full-row tint that turned 446 rows into a heat map.
+const ROW_RAIL = {
+  done: '#10b981',
+  High: '#ef4444',
+  Medium: '#f59e0b',
+  Low: '#3b82f6',
+};
+
 const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1 });
 const REFRESH_MS = 30000;
 const DEFAULT_COL_WIDTH = 160;
@@ -385,6 +395,7 @@ export default function LiveTrackingClient() {
                       // line in colour — 446 tinted rows read as a heat map, not
                       // as a table you can work down.
                       const done = isRowDone(row, cols.doneIdx);
+                      const rail = done ? ROW_RAIL.done : ROW_RAIL[priorityOf(row[cols.priorityIdx])];
                       return (
                         <tr key={ri} className="table-row">
                           {row.map((c, ci) => {
@@ -400,6 +411,9 @@ export default function LiveTrackingClient() {
                                   // filenames are routinely wider than a column.
                                   whiteSpace: 'normal',
                                   overflowWrap: 'anywhere',
+                                  // Rail on the first cell only: green once the
+                                  // row is complete, otherwise its priority.
+                                  ...(ci === 0 && rail ? { boxShadow: `inset 3px 0 0 ${rail}` } : null),
                                 }}>
                                 {badge
                                   ? <span className={badge}>{val}</span>
@@ -688,6 +702,11 @@ const PRIORITY_TONE = {
   High: 'red', Medium: 'amber', Low: 'blue', [NO_PRIORITY]: 'neutral',
 };
 
+const PRIORITY_ICON = {
+  High: 'alert', Medium: 'clock', Low: 'dot', [NO_PRIORITY]: 'x',
+};
+const iconFor = (p) => PRIORITY_ICON[p] || 'clipboard';
+
 // Sheets invent their own priority labels ("Regular" is the common one here).
 // Assign from a fixed list by position so a label keeps the same rail across
 // refreshes instead of shifting as counts change.
@@ -738,14 +757,14 @@ function PriorityStats({ stats, filters, onPick, narrowed, allRows }) {
                 <StatCard
                   key={p} label={p} value={at(b, p).total}
                   sub={countSub(at(b, p), hasDone)}
-                  tone={toneFor(p, priorities)}
+                  tone={toneFor(p, priorities)} icon={iconFor(p)}
                   progress={hasDone && at(b, p).total ? (at(b, p).done / at(b, p).total) * 100 : null}
                   active={filters.branch === b && filters.priority === p}
                   onClick={at(b, p).total > 0 ? () => onPick(b, p) : undefined}
                 />
               ))}
               <StatCard
-                label="Total" value={rowTotal(b).total}
+                label="Total" value={rowTotal(b).total} icon="chart"
                 sub={countSub(rowTotal(b), hasDone)} tone="gold"
                 progress={hasDone && rowTotal(b).total ? (rowTotal(b).done / rowTotal(b).total) * 100 : null}
               />

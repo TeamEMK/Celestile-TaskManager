@@ -202,51 +202,63 @@ export function GroupRule({ label, right }) {
    is a 3px accent rail: enough to tell High from Regular at a glance, quiet
    enough that a screenful of them still reads as a report. */
 
+// Each tone is a small flat palette rather than one hue: a soft surface, a
+// matching border, a saturated ink for the number, and a stronger chip for the
+// icon. Flat throughout — no gradient, no glow — but the card carries real
+// colour, which a white box with a hairline rail did not.
 export const STAT_TONES = {
-  neutral: '#94a3b8',
-  gold:    '#D9A81F',
-  red:     '#dc2626',
-  amber:   '#d97706',
-  emerald: '#059669',
-  blue:    '#2563eb',
-  violet:  '#7c3aed',
-  teal:    '#0d9488',
-  slate:   '#64748b',
+  neutral: { bg: '#F8FAFC', border: '#E2E8F0', ink: '#334155', accent: '#64748B', chip: '#F1F5F9' },
+  slate:   { bg: '#F8FAFC', border: '#E2E8F0', ink: '#334155', accent: '#64748B', chip: '#F1F5F9' },
+  gold:    { bg: '#FEFAED', border: '#F2DFA8', ink: '#8F6B10', accent: '#B78A16', chip: '#FBF0CE' },
+  red:     { bg: '#FEF2F2', border: '#FCC9C9', ink: '#B91C1C', accent: '#DC2626', chip: '#FEE2E2' },
+  amber:   { bg: '#FFFBEB', border: '#FCE3A6', ink: '#B45309', accent: '#D97706', chip: '#FEF3C7' },
+  emerald: { bg: '#ECFDF5', border: '#A7E8CD', ink: '#047857', accent: '#059669', chip: '#D1FAE5' },
+  blue:    { bg: '#EFF6FF', border: '#B9D5FE', ink: '#1D4ED8', accent: '#2563EB', chip: '#DBEAFE' },
+  violet:  { bg: '#F5F3FF', border: '#C9BDFB', ink: '#6D28D9', accent: '#7C3AED', chip: '#EDE9FE' },
+  teal:    { bg: '#F0FDFA', border: '#9DE8DD', ink: '#0F766E', accent: '#0D9488', chip: '#CCFBF1' },
 };
 
 export function StatCard({
   label, value, sub, subTone = '', tone = 'neutral', icon,
   active = false, onClick, progress = null,
 }) {
-  const rail = STAT_TONES[tone] || STAT_TONES.neutral;
+  const t = STAT_TONES[tone] || STAT_TONES.neutral;
   const Tag = onClick ? 'button' : 'div';
-  const subColor = { red: 'text-red-600', amber: 'text-amber-600', emerald: 'text-emerald-600' }[subTone]
-    || 'text-slate-400';
   return (
     <Tag
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`relative overflow-hidden rounded-xl bg-white border text-left w-full px-4 py-3 transition
-        ${active ? 'border-slate-400 ring-1 ring-slate-300' : 'border-slate-200'}
-        ${onClick ? 'cursor-pointer hover:border-slate-300 hover:bg-slate-50/60' : 'cursor-default'}`}
-      style={{ boxShadow: '0 1px 2px rgba(9,9,11,0.04)' }}
+      className={`relative overflow-hidden rounded-xl border text-left w-full px-4 py-3.5 transition
+        ${onClick ? 'cursor-pointer hover:brightness-[0.985]' : 'cursor-default'}`}
+      style={{
+        background: t.bg,
+        borderColor: active ? t.accent : t.border,
+        boxShadow: active ? `0 0 0 2px ${t.chip}` : '0 1px 2px rgba(9,9,11,0.04)',
+      }}
     >
-      <span aria-hidden="true" className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: rail }} />
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 truncate">{label}</div>
-          <div className="text-[26px] leading-none font-semibold tabular-nums text-slate-900 mt-1.5">{value}</div>
-          {sub && <div className={`text-[11px] mt-1.5 ${subColor}`}>{sub}</div>}
+          <div className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: t.accent }}>
+            {label}
+          </div>
+          <div className="text-[30px] leading-none font-bold tabular-nums mt-1.5" style={{ color: t.ink }}>
+            {value}
+          </div>
+          {sub && (
+            <div className="text-[11px] mt-1.5" style={{ color: t.ink, opacity: 0.7 }}>{sub}</div>
+          )}
         </div>
         {icon && (
-          <span className="shrink-0 text-slate-300">
+          <span className="shrink-0 w-8 h-8 rounded-lg grid place-items-center"
+            style={{ background: t.chip, color: t.accent }}>
             <Icon name={icon} className="w-4 h-4" />
           </span>
         )}
       </div>
       {progress != null && (
-        <div className="mt-2.5 h-1 rounded-full bg-slate-100 overflow-hidden">
-          <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, progress))}%`, background: rail }} />
+        <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: t.chip }}>
+          <div className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(100, Math.max(0, progress))}%`, background: t.accent }} />
         </div>
       )}
     </Tag>
