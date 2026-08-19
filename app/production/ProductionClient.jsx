@@ -1,6 +1,6 @@
 'use client';
 /**
- * Factory production report.
+ * Factory Attendance & Report.
  *
  * Replaces the daily Excel the floor runs on: one block per department, one
  * row per worker/machine. Three views —
@@ -81,7 +81,7 @@ export default function ProductionClient() {
   return (
     <div className="space-y-4 animate-fade-in">
       <PageHeader
-        icon="building" title="Production Report"
+        icon="building" title="Factory Attendance & Report"
         subtitle={<MetaLine items={[
           `${departments.length} department${departments.length === 1 ? '' : 's'}`,
           'factory floor · daily',
@@ -185,7 +185,7 @@ function DailyReport({ departments }) {
       </StatGrid>
 
       <div className="hidden print:block text-center pb-2">
-        <div className="text-[15px] font-semibold">Production Report — {fmtDate(date)}</div>
+        <div className="text-[15px] font-semibold">Factory Attendance &amp; Report — {fmtDate(date)}</div>
       </div>
 
       {loading && !data ? (

@@ -37,7 +37,7 @@ const SECTIONS = [
   { title: 'Operations', items: [
     { href: '/fms',           label: 'FMS',           icon: 'fms',          flag: 'fms' },
     { href: '/live-tracking', label: 'Live Tracking', icon: 'live' },
-    { href: '/production',    label: 'Production',    icon: 'production' },
+    { href: '/production',    label: 'Factory Attendance', icon: 'production' },
     { href: '/masters',       label: 'Checklists',    icon: 'masters',      adminOnly: true, hidden: true },
     { href: '/client-master', label: 'Client Master', icon: 'clientmaster', adminOnly: true, hidden: true },
     { href: '/mis',           label: 'MIS Report',    icon: 'mis',          adminOnly: true },
