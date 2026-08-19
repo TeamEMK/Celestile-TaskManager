@@ -56,9 +56,13 @@ export default function LoginPage() {
                                 50%     { transform: translate3d(-24px,18px,0) scale(1.06); opacity:.40; } }
         @keyframes lx-fadein  { to { opacity: 1; } }
 
-        .lx-carver { position:absolute; inset:0; display:grid; place-items:center;
-          pointer-events:none; z-index:0; opacity:0; animation: lx-fadein 1s ease .15s forwards; }
-        .lx-carver svg { width:min(86vh, 720px); height:min(86vh, 720px); overflow:visible; }
+        /* Off to the side, not behind the card. Centred, the flower sat
+           entirely underneath a 920px panel whose backdrop-filter: blur(22px)
+           erased it — the animation was running the whole time, invisibly. */
+        .lx-carver { position:absolute; inset:0; pointer-events:none; z-index:0;
+          opacity:0; animation: lx-fadein 1s ease .15s forwards; }
+        .lx-carver svg { position:absolute; left:-4%; top:50%; transform:translateY(-50%);
+          width:min(92vh, 780px); height:min(92vh, 780px); overflow:visible; }
         .lc-trail   { stroke-dasharray: 1; stroke-dashoffset: 1; animation: lc-cut 14s linear infinite; }
         .lc-spin    { transform-origin: 0 0; animation: lc-spin .9s linear infinite; }
         .lc-breathe { transform-origin: 0 0; animation: lc-breathe 1.6s ease-in-out infinite; }
@@ -77,7 +81,12 @@ export default function LoginPage() {
           .lc-spin, .lc-breathe, .lc-twinkle, .lx-vein { animation: none; }
           .lx-carver { animation: none; opacity: 1; }
         }
-        @media (max-width: 860px) { .lx-carver svg { width:min(68vh, 430px); height:min(68vh, 430px); } }
+        @media (max-width: 1240px) {
+          .lx-carver svg { left:50%; transform:translate(-50%,-50%); opacity:.5; }
+        }
+        @media (max-width: 860px) {
+          .lx-carver svg { width:min(74vh, 460px); height:min(74vh, 460px); opacity:.42; }
+        }
 
         .lx-blob { position:absolute; border-radius:50%; filter: blur(70px); opacity:.55; pointer-events:none; }
         .lx-stagger > * { opacity:0; animation: lx-up .7s cubic-bezier(.16,1,.3,1) forwards; }
@@ -323,11 +332,11 @@ function LittleCarver() {
         </defs>
 
         {/* The groove already cut: faint, so the stone reads as stone. */}
-        <path d={d} fill="none" stroke="#EEBC2E" strokeOpacity=".10" strokeWidth="6" strokeLinecap="round" />
+        <path d={d} fill="none" stroke="#EEBC2E" strokeOpacity=".22" strokeWidth="7" strokeLinecap="round" />
 
         {/* The cut appearing under the tool. */}
         <path className="lc-trail" d={d} pathLength="1" fill="none" stroke="url(#lc-gold)"
-          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Sparkles that pop around the flower while it works. */}
         {[[-120, -70, 0], [110, -95, 1.7], [135, 60, 3.1], [-95, 95, 4.4], [10, -160, 2.4], [-160, 10, 5.2]].map(
