@@ -44,6 +44,36 @@ export default function LoginPage() {
         @keyframes lx-shine { 0% { left:-120%; } 60%,100% { left:120%; } }
         @keyframes lx-sheen { to { background-position: 200% center; } }
 
+        /* The medallion carves itself: every path starts fully dashed out and
+           is drawn in, in the order the machine would cut it. */
+        @keyframes lx-carve { to { stroke-dashoffset: 0; } }
+        @keyframes lx-turn  { to { transform: rotate(360deg); } }
+        @keyframes lx-vein  { 0%,100% { transform: translate3d(0,0,0) scale(1); opacity:.30; }
+                              50%     { transform: translate3d(-24px,18px,0) scale(1.06); opacity:.45; } }
+        @keyframes lx-fadein { to { opacity: 1; } }
+
+        .lx-medallion { position:absolute; inset:0; display:grid; place-items:center;
+          pointer-events:none; z-index:0; opacity:0; animation: lx-fadein 1.2s ease .2s forwards; }
+        .lx-medallion svg { width:min(88vh, 780px); height:min(88vh, 780px); overflow:visible; }
+        .lx-cut { stroke-dasharray: 1; stroke-dashoffset: 1;
+          animation: lx-carve 1.6s cubic-bezier(.22,1,.36,1) forwards; }
+        /* One very slow turn, so the pattern is never quite where you left it. */
+        .lx-turn { transform-origin: 0 0; animation: lx-turn 240s linear infinite; }
+        .lx-shine-layer { opacity:.9; }
+
+        /* Marble veining drifting behind the whole thing. */
+        .lx-vein { position:absolute; inset:-20%; pointer-events:none; z-index:0; opacity:.3;
+          background:
+            repeating-linear-gradient(112deg, transparent 0 68px, rgba(238,188,46,.14) 68px 69px, transparent 69px 150px),
+            repeating-linear-gradient(64deg,  transparent 0 96px, rgba(255,255,255,.05) 96px 97px, transparent 97px 210px);
+          filter: blur(.4px); animation: lx-vein 26s ease-in-out infinite; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .lx-cut { animation: none; stroke-dashoffset: 0; }
+          .lx-turn, .lx-vein, .lx-medallion { animation: none; opacity: 1; }
+        }
+        @media (max-width: 860px) { .lx-medallion svg { width:min(70vh, 460px); height:min(70vh, 460px); } }
+
         .lx-blob { position:absolute; border-radius:50%; filter: blur(70px); opacity:.55; pointer-events:none; }
         .lx-stagger > * { opacity:0; animation: lx-up .7s cubic-bezier(.16,1,.3,1) forwards; }
         .lx-stagger > *:nth-child(1){ animation-delay:.05s } .lx-stagger > *:nth-child(2){ animation-delay:.12s }
@@ -120,10 +150,12 @@ export default function LoginPage() {
         background: 'radial-gradient(ellipse at 70% 20%, #171717 0%, #0D0D0D 45%, #000000 100%)',
         fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
       }}>
-        {/* aurora orbs */}
-        <div className="lx-blob" style={{ width: 480, height: 480, top: '-120px', left: '-80px', background: 'radial-gradient(circle,#EEBC2E,#B78A16)', animation: 'lx-drift1 16s ease-in-out infinite' }} />
-        <div className="lx-blob" style={{ width: 420, height: 420, bottom: '-140px', right: '-60px', background: 'radial-gradient(circle,#B78A16,#8F6B10)', animation: 'lx-drift2 19s ease-in-out infinite' }} />
-        <div className="lx-blob" style={{ width: 300, height: 300, top: '40%', left: '45%', opacity: .35, background: 'radial-gradient(circle,#F3C955,transparent)', animation: 'lx-drift3 22s ease-in-out infinite' }} />
+        {/* Backdrop: marble veining, and an inlay medallion that carves
+            itself in the way the CNC floor actually cuts one. */}
+        <div className="lx-vein" />
+        <InlayMedallion />
+        {/* One soft glow is kept for depth behind the card. */}
+        <div className="lx-blob" style={{ width: 520, height: 520, top: '-140px', left: '-100px', opacity: .28, background: 'radial-gradient(circle,#B78A16,transparent 70%)', animation: 'lx-drift1 22s ease-in-out infinite' }} />
 
         <div className="lx-shell">
 
@@ -233,5 +265,92 @@ function Spinner() {
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'lx-spin .7s linear infinite' }}>
       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
+  );
+}
+
+/* ── Inlay medallion ────────────────────────────────────────────────────
+   The login backdrop, and the one thing on this screen that is actually about
+   Celestile: an inlay pattern carving itself into stone.
+
+   It is drawn the way the floor makes it — the CNC cuts the outline first,
+   then the petals, then the fill lines — by animating stroke-dashoffset on
+   each path in that order. Once cut, a polish sweep passes across it, the way
+   light moves over a finished slab. `pathLength="1"` normalises every path so
+   one timing works regardless of how long the geometry actually is.
+
+   Purely decorative: aria-hidden, and it holds still for anyone who asked for
+   reduced motion. */
+function InlayMedallion() {
+  const RING = '#EEBC2E';
+  const petal = 'M 0 -46 C 30 -76, 30 -116, 0 -150 C -30 -116, -30 -76, 0 -46 Z';
+  const leaf  = 'M 0 -30 C 16 -48, 16 -70, 0 -88 C -16 -70, -16 -48, 0 -30 Z';
+
+  return (
+    <div className="lx-medallion" aria-hidden="true">
+      <svg viewBox="-200 -200 400 400" width="100%" height="100%">
+        <defs>
+          <linearGradient id="lx-gold" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stopColor="#F7DA85" />
+            <stop offset="45%"  stopColor="#EEBC2E" />
+            <stop offset="100%" stopColor="#8F6B10" />
+          </linearGradient>
+          {/* The polish sweep: a narrow bright band that travels across the
+              pattern, brightening only what it is over. */}
+          <linearGradient id="lx-polish" x1="-1" y1="0" x2="0" y2="0">
+            <stop offset="0%"   stopColor="#fff" stopOpacity="0" />
+            <stop offset="50%"  stopColor="#fff" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+            <animate attributeName="x1" values="-1;1.6" dur="7s" begin="4.5s" repeatCount="indefinite" />
+            <animate attributeName="x2" values="0;2.6"  dur="7s" begin="4.5s" repeatCount="indefinite" />
+          </linearGradient>
+          <mask id="lx-sweep">
+            <rect x="-200" y="-200" width="400" height="400" fill="url(#lx-polish)" />
+          </mask>
+        </defs>
+
+        <g className="lx-turn" fill="none" stroke="url(#lx-gold)" strokeLinecap="round" strokeLinejoin="round">
+          {/* 1 — the outline the machine cuts first */}
+          <circle className="lx-cut" style={{ animationDelay: '0.1s' }} pathLength="1" r="176" strokeWidth="1" opacity=".5" />
+          <circle className="lx-cut" style={{ animationDelay: '0.3s' }} pathLength="1" r="164" strokeWidth="2" />
+
+          {/* 2 — eight petals, each starting a beat after the last */}
+          {Array.from({ length: 8 }, (_, i) => (
+            <path key={`p${i}`} className="lx-cut" pathLength="1" d={petal} strokeWidth="1.6"
+              transform={`rotate(${i * 45})`} style={{ animationDelay: `${0.6 + i * 0.09}s` }} />
+          ))}
+
+          {/* 3 — the inner leaves, offset between the petals */}
+          {Array.from({ length: 8 }, (_, i) => (
+            <path key={`l${i}`} className="lx-cut" pathLength="1" d={leaf} strokeWidth="1.2" opacity=".8"
+              transform={`rotate(${i * 45 + 22.5})`} style={{ animationDelay: `${1.5 + i * 0.06}s` }} />
+          ))}
+
+          {/* 4 — the fill ticks around the rim */}
+          {Array.from({ length: 32 }, (_, i) => (
+            <line key={`t${i}`} className="lx-cut" pathLength="1" x1="0" y1="-166" x2="0" y2="-176"
+              strokeWidth="1" opacity=".65" transform={`rotate(${i * 11.25})`}
+              style={{ animationDelay: `${2.2 + i * 0.02}s` }} />
+          ))}
+
+          {/* 5 — the centre rosette, set last, the way the stone is */}
+          <circle className="lx-cut" style={{ animationDelay: '2.9s' }} pathLength="1" r="34" strokeWidth="1.6" />
+          <circle className="lx-cut" style={{ animationDelay: '3.1s' }} pathLength="1" r="16" strokeWidth="1.2" opacity=".8" />
+        </g>
+
+        {/* The same pattern again, painted white and revealed only through the
+            travelling band — that is the polish catching the light. */}
+        <g className="lx-turn lx-shine-layer" fill="none" stroke="#FFF6DA" strokeLinecap="round"
+          strokeLinejoin="round" mask="url(#lx-sweep)">
+          <circle r="164" strokeWidth="2" />
+          {Array.from({ length: 8 }, (_, i) => (
+            <path key={`sp${i}`} d={petal} strokeWidth="1.6" transform={`rotate(${i * 45})`} />
+          ))}
+          {Array.from({ length: 8 }, (_, i) => (
+            <path key={`sl${i}`} d={leaf} strokeWidth="1.2" transform={`rotate(${i * 45 + 22.5})`} />
+          ))}
+          <circle r="34" strokeWidth="1.6" />
+        </g>
+      </svg>
+    </div>
   );
 }
