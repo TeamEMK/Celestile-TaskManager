@@ -603,9 +603,7 @@ export default function AllTasksClient({ grouped, users }) {
 
 function Avatar({ name = '' }) {
   const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  const grad = palette[hash % palette.length];
-  return <div className={`w-8 h-8 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[11px] font-semibold shrink-0`}>{ini}</div>;
+  return <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[11px] font-semibold shrink-0">{ini}</div>;
 }
 
 function PlusIcon() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
