@@ -107,7 +107,15 @@
   .seg-btn-active { @apply bg-white shadow-sm text-slate-900 font-semibold; }
 
   /* Table */
-  .table-th  { @apply text-left px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-400 bg-slate-50/80; }
+  /* A black header band. Grey-on-grey headers left every table without a
+     top edge, so a long sheet had nothing to anchor the eye — and this is how
+     the Excel these tables replace prints. */
+  .table-th  {
+    @apply text-left px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-white;
+    background: #0F172A;
+    border-right: 1px solid rgba(255,255,255,0.10);
+  }
+  .table-th:last-child { border-right: 0; }
   .table-td  { @apply px-3 py-2.5 text-[13px] text-slate-600; }
   .table-row { @apply border-t border-slate-100 transition-colors duration-100; }
   .table-row:hover { background: #F8FAFC; }
@@ -174,6 +182,7 @@
 ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
 /* ── Sticky header backdrops ────────────────────────────────────── */
+thead.bg-slate-50\/95, thead.bg-slate-50\/80 { background-color: transparent; }
 .bg-slate-50\/95 { background-color: rgba(250, 250, 250, 0.97); }
 .bg-slate-50\/80 { background-color: rgba(250, 250, 250, 0.80); }
 
@@ -232,7 +241,7 @@
     color: #000 !important;
     background: #fff !important;
   }
-  .table-th { background: #f1f5f9 !important; font-weight: 700 !important; }
+  .table-th { background: #e2e8f0 !important; color: #000 !important; font-weight: 700 !important; }
   .table-row:hover { background: transparent !important; }
 
   @page { size: A4 landscape; margin: 10mm; }

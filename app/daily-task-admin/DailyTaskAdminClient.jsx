@@ -570,7 +570,7 @@ export default function DailyTaskAdminClient() {
                       {agg.revSoftCols.map((sw) => (
                         <th key={sw} className="table-th whitespace-nowrap">{sw}</th>
                       ))}
-                      <th className="table-th whitespace-nowrap text-amber-700">Total</th>
+                      <th className="table-th whitespace-nowrap !text-amber-300">Total</th>
                     </tr>
                   </thead>
                   <tbody>
