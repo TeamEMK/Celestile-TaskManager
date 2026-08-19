@@ -336,13 +336,21 @@ export default function LiveTrackingClient() {
           {/* AppSheet upload columns hold a filename, not a link. If the app
               can't reach the Drive folder holding those files, say so once
               here rather than leaving every "Click here" quietly degraded. */}
-          {data?.fileLinkError && (
+          {data?.fileLinkError ? (
             <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11.5px] px-3 py-2">
               <b>Uploaded files aren&apos;t linked yet.</b> {data.fileLinkError} Share that Drive folder
               (Viewer is enough) with the app&apos;s Google service account and the uploads will open
               in one click. Until then, &quot;Click here&quot; opens a Drive search for the file name.
             </div>
-          )}
+          ) : data?.fileStats && data.fileStats.resolved < data.fileStats.total ? (
+            // The folder was read fine — these uploads were deleted from Drive
+            // after the sheet recorded their name. Worth stating once, so the
+            // "Not in Drive" rows don't read as an app bug.
+            <div className="text-[11px] text-slate-400">
+              {data.fileStats.resolved} of {data.fileStats.total} uploads open directly ·{' '}
+              {data.fileStats.total - data.fileStats.resolved} no longer exist in the Drive folder
+            </div>
+          ) : null}
 
           {/* Live data */}
           <div className="card overflow-hidden">
@@ -412,7 +420,7 @@ export default function LiveTrackingClient() {
                                   ? <span className={`pill !text-[11px] !py-0.5 ${pill}`}>{val}</span>
                                   : dateOrder
                                     ? <DateCell value={c} order={dateOrder} />
-                                    : <CellValue value={c} fileLinks={data.fileLinks} />}
+                                    : <CellValue value={c} fileLinks={data.fileLinks} indexed={data.fileStats?.indexed} />}
                               </td>
                             );
                           })}
@@ -631,10 +639,10 @@ function fmtInput(s) {
    for a Form's multi-file upload question, several comma-separated URLs in
    one cell). Print "Click here" instead of the URL, and open the images in
    the viewer rather than dumping the user into Drive. */
-function CellValue({ value, fileLinks }) {
+function CellValue({ value, fileLinks, indexed }) {
   const [galleryAt, setGalleryAt] = useState(null);
   const val = String(value ?? '').trim();
-  const att = useMemo(() => cellAttachments(val, fileLinks), [val, fileLinks]);
+  const att = useMemo(() => cellAttachments(val, fileLinks, indexed), [val, fileLinks, indexed]);
   const { text, images, files } = att;
 
   if (!val) return <>—</>;
@@ -652,12 +660,13 @@ function CellValue({ value, fileLinks }) {
       )}
       {files.map((f, i) => (
         <a key={f.href} href={f.href} target="_blank" rel="noopener noreferrer"
-          title={f.unresolved
-            ? `${f.name}\n\nThis file lives in the AppSheet upload folder, which isn't shared with the app yet — opening Drive search for it instead.`
+          title={
+            f.missing      ? `${f.name}\n\nThis upload is no longer in the app's Drive folder — it looks to have been deleted. Opening a Drive search for the name.`
+            : f.unresolved ? `${f.name}\n\nThe Drive upload folder isn't reachable, so this couldn't be linked directly. Opening a Drive search for the name.`
             : f.name}
-          className={`hover:underline font-medium ${f.unresolved ? 'text-slate-500 hover:text-slate-700' : 'text-primary-600 hover:text-primary-700'}`}>
-          <Icon name={f.unresolved ? 'search' : 'file'} className="w-3.5 h-3.5" />
-          {' '}Click here{files.length > 1 ? ` ${i + 1}` : ''}
+          className={`hover:underline font-medium ${f.unresolved ? 'text-slate-400 hover:text-slate-600' : 'text-primary-600 hover:text-primary-700'}`}>
+          <Icon name={f.missing ? 'alert' : f.unresolved ? 'search' : 'file'} className="w-3.5 h-3.5" />
+          {' '}{f.missing ? 'Not in Drive' : `Click here${files.length > 1 ? ` ${i + 1}` : ''}`}
         </a>
       ))}
       {galleryAt !== null && (
