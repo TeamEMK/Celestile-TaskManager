@@ -208,29 +208,57 @@ function DailyReport({ departments }) {
   );
 }
 
-/* One department's block: reads as a table, edits as a grid. */
+/* One department's block.
+   Reads as a ruled table; edits as a card per row on a phone or tablet and as
+   a grid on a desktop. The floor fills this on a tablet, so the editor leads
+   with the touch layout, and every field offers what the department has typed
+   before — retyping "8MM ENDMILL" by hand is slow, and one typo splits a
+   worker's hours across two names in the attendance report. */
 function DepartmentBlock({ date, dept, shift, rows, note, editing, onEdit, onCancel, onSaved }) {
   const fields = dept.fields;
   const [draft, setDraft] = useState([]);
   const [draftNote, setDraftNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState('');
+  const [suggest, setSuggest] = useState({});
+  const [copying, setCopying] = useState(false);
+  const [copyMsg, setCopyMsg] = useState('');
+
+  // A fresh row starts at 8 hours — that is the shift, and the exceptions are
+  // rarer than the rule.
+  const newRow = () => ({ ...blankRow(), hours: '8' });
 
   useEffect(() => {
     if (!editing) return;
     setDraft(rows.length
       ? rows.map((r) => ({ ...blankRow(), ...Object.fromEntries(fields.map((f) => [f.key, r[f.key] ?? ''])) }))
-      : [blankRow(), blankRow(), blankRow()]);
+      : [{ ...blankRow(), hours: '8' }]);
     setDraftNote(note);
-    setSaveErr('');
+    setSaveErr(''); setCopyMsg('');
+    fetch(`/api/production/suggestions?departmentId=${dept.id}`)
+      .then((r) => r.json()).then((d) => setSuggest(d && !d.error ? d : {})).catch(() => {});
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setCell = (i, key, v) => setDraft((d) => d.map((row, j) => (j === i ? { ...row, [key]: v } : row)));
-  const addRow = () => setDraft((d) => [...d, blankRow()]);
+  const addRow = () => setDraft((d) => [...d, newRow()]);
   const removeRow = (i) => setDraft((d) => d.filter((_, j) => j !== i));
-  // The floor writes the same order/area down a whole block; copying the row
-  // above beats retyping it eight times.
-  const copyAbove = (i) => setDraft((d) => d.map((row, j) => (j === i && d[i - 1] ? { ...d[i - 1] } : row)));
+  // The floor writes the same order/area down a whole block, so a new row that
+  // starts as a copy of the one above is usually most of the way there already.
+  const duplicate = (i) => setDraft((d) => [...d.slice(0, i + 1), { ...d[i] }, ...d.slice(i + 1)]);
+
+  // Yesterday's crew is usually today's crew. Pull the last filled block in and
+  // edit what changed, rather than typing eight rows again.
+  async function copyLast() {
+    setCopying(true); setCopyMsg('');
+    try {
+      const r = await fetch(`/api/production/suggestions?departmentId=${dept.id}&shift=${shift}&before=${date}`);
+      const j = await r.json();
+      if (!r.ok || !j.rows?.length) { setCopyMsg('No earlier day to copy from'); return; }
+      setDraft(j.rows.map((x) => ({ ...blankRow(), ...Object.fromEntries(fields.map((f) => [f.key, x[f.key] ?? ''])) })));
+      setCopyMsg(`Copied from ${fmtDate(j.date)} — edit what changed`);
+    } catch { setCopyMsg('Could not copy'); }
+    finally { setCopying(false); }
+  }
 
   async function save() {
     setSaving(true); setSaveErr('');
@@ -248,33 +276,71 @@ function DepartmentBlock({ date, dept, shift, rows, note, editing, onEdit, onCan
 
   const hours = rows.reduce((s, r) => s + (Number(r.hours) || 0), 0);
   const title = `${dept.name}${shift ? ` — ${shiftLabel(shift)}` : ''}`;
+  const filled = draft.filter((r) => fields.some((f) => String(r[f.key] ?? '').trim() !== '')).length;
 
   return (
     <div className="card overflow-hidden break-inside-avoid">
       <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between gap-2 flex-wrap">
         <div className="min-w-0">
-          <h3 className="text-[13px] font-semibold text-slate-900 truncate">{title}</h3>
+          <h3 className="text-[13px] font-semibold text-slate-900">{title}</h3>
           <div className="text-[11px] text-slate-500">
             {rows.length ? `${rows.length} row${rows.length === 1 ? '' : 's'}${hours ? ` · ${Math.round(hours * 10) / 10} hours` : ''}` : 'Not filled yet'}
           </div>
         </div>
         {!editing && (
-          <button className="btn-secondary btn-sm print:hidden" onClick={onEdit}>
-            <Icon name="edit" className="w-3.5 h-3.5" /> {rows.length ? 'Edit' : 'Fill'}
+          <button className="btn-primary print:hidden" onClick={onEdit}>
+            <Icon name="edit" className="w-4 h-4" /> {rows.length ? 'Edit' : 'Fill'}
           </button>
         )}
       </div>
 
       {editing ? (
-        <div className="p-3 space-y-2 print:hidden">
-          {saveErr && <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 text-[12px] px-3 py-2">{saveErr}</div>}
-          <div className="overflow-x-auto">
+        <div className="p-3 space-y-3 print:hidden">
+          {saveErr && <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 text-[12.5px] px-3 py-2">{saveErr}</div>}
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button className="btn-secondary" onClick={copyLast} disabled={copying}>
+              <Icon name="clipboard" className="w-4 h-4" /> {copying ? 'Copying…' : 'Copy last day'}
+            </button>
+            {copyMsg && <span className="text-[11.5px] text-slate-500">{copyMsg}</span>}
+          </div>
+
+          {/* Phone / tablet: one card per row, full-size fields. */}
+          <div className="md:hidden space-y-3">
+            {draft.map((row, i) => (
+              <div key={i} className="rounded-xl border border-slate-200 bg-slate-50/40 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Row {i + 1}</span>
+                  <div className="flex items-center gap-1">
+                    <button className="icon-btn !w-11 !h-11" title="Duplicate this row" onClick={() => duplicate(i)}>
+                      <Icon name="plus" className="w-4 h-4" />
+                    </button>
+                    <button className="icon-btn-danger !w-11 !h-11" title="Remove this row" onClick={() => removeRow(i)}>
+                      <Icon name="trash" className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {fields.map((f) => (
+                    <div key={f.key}>
+                      <label className="block text-[11px] font-semibold text-slate-500 mb-1">{f.label}</label>
+                      <FieldInput field={f} value={row[f.key] ?? ''} options={suggest[f.key]}
+                        onChange={(v) => setCell(i, f.key, v)} big />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: the familiar grid. */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-[12.5px]">
               <thead>
                 <tr>
                   <th className="table-th w-10">#</th>
                   {fields.map((f) => <th key={f.key} className="table-th whitespace-nowrap">{f.label}</th>)}
-                  <th className="table-th w-16"></th>
+                  <th className="table-th w-20"></th>
                 </tr>
               </thead>
               <tbody>
@@ -283,19 +349,13 @@ function DepartmentBlock({ date, dept, shift, rows, note, editing, onEdit, onCan
                     <td className="table-td text-slate-400 tabular-nums">{i + 1}</td>
                     {fields.map((f) => (
                       <td key={f.key} className="table-td !py-1">
-                        <input
-                          className="input-ctl !h-8 min-w-[110px]"
-                          type={f.numeric ? 'number' : 'text'}
-                          step={f.numeric ? '0.5' : undefined}
-                          value={row[f.key] ?? ''}
-                          onChange={(e) => setCell(i, f.key, e.target.value)}
-                        />
+                        <FieldInput field={f} value={row[f.key] ?? ''} options={suggest[f.key]}
+                          onChange={(v) => setCell(i, f.key, v)} />
                       </td>
                     ))}
                     <td className="table-td !py-1 whitespace-nowrap">
-                      <button className="icon-btn" title="Copy the row above" disabled={i === 0}
-                        onClick={() => copyAbove(i)}>
-                        <Icon name="clipboard" className="w-3.5 h-3.5" />
+                      <button className="icon-btn" title="Duplicate this row" onClick={() => duplicate(i)}>
+                        <Icon name="plus" className="w-3.5 h-3.5" />
                       </button>
                       <button className="icon-btn-danger" title="Remove this row" onClick={() => removeRow(i)}>
                         <Icon name="trash" className="w-3.5 h-3.5" />
@@ -307,53 +367,104 @@ function DepartmentBlock({ date, dept, shift, rows, note, editing, onEdit, onCan
             </table>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button className="btn-secondary btn-sm" onClick={addRow}>
-              <Icon name="plus" className="w-3.5 h-3.5" /> Add row
+          <button className="btn-secondary w-full md:w-auto" onClick={addRow}>
+            <Icon name="plus" className="w-4 h-4" /> Add row
+          </button>
+
+          <input className="input-ctl w-full !h-11 md:!h-9"
+            placeholder="Note for this block (optional)"
+            value={draftNote} onChange={(e) => setDraftNote(e.target.value)} />
+
+          {/* Save stays in reach at the bottom of a long block on a phone. */}
+          <div className="sticky bottom-0 -mx-3 -mb-3 px-3 py-2.5 bg-white border-t border-slate-200 flex items-center gap-2">
+            <span className="text-[11.5px] text-slate-500">{filled} row{filled === 1 ? '' : 's'} to save</span>
+            <button className="btn-ghost ml-auto" onClick={onCancel} disabled={saving}>Cancel</button>
+            <button className="btn-primary" onClick={save} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
             </button>
-            <input className="input-ctl flex-1 min-w-[220px]" placeholder="Note for this block (optional) — e.g. machine cleaners on duty"
-              value={draftNote} onChange={(e) => setDraftNote(e.target.value)} />
-            <button className="btn-ghost btn-sm" onClick={onCancel} disabled={saving}>Cancel</button>
-            <button className="btn-primary btn-sm" onClick={save} disabled={saving}>
-              {saving ? 'Saving…' : 'Save block'}
-            </button>
-          </div>
-          <div className="text-[11px] text-slate-400">
-            Blank rows are dropped on save, so leaving spare rows at the bottom is fine.
           </div>
         </div>
       ) : rows.length === 0 ? (
         <div className="px-4 py-5 text-center text-[12px] text-slate-400">No work recorded for this block.</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-[12.5px]">
-            <thead>
-              <tr>
-                <th className="table-th w-10">S No</th>
-                {fields.map((f) => <th key={f.key} className="table-th whitespace-nowrap">{f.label}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="table-row align-top">
-                  <td className="table-td text-slate-400 tabular-nums">{r.sNo}</td>
-                  {fields.map((f) => (
-                    <td key={f.key} className="table-td" style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
-                      {String(r[f.key] ?? '').trim() || <span className="text-slate-300">—</span>}
-                    </td>
-                  ))}
+        <>
+          {/* Phone: a card per row — a nine-column table is unreadable there. */}
+          <div className="md:hidden divide-y divide-slate-100 print:hidden">
+            {rows.map((r) => (
+              <div key={r.id} className="px-4 py-3">
+                <div className="text-[12.5px] font-semibold text-slate-900">{r.sNo}. {r.worker || '—'}</div>
+                <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+                  {fields.filter((f) => f.key !== 'worker').map((f) => {
+                    const v = String(r[f.key] ?? '').trim();
+                    if (!v) return null;
+                    return (
+                      <div key={f.key} className="text-[11.5px]">
+                        <span className="text-slate-400">{f.label}: </span>
+                        <span className="text-slate-700">{v}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden md:block print:block overflow-x-auto">
+            <table className="w-full text-[12.5px]">
+              <thead>
+                <tr>
+                  <th className="table-th w-10">S No</th>
+                  {fields.map((f) => <th key={f.key} className="table-th whitespace-nowrap">{f.label}</th>)}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="table-row align-top">
+                    <td className="table-td text-slate-400 tabular-nums">{r.sNo}</td>
+                    {fields.map((f) => (
+                      <td key={f.key} className="table-td" style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
+                        {String(r[f.key] ?? '').trim() || <span className="text-slate-300">—</span>}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {note && (
             <div className="px-4 py-2 border-t border-slate-100 text-[11.5px] text-slate-600 bg-slate-50/60">
               <b>Note:</b> {note}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
+  );
+}
+
+/* One editable cell.
+   A plain input with a datalist rather than a <select>: the suggestions cover
+   the common case without ever blocking a value nobody has typed before, and
+   on Android/iOS it still opens the normal keyboard. */
+function FieldInput({ field, value, onChange, options = [], big = false }) {
+  const listId = options.length ? `sg-${field.key}` : undefined;
+  return (
+    <>
+      <input
+        className={`input-ctl w-full ${big ? '!h-11 !text-[15px]' : '!h-9'} ${field.numeric ? 'min-w-[80px]' : 'min-w-[120px]'}`}
+        type={field.numeric ? 'number' : 'text'}
+        inputMode={field.numeric ? 'decimal' : undefined}
+        step={field.numeric ? '0.5' : undefined}
+        list={listId}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {listId && (
+        <datalist id={listId}>
+          {options.map((o) => <option key={o} value={o} />)}
+        </datalist>
+      )}
+    </>
   );
 }
 
