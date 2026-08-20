@@ -11,23 +11,13 @@ import {
 } from '../components/ui';
 import {
   buildPriorityStats, cellAttachments, detectColumns,
-  priorityOf, branchOf, isRowDone,
+  priorityOf, branchOf, isRowDone, rowTint,
   parseSheetDate, formatSheetDate, dateToInput,
   EMPTY_FILTERS, activeFilterCount, rowMatchesFilters,
   BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass,
 } from '@/lib/liveTrackingView';
 
-// A row is white, but carries a 3px rail: green when it is finished, its
-// priority colour while it isn't. Enough to scan a long table by, without the
-// full-row tint that turned 446 rows into a heat map.
-const ROW_RAIL = {
-  done: '#10b981',
-  High: '#ef4444',
-  Medium: '#f59e0b',
-  Low: '#3b82f6',
-};
-
-const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1 });
+const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1, startRow: '' });
 const REFRESH_MS = 30000;
 const DEFAULT_COL_WIDTH = 160;
 const MIN_COL_WIDTH = 60;
@@ -139,7 +129,10 @@ export default function LiveTrackingClient() {
 
   // Does this sheet have a priority column at all? Computed over every row, so
   // the breakdown block keeps its place when a filter empties it out.
-  const baseStats = useMemo(() => buildPriorityStats(data?.rows || [], cols), [data, cols]);
+  // data.scope is set when the API cut the rows to this user's branch — the
+  // breakdown then shows that branch alone (see buildPriorityStats).
+  const scopeBranches = data?.scope?.branches || null;
+  const baseStats = useMemo(() => buildPriorityStats(data?.rows || [], cols, scopeBranches), [data, cols, scopeBranches]);
 
   // The cards themselves are what set branch/priority, so folding those two
   // back in would collapse the grid to the single card just clicked. Every
@@ -152,7 +145,7 @@ export default function LiveTrackingClient() {
     return data.rows.filter((row) => rowMatchesFilters(row, cols, scoped, order));
   }, [data, filters, cols]);
 
-  const stats = useMemo(() => buildPriorityStats(statRows, cols), [statRows, cols]);
+  const stats = useMemo(() => buildPriorityStats(statRows, cols, scopeBranches), [statRows, cols, scopeBranches]);
 
   // Only the values the sheet actually uses get an option — an empty
   // "Medium" in a High/Regular tracker is just a dead end for the user.
@@ -170,6 +163,32 @@ export default function LiveTrackingClient() {
       ...[...seen].filter((p) => !PRIORITIES.includes(p) && p !== NO_PRIORITY).sort(),
       ...(seen.has(NO_PRIORITY) ? [NO_PRIORITY] : []),
     ];
+  }, [data, cols]);
+
+  // Counts for the Under Processing / Completed tabs. Every *other* filter is
+  // applied first, so a tab's number is what that tab will actually show —
+  // switching tabs never surprises you with a different total.
+  const statusCounts = useMemo(() => {
+    if (!data?.rows) return { all: 0, pending: 0, done: 0 };
+    const order = cols.dateOrderByIdx?.[filters.dateIdx] || 'dmy';
+    const rows = data.rows.filter((row) => rowMatchesFilters(row, cols, { ...filters, status: '' }, order));
+    const done = rows.filter((row) => isRowDone(row, cols.doneIdx)).length;
+    return { all: rows.length, pending: rows.length - done, done };
+  }, [data, filters, cols]);
+
+  // A key for the row colours. Built from the sheet's own labels, so a tracker
+  // that says "Regular" gets a "Regular" swatch — a fixed High/Medium/Low
+  // legend would name three colours the table never shows.
+  const legend = useMemo(() => {
+    if (!data?.rows || cols.priorityIdx < 0) return [];
+    const seen = new Map();
+    for (const row of data.rows) {
+      const tint = rowTint(row, cols);
+      if (!tint) continue;
+      const label = isRowDone(row, cols.doneIdx) ? 'Completed' : priorityOf(row[cols.priorityIdx]);
+      if (label && !seen.has(label)) seen.set(label, tint.rail);
+    }
+    return [...seen].map(([label, rail]) => ({ label, rail }));
   }, [data, cols]);
 
   const filteredRows = useMemo(() => {
@@ -196,6 +215,7 @@ export default function LiveTrackingClient() {
       sheetLink: s.sheet_id || '',
       sheetName: s.sheet_name || '',
       headerRow: s.header_row || 1,
+      startRow: s.start_row || '',
     });
     setFormErr('');
     setModal('edit');
@@ -309,6 +329,27 @@ export default function LiveTrackingClient() {
             })}
           </div>
 
+          {/* Said once, at the top: this user is seeing one branch. Without it
+              a Bangalore user reads the totals as the whole company's. */}
+          {data?.scope?.branches?.length ? (
+            <div className="rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-[11.5px] px-3 py-2">
+              Showing <b>{data.scope.branches.join(' / ')}</b> rows only — your branch.
+              {data.scope.hidden > 0
+                ? ` ${data.scope.hidden.toLocaleString()} row${data.scope.hidden !== 1 ? 's' : ''} from ${data.scope.hidden !== 1 ? 'other branches are' : 'another branch is'} hidden.`
+                : ''}
+            </div>
+          ) : null}
+
+          {/* Rows above "First Data Row" are left out on purpose — say so, or
+              a sheet that holds 800 rows and shows 400 looks like a bug. */}
+          {data?.skipped > 0 ? (
+            <div className="text-[11px] text-slate-400">
+              Reading from row {data.firstRow} of the sheet — {data.skipped.toLocaleString()} earlier
+              row{data.skipped !== 1 ? 's are' : ' is'} left out.
+              {isAdmin ? ' Change “First Data Row” under Edit to bring them back.' : ''}
+            </div>
+          ) : null}
+
           {/* Filters sit above the breakdown: they scope both the cards and the
               table, so the control belongs ahead of what it changes. */}
           {data && (
@@ -316,8 +357,7 @@ export default function LiveTrackingClient() {
               filters={filters} setFilter={setFilter} onClear={clearFilters}
               nActive={nActive}
               branchOptions={branchOptions} priorityOptions={priorityOptions}
-              dateCols={cols.dateCols || []} hasDone={cols.doneIdx >= 0}
-              doneHeader={data.headers?.[cols.doneIdx]}
+              dateCols={cols.dateCols || []}
               shown={filteredRows.length} total={data.rows.length}
             />
           )}
@@ -354,6 +394,31 @@ export default function LiveTrackingClient() {
               {data.fileStats.total - data.fileStats.resolved} no longer exist in the Drive folder
             </div>
           ) : null}
+
+          {/* Under Processing / Completed. The sheet's "actual complete" date
+              is the only thing that separates the two, so the tabs only appear
+              when the connected sheet actually has that column. */}
+          {data && (cols.doneIdx >= 0 || legend.length > 0) && (
+            <div className="flex items-center gap-3 flex-wrap">
+              {cols.doneIdx >= 0 && (
+                <StatusTabs
+                  value={filters.status} counts={statusCounts}
+                  onChange={(status) => setFilter({ status })}
+                  doneHeader={data.headers?.[cols.doneIdx]}
+                />
+              )}
+              {legend.length > 0 && (
+                <div className="ml-auto flex items-center gap-3 flex-wrap text-[11px] text-slate-500">
+                  {legend.map((l) => (
+                    <span key={l.label} className="inline-flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm" style={{ background: l.rail }} />
+                      {l.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Live data */}
           <div className="card overflow-hidden">
@@ -394,14 +459,14 @@ export default function LiveTrackingClient() {
                   </thead>
                   <tbody>
                     {filteredRows.map((row, ri) => {
-                      // Rows stay white. Priority and completion are said with a
-                      // badge in their own column instead of by washing the whole
-                      // line in colour — 446 tinted rows read as a heat map, not
-                      // as a table you can work down.
+                      // The whole line carries the colour: green once the sheet
+                      // records an Actual Complete date, otherwise its priority.
+                      // The badge in the priority column stays — it names the
+                      // colour for anyone who can't tell amber from red.
                       const done = isRowDone(row, cols.doneIdx);
-                      const rail = done ? ROW_RAIL.done : ROW_RAIL[priorityOf(row[cols.priorityIdx])];
+                      const tint = rowTint(row, cols);
                       return (
-                        <tr key={ri} className="table-row">
+                        <tr key={ri} className={`table-row${tint ? ` ${tint.cls}` : ''}`}>
                           {row.map((c, ci) => {
                             const val = String(c ?? '').trim();
                             const badge = ci === cols.priorityIdx ? priorityBadgeClass(val) : '';
@@ -415,9 +480,9 @@ export default function LiveTrackingClient() {
                                   // filenames are routinely wider than a column.
                                   whiteSpace: 'normal',
                                   overflowWrap: 'anywhere',
-                                  // Rail on the first cell only: green once the
-                                  // row is complete, otherwise its priority.
-                                  ...(ci === 0 && rail ? { boxShadow: `inset 3px 0 0 ${rail}` } : null),
+                                  // Rail on the first cell only: a stronger edge
+                                  // in the same colour, so the tint has a start.
+                                  ...(ci === 0 && tint ? { boxShadow: `inset 3px 0 0 ${tint.rail}` } : null),
                                 }}>
                                 {badge
                                   ? <span className={badge}>{val}</span>
@@ -480,6 +545,18 @@ export default function LiveTrackingClient() {
                   <input type="number" min="1" className="input" value={form.headerRow} onChange={(e) => setForm((f) => ({ ...f, headerRow: Number(e.target.value) || 1 }))} />
                 </div>
               </div>
+              <div>
+                <label className="label">
+                  First Data Row <span className="text-slate-400 font-normal normal-case">(optional)</span>
+                </label>
+                <input type="number" min="1" className="input" value={form.startRow}
+                  onChange={(e) => setForm((f) => ({ ...f, startRow: e.target.value }))}
+                  placeholder="Leave blank to start right below the header" />
+                <div className="text-[11px] text-slate-400 mt-1">
+                  The row number as the Google Sheet itself shows it. Put 396 here and everything
+                  above row 396 is left out — useful when a sheet still holds years of old rows.
+                </div>
+              </div>
               <div className="text-[11px] text-slate-400">
                 Make sure the sheet is shared (Viewer is enough) with the app&apos;s Google service account.
               </div>
@@ -524,7 +601,7 @@ function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return s
 
 function FilterBar({
   filters, setFilter, onClear, nActive,
-  branchOptions, priorityOptions, dateCols, hasDone, doneHeader, shown, total,
+  branchOptions, priorityOptions, dateCols, shown, total,
 }) {
   // Picking a preset before choosing a column would silently do nothing, so
   // the first date column is assumed until the user says otherwise.
@@ -544,7 +621,6 @@ function FilterBar({
   if (filters.q.trim()) chips.push({ k: 'q', label: `“${filters.q.trim()}”`, clear: { q: '' } });
   if (filters.branch)   chips.push({ k: 'b', label: filters.branch, clear: { branch: '' } });
   if (filters.priority) chips.push({ k: 'p', label: `${filters.priority} priority`, clear: { priority: '' } });
-  if (filters.status)   chips.push({ k: 's', label: filters.status === 'done' ? 'Completed' : 'Pending', clear: { status: '' } });
   if (filters.dateIdx >= 0 && (filters.from || filters.to)) {
     const col = dateCols.find((d) => d.idx === filters.dateIdx);
     const range = activePreset ? activePreset.label
@@ -569,15 +645,6 @@ function FilterBar({
           <select className={SELECT_CLS} value={filters.priority} onChange={(e) => setFilter({ priority: e.target.value })} title="Priority">
             <option value="">All priorities</option>
             {priorityOptions.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-        )}
-
-        {hasDone && (
-          <select className={SELECT_CLS} value={filters.status} onChange={(e) => setFilter({ status: e.target.value })}
-            title={doneHeader ? `Based on "${doneHeader}"` : 'Completion status'}>
-            <option value="">Any status</option>
-            <option value="pending">Pending</option>
-            <option value="done">Completed</option>
           </select>
         )}
 
@@ -640,6 +707,37 @@ function FilterBar({
 function fmtInput(s) {
   const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : s;
+}
+
+/* ── under processing / completed ─────────────────────────────────────
+   The two states a row can be in, as tabs rather than a dropdown: it is the
+   first cut anyone makes on this sheet, and a tab says which half you are
+   looking at without having to read a filter chip. "All" stays so the total
+   is never more than one click away. Counts already have every other filter
+   applied, so the number on a tab is what the tab will show. */
+function StatusTabs({ value, counts, onChange, doneHeader }) {
+  const tabs = [
+    { key: '',        label: 'All',              n: counts.all },
+    { key: 'pending', label: 'Under Processing', n: counts.pending },
+    { key: 'done',    label: 'Completed',        n: counts.done },
+  ];
+  return (
+    <div className="seg" title={doneHeader ? `Completion is read from "${doneHeader}"` : undefined}>
+      {tabs.map((t) => {
+        const active = value === t.key;
+        return (
+          <button key={t.key || 'all'} onClick={() => onChange(t.key)}
+            className={`seg-btn ${active ? 'seg-btn-active' : 'hover:text-slate-700'}`}>
+            {t.label}
+            <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[11px] font-semibold tabular-nums ${
+              active ? 'bg-slate-100 text-slate-700' : 'bg-white/70 text-slate-400'}`}>
+              {t.n.toLocaleString()}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 /* ── one table cell ───────────────────────────────────────────────────

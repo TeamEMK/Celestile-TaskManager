@@ -120,6 +120,22 @@
   .table-row { @apply border-t border-slate-100 transition-colors duration-100; }
   .table-row:hover { background: #F8FAFC; }
 
+  /* Tinted rows (Live Tracking). The whole line carries the colour: green
+     once the sheet records an "Actual Complete date", otherwise the row's
+     priority. Hover still works — it darkens the same tint one step instead
+     of washing it back to grey — and the 3px left rail the table draws on the
+     first cell gives the tint an edge to read against. */
+  .table-row.row-done   { background: #ECFDF5; }
+  .table-row.row-done:hover   { background: #D1FAE5; }
+  .table-row.row-high   { background: #FEF2F2; }
+  .table-row.row-high:hover   { background: #FEE2E2; }
+  .table-row.row-medium { background: #FFFBEB; }
+  .table-row.row-medium:hover { background: #FEF3C7; }
+  .table-row.row-low    { background: #EFF6FF; }
+  .table-row.row-low:hover    { background: #DBEAFE; }
+  .table-row.row-other  { background: #F1F5F9; }
+  .table-row.row-other:hover  { background: #E2E8F0; }
+
   /* ── Controls ──────────────────────────────────────────────────────
      One height (36px) and one type size for every control in a toolbar, so
      a filter row lines up whether it is built from inputs, selects, native
