@@ -424,7 +424,9 @@ export default function LiveTrackingClient() {
           <div className="card overflow-hidden">
             {dataErr ? (
               <ErrorState title={dataErr}
-                hint="Check the sheet link, the tab name, and that the sheet is shared with the app's service account." />
+                hint={/took too long/i.test(dataErr)
+                  ? 'Nothing to fix on the sheet — a very large tab can outrun the time Google gets to answer in. If it keeps happening, archiving old rows off this tab will settle it.'
+                  : "Check the sheet link, the tab name, and that the sheet is shared with the app's service account."} />
             ) : loadingData && !data ? (
               <LoadingState label="Loading live data…" />
             ) : !data || data.rows.length === 0 ? (

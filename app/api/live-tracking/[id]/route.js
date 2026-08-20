@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { currentUser, currentUserIsAdmin, redactSheetIds, requireAdmin, requireUser } from '@/lib/api';
 import { deleteLiveTracker, getLiveTracker, getLiveTrackerData, updateLiveTracker } from '@/lib/liveTracking';
 import { branchScopeFor, detectColumns, rowInBranchScope } from '@/lib/liveTrackingView';
+import { isSheetTimeout } from '@/lib/fmsSheet';
 
 // Config + a fresh live read of the connected tab — open to any signed-in
 // user (that's the whole point: browsing the live data), editing stays admin-only.
@@ -34,6 +35,15 @@ export async function GET(req, { params }) {
     const code = err?.code || err?.response?.status;
     if (code === 403) return NextResponse.json({ error: 'Access denied. Share the sheet with the service account.' }, { status: 400 });
     if (code === 404) return NextResponse.json({ error: 'Sheet or tab not found. Check the link and tab name.' }, { status: 400 });
+    // Google didn't answer in time (already retried once). Nothing is wrong
+    // with the link or the sharing — say so, instead of leaking the raw
+    // "The operation was aborted." under a permissions hint.
+    if (isSheetTimeout(err)) {
+      return NextResponse.json({
+        error: 'Google Sheets took too long to answer. The tab is reachable — it is just big, or Google is slow right now. Hit Refresh to try again.',
+        timeout: true,
+      }, { status: 504 });
+    }
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
