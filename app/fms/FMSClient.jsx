@@ -324,7 +324,10 @@ export default function FMSClient() {
     });
   }
 
-  const sheetUrl = detail?.sheet?.sheet_id ? `https://docs.google.com/spreadsheets/d/${detail.sheet.sheet_id}/edit` : null;
+  // Opening the raw Google Sheet is admin-only — non-admins work through the
+  // app's own views. The API doesn't send them the sheet id at all, so this
+  // is belt-and-braces: the column just shows the tab name for them.
+  const sheetUrl = isAdmin && detail?.sheet?.sheet_id ? `https://docs.google.com/spreadsheets/d/${detail.sheet.sheet_id}/edit` : null;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -374,10 +377,12 @@ export default function FMSClient() {
                       <td className="table-td">{s.totalPending ?? 0}</td>
                       <td className="table-td text-slate-500">{s.coordinatorName || '—'}</td>
                       <td className="table-td whitespace-nowrap">
-                        {isActive && sheetUrl && (
+                        {isActive && (sheetUrl ? (
                           <a href={sheetUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
                             className="text-primary-600 hover:underline"><Icon name="link" className="w-3.5 h-3.5" /> {detail?.sheet?.sheet_name} <Icon name="external" className="w-3 h-3" /></a>
-                        )}
+                        ) : detail?.sheet?.sheet_name ? (
+                          <span className="text-slate-500">{detail.sheet.sheet_name}</span>
+                        ) : null)}
                       </td>
                       <td className="table-td">
                         {isActive && (

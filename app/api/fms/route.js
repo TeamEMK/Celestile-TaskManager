@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin, requireUser, currentUser } from '@/lib/api';
+import { requireAdmin, requireUser, currentUser, redactSheetIds } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 import { createFmsSheet, getFmsSheetsWithStats } from '@/lib/fmsSheet';
 
@@ -15,7 +15,9 @@ export async function GET() {
     const isAdmin = isAdminRoles(user.roles);
     const canSubmitIntake = isAdmin || user.access == null || (user.access || []).includes('fms-intake');
     const sheets = await getFmsSheetsWithStats(user.id, isAdmin, canSubmitIntake);
-    return NextResponse.json(sheets);
+    // Non-admins get everything except the sheet id — opening the raw sheet
+    // is an admin-only right.
+    return NextResponse.json(redactSheetIds(sheets, isAdmin));
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

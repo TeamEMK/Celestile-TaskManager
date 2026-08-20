@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin, requireUser } from '@/lib/api';
+import { requireAdmin, requireUser, currentUserIsAdmin, redactSheetIds } from '@/lib/api';
 import { getFmsSheet, getFullSteps, updateFmsSheet, deleteFmsSheet } from '@/lib/fmsSheet';
 
 // Read-only detail is open to any signed-in user (the FMS View / PC View
@@ -11,7 +11,8 @@ export async function GET(req, { params }) {
     const sheet = await getFmsSheet(id);
     if (!sheet) return NextResponse.json({ error: 'FMS not found' }, { status: 404 });
     const steps = await getFullSteps(id);
-    return NextResponse.json({ sheet, steps });
+    // The sheet id is what makes an "open in Sheets" link possible — admins only.
+    return NextResponse.json({ sheet: redactSheetIds(sheet, await currentUserIsAdmin()), steps });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

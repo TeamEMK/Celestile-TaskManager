@@ -234,7 +234,11 @@ export default function LiveTrackingClient() {
   }
 
   const activeTracker = list.find((s) => s.id === activeId);
-  const sheetUrl = activeTracker ? `https://docs.google.com/spreadsheets/d/${activeTracker.sheet_id}` : null;
+  // Admin-only — a plain user reads the sheet through this page, not in
+  // Google Sheets itself (where nothing scopes them to their own branch).
+  // The API withholds sheet_id from them, so this normally has nothing to
+  // build a URL from anyway.
+  const sheetUrl = isAdmin && activeTracker?.sheet_id ? `https://docs.google.com/spreadsheets/d/${activeTracker.sheet_id}` : null;
 
   return (
     <div className="space-y-4 animate-fade-in">

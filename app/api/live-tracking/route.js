@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin, requireUser, currentUser } from '@/lib/api';
+import { requireAdmin, requireUser, currentUser, currentUserIsAdmin, redactSheetIds } from '@/lib/api';
 import { createLiveTracker, listLiveTrackers } from '@/lib/liveTracking';
 
 // Any signed-in user can view the list of connected sheets; only admins can
@@ -8,7 +8,9 @@ export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
   try {
     const list = await listLiveTrackers();
-    return NextResponse.json(list);
+    // Opening the sheet itself is admin-only, so a plain user never receives
+    // the id the "Open in Sheets" link would be built from.
+    return NextResponse.json(redactSheetIds(list, await currentUserIsAdmin()));
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -24,7 +26,7 @@ export async function POST(req) {
     const user = await currentUser();
     const id = await createLiveTracker({
       name: body.name, sheetLink: body.sheetLink, sheetName: body.sheetName,
-      headerRow: body.headerRow, createdBy: user?.id,
+      headerRow: body.headerRow, startRow: body.startRow, createdBy: user?.id,
     });
     return NextResponse.json({ id }, { status: 201 });
   } catch (err) {
