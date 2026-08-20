@@ -7,6 +7,7 @@ import { fileToThumbnail } from '../quotation/imageThumb';
 import PcView from './PcView';
 import { ZoomImg } from '../components/ImageLightbox';
 import Icon from '../components/Icon';
+import { fieldVisibility, colKey } from '@/lib/fieldVisibility';
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Text' },
@@ -177,6 +178,7 @@ export default function FMSClient() {
           label: r.row_label || r.col_letter, col_letter: r.col_letter,
           field_type: r.field_type || 'text', dropdown_options: r.dropdown_options || '',
           required: r.required == null ? 1 : (r.required ? 1 : 0),
+          depends_on: r.depends_on || '', depends_value: r.depends_value || '',
         })),
       })),
     });
@@ -212,6 +214,7 @@ export default function FMSClient() {
       field_type: f.field_type || 'text', dropdown_options: f.dropdown_options || '',
       required: f.required == null ? 1 : (f.required ? 1 : 0),
       auto_fill: f.auto_fill || '', auto_fill_value: f.auto_fill_value || '',
+      depends_on: f.depends_on || '', depends_value: f.depends_value || '',
     })));
     const sId = fieldsRes.intakeSheetId || detail.sheet.sheet_id;
     const sName = fieldsRes.intakeSheetName || detail.sheet.sheet_name;
@@ -239,7 +242,7 @@ export default function FMSClient() {
     setIntakeFields((fs) => fs.map((f, fi) => (fi === i ? { ...f, ...patch } : f)));
   }
   function addIntakeField() {
-    setIntakeFields((fs) => [...fs, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1, auto_fill: '', auto_fill_value: '' }]);
+    setIntakeFields((fs) => [...fs, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1, auto_fill: '', auto_fill_value: '', depends_on: '', depends_value: '' }]);
   }
   function removeIntakeField(i) {
     setIntakeFields((fs) => fs.filter((_, fi) => fi !== i));
@@ -538,7 +541,7 @@ export default function FMSClient() {
               )}
               <div className="space-y-2.5">
                 {intakeFields.map((f, i) => (
-                  <ExtraRowConfig key={i} row={f} headers={intakeHeaders} showAutoFill
+                  <ExtraRowConfig key={i} row={f} headers={intakeHeaders} showAutoFill siblings={intakeFields}
                     onChange={(patch) => updateIntakeField(i, patch)}
                     onRemove={() => removeIntakeField(i)}
                   />
@@ -753,12 +756,12 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
       {step.extraInput === 'yes' && (
         <div className="mt-3 rounded-lg bg-primary-50/60 p-3 space-y-2.5">
           {step.extraRows.map((r, ri) => (
-            <ExtraRowConfig key={ri} row={r} headers={headers}
+            <ExtraRowConfig key={ri} row={r} headers={headers} siblings={step.extraRows}
               onChange={(patch) => onChange({ extraRows: step.extraRows.map((er, eri) => (eri === ri ? { ...er, ...patch } : er)) })}
               onRemove={() => onChange({ extraRows: step.extraRows.filter((_, eri) => eri !== ri) })}
             />
           ))}
-          <button type="button" className="btn-secondary btn-sm" onClick={() => onChange({ extraRows: [...step.extraRows, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1 }] })}>
+          <button type="button" className="btn-secondary btn-sm" onClick={() => onChange({ extraRows: [...step.extraRows, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1, depends_on: '', depends_value: '' }] })}>
             + Add Row
           </button>
         </div>
@@ -767,8 +770,33 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
   );
 }
 
-function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill }) {
+function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblings = [] }) {
   const gridCols = showAutoFill ? 'grid-cols-[1fr_1fr_1fr_1fr_auto_auto]' : 'grid-cols-[1fr_1fr_1fr_auto_auto]';
+
+  // ── Conditional field ("Show only when …") ──────────────────────────
+  // Any other field of the same form that has a column can control this one.
+  // Auto-filled fields are excluded (they never appear on the form, so their
+  // value isn't something the person filling it in can react to), and so is
+  // anything that already depends on THIS field — that would be a loop.
+  const dependsOnThis = (cand, guard = 0) => {
+    const dep = colKey(cand.depends_on);
+    if (!dep || guard > 20) return false;
+    if (dep === colKey(row.col_letter)) return true;
+    const parent = siblings.find((s) => colKey(s.col_letter) === dep);
+    return parent ? dependsOnThis(parent, guard + 1) : false;
+  };
+  const condSources = siblings.filter((s) => s !== row && colKey(s.col_letter) && !s.auto_fill && !dependsOnThis(s));
+  const parent = siblings.find((s) => colKey(s.col_letter) === colKey(row.depends_on));
+  const parentOptions = (parent?.field_type === 'dropdown' ? (parent.dropdown_options || '') : '')
+    .split(',').map((o) => o.trim()).filter(Boolean);
+  // Fall back to the free-text box if a value was configured that isn't one
+  // of the parent's options any more (options edited, or a comma-separated
+  // multi-value rule) — otherwise the select would silently misrepresent it.
+  const useOptionSelect = parentOptions.length > 0 && (!row.depends_value || parentOptions.includes(row.depends_value));
+  // A rule can outlive the field it points at (column changed, field deleted).
+  // Keep it visible in the dropdown instead of silently reading as "Always
+  // show" — at runtime such a field falls back to always showing.
+  const orphanDep = !!colKey(row.depends_on) && !condSources.some((s) => colKey(s.col_letter) === colKey(row.depends_on));
   return (
     <div className={`bg-white border border-slate-200 rounded-lg p-2.5 grid ${gridCols} gap-2 items-start`}>
       {headers.length ? (
@@ -787,7 +815,7 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill }) {
         {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
       </select>
       {showAutoFill && (
-        <select className="select" value={row.auto_fill || ''} onChange={(e) => onChange({ auto_fill: e.target.value })} title="Auto-fill — skips this field on the submit form and fills it in automatically">
+        <select className="select" value={row.auto_fill || ''} onChange={(e) => onChange({ auto_fill: e.target.value, ...(e.target.value ? { depends_on: '', depends_value: '' } : {}) })} title="Auto-fill — skips this field on the submit form and fills it in automatically">
           <option value="">Manual entry</option>
           <option value="timestamp">Current date/time</option>
           <option value="user_name">Logged-in user's name</option>
@@ -805,6 +833,41 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill }) {
       {showAutoFill && row.auto_fill === 'fixed' && (
         <input className="input !text-[11.5px]" style={{ gridColumn: '1 / -1' }} value={row.auto_fill_value || ''} onChange={(e) => onChange({ auto_fill_value: e.target.value })} placeholder="Value to always write into this column" />
       )}
+
+      {/* Conditional field — e.g. "Program File Received Date" only appears
+          once "Program File Received" is set to Yes. */}
+      {!row.auto_fill && (
+        <div style={{ gridColumn: '1 / -1' }} className="flex flex-wrap items-center gap-1.5 pt-0.5 border-t border-slate-100 mt-0.5">
+          <span className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400 shrink-0 pt-1">Show only when</span>
+          <select
+            className="select !text-[11.5px] w-auto"
+            value={colKey(row.depends_on)}
+            onChange={(e) => onChange({ depends_on: e.target.value, depends_value: '' })}
+            title="Leave as 'Always show' for a normal field"
+          >
+            <option value="">Always show</option>
+            {condSources.map((s) => (
+              <option key={s.col_letter} value={colKey(s.col_letter)}>
+                {s.label || s.row_label || s.col_letter} (COL {colKey(s.col_letter)})
+              </option>
+            ))}
+            {orphanDep && <option value={colKey(row.depends_on)}>COL {colKey(row.depends_on)} — not on this form</option>}
+          </select>
+          {!!row.depends_on && (useOptionSelect ? (
+            <select className="select !text-[11.5px] w-auto" value={row.depends_value || ''} onChange={(e) => onChange({ depends_value: e.target.value })}>
+              <option value="">is any value</option>
+              {parentOptions.map((o) => <option key={o} value={o}>is "{o}"</option>)}
+            </select>
+          ) : (
+            <input className="input !text-[11.5px] flex-1 min-w-[140px]" value={row.depends_value || ''}
+              onChange={(e) => onChange({ depends_value: e.target.value })}
+              placeholder="is… (blank = any value; comma-separate for several)" />
+          ))}
+          {orphanDep && (
+            <span className="text-[10.5px] text-amber-600">that column isn't a field on this form — this field will always show</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -818,10 +881,18 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
   const [err, setErr] = useState('');
   const [savedInfo, setSavedInfo] = useState('');
 
+  // Conditional fields — a field configured with "Show only when …" appears
+  // only once its controlling field holds the configured value (e.g. Program
+  // File Received Date once Program File Received = Yes). Recomputed on every
+  // keystroke/selection, so the form reveals and hides fields live.
+  const shown = useMemo(() => fieldVisibility(fields, (f) => (
+    f.auto_fill === 'fixed' ? (f.auto_fill_value || '') : (values[f.id] ?? '')
+  )), [fields, values]);
+
   // Auto-filled fields (Timestamp, logged-in user's name, a fixed value…)
   // are computed server-side on submit — no input for them here.
-  const visibleFields = fields.filter((f) => !f.auto_fill);
-  const autoFields = fields.filter((f) => f.auto_fill);
+  const visibleFields = fields.filter((f, i) => shown[i] && !f.auto_fill);
+  const autoFields = fields.filter((f, i) => shown[i] && f.auto_fill);
 
   const setVal = (id, v) => setValues((s) => ({ ...s, [id]: v }));
 
@@ -829,11 +900,15 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
     setErr('');
     const missing = visibleFields.find((f) => f.required && !String(values[f.id] || '').trim());
     if (missing) { setErr(`"${missing.field_label || missing.col_letter}" is required`); return; }
+    // Drop anything typed into a field that a later answer hid again — the
+    // server blanks hidden fields too, this just keeps the two in step.
+    const payload = {};
+    fields.forEach((f, i) => { if (shown[i]) payload[f.id] = values[f.id] ?? ''; });
     setSaving(true);
     try {
       const res = await fetch(`/api/fms-tasks/${fmsId}/intake`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ values }),
+        body: JSON.stringify({ values: payload }),
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setErr(d.error || 'Failed to submit'); return; }

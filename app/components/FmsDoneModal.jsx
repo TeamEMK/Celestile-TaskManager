@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { fileToThumbnail } from '../quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
+import { fieldVisibility } from '@/lib/fieldVisibility';
 import Icon from '../components/Icon';
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
@@ -51,7 +52,15 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   // Column configured — otherwise there's nowhere to write it, and the user
   // was being forced to type a reason that silently went nowhere.
   const delayed = isDelayed(row.planValue) && !!step?.delay_reason_col;
-  const extraRows = (step?.extraRows || []).filter((r) => r.col_letter);
+  const configuredRows = useMemo(() => (step?.extraRows || []).filter((r) => r.col_letter), [step]);
+  // Conditional fields — a row configured with "Show only when …" appears
+  // only once its controlling row holds the configured value (e.g. a date
+  // that's only asked for when "Received?" is answered Yes).
+  const shown = useMemo(
+    () => fieldVisibility(configuredRows, (r) => extraValues[r.col_letter] ?? ''),
+    [configuredRows, extraValues]
+  );
+  const extraRows = configuredRows.filter((_, i) => shown[i]);
   // Steps can be configured (in the FMS editor) to point at another page of
   // the app — e.g. the Inventory form for a "slab inward" step. The caller
   // (the "Mark Done" click handler) already tries to open this in a new tab
