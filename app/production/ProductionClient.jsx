@@ -120,6 +120,7 @@ function DailyReport({ departments }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(null); // { departmentId, shift }
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async (d) => {
     setLoading(true);
@@ -171,6 +172,9 @@ function DailyReport({ departments }) {
         </button>
         <div className="sm:ml-auto flex items-center gap-2">
           <ResultCount shown={totals.rows} total={totals.rows} noun="row" />
+          <button className="btn-secondary btn-sm" onClick={() => setImporting(true)}>
+            <Icon name="upload" className="w-3.5 h-3.5" /> Import Excel
+          </button>
           <button className="btn-primary btn-sm" onClick={() => window.print()}>
             <Icon name="download" className="w-3.5 h-3.5" /> Print / PDF
           </button>
@@ -203,6 +207,15 @@ function DailyReport({ departments }) {
             onSaved={() => { setEditing(null); load(date); }}
           />
         ))
+      )}
+
+      {importing && (
+        <ImportExcelModal
+          departments={departments}
+          defaultDate={date}
+          onClose={() => setImporting(false)}
+          onImported={(importedDate) => { setImporting(false); setDate(importedDate); load(importedDate); }}
+        />
       )}
     </div>
   );
@@ -465,6 +478,232 @@ function FieldInput({ field, value, onChange, options = [], big = false }) {
         </datalist>
       )}
     </>
+  );
+}
+
+/* ── Import the factory's Excel ───────────────────────────────────── */
+
+/* The floor doesn't fill this form — the office already builds the same
+   report in Excel every day. This reads that workbook back in: it shows what
+   it understood first (which block landed on which department, how many rows,
+   what it skipped), lets that be corrected, and only then writes, block by
+   block, through the same save the manual form uses. */
+function ImportExcelModal({ departments, defaultDate, onClose, onImported }) {
+  const [parsing, setParsing] = useState(false);
+  const [err, setErr] = useState('');
+  const [result, setResult] = useState(null);
+  const [date, setDate] = useState(defaultDate);
+  const [blocks, setBlocks] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(0);
+
+  async function readFile(file) {
+    if (!file) return;
+    setErr(''); setParsing(true); setResult(null); setBlocks([]);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const r = await fetch('/api/production/import', { method: 'POST', body });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setErr(d.error || 'Could not read that file'); return; }
+      setResult(d);
+      if (d.date) setDate(d.date);
+      setBlocks((d.blocks || []).map((b, i) => ({
+        ...b, key: i,
+        // A block with no rows is an idle department — nothing to write, and
+        // importing it would wipe whatever is already saved for that day.
+        include: !!b.departmentId && b.rows.length > 0,
+      })));
+    } catch (e) {
+      setErr(e.message || 'Could not read that file');
+    } finally { setParsing(false); }
+  }
+
+  const patch = (key, p) => setBlocks((bs) => bs.map((b) => (b.key === key ? { ...b, ...p } : b)));
+  const deptById = (id) => departments.find((d) => d.id === id);
+
+  const chosen = blocks.filter((b) => b.include && b.departmentId && b.rows.length);
+
+  // Two blocks aimed at the same department and shift would overwrite each
+  // other — the day only stores one. That's a mis-read to fix, not something
+  // to silently resolve by letting the last one win.
+  const clashes = useMemo(() => {
+    const seen = new Map();
+    const dupes = new Set();
+    for (const b of chosen) {
+      const k = `${b.departmentId}::${b.shift || ''}`;
+      if (seen.has(k)) dupes.add(k); else seen.set(k, b.key);
+    }
+    return dupes;
+  }, [chosen]);
+
+  const clashKey = (b) => clashes.has(`${b.departmentId}::${b.shift || ''}`);
+  const totalRows = chosen.reduce((n, b) => n + b.rows.length, 0);
+
+  async function commit() {
+    setErr(''); setSaving(true); setSaved(0);
+    try {
+      let n = 0;
+      for (const b of chosen) {
+        const r = await fetch('/api/production/day', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date, departmentId: b.departmentId, shift: b.shift || '',
+            rows: b.rows, note: b.note || '',
+          }),
+        });
+        const d = await r.json().catch(() => ({}));
+        // Stop at the first failure rather than pressing on: the blocks
+        // already written stay written, and the message says where it stopped.
+        if (!r.ok) { setErr(`${b.departmentName || b.title}: ${d.error || 'failed to save'} — ${n} of ${chosen.length} blocks were imported.`); return; }
+        setSaved(++n);
+      }
+      onImported(date);
+    } catch (e) {
+      setErr(e.message || 'Import failed');
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 print:hidden"
+      onClick={() => !saving && onClose()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">
+            <Icon name="upload" className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-slate-900">Import the day&apos;s Excel</h2>
+            <p className="text-[12px] text-slate-500 mt-0.5">Reads the report the office already makes — nothing is saved until you confirm below</p>
+          </div>
+          <button onClick={onClose} disabled={saving} className="btn-ghost w-8 h-8 !p-0 shrink-0">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          {err && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{err}</div>}
+
+          <div>
+            <label className="label">Excel file <span className="text-slate-400 font-normal normal-case">(.xlsx or .xls — the same one that gets printed)</span></label>
+            <input type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              className="input !py-1.5" disabled={parsing || saving}
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; readFile(f); }} />
+            {parsing && <div className="text-[11.5px] text-slate-400 mt-1">Reading the file…</div>}
+          </div>
+
+          {result && (
+            <>
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 space-y-3">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="label">Import under this date</label>
+                    <input type="date" className="date-ctl" value={date} onChange={(e) => setDate(e.target.value)} />
+                  </div>
+                  <div className="text-[12px] text-slate-500 pb-2">
+                    {result.date
+                      ? <>Read from the file&apos;s own block titles ({fmtDate(result.date)}).</>
+                      : <>The file&apos;s titles carry no date — set it here.</>}
+                  </div>
+                </div>
+                {(result.warnings || []).map((w, i) => (
+                  <div key={i} className="text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    <Icon name="alert" className="w-3.5 h-3.5" /> {w}
+                  </div>
+                ))}
+              </div>
+
+              {blocks.length === 0 ? (
+                <EmptyState icon="clipboard" title="No department tables found in that file"
+                  hint="Each block needs a header row with an S NO column, and a line above it naming the department." />
+              ) : (
+                <div className="space-y-2.5">
+                  {blocks.map((b) => {
+                    const dept = deptById(b.departmentId);
+                    const clash = b.include && clashKey(b);
+                    return (
+                      <div key={b.key} className={`rounded-xl border p-3 ${clash ? 'border-red-200 bg-red-50/40' : b.include ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50/60'}`}>
+                        <div className="flex items-start gap-2.5">
+                          <input type="checkbox" checked={b.include} disabled={!b.rows.length}
+                            onChange={(e) => patch(b.key, { include: e.target.checked })}
+                            className="accent-primary-600 mt-1" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[13px] font-semibold text-slate-800 truncate">{b.title || '(untitled block)'}</div>
+                            <div className="text-[11.5px] text-slate-500 mt-0.5">
+                              {b.rows.length} row{b.rows.length === 1 ? '' : 's'}
+                              {b.skippedRows > 0 && <> · {b.skippedRows} empty row{b.skippedRows === 1 ? '' : 's'} skipped</>}
+                              {b.note && <> · note: “{b.note}”</>}
+                              {b.sheet && <> · sheet “{b.sheet}”</>}
+                            </div>
+                            {b.rows.length > 0 && (
+                              <div className="text-[11px] text-slate-400 mt-1 truncate">
+                                {b.rows.slice(0, 3).map((r) => [r.worker, r.order_number, r.hours && `${r.hours}h`].filter(Boolean).join(' · ')).join('  |  ')}
+                                {b.rows.length > 3 && ' …'}
+                              </div>
+                            )}
+                            {!!b.unmappedColumns?.length && (
+                              <div className="text-[11px] text-amber-600 mt-1">Not imported: {b.unmappedColumns.join(', ')}</div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1.5 shrink-0 w-[200px]">
+                            <select className="select !text-[11.5px]" value={b.departmentId}
+                              onChange={(e) => patch(b.key, { departmentId: e.target.value, include: !!e.target.value && b.rows.length > 0 })}>
+                              <option value="">-- Which department? --</option>
+                              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                            {dept?.hasShifts && (
+                              <select className="select !text-[11.5px]" value={b.shift || ''} onChange={(e) => patch(b.key, { shift: e.target.value })}>
+                                {SHIFTS.map((sh) => <option key={sh.key} value={sh.key}>{sh.label}</option>)}
+                              </select>
+                            )}
+                          </div>
+                        </div>
+                        {!b.departmentId && (
+                          <div className="text-[11.5px] text-amber-700 mt-2 pl-7">
+                            No department in the app matches this title — pick one, or leave it out.
+                          </div>
+                        )}
+                        {clash && (
+                          <div className="text-[11.5px] text-red-600 mt-2 pl-7">
+                            Another block is already going to {dept?.name}{b.shift ? ` (${shiftLabel(b.shift)})` : ''} — a day keeps only one, so fix this before importing.
+                          </div>
+                        )}
+                        {!b.rows.length && (
+                          <div className="text-[11.5px] text-slate-400 mt-2 pl-7">Nothing to import — the block is empty in the file.</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {chosen.length > 0 && (
+                <div className="text-[12px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                  <Icon name="alert" className="w-3.5 h-3.5" /> Importing replaces whatever is already saved for these departments on {fmtDate(date)}. Every other day and department is untouched.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-between items-center gap-2 shrink-0">
+          <span className="text-[11.5px] text-slate-400">
+            {saving
+              ? `Importing… ${saved} of ${chosen.length} blocks`
+              : chosen.length
+                ? `${chosen.length} block${chosen.length === 1 ? '' : 's'} · ${totalRows} row${totalRows === 1 ? '' : 's'}`
+                : ''}
+          </span>
+          <div className="flex gap-2">
+            <button className="btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+            <button className="btn-primary" onClick={commit}
+              disabled={saving || parsing || !chosen.length || clashes.size > 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date)}>
+              {saving ? 'Importing…' : `Import ${chosen.length || ''} block${chosen.length === 1 ? '' : 's'}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
