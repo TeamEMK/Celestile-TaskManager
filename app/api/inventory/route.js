@@ -10,7 +10,7 @@ import { listSlabs, resolveRow, appendSlabs, writeRows, deleteRow, nextLotKey, p
 
 // Slab block/release alerts go to the inventory WhatsApp *group*, not a single
 // number. formatNumber() passes a …@g.us JID through untouched.
-const NOTIFY = () => process.env.INVENTORY_NOTIFY || '918050005533-1494226049@g.us';
+const NOTIFY = () => process.env.INVENTORY_NOTIFY || '120363428784416671@g.us';
 
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
