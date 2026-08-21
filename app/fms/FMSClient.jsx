@@ -11,10 +11,13 @@ import { fieldVisibility, colKey } from '@/lib/fieldVisibility';
 import DateField from '../components/DateField';
 import OrderNumberInput from '../components/OrderNumberInput';
 import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
+import ImsThicknessSelect from '../components/ImsThicknessSelect';
+import { isThicknessField, isMaterialField } from '@/lib/imsFields';
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Text' },
   { value: 'order',    label: 'Order Number (H001)' },
+  { value: 'thickness', label: 'Thickness (from IMS)' },
   { value: 'number',   label: 'Number' },
   { value: 'date',     label: 'Date' },
   { value: 'link',     label: 'Link' },
@@ -905,6 +908,14 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
 
   const setVal = (id, v) => setValues((s) => ({ ...s, [id]: v }));
 
+  // If this form also captures the stone, the thickness list narrows to the
+  // sizes that stone is sold in. No material field is fine — the list is then
+  // simply every size in the master.
+  const materialValue = (() => {
+    const f = fields.find(isMaterialField);
+    return f ? (values[f.id] || '') : '';
+  })();
+
   async function submit() {
     setErr('');
     const missing = visibleFields.find((f) => f.required && !String(values[f.id] || '').trim());
@@ -991,6 +1002,12 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
                   <DateField className="input" value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)} />
                 ) : isOrderField(f) ? (
                   <OrderNumberInput value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)} />
+                ) : isThicknessField(f) ? (
+                  <ImsThicknessSelect
+                    value={values[f.id] || ''}
+                    material={materialValue}
+                    onChange={(e) => setVal(f.id, e.target.value)}
+                  />
                 ) : (
                   <input
                     className="input"

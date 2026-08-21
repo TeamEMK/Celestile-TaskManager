@@ -9,6 +9,8 @@ import Icon from '../components/Icon';
 import DateField from './DateField';
 import OrderNumberInput from './OrderNumberInput';
 import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
+import ImsThicknessSelect from './ImsThicknessSelect';
+import { isThicknessField, isMaterialField } from '@/lib/imsFields';
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
 // The resulting data: URI is swapped for a Drive URL server-side (writeStepDone)
@@ -64,6 +66,12 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
     [configuredRows, extraValues]
   );
   const extraRows = configuredRows.filter((_, i) => shown[i]);
+  // The stone this step captured, if it captures one — narrows the thickness
+  // list to the sizes that stone comes in.
+  const materialValue = (() => {
+    const r = configuredRows.find(isMaterialField);
+    return r ? (extraValues[r.col_letter] || '') : '';
+  })();
   // Steps can be configured (in the FMS editor) to point at another page of
   // the app — e.g. the Inventory form for a "slab inward" step. The caller
   // (the "Mark Done" click handler) already tries to open this in a new tab
@@ -165,6 +173,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
               <div className="space-y-3">
                 {extraRows.map((r) => (
                   <ExtraField key={r.col_letter} row={r} value={extraValues[r.col_letter] || ''}
+                    material={materialValue}
                     onChange={(v) => setExtraValues((ev) => ({ ...ev, [r.col_letter]: v }))} />
                 ))}
               </div>
@@ -182,7 +191,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   );
 }
 
-function ExtraField({ row, value, onChange }) {
+function ExtraField({ row, value, onChange, material = '' }) {
   const label = row.row_label || row.col_letter;
   const required = !(row.required === 0 || row.required === false || row.required === '0');
   return (
@@ -202,7 +211,8 @@ function ExtraField({ row, value, onChange }) {
       )}
       {row.field_type === 'upload' && <UploadField value={value} onChange={onChange} />}
       {isOrderField(row) && <OrderNumberInput value={value} onChange={(e) => onChange(e.target.value)} />}
-      {(!row.field_type || row.field_type === 'text') && !isOrderField(row)
+      {isThicknessField(row) && <ImsThicknessSelect value={value} material={material} onChange={(e) => onChange(e.target.value)} />}
+      {(!row.field_type || row.field_type === 'text') && !isOrderField(row) && !isThicknessField(row)
         && <input type="text" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter value…" />}
     </div>
   );
