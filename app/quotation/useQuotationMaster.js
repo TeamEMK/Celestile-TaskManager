@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 export function useQuotationMaster() {
   const [items, setItems] = useState([]);
   const [thicknesses, setThicknesses] = useState([]);
+  const [thicknessByItem, setThicknessByItem] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -20,6 +21,7 @@ export function useQuotationMaster() {
         if (!alive) return;
         setItems(data.items || []);
         setThicknesses(data.thicknesses || []);
+        setThicknessByItem(data.thicknessByItem || {});
         setError(data.error || '');
       } catch (err) {
         if (alive) setError('Could not reach the item master');
@@ -40,10 +42,28 @@ export function useQuotationMaster() {
     if (!res.ok) throw new Error(data.error || 'Could not add the item');
     setItems(data.items || []);
     setThicknesses(data.thicknesses || []);
+    setThicknessByItem(data.thicknessByItem || {});
     return data;
   }, []);
 
-  return { items, thicknesses, error, loading, addItem };
+  // The thicknesses this stone is actually sold in, per the master sheet —
+  // "Indian satvario marble" is listed at 20MM, 30MM and 50MM. A stone the
+  // sheet has no thickness for (or none picked yet) falls back to the whole
+  // list rather than an empty dropdown.
+  const thicknessesFor = useCallback((item) => {
+    const own = thicknessByItem[String(item || '').trim().toLowerCase()];
+    return own && own.length ? own : thicknesses;
+  }, [thicknessByItem, thicknesses]);
+
+  // Everything else the sheet knows about. The stone's own sizes lead the
+  // dropdown, but a job that needs a size nobody has listed against that stone
+  // yet must not be a dead end — those stay reachable underneath.
+  const otherThicknesses = useCallback((item) => {
+    const own = thicknessesFor(item);
+    return thicknesses.filter((t) => !own.includes(t));
+  }, [thicknessesFor, thicknesses]);
+
+  return { items, thicknesses, thicknessByItem, thicknessesFor, otherThicknesses, error, loading, addItem };
 }
 
 // Shared "+ Add new item" dialog. Deliberately plain — the quotation forms

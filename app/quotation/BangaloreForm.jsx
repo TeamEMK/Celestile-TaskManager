@@ -278,7 +278,6 @@ export default function BangaloreForm({ initialRef = '' }) {
   return (
     <div className="qb-scope">
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600;700&display=swap" />
-      <datalist id="bq-thk">{master.thicknesses.map((t) => <option key={t} value={t} />)}</datalist>
       <datalist id="bq-unit">{UNIT_OPTIONS.map((u) => <option key={u} value={u} />)}</datalist>
       <datalist id="bq-consult">{consultants.map((c) => <option key={c.name} value={c.name} />)}</datalist>
 
@@ -399,7 +398,10 @@ export default function BangaloreForm({ initialRef = '' }) {
                       <td>
                         <select value={r.mat} onChange={(e) => {
                           if (e.target.value === ADD_ITEM_VALUE) { setAddFor(i); return; }
-                          setRow(i, 'mat', e.target.value);
+                          const mat = e.target.value;
+                          // Keep the thickness only if the new stone comes in it.
+                          const keep = !r.thk || master.thicknessesFor(mat).includes(r.thk);
+                          setRows((rs) => rs.map((row, idx) => (idx === i ? { ...row, mat, thk: keep ? row.thk : '' } : row)));
                         }}>
                           <option value="">—</option>
                           {r.mat && !matOptions.includes(r.mat) && <option value={r.mat}>{r.mat}</option>}
@@ -407,7 +409,20 @@ export default function BangaloreForm({ initialRef = '' }) {
                           <option value={ADD_ITEM_VALUE}>＋ Add new item…</option>
                         </select>
                       </td>
-                      <td><input list="bq-thk" value={r.thk} placeholder="18MM" onChange={(e) => setRow(i, 'thk', e.target.value)} /></td>
+                      <td>
+                        {/* Thicknesses come from the master sheet, narrowed to
+                            the ones this stone is actually sold in. */}
+                        <select value={r.thk} onChange={(e) => setRow(i, 'thk', e.target.value)}>
+                          <option value="">—</option>
+                          {r.thk && !master.thicknesses.includes(r.thk) && <option value={r.thk}>{r.thk}</option>}
+                          {master.thicknessesFor(r.mat).map((t) => <option key={t} value={t}>{t}</option>)}
+                          {master.otherThicknesses(r.mat).length > 0 && (
+                            <optgroup label="Other sizes in the master">
+                              {master.otherThicknesses(r.mat).map((t) => <option key={t} value={t}>{t}</option>)}
+                            </optgroup>
+                          )}
+                        </select>
+                      </td>
                       <td className="qb-unit-wrap"><input list="bq-unit" value={r.unit} placeholder="—" onChange={(e) => setRow(i, 'unit', e.target.value)} /></td>
                       <td className="qb-rate-type-cell">
                         <label className="qb-rate-type-toggle" title="Rate per SFT (qty = size W×H)">

@@ -258,7 +258,6 @@ export default function HyderabadForm({ initialRef = '' }) {
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600;700&display=swap" />
       <datalist id="qh-consult">{consultants.map((c) => <option key={c.name} value={c.name} />)}</datalist>
       <datalist id="qh-consult-email">{consultants.map((c) => c.email && <option key={c.email} value={c.email} />)}</datalist>
-      <datalist id="qh-thk">{master.thicknesses.map((t) => <option key={t} value={t} />)}</datalist>
 
       {addFor !== null && (
         <AddItemModal
@@ -373,7 +372,10 @@ export default function HyderabadForm({ initialRef = '' }) {
                       <td>
                         <select value={r.mat} onChange={(e) => {
                           if (e.target.value === ADD_ITEM_VALUE) { setAddFor(i); return; }
-                          setStone(i, 'mat', e.target.value);
+                          const mat = e.target.value;
+                          // Keep the thickness only if the new stone comes in it.
+                          const keep = !r.thk || master.thicknessesFor(mat).includes(r.thk);
+                          setStoneRows((rs) => rs.map((row, idx) => (idx === i ? { ...row, mat, thk: keep ? row.thk : '' } : row)));
                         }}>
                           <option value="">—</option>
                           {r.mat && !matOptions.includes(r.mat) && <option value={r.mat}>{r.mat}</option>}
@@ -382,7 +384,16 @@ export default function HyderabadForm({ initialRef = '' }) {
                         </select>
                       </td>
                       <td>
-                        <input list="qh-thk" value={r.thk} placeholder="Thk" onChange={(e) => setStone(i, 'thk', e.target.value)} />
+                        <select value={r.thk} onChange={(e) => setStone(i, 'thk', e.target.value)}>
+                          <option value="">—</option>
+                          {r.thk && !master.thicknesses.includes(r.thk) && <option value={r.thk}>{r.thk}</option>}
+                          {master.thicknessesFor(r.mat).map((t) => <option key={t} value={t}>{t}</option>)}
+                          {master.otherThicknesses(r.mat).length > 0 && (
+                            <optgroup label="Other sizes in the master">
+                              {master.otherThicknesses(r.mat).map((t) => <option key={t} value={t}>{t}</option>)}
+                            </optgroup>
+                          )}
+                        </select>
                       </td>
                       <td>
                         <select value={r.unit} onChange={(e) => setStone(i, 'unit', e.target.value)}>

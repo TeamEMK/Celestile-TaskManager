@@ -8,11 +8,11 @@ import { getQuotationMaster, addQuotationMasterItem, explainMasterError, MASTER_
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
   try {
-    const { items, thicknesses, tab } = await getQuotationMaster();
-    return NextResponse.json({ items, thicknesses, tab, sheetId: MASTER_SHEET_ID });
+    const { items, thicknesses, thicknessByItem, tab } = await getQuotationMaster();
+    return NextResponse.json({ items, thicknesses, thicknessByItem, tab, sheetId: MASTER_SHEET_ID });
   } catch (err) {
     console.error('[api/quotations/master]', err.message);
-    return NextResponse.json({ items: [], thicknesses: [], error: explainMasterError(err) });
+    return NextResponse.json({ items: [], thicknesses: [], thicknessByItem: {}, error: explainMasterError(err) });
   }
 }
 
@@ -22,8 +22,8 @@ export async function POST(req) {
   try {
     const { item, thickness } = await req.json();
     const result = await addQuotationMasterItem(item, thickness);
-    const { items, thicknesses } = await getQuotationMaster(true);
-    return NextResponse.json({ ...result, items, thicknesses });
+    const { items, thicknesses, thicknessByItem } = await getQuotationMaster(true);
+    return NextResponse.json({ ...result, items, thicknesses, thicknessByItem });
   } catch (err) {
     console.error('[api/quotations/master POST]', err.message);
     return NextResponse.json({ error: explainMasterError(err) }, { status: 400 });
