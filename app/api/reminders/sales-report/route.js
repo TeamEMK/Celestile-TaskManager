@@ -1,6 +1,7 @@
 import { runDailyReport, REPORTS } from '@/lib/dailyReport';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // Sales daily report — one WhatsApp message PER sales person into the sales
 // group, every day except Sunday at 9:30 PM IST, exactly like the designer

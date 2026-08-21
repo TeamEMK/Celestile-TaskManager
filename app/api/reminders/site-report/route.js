@@ -1,6 +1,7 @@
 import { runDailyReport, REPORTS } from '@/lib/dailyReport';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // Site Engineer daily report — one WhatsApp message PER site engineer into
 // the site eng group, every day except Sunday at 9:30 PM IST, exactly like

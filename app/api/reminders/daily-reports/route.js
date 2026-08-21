@@ -1,6 +1,9 @@
 import { runDailyReport, REPORTS } from '@/lib/dailyReport';
 
 export const dynamic = 'force-dynamic';
+// Three teams' worth of WhatsApp sends in one request, one message per
+// person, all sequential — well past the 10s a function gets by default.
+export const maxDuration = 60;
 
 // All three daily reports (designer, sales, site engineer) off ONE cron hit —
 // so the existing 9:30 PM designer job just needs its URL pointed here

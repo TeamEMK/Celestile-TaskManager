@@ -1,6 +1,7 @@
 import { runDailyReport, REPORTS } from '@/lib/dailyReport';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // Designer daily report — one WhatsApp message PER designer (not one
 // rolled-up message for the whole department) into the design group, every
