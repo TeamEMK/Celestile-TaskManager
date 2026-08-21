@@ -19,6 +19,7 @@ import {
   SearchInput, SectionTitle, ResultCount, StatCard, StatGrid,
 } from '../components/ui';
 import DateField from '../components/DateField';
+import { suspectOrderNumbers, ORDER_HINT } from '@/lib/orderNumber';
 
 const todayISO = () => new Date().toLocaleDateString('en-CA');
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toLocaleDateString('en-CA'); };
@@ -462,6 +463,10 @@ function DepartmentBlock({ date, dept, shift, rows, note, editing, onEdit, onCan
    on Android/iOS it still opens the normal keyboard. */
 function FieldInput({ field, value, onChange, options = [], big = false }) {
   const listId = options.length ? `sg-${field.key}` : undefined;
+  // Flagged, not blocked: this column legitimately carries "MOP SHEET" and
+  // "VINAY SIR" for work booked against no order, so only something that was
+  // reaching for an order number and missed gets called out.
+  const odd = field.key === 'order_number' ? suspectOrderNumbers(value) : [];
   return (
     <>
       <input
@@ -473,6 +478,11 @@ function FieldInput({ field, value, onChange, options = [], big = false }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+      {odd.length > 0 && (
+        <div className="text-[10.5px] text-amber-600 mt-0.5" title={ORDER_HINT}>
+          {odd.join(', ')} — orders read H001 / B514
+        </div>
+      )}
       {listId && (
         <datalist id={listId}>
           {options.map((o) => <option key={o} value={o} />)}
@@ -644,6 +654,11 @@ function ImportExcelModal({ departments, defaultDate, onClose, onImported }) {
                             )}
                             {!!b.unmappedColumns?.length && (
                               <div className="text-[11px] text-amber-600 mt-1">Not imported: {b.unmappedColumns.join(', ')}</div>
+                            )}
+                            {!!b.oddOrders?.length && (
+                              <div className="text-[11px] text-amber-600 mt-1">
+                                Order numbers to check: {b.oddOrders.join(', ')} — these import as they are
+                              </div>
                             )}
                           </div>
                           <div className="flex flex-col gap-1.5 shrink-0 w-[200px]">

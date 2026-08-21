@@ -9,9 +9,12 @@ import { ZoomImg } from '../components/ImageLightbox';
 import Icon from '../components/Icon';
 import { fieldVisibility, colKey } from '@/lib/fieldVisibility';
 import DateField from '../components/DateField';
+import OrderNumberInput from '../components/OrderNumberInput';
+import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Text' },
+  { value: 'order',    label: 'Order Number (H001)' },
   { value: 'number',   label: 'Number' },
   { value: 'date',     label: 'Date' },
   { value: 'link',     label: 'Link' },
@@ -906,6 +909,12 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
     setErr('');
     const missing = visibleFields.find((f) => f.required && !String(values[f.id] || '').trim());
     if (missing) { setErr(`"${missing.field_label || missing.col_letter}" is required`); return; }
+    // An order number is a join key with no table behind it — one typed
+    // "H 1774" splits that job's history in every report that groups by it.
+    const badOrder = visibleFields.find((f) => (
+      isOrderField(f) && String(values[f.id] || '').trim() && !isValidOrderNumber(values[f.id])
+    ));
+    if (badOrder) { setErr(`"${badOrder.field_label || badOrder.col_letter}" — ${ORDER_HINT}`); return; }
     // Drop anything typed into a field that a later answer hid again — the
     // server blanks hidden fields too, this just keeps the two in step.
     const payload = {};
@@ -980,6 +989,8 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
                   <UploadField value={values[f.id] || ''} onChange={(v) => setVal(f.id, v)} />
                 ) : f.field_type === 'date' ? (
                   <DateField className="input" value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)} />
+                ) : isOrderField(f) ? (
+                  <OrderNumberInput value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)} />
                 ) : (
                   <input
                     className="input"

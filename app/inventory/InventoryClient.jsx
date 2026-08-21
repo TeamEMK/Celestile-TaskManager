@@ -5,6 +5,7 @@ import { fileToThumbnail } from '@/app/quotation/imageThumb';
 import { Lightbox, ZoomImg } from '@/app/components/ImageLightbox';
 import Icon from '../components/Icon';
 import { StatCard as UiStatCard } from '../components/ui';
+import OrderNumberInput from '../components/OrderNumberInput';
 
 const num = (v) => parseFloat(v) || 0;
 // The register is hand-fed by the old forms, so the same material/thickness
@@ -567,7 +568,7 @@ function Stock({ inv, loading, masters, reload }) {
 
       {block && (
         <Modal title={block.slab ? `Block Slab ${block.slab}` : `Block ${block.ids.length} Slab${block.ids.length > 1 ? 's' : ''}`} onClose={() => setBlock(null)}>
-          <F label="Order No."><input className="input" value={block.orderNo} onChange={(e) => setBlock({ ...block, orderNo: e.target.value })} placeholder="ORD-2026-001" /></F>
+          <F label="Order No."><OrderNumberInput value={block.orderNo} onChange={(e) => setBlock({ ...block, orderNo: e.target.value })} /></F>
           <F label="Client Name"><input className="input" value={block.client} onChange={(e) => setBlock({ ...block, client: e.target.value })} /></F>
           <F label="Area / Project"><input className="input" value={block.area} onChange={(e) => setBlock({ ...block, area: e.target.value })} /></F>
           <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setBlock(null)}>Cancel</button><button className="btn-warn" disabled={saving} onClick={confirmBlock}>{saving ? 'Blocking…' : `Block ${block.ids.length} Slab${block.ids.length > 1 ? 's' : ''}`}</button></div>

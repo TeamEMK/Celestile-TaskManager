@@ -34,6 +34,7 @@ export async function POST(req, { params }) {
     const code = err?.code || err?.response?.status;
     if (code === 403) return NextResponse.json({ error: 'Access denied. Sheet write permission needed.' }, { status: 400 });
     if (err.message?.startsWith('Required field')) return NextResponse.json({ error: err.message }, { status: 400 });
+    if (err.message?.startsWith('Order number'))   return NextResponse.json({ error: err.message }, { status: 400 });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

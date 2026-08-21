@@ -7,6 +7,8 @@ import { stepOpenUrl } from '@/lib/fmsOpenUrl';
 import { fieldVisibility } from '@/lib/fieldVisibility';
 import Icon from '../components/Icon';
 import DateField from './DateField';
+import OrderNumberInput from './OrderNumberInput';
+import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
 // The resulting data: URI is swapped for a Drive URL server-side (writeStepDone)
@@ -82,6 +84,8 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
     for (const r of extraRows) {
       const required = !(r.required === 0 || r.required === false || r.required === '0');
       if (required && !extraValues[r.col_letter]?.trim()) { setErr(`"${r.row_label || r.col_letter}" is required.`); return; }
+      const typed = extraValues[r.col_letter]?.trim();
+      if (isOrderField(r) && typed && !isValidOrderNumber(typed)) { setErr(`"${r.row_label || r.col_letter}" — ${ORDER_HINT}`); return; }
     }
     setSaving(true);
     try {
@@ -197,7 +201,9 @@ function ExtraField({ row, value, onChange }) {
         </select>
       )}
       {row.field_type === 'upload' && <UploadField value={value} onChange={onChange} />}
-      {(!row.field_type || row.field_type === 'text') && <input type="text" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter value…" />}
+      {isOrderField(row) && <OrderNumberInput value={value} onChange={(e) => onChange(e.target.value)} />}
+      {(!row.field_type || row.field_type === 'text') && !isOrderField(row)
+        && <input type="text" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter value…" />}
     </div>
   );
 }

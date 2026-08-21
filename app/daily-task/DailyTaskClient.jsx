@@ -4,6 +4,8 @@ import { useSession } from 'next-auth/react';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 import Icon from '../components/Icon';
 import DateField from '../components/DateField';
+import OrderNumberInput from '../components/OrderNumberInput';
+import { isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
 
 /* ── Bangalore Site Engineer constants ───────────────────────────────── */
 const BLR_PURPOSE_OPTIONS = [
@@ -223,6 +225,11 @@ export default function DailyTaskClient() {
 
     if (clean.length === 0) { setMsg('Add at least one row.'); return; }
 
+    // An order number is what every report groups this row under, so a typo
+    // here doesn't show up as a typo — it shows up as a second order.
+    const badOrder = clean.find((r) => r.orderNumber && !isValidOrderNumber(r.orderNumber));
+    if (badOrder) { setMsg(`Order number "${badOrder.orderNumber}" is not valid. ${ORDER_HINT}`); return; }
+
     if (isSiteEngineer) {
       const inc = clean.find((r) => !r.client || !r.orderNumber || !r.siteLocation || !r.areaName || !r.purposeOfVisit || !r.minutes);
       if (inc) { setMsg('All fields in every row are required.'); return; }
@@ -398,7 +405,7 @@ export default function DailyTaskClient() {
                         </td>
                       ) : (
                         <td className="table-td">
-                          <input className="input" value={r.orderNumber}
+                          <OrderNumberInput value={r.orderNumber}
                             onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
                         </td>
                       )}
