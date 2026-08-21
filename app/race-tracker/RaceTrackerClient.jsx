@@ -1,6 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import Icon from '../components/Icon';
+import DateField from '../components/DateField';
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; };
@@ -77,9 +78,9 @@ export default function RaceTrackerClient({ delegations = [], users = [] }) {
       <div className="card p-5">
         <div className="flex items-end gap-3 flex-wrap">
           <div><label className="label">Start Date</label>
-            <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
+            <DateField className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div><label className="label">End Date</label>
-            <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+            <DateField className="input" value={to} onChange={(e) => setTo(e.target.value)} /></div>
           <button className="btn-primary" onClick={() => setStarted(true)}>
             <IconFlag /> Start Race
           </button>

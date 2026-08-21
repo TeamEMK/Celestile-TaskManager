@@ -13,6 +13,7 @@ import { ZoomImg } from '@/app/components/ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
 import { StatCard, StatGrid } from './components/ui';
 import Icon from './components/Icon';
+import DateField from './components/DateField';
 
 // FMS answers are raw sheet values, so an uploaded file or a pasted link
 // would otherwise print as a wall of URL text in the details strip (the
@@ -603,7 +604,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                 {(mode === 'request' || mode === 'revise') && (
                   <div>
                     <label className="label">Revise until <span className="text-red-500">*</span></label>
-                    <input type="date" className="input" min={todayISO} value={reviseDate} onChange={(e) => setReviseDate(e.target.value)} />
+                    <DateField className="input" min={todayISO} value={reviseDate} onChange={(e) => setReviseDate(e.target.value)} />
                   </div>
                 )}
                 {mode !== 'grant' && (

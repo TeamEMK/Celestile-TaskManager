@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 import Icon from '../components/Icon';
+import DateField from '../components/DateField';
 
 /* ── Bangalore Site Engineer constants ───────────────────────────────── */
 const BLR_PURPOSE_OPTIONS = [
@@ -343,7 +344,7 @@ export default function DailyTaskClient() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 max-w-md">
               <div>
                 <label className="label">Entry Date</label>
-                <input type="date" className="input" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
+                <DateField className="input" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
               </div>
               <div>
                 <label className="label">Doer</label>

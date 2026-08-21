@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from './ImageLightbox';
 import Icon from '../components/Icon';
+import DateField from './DateField';
 
 const FREQS = [
   { label: 'Daily (365 tasks/year)',            value: 'Daily'            },
@@ -180,11 +181,11 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Start Date</label>
-              <input type="date" value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="input !text-[14px]" />
+              <DateField value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="input !text-[14px]" />
             </div>
             <div>
               <label className="label">End Date <span className="text-slate-400">(Optional)</span></label>
-              <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="input !text-[14px]" />
+              <DateField value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="input !text-[14px]" />
             </div>
           </div>
 

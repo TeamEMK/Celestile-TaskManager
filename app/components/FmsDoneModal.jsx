@@ -6,6 +6,7 @@ import { ZoomImg } from './ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
 import { fieldVisibility } from '@/lib/fieldVisibility';
 import Icon from '../components/Icon';
+import DateField from './DateField';
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
 // The resulting data: URI is swapped for a Drive URL server-side (writeStepDone)
@@ -187,7 +188,7 @@ function ExtraField({ row, value, onChange }) {
         <span className="text-slate-400 font-normal normal-case ml-1">(COL {row.col_letter})</span>
       </label>
       {row.field_type === 'number'   && <input type="number" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter number…" />}
-      {row.field_type === 'date'     && <input type="date" className="input" value={value} onChange={(e) => onChange(e.target.value)} />}
+      {row.field_type === 'date'     && <DateField className="input" value={value} onChange={(e) => onChange(e.target.value)} />}
       {row.field_type === 'link'     && <input type="url" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="https://…" />}
       {row.field_type === 'dropdown' && (
         <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>

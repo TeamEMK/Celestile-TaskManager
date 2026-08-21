@@ -11,6 +11,7 @@ import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
 import Icon from '../components/Icon';
+import DateField from '../components/DateField';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -293,9 +294,9 @@ export default function AllTasksClient({ grouped, users }) {
             {users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
           </select>
         )}
-        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="input !w-auto !py-1.5" />
+        <DateField value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="input !w-auto !py-1.5" />
         <span className="text-xs text-slate-400">to</span>
-        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="input !w-auto !py-1.5" />
+        <DateField value={toDate} onChange={(e) => setToDate(e.target.value)} className="input !w-auto !py-1.5" />
         {(fromDate || toDate || employeeFilter !== 'All') && (
           <button
             onClick={() => { setFromDate(''); setToDate(''); setEmployeeFilter('All'); }}
@@ -583,7 +584,7 @@ export default function AllTasksClient({ grouped, users }) {
               </div>
               <div>
                 <label className="label">Revise until <span className="text-red-500">*</span></label>
-                <input type="date" className="input" min={todayISO} value={reviseDate} onChange={e => setReviseDate(e.target.value)} />
+                <DateField className="input" min={todayISO} value={reviseDate} onChange={e => setReviseDate(e.target.value)} />
               </div>
               <div>
                 <label className="label">Revise note <span className="text-red-500">*</span></label>
@@ -676,7 +677,7 @@ function EditTaskModal({ task, users, onClose, onSaved }) {
             </div>
             <div>
               <label className="label">Due Date</label>
-              <input type="date" className="input" value={form.dueDate}
+              <DateField className="input" value={form.dueDate}
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
             </div>
           </div>

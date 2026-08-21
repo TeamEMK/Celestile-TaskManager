@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { HorizBarChart } from '@/app/components/Charts';
 import Icon from '@/app/components/Icon';
 import { StatCard } from '@/app/components/ui';
+import DateField from '../components/DateField';
 
 export default function MISClient({ initialRows = [], initialSummary = {}, initialStart, initialEnd, initialType }) {
   const [start,      setStart]      = useState(initialStart);
@@ -74,11 +75,11 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
         <div className="flex items-end gap-3 flex-wrap">
           <div>
             <label className="label">Start Date</label>
-            <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="input !w-44" />
+            <DateField value={start} onChange={(e) => setStart(e.target.value)} className="input !w-44" />
           </div>
           <div>
             <label className="label">End Date</label>
-            <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="input !w-44" />
+            <DateField value={end} onChange={(e) => setEnd(e.target.value)} className="input !w-44" />
           </div>
           <button onClick={generate} disabled={loading} className="btn-primary">
             {loading

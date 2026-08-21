@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import DateField from '../components/DateField';
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-') : '—');
 const STATUS_STYLE = {
@@ -178,9 +179,9 @@ export default function LeaveTrackerClient({ userId, userName, canApprove }) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="label">From</label>
-                  <input type="date" className="input" value={form.fromDate} onChange={(e) => setForm({ ...form, fromDate: e.target.value })} /></div>
+                  <DateField className="input" value={form.fromDate} onChange={(e) => setForm({ ...form, fromDate: e.target.value })} /></div>
                 <div><label className="label">To</label>
-                  <input type="date" className="input" value={form.toDate} onChange={(e) => setForm({ ...form, toDate: e.target.value })} /></div>
+                  <DateField className="input" value={form.toDate} onChange={(e) => setForm({ ...form, toDate: e.target.value })} /></div>
               </div>
               <div><label className="label">Reason</label>
                 <textarea className="input resize-none" rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></div>

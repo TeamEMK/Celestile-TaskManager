@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '../components/Icon';
+import DateField from '../components/DateField';
 
 const monthRange = (ym) => {
   // ym = 'YYYY-MM'
@@ -153,9 +154,9 @@ export default function DailyReportsClient({ isAdmin }) {
             onChange={(e) => { setMonth(e.target.value); setFrom(''); setTo(''); }} />
           <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-wide">or</span>
           <label className="label !mb-0">From</label>
-          <input type="date" className="input w-auto" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <DateField className="input w-auto" value={from} onChange={(e) => setFrom(e.target.value)} />
           <label className="label !mb-0">To</label>
-          <input type="date" className="input w-auto" value={to} onChange={(e) => setTo(e.target.value)} />
+          <DateField className="input w-auto" value={to} onChange={(e) => setTo(e.target.value)} />
           <button className="btn-ghost" onClick={resetFilters}><IconReset className="w-3.5 h-3.5" /> Reset</button>
           <div className="ml-auto flex gap-2">
             <button className="btn-secondary" onClick={downloadCSV}><IconDownload className="w-3.5 h-3.5" /> CSV</button>

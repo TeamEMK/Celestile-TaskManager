@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '../components/Icon';
 import { StatCard as UiStatCard } from '../components/ui';
+import DateField from '../components/DateField';
 
 const numOf = (s) => parseFloat(String(s || '').replace(/[^\d.]/g, '')) || 0;
 const fmtINR = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
@@ -200,8 +201,8 @@ export default function QuotationAdminClient() {
           <input className="input flex-1 min-w-[200px]" placeholder="Ref / client / consultant…" value={q} onChange={(e) => setQ(e.target.value)} />
           <input type="month" className="input !w-auto" value={month} onChange={(e) => { setMonth(e.target.value); setFrom(''); setTo(''); }} />
           <span className="text-[11px] text-slate-400">or</span>
-          <input type="date" className="input !w-auto" value={from} onChange={(e) => { setFrom(e.target.value); setMonth(''); }} />
-          <input type="date" className="input !w-auto" value={to} onChange={(e) => { setTo(e.target.value); setMonth(''); }} />
+          <DateField className="input !w-auto" value={from} onChange={(e) => { setFrom(e.target.value); setMonth(''); }} />
+          <DateField className="input !w-auto" value={to} onChange={(e) => { setTo(e.target.value); setMonth(''); }} />
           <button className="btn-ghost" onClick={reset}><Icon name="refresh" className="w-3.5 h-3.5" /> Reset</button>
         </div>
 

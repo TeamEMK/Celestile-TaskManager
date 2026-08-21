@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { fileToThumbnail } from '@/app/quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
 import Icon from '../components/Icon';
+import DateField from './DateField';
 
 const blank = () => ({
   description: '', doerId: '', dueDate: '', client: '',
@@ -173,7 +174,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
               </select>
             </Field>
             <Field label="Due Date" required>
-              <input type="date" className="input" value={form.dueDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => set('dueDate', e.target.value)} />
+              <DateField className="input" value={form.dueDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => set('dueDate', e.target.value)} />
             </Field>
           </div>
 

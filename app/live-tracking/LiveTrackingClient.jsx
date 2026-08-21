@@ -16,6 +16,7 @@ import {
   EMPTY_FILTERS, activeFilterCount, rowMatchesFilters,
   BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass,
 } from '@/lib/liveTrackingView';
+import DateField from '../components/DateField';
 
 const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1, startRow: '' });
 const REFRESH_MS = 30000;
@@ -589,7 +590,7 @@ const SELECT_CLS = `${CTRL_CLS} pl-2.5 pr-7 cursor-pointer`;
 const DATE_CLS   = `${CTRL_CLS} px-2.5`;
 
 // Ranges people actually ask for in a review meeting. Each returns
-// [from, to] as Date objects; the bar converts them for <input type="date">.
+// [from, to] as Date objects; the bar converts them to ISO for DateField.
 const DATE_PRESETS = [
   { key: 'today', label: 'Today', range: () => { const d = new Date(); return [startOfDay(d), startOfDay(d)]; } },
   { key: '7d',    label: 'Last 7 days',  range: () => [daysAgo(6), startOfDay(new Date())] },
@@ -673,10 +674,10 @@ function FilterBar({
             <span className="text-[12px] text-slate-600 font-medium">{dateCols[0].header}</span>
           )}
 
-          <input type="date" className={DATE_CLS} value={filters.from}
+          <DateField className={DATE_CLS} value={filters.from}
             onChange={(e) => setFilter({ dateIdx, from: e.target.value })} title="From" />
           <span className="text-slate-400 text-[12px]">→</span>
-          <input type="date" className={DATE_CLS} value={filters.to}
+          <DateField className={DATE_CLS} value={filters.to}
             onChange={(e) => setFilter({ dateIdx, to: e.target.value })} title="To" />
 
           <div className="flex items-center gap-1 flex-wrap">

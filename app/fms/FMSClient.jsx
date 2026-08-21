@@ -8,6 +8,7 @@ import PcView from './PcView';
 import { ZoomImg } from '../components/ImageLightbox';
 import Icon from '../components/Icon';
 import { fieldVisibility, colKey } from '@/lib/fieldVisibility';
+import DateField from '../components/DateField';
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Text' },
@@ -977,10 +978,12 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
                   </select>
                 ) : f.field_type === 'upload' ? (
                   <UploadField value={values[f.id] || ''} onChange={(v) => setVal(f.id, v)} />
+                ) : f.field_type === 'date' ? (
+                  <DateField className="input" value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)} />
                 ) : (
                   <input
                     className="input"
-                    type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'link' ? 'url' : 'text'}
+                    type={f.field_type === 'number' ? 'number' : f.field_type === 'link' ? 'url' : 'text'}
                     value={values[f.id] || ''}
                     onChange={(e) => setVal(f.id, e.target.value)}
                   />

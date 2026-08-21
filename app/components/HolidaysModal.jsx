@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from './ConfirmToast';
 import Icon from './Icon';
+import DateField from './DateField';
 
 const fmt = (d) =>
   new Date(d).toLocaleDateString('en-IN', {
@@ -149,7 +150,7 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Date</label>
-                  <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
+                  <DateField className="input" value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
                 <div>
                   <label className="label">Holiday Name</label>

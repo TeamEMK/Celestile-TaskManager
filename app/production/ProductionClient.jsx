@@ -18,6 +18,7 @@ import {
   PageHeader, MetaLine, EmptyState, ErrorState, LoadingState,
   SearchInput, SectionTitle, ResultCount, StatCard, StatGrid,
 } from '../components/ui';
+import DateField from '../components/DateField';
 
 const todayISO = () => new Date().toLocaleDateString('en-CA');
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toLocaleDateString('en-CA'); };
@@ -165,7 +166,7 @@ function DailyReport({ departments }) {
     <div className="space-y-4">
       <div className="toolbar print:hidden">
         <label className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Date</label>
-        <input type="date" className="date-ctl" value={date} onChange={(e) => setDate(e.target.value)} />
+        <DateField className="date-ctl" value={date} onChange={(e) => setDate(e.target.value)} />
         <button className="btn-secondary btn-sm" onClick={() => setDate(todayISO())}>Today</button>
         <button className="btn-secondary btn-sm" onClick={() => load(date)} disabled={loading}>
           <Icon name="refresh" className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -598,7 +599,7 @@ function ImportExcelModal({ departments, defaultDate, onClose, onImported }) {
                 <div className="flex flex-wrap items-end gap-3">
                   <div>
                     <label className="label">Import under this date</label>
-                    <input type="date" className="date-ctl" value={date} onChange={(e) => setDate(e.target.value)} />
+                    <DateField className="date-ctl" value={date} onChange={(e) => setDate(e.target.value)} />
                   </div>
                   <div className="text-[12px] text-slate-500 pb-2">
                     {result.date
@@ -738,9 +739,9 @@ function WorkerHours({ departments }) {
     <div className="space-y-4">
       <div className="toolbar">
         <SearchInput value={q} onChange={setQ} placeholder="Search a worker…" />
-        <input type="date" className="date-ctl" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <DateField className="date-ctl" value={from} onChange={(e) => setFrom(e.target.value)} />
         <span className="text-slate-400 text-[12px]">→</span>
-        <input type="date" className="date-ctl" value={to} onChange={(e) => setTo(e.target.value)} />
+        <DateField className="date-ctl" value={to} onChange={(e) => setTo(e.target.value)} />
         <select className="select" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
           <option value="">All departments</option>
           {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -821,9 +822,9 @@ function OrderTracking() {
     <div className="space-y-4">
       <div className="toolbar">
         <SearchInput value={order} onChange={setOrder} placeholder="Order number, e.g. H1799…" />
-        <input type="date" className="date-ctl" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <DateField className="date-ctl" value={from} onChange={(e) => setFrom(e.target.value)} />
         <span className="text-slate-400 text-[12px]">→</span>
-        <input type="date" className="date-ctl" value={to} onChange={(e) => setTo(e.target.value)} />
+        <DateField className="date-ctl" value={to} onChange={(e) => setTo(e.target.value)} />
         <div className="sm:ml-auto"><ResultCount shown={rows.length} total={rows.length} noun="order" /></div>
       </div>
 

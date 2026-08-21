@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DonutChart, HorizBarChart } from '@/app/components/Charts';
 import Icon from '../components/Icon';
 import { StatCard as UiStatCard } from '../components/ui';
+import DateField from '../components/DateField';
 
 const ymd    = (v) => (v ? String(v).split('T')[0].slice(0, 10) : '');
 const today  = () => new Date().toISOString().slice(0, 10);
@@ -212,11 +213,11 @@ export default function DailyTaskAdminClient() {
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1.5">
               <label className="label !mb-0 !text-[10px]">From</label>
-              <input type="date" className="input !w-auto !py-1.5 !text-[12px]" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <DateField className="input !w-auto !py-1.5 !text-[12px]" value={from} onChange={(e) => setFrom(e.target.value)} />
             </div>
             <div className="flex items-center gap-1.5">
               <label className="label !mb-0 !text-[10px]">To</label>
-              <input type="date" className="input !w-auto !py-1.5 !text-[12px]" value={to} onChange={(e) => setTo(e.target.value)} />
+              <DateField className="input !w-auto !py-1.5 !text-[12px]" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
             <select className="select w-auto" value={doer} onChange={(e) => setDoer(e.target.value)}>
               <option>All</option>
