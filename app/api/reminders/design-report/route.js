@@ -1,12 +1,4 @@
-import { designDailyReportMessage } from '@/lib/whatsapp';
-import { runDailyReport, deptMatcher } from '@/lib/dailyReport';
-
-// Where the design group's daily report lands. Same fallback pattern as
-// INVENTORY_NOTIFY etc. — works out of the box, override via env if the
-// group ever changes.
-const DESIGN_GROUP = () => process.env.DESIGN_GROUP_ID || '918050005533-1568964481@g.us';
-
-const matchesDesign = deptMatcher(['designer', 'design'], 'design');
+import { runDailyReport, REPORTS } from '@/lib/dailyReport';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,10 +9,9 @@ export const dynamic = 'force-dynamic';
 // `Authorization: Bearer <CRON_SECRET>` on schedule "30 21 * * 1-6" IST
 // (= "0 16 * * 1-6" UTC). The schedule itself lives in the cron provider, not
 // here — this route only refuses to run on a Sunday.
+//
+// /api/reminders/daily-reports does this one AND sales AND site engineer off
+// a single cron hit, if you would rather run one job than three.
 export async function GET(req) {
-  return runDailyReport(req, {
-    group: DESIGN_GROUP(),
-    matches: matchesDesign,
-    buildMessage: designDailyReportMessage,
-  });
+  return runDailyReport(req, REPORTS.design);
 }
