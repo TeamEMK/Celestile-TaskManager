@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
-import { requireUser, requireAdmin } from '@/lib/api';
+import { requireUser, requireAdmin, currentUser } from '@/lib/api';
+import { newId } from '@/lib/ids';
+import { isAdminRoles } from '@/lib/pages';
 
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
@@ -26,18 +28,34 @@ export async function GET(req) {
 
 export async function POST(req) {
   const gate = await requireUser(); if (gate) return gate;
+  const sessionUser = await currentUser();
+  if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     await ensureSchema();
     const body = await req.json();
-    if (!body.userName || !body.fromDate || !body.toDate)
-      return NextResponse.json({ error: 'userName, fromDate, toDate required' }, { status: 400 });
+    if (!body.fromDate || !body.toDate)
+      return NextResponse.json({ error: 'fromDate and toDate required' }, { status: 400 });
 
-    const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM leaves');
-    const id  = 'LV' + (Number(c[0].cnt) + 1).toString().padStart(4, '0');
+    // The applicant is the session, not whatever name the request carried —
+    // otherwise anyone could file leave in a colleague's name. An admin may
+    // still apply on someone's behalf by naming them explicitly.
+    let userId = sessionUser.id;
+    let userName = sessionUser.name || '';
+    if (isAdminRoles(sessionUser.roles) && body.userId && String(body.userId) !== String(sessionUser.id)) {
+      const [target] = await pool.query('SELECT id, name FROM users WHERE id = ?', [String(body.userId)]);
+      if (!target.length) return NextResponse.json({ error: 'Unknown user' }, { status: 400 });
+      userId = target[0].id;
+      userName = target[0].name;
+    }
+
+// Collision-proof id (lib/ids.js). The old 'COUNT(*) + 1' scheme re-used a
+// live id the moment any row had ever been deleted, and two concurrent
+// inserts read the same count — both land as a duplicate-primary-key 500.
+    const id = newId('LV');
 
     await pool.query(
       'INSERT INTO leaves (id, user_id, user_name, type, from_date, to_date, reason, status, approver) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, body.userId || null, body.userName, body.type || 'Leave',
+      [id, userId || null, userName, body.type || 'Leave',
        body.fromDate, body.toDate, body.reason || '', 'pending', body.approver || 'HOD']
     );
     return NextResponse.json({ success: true, id }, { status: 201 });

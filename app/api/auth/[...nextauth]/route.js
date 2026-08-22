@@ -8,18 +8,56 @@ import bcrypt from 'bcryptjs';
 import '@/lib/db';
 import { parseAccess } from '@/lib/pages';
 
-const DEFAULT_PASSWORD = 'India@123';
+// Starting password for a user row that has no password_hash yet. Set
+// DEFAULT_USER_PASSWORD in the environment — the literal fallback below is
+// only here so existing installs whose users have never set a password are
+// not locked out, and it is public knowledge (it has always been in this
+// file), so anyone who can enumerate an email address can sign in as them
+// until they set one. Setting the env var closes that.
+const DEFAULT_PASSWORD = process.env.DEFAULT_USER_PASSWORD || 'India@123';
 
+/**
+ * Emergency admin that is not a row in the database.
+ *
+ * Its password used to be a constant in this file, which made it a permanent
+ * back door: anyone with the source (or this repo's history) could sign in as
+ * Admin on any deployment, forever, and nothing in the app could revoke it.
+ *
+ * Now it is only usable when it is genuinely still needed for bootstrap:
+ *   - ADMIN_PASSWORD is set  -> that is the password, always available.
+ *   - ADMIN_PASSWORD unset   -> the legacy password works ONLY while the
+ *                               database holds no Admin user at all, i.e. on
+ *                               an empty install with no other way in.
+ * Once a real Admin exists, this account stops authenticating.
+ */
+const LEGACY_ADMIN_PASSWORD = 'Celestile@123';
 const HARDCODED_ADMIN = {
   id:         'U000',
   name:       'Admin',
   email:      'admin@celestile.com',
-  password:   'Celestile@123',
   phone:      '',
   department: 'Administration',
   roles:      ['Admin'],
   access:     null,
 };
+
+// Is there a real Admin in the database? Used only to decide whether the
+// bootstrap account above is still allowed to sign in.
+async function hasRealAdmin() {
+  try {
+    if (!process.env.DB_HOST) {
+      const { readStore } = await import('@/lib/store');
+      const users = (await readStore()).users || [];
+      return users.some((u) => rolesFrom(u.roles).includes('Admin') && u.active !== false);
+    }
+    const { pool } = await import('@/lib/db');
+    const [rows] = await pool.query('SELECT roles FROM users WHERE active = 1');
+    return (rows || []).some((r) => rolesFrom(r.roles).includes('Admin'));
+  } catch {
+    // Can't tell -> assume an admin exists, so the fallback stays closed.
+    return true;
+  }
+}
 
 function rolesFrom(raw) {
   return Array.isArray(raw)
@@ -72,7 +110,19 @@ async function findUser(email) {
 // force-logout checks is a fine trade for collapsing that into ~1 query per
 // window; force-logout still lands within AUTH_STATE_TTL_MS of being set.
 const AUTH_STATE_TTL_MS = 5000;
+// Bounded: entries are never removed on their own, and a long-lived PM2
+// process accumulates one per user id ever seen. A Map preserves insertion
+// order, so evicting the oldest key keeps this to a fixed ceiling.
+const AUTH_STATE_CACHE_MAX = 500;
 const _authStateCache = new Map(); // userId -> { state, at }
+
+function cacheAuthState(userId, state) {
+  _authStateCache.delete(userId);
+  _authStateCache.set(userId, { state, at: Date.now() });
+  while (_authStateCache.size > AUTH_STATE_CACHE_MAX) {
+    _authStateCache.delete(_authStateCache.keys().next().value);
+  }
+}
 
 // Fresh auth state for a session refresh: force-logout stamp + current roles +
 // current per-page access (so role/access edits apply without a re-login).
@@ -84,7 +134,7 @@ async function getUserAuthState(userId) {
   const cached = _authStateCache.get(userId);
   if (cached && Date.now() - cached.at < AUTH_STATE_TTL_MS) return cached.state;
   const state = await fetchUserAuthState(userId);
-  _authStateCache.set(userId, { state, at: Date.now() });
+  cacheAuthState(userId, state);
   return state;
 }
 
@@ -129,9 +179,18 @@ export const authOptions = {
           const active = await isAppActive();
           if (!active) return null;
 
-          // Hardcoded admin account
+          // Bootstrap admin account (see HARDCODED_ADMIN above)
           if (credentials.email === HARDCODED_ADMIN.email) {
-            if (credentials.password !== HARDCODED_ADMIN.password) return null;
+            const configured = process.env.ADMIN_PASSWORD;
+            if (configured) {
+              if (credentials.password !== configured) return null;
+            } else {
+              if (credentials.password !== LEGACY_ADMIN_PASSWORD) return null;
+              if (await hasRealAdmin()) {
+                console.error('[auth] bootstrap admin refused - a real Admin exists; set ADMIN_PASSWORD to keep using it');
+                return null;
+              }
+            }
             return {
               id:         HARDCODED_ADMIN.id,
               name:       HARDCODED_ADMIN.name,

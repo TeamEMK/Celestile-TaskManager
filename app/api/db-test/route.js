@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
+import { requireDeveloper } from '@/lib/api';
 
-export async function GET() {
+// Connectivity smoke test. Developer-gated: it used to be open to the world
+// and reported the DB host, user, database name and the first three characters
+// plus exact length of DB_PASSWORD — enough to finish the guess offline.
+// Nothing here reports a credential any more; the point is only "did the
+// connection work", and the error code when it didn't.
+export async function GET(req) {
+  const gate = requireDeveloper(req); if (gate) return gate;
+
   const dbInfo = {
-    host: process.env.DB_HOST || '(not set)',
-    user: process.env.DB_USER || '(not set)',
-    name: process.env.DB_NAME || '(not set)',
-    pass_len: (process.env.DB_PASSWORD || '').length,
-    pass_first3: (process.env.DB_PASSWORD || '').slice(0, 3),
+    host_set: !!process.env.DB_HOST,
+    user_set: !!process.env.DB_USER,
+    name_set: !!process.env.DB_NAME,
+    password_set: !!process.env.DB_PASSWORD,
+    sheets_mode: !!process.env.SHEETS_DB_ID,
   };
   try {
     await ensureSchema();

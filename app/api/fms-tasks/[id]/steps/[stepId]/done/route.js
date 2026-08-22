@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireUser, currentUser } from '@/lib/api';
+import { isAdminRoles } from '@/lib/pages';
 import { getFmsSheet, getFullSteps, writeStepDone } from '@/lib/fmsSheet';
 
 // Writes the Actual timestamp (+ delay reason + extra fields + doer name)
@@ -18,6 +19,19 @@ export async function POST(req, { params }) {
     if (!step) return NextResponse.json({ error: 'Step not found' }, { status: 404 });
 
     const user = await currentUser();
+
+    // Only a doer configured on THIS step (or an admin) may complete it.
+    // The listing endpoints have always filtered rows down to the caller's own
+    // steps, but this write did not check at all: any signed-in user could
+    // POST an fmsId + stepId + rowNumber and stamp a completion — with their
+    // own name written into the sheet's doer column — on work belonging to
+    // someone else, in a flow they were never given.
+    const isAdmin = isAdminRoles(user?.roles);
+    const isStepDoer = (step.doers || []).some((d) => String(d.user_id) === String(user?.id ?? ''));
+    if (!isAdmin && !isStepDoer) {
+      return NextResponse.json({ error: 'This step is not assigned to you' }, { status: 403 });
+    }
+
     const result = await writeStepDone({
       sheet, step, rowNumber, delayReason, extraInputs, doerName: user?.name || '',
     });

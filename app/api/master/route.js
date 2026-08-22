@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
+import { timingSafeEqual } from '@/lib/api';
+import { invalidateAccessCache } from '@/lib/access';
 
-const MASTER_KEY = process.env.MASTER_KEY || 'emarketing-master-2026';
+// No hardcoded fallback. The old default was a literal in this file, so
+// anyone who read the source could disable the whole product for every user.
+// An unset MASTER_KEY now disables the panel rather than opening it.
+// NOTE: if the previous default was ever deployed, rotate MASTER_KEY — it is
+// in this file's history and must be treated as public.
+const MASTER_KEY = process.env.MASTER_KEY || '';
 
 export async function GET(req) {
-  const key = new URL(req.url).searchParams.get('key');
-  if (key !== MASTER_KEY) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!MASTER_KEY) {
+    return NextResponse.json({ error: 'Master panel is disabled (MASTER_KEY not set)' }, { status: 503 });
+  }
+  const key = new URL(req.url).searchParams.get('key') || '';
+  if (!timingSafeEqual(key, MASTER_KEY)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   await ensureSchema();
 
@@ -17,11 +27,13 @@ export async function GET(req) {
 
   if (action === 'disable') {
     await pool.query("INSERT INTO app_config (`key`, `value`) VALUES ('app_active', 'false') ON DUPLICATE KEY UPDATE `value` = 'false'");
+    invalidateAccessCache();
     return NextResponse.json({ success: true, app_active: false, message: 'App DISABLED — client cannot login' });
   }
 
   if (action === 'enable') {
     await pool.query("INSERT INTO app_config (`key`, `value`) VALUES ('app_active', 'true') ON DUPLICATE KEY UPDATE `value` = 'true'");
+    invalidateAccessCache();
     return NextResponse.json({ success: true, app_active: true, message: 'App ENABLED — client can login' });
   }
 
@@ -86,5 +98,12 @@ export async function GET(req) {
 </body>
 </html>`;
 
-  return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
+  return new NextResponse(html, {
+    headers: {
+      'Content-Type': 'text/html',
+      'Cache-Control': 'no-store, private',
+      'X-Robots-Tag': 'noindex, nofollow',
+      'Referrer-Policy': 'no-referrer',
+    },
+  });
 }

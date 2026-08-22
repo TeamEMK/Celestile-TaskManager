@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
+import { requireDeveloper } from '@/lib/api';
 
 const USERS = [
   { id:'U001',name:'Abhishek Jain',email:'abhishek@e-marketing.io',phone:'9602684444',department:'CXO',roles:'Admin',active:1 },
@@ -83,11 +84,11 @@ const HOLIDAYS = [
   { id:'HOL005',date:'2026-11-08',name:'Diwali',type:'Festival' },
 ];
 
+// Developer-gated. The key used to be a literal written in this file, and
+// this route overwrites every seeded user's name, email, roles and active
+// flag — so that string was a one-request path to granting yourself Admin.
 export async function GET(req) {
-  const key = new URL(req.url).searchParams.get('key');
-  if (key !== 'migrate-india-auto-2026') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const gate = requireDeveloper(req); if (gate) return gate;
 
   try {
     await ensureSchema();

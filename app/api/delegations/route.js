@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sendWhatsApp, delegationMessage, taskDoneMessage, approvalWaitingMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireUser, currentUser } from '@/lib/api';
+import { isAdminRoles } from '@/lib/pages';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
+import { newId } from '@/lib/ids';
 
 // Fire a WhatsApp "task delegated" notice to the doer (best-effort).
 async function notifyDelegation({ doerUser, delegatedById, del }) {
@@ -62,6 +62,46 @@ async function notifyApprovalWaiting(delegation) {
   } catch (e) { console.error('[notifyApprovalWaiting]', e.message); }
 }
 
+/**
+ * Who may touch a delegation.
+ *
+ * Being signed in used to be the whole check, so any user could mark anyone
+ * else's task done, rewrite it, delete it, or bulk-transfer a colleague's
+ * entire workload to someone else. The rules are per-task:
+ *
+ *   doer        - may move the task's own status (done / revise / reopen)
+ *   delegator   - may do that AND edit the task's contents, reassign, delete
+ *   Admin / HOD - everything
+ *
+ * `delegated_by` and `doer_id` are ids; `doer` is a denormalised name kept for
+ * old rows that were created before doer_id existed, hence the name fallback.
+ */
+function relationTo(row, user) {
+  if (!user) return { isAdmin: false, isDoer: false, isDelegator: false };
+  const me = String(user.id ?? '');
+  const isDoer = (row.doer_id != null && String(row.doer_id) === me)
+    || (!row.doer_id && !!row.doer && String(row.doer) === String(user.name ?? ''));
+  return {
+    isAdmin: isAdminRoles(user.roles),
+    isDoer,
+    isDelegator: row.delegated_by != null && String(row.delegated_by) === me,
+  };
+}
+
+// Status moves and completion proof: doer, delegator or admin.
+function canProgress(row, user) {
+  const r = relationTo(row, user);
+  return r.isAdmin || r.isDoer || r.isDelegator;
+}
+
+// Rewriting the task itself (text, dates, priority, who it belongs to) and
+// deleting it: only the person who handed it out, or an admin. A doer must not
+// be able to reword or reassign the task they were given.
+function canEdit(row, user) {
+  const r = relationTo(row, user);
+  return r.isAdmin || r.isDelegator;
+}
+
 function normDate(s) {
   if (!s) return null;
   const t = String(s).trim().replaceAll('/', '-');
@@ -91,8 +131,10 @@ export async function GET() {
 
 // COUNT(*)+1 collided once any row had ever been deleted (count drops below the
 // highest id already used) — e.g. "Duplicate entry 'DEL568' for key 'PRIMARY'".
-// A timestamp+random id can't collide with past ids regardless of deletions.
-const nextDelId = () => 'DEL' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+// The local timestamp+random replacement is now the shared one in lib/ids.js,
+// which every table uses and which guarantees uniqueness instead of making it
+// merely likely (the random half here was birthday-bound).
+const nextDelId = () => newId('DEL');
 
 async function insertOne({ description, doerId, doerName, delegatedBy, dueDate, client, priority, approval, approverId, approverName, url, remarks, image, requireFile, attachment }) {
   const id = nextDelId();
@@ -187,6 +229,9 @@ export async function POST(req) {
 
 export async function PATCH(req) {
   const gate = await requireUser(); if (gate) return gate;
+  const sessionUser = await currentUser();
+  if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const callerIsAdmin = isAdminRoles(sessionUser.roles);
   try {
     const body = await req.json();
     await ensureSchema();
@@ -196,14 +241,24 @@ export async function PATCH(req) {
       const { fromDoer, toDoer, toDoerId, taskIds } = body;
       if (!fromDoer || !toDoer)
         return NextResponse.json({ error: 'fromDoer and toDoer required' }, { status: 400 });
-      const tSession = await getServerSession(authOptions);
-      const transferredBy = tSession?.user?.name || null;
+      // A non-admin may hand off their OWN queue and nothing else. Without
+      // this, `fromDoer` was simply whatever name the client typed, so any
+      // user could move a colleague's entire open workload onto someone else.
+      if (!callerIsAdmin && String(fromDoer) !== String(sessionUser.name ?? '')) {
+        return NextResponse.json({ error: 'You can only transfer your own tasks' }, { status: 403 });
+      }
+      const transferredBy = sessionUser.name || null;
       if (taskIds?.length) {
         const placeholders = taskIds.map(() => '?').join(',');
+        // The doer condition stays in the UPDATE for non-admins so a hand-picked
+        // list of ids can't reach past the caller's own rows.
+        const ownership = callerIsAdmin ? '' : ' AND doer = ?';
         await pool.query(
           `UPDATE delegations SET transferred_from = doer, transferred_by = ?, doer = ?, doer_id = ?
-           WHERE id IN (${placeholders}) AND status != 'done'`,
-          [transferredBy, toDoer, toDoerId || null, ...taskIds]
+           WHERE id IN (${placeholders}) AND status != 'done'${ownership}`,
+          callerIsAdmin
+            ? [transferredBy, toDoer, toDoerId || null, ...taskIds]
+            : [transferredBy, toDoer, toDoerId || null, ...taskIds, fromDoer]
         );
       } else {
         await pool.query(
@@ -225,11 +280,39 @@ export async function PATCH(req) {
     let reviseAction = null;
     let waitingForApproval = false;
 
-    if (body._approverAction === 'approve' || body._approverAction === 'reject') {
+    const isApproverAction = body._approverAction === 'approve' || body._approverAction === 'reject';
+
+    // Does this request rewrite the task itself, or only move its status? The
+    // two carry different rights — see canEdit() / canProgress() above.
+    //
+    // dueDate is deliberately NOT in this list: asking for a revise means
+    // proposing a new date for the work, and that request comes from the doer.
+    // Treating it as an edit would have made the doer's own revise flow a 403.
+    // The grant/deny side of that exchange is gated separately below.
+    const EDIT_FIELDS = ['description', 'client', 'priority', 'approval', 'url', 'doerId', 'doer'];
+    const isEdit = EDIT_FIELDS.some((k) => body[k] !== undefined)
+      || (body.dueDate !== undefined && status !== 'revise');
+
+    if (!isApproverAction) {
+      if (isEdit && !canEdit(current, sessionUser)) {
+        return NextResponse.json(
+          { error: 'Only the person who delegated this task (or an admin) can edit it' }, { status: 403 });
+      }
+      if (!canProgress(current, sessionUser)) {
+        return NextResponse.json({ error: 'This task is not yours to change' }, { status: 403 });
+      }
+      // Granting or denying a revise request is an approval decision, not
+      // something the requester can hand to themselves.
+      if ((body._grantRevise || body._denyRevise) && !canEdit(current, sessionUser)) {
+        return NextResponse.json(
+          { error: 'Only the delegator or an admin can decide a revise request' }, { status: 403 });
+      }
+    }
+
+    if (isApproverAction) {
       if (current.status !== 'approval_pending')
         return NextResponse.json({ error: 'Task is not waiting for approval' }, { status: 400 });
-      const session = await getServerSession(authOptions);
-      if (String(session?.user?.id) !== String(current.approver_id))
+      if (String(sessionUser.id) !== String(current.approver_id))
         return NextResponse.json({ error: 'Only the assigned approver can decide this task' }, { status: 403 });
       status = body._approverAction === 'approve' ? 'done' : 'revise';
       // Direct revise (bypasses the request/grant cycle) — the approver's decision is final.
@@ -252,6 +335,25 @@ export async function PATCH(req) {
 
     const completionFile = await maybeUploadToDrive(body.completionFile, 'completion-proof');
 
+    // Reassignment from the Edit Task modal. That modal has always sent `doer`
+    // and `doerId`, but the UPDATE below had no columns for them — the save
+    // reported success and the task silently stayed with the old doer. Resolve
+    // the name from the id rather than trusting the one the client sent.
+    let newDoerId = null, newDoerName = null;
+    if (body.doerId !== undefined && String(body.doerId ?? '') !== String(current.doer_id ?? '')) {
+      const wanted = String(body.doerId ?? '');
+      if (wanted) {
+        const [du] = await pool.query('SELECT id, name FROM users WHERE id = ?', [wanted]);
+        if (!du.length) return NextResponse.json({ error: 'Unknown doer' }, { status: 400 });
+        newDoerId = du[0].id;
+        newDoerName = du[0].name;
+      }
+    }
+
+    // due_date is a DATE column: run the same normaliser the insert path uses,
+    // so 'DD/MM/YYYY' out of the edit form doesn't reach MySQL raw.
+    const newDueDate = body.dueDate === undefined ? null : (normDate(body.dueDate) || body.dueDate || null);
+
     await pool.query(
       `UPDATE delegations SET
         status           = COALESCE(?, status),
@@ -264,13 +366,20 @@ export async function PATCH(req) {
         remarks          = COALESCE(?, remarks),
         revise_action    = COALESCE(?, revise_action),
         completion_file  = COALESCE(?, completion_file),
+        doer_id          = COALESCE(?, doer_id),
+        doer             = COALESCE(?, doer),
         completed_at     = CASE WHEN ? = 'done' THEN NOW() ELSE completed_at END
        WHERE id = ?`,
-      [status ?? null, body.description ?? null, body.dueDate ?? null,
+      [status ?? null, body.description ?? null, newDueDate,
        body.client ?? null, body.priority ?? null, body.approval ?? null,
        body.url ?? null, body.remarks ?? null, reviseAction,
        completionFile ?? null,
-       status, body.id]
+       newDoerId, newDoerName,
+       // `status` (not `status ?? null`) bound undefined here whenever the
+       // request carried no status — an edit-only save — and mysql2 rejects
+       // undefined outright ("Bind parameters must not contain undefined"),
+       // so every Edit Task save came back a 500.
+       status ?? null, body.id]
     );
 
     const [result] = await pool.query('SELECT * FROM delegations WHERE id = ?', [body.id]);
@@ -286,10 +395,19 @@ export async function PATCH(req) {
 
 export async function DELETE(req) {
   const gate = await requireUser(); if (gate) return gate;
+  const sessionUser = await currentUser();
+  if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
     await ensureSchema();
+    // Any signed-in user could delete any task by id before this check.
+    const [rows] = await pool.query('SELECT * FROM delegations WHERE id = ?', [id]);
+    if (!rows.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (!canEdit(rows[0], sessionUser)) {
+      return NextResponse.json(
+        { error: 'Only the person who delegated this task (or an admin) can delete it' }, { status: 403 });
+    }
     await pool.query('DELETE FROM delegations WHERE id = ?', [id]);
     return NextResponse.json({ success: true });
   } catch (err) {

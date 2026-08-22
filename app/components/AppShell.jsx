@@ -19,10 +19,14 @@ export default function AppShell({ children }) {
       signOut({ callbackUrl: '/login' });
       return;
     }
-    // Force session refresh every 20s — only when tab is visible
+    // Session refresh — only while the tab is actually visible. Every call
+    // re-runs the jwt() callback server-side, which re-reads the user's roles,
+    // access matrix and force-logout stamp, so this is a real query per tick,
+    // not a free one. 60s picks up a revoked login quickly enough while
+    // costing a third of what the old 20s tick did.
     const t = setInterval(() => {
       if (document.visibilityState === 'visible') update();
-    }, 20000);
+    }, 60000);
     return () => clearInterval(t);
   }, [session, update]);
 

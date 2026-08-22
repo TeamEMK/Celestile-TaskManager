@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import bcrypt from 'bcryptjs';
-import { requireUser, requireAdmin, currentUser } from '@/lib/api';
+import { requireUser, requireAdmin, currentUser, sanitizeUser, sanitizeUsers } from '@/lib/api';
+import { nextSeqId } from '@/lib/ids';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 function parseRoles(role, userRole) {
@@ -25,7 +26,9 @@ export async function GET() {
           [callerBranch]
         )
       : await pool.query('SELECT * FROM users ORDER BY id');
-    if (rows.length > 0) return NextResponse.json(rows);
+    // sanitizeUsers strips password_hash: `SELECT *` was handing every signed-in
+    // user the bcrypt hash of everyone else's password.
+    if (rows.length > 0) return NextResponse.json(sanitizeUsers(rows));
   } catch {}
   // Fallback: read from JSON store (used before MySQL was set up)
   try {
@@ -35,7 +38,7 @@ export async function GET() {
     const filtered = callerBranch
       ? all.filter(u => (u.branch || '').toLowerCase() === callerBranch || (u.roles || []).includes('Admin'))
       : all;
-    return NextResponse.json(filtered);
+    return NextResponse.json(sanitizeUsers(filtered));
   } catch {
     return NextResponse.json([]);
   }
@@ -56,9 +59,8 @@ export async function POST(req) {
         if (!name || !email) { errors.push(`Row ${i+1}: name/email missing`); continue; }
         const [ex] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
         if (ex.length) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
-        const [last] = await pool.query('SELECT id FROM users ORDER BY id DESC LIMIT 1');
-        const lastNum = last.length ? parseInt((last[0].id || 'U000').replace('U','')) || 0 : 0;
-        const id = 'U' + (lastNum + 1).toString().padStart(3, '0');
+        const [allIds] = await pool.query('SELECT id FROM users');
+        const id = nextSeqId(allIds, 'U', 3);
         const roles = parseRoles(row.role || '', row.user_role || '');
         const hash = row.password ? await bcrypt.hash(row.password, 10) : null;
         await pool.query(
@@ -73,9 +75,11 @@ export async function POST(req) {
     if (!body.name || !body.email)
       return NextResponse.json({ error: 'Name and email required' }, { status: 400 });
 
-    const [last] = await pool.query('SELECT id FROM users ORDER BY id DESC LIMIT 1');
-    const lastNum = last.length ? parseInt(last[0].id.replace('U', '')) : 0;
-    const id = 'U' + (lastNum + 1).toString().padStart(3, '0');
+    // Numeric max over every row. 'ORDER BY id DESC LIMIT 1' sorted ids as
+    // STRINGS, so once the table passed U999 the next id 'U1000' sorted below
+    // 'U999', the sequence stuck at 999 and every further insert collided.
+    const [allIds] = await pool.query('SELECT id FROM users');
+    const id = nextSeqId(allIds, 'U', 3);
     const roles = body.roles?.length ? body.roles : ['User'];
     const hash = body.password ? await bcrypt.hash(body.password, 10) : null;
     await pool.query(
@@ -87,7 +91,7 @@ export async function POST(req) {
       await pool.query('UPDATE users SET picture = ? WHERE id = ?', [picture, id]);
     }
     const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
-    return NextResponse.json(result[0], { status: 201 });
+    return NextResponse.json(sanitizeUser(result[0]), { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -101,7 +105,18 @@ export async function PATCH(req) {
       return NextResponse.json({ error: 'id required' }, { status: 400 });
 
     await ensureSchema();
-    const roles = body.roles ? (Array.isArray(body.roles) ? body.roles.join(',') : body.roles) : null;
+    // An empty array used to pass the truthiness test and join to '', wiping
+    // the user's roles entirely. Undefined/empty means "leave roles alone".
+    const roles = Array.isArray(body.roles)
+      ? (body.roles.length ? body.roles.join(',') : null)
+      : (body.roles || null);
+
+    // delegations.doer is a denormalised NAME. Renaming a user used to leave
+    // every one of their tasks pointing at the old name — the dashboard and
+    // the reports group by that column, so the work simply vanished from their
+    // list. Rename the rows with them.
+    const [beforeRows] = await pool.query('SELECT name FROM users WHERE id = ?', [body.id]);
+    const oldName = beforeRows[0]?.name || null;
     await pool.query(
       `UPDATE users SET
         name       = COALESCE(?, name),
@@ -119,10 +134,20 @@ export async function PATCH(req) {
       const picture = await maybeUploadToDrive(body.picture, 'user-photo');
       await pool.query('UPDATE users SET picture = ? WHERE id = ?', [picture, body.id]);
     }
+
+    const newName = body.name?.trim();
+    if (newName && oldName && newName !== oldName) {
+      // Match on doer_id where we have one, and fall back to the old name for
+      // rows created before doer_id existed.
+      await pool.query('UPDATE delegations SET doer = ? WHERE doer_id = ?', [newName, body.id]);
+      await pool.query('UPDATE delegations SET doer = ? WHERE doer = ? AND doer_id IS NULL', [newName, oldName]);
+      await pool.query('UPDATE daily_tasks SET doer = ? WHERE doer_id = ?', [newName, body.id]);
+    }
+
     const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [body.id]);
     if (!result.length)
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(result[0]);
+    return NextResponse.json(sanitizeUser(result[0]));
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

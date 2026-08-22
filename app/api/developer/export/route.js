@@ -1,14 +1,9 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-
-function checkSecret(req) {
-  const secret = req.nextUrl.searchParams.get('secret');
-  return secret && secret === process.env.DEVELOPER_SECRET;
-}
+import { requireDeveloper } from '@/lib/api';
 
 export async function GET(req) {
-  if (!checkSecret(req))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const gate = requireDeveloper(req); if (gate) return gate;
 
   try {
     const [[delegations], [users], [masters], [holidays]] = await Promise.all([

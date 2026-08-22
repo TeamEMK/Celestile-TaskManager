@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { requireUser } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
+import { newId } from '@/lib/ids';
 
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
@@ -21,8 +22,10 @@ export async function POST(req) {
     const { masterId, doer, file } = await req.json();
     if (!masterId) return NextResponse.json({ error: 'masterId required' }, { status: 400 });
 
-    const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM checklist_completions');
-    const id  = 'CC' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
+// Collision-proof id (lib/ids.js). The old 'COUNT(*) + 1' scheme re-used a
+// live id the moment any row had ever been deleted, and two concurrent
+// inserts read the same count — both land as a duplicate-primary-key 500.
+    const id = newId('CC');
     const uploadedFile = await maybeUploadToDrive(file, 'checklist-completion');
 
     await pool.query(

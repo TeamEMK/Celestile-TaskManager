@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { requireUser } from '@/lib/api';
+import { newId } from '@/lib/ids';
 
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
@@ -23,8 +24,10 @@ export async function POST(req) {
     await ensureSchema();
     const b = await req.json();
     if (!b.name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 });
-    const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM clients');
-    const id  = 'CL' + (Number(c[0].cnt) + 1).toString().padStart(4, '0');
+// Collision-proof id (lib/ids.js). The old 'COUNT(*) + 1' scheme re-used a
+// live id the moment any row had ever been deleted, and two concurrent
+// inserts read the same count — both land as a duplicate-primary-key 500.
+    const id = newId('CL');
     await pool.query(
       'INSERT INTO clients (id, name, contact_person, contact_number, email, industry, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [id, b.name.trim(), b.contactPerson || '', b.contactNumber || '', b.email || '', b.industry || '', b.status || 'active', b.notes || '']

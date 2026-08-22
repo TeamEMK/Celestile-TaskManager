@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { requireUser, requireAdmin } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
+import { newId } from '@/lib/ids';
 
 export async function GET() {
   const gate = await requireUser(); if (gate) return gate;
@@ -29,8 +30,7 @@ export async function POST(req) {
         if (!email || !desc) { errors.push(`Row ${i + 1}: missing fields`); continue; }
         const [users] = await pool.query('SELECT id, name FROM users WHERE LOWER(email) = ?', [email]);
         if (!users.length) { errors.push(`Row ${i + 1}: no user ${email}`); continue; }
-        const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM masters');
-        const id = 'CHK' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
+        const id = newId('CHK');
         await pool.query(
           'INSERT INTO masters (id, task, assigned_to, frequency, start_date, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
           [id, desc, users[0].name, row.frequency || 'Daily', row.start_date || null]
@@ -43,8 +43,10 @@ export async function POST(req) {
     if (!body.task?.trim())
       return NextResponse.json({ error: 'Task required' }, { status: 400 });
 
-    const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM masters');
-    const id  = 'CHK' + (Number(c[0].cnt) + 1).toString().padStart(3, '0');
+// Collision-proof id (lib/ids.js). The old 'COUNT(*) + 1' scheme re-used a
+// live id the moment any row had ever been deleted, and two concurrent
+// inserts read the same count — both land as a duplicate-primary-key 500.
+    const id = newId('CHK');
     const attachment = await maybeUploadToDrive(body.attachment, 'checklist-attachment');
     await pool.query(
       'INSERT INTO masters (id, task, assigned_to, frequency, start_date, require_file, attachment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',

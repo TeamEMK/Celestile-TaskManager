@@ -2,11 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { createBackup } from '../backups/route';
-
-function checkSecret(req) {
-  const secret = req.nextUrl.searchParams.get('secret');
-  return secret && secret === process.env.DEVELOPER_SECRET;
-}
+import { requireDeveloper } from '@/lib/api';
 
 const NEW_ADMIN = {
   id:       'U001',
@@ -17,8 +13,7 @@ const NEW_ADMIN = {
 };
 
 export async function POST(req) {
-  if (!checkSecret(req))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const gate = requireDeveloper(req); if (gate) return gate;
 
   try {
     // mode: 'users' = delete non-admins only

@@ -23,10 +23,14 @@ export default withAuth(
       // /developer has its own password gate (not next-auth login) and must stay
       // reachable even when the dashboard is suspended — so the Restore button
       // works. Everything else still requires a session.
+      // A token stamped 'ForceLogout' (account deleted, or force-logout
+      // pressed) is treated as no token at all — same rule as lib/api.js and
+      // lib/guards.js. Without this the browser was the only thing enforcing
+      // it, and a still-valid JWT walked straight past.
       authorized: ({ req, token }) =>
         req.nextUrl.pathname.startsWith('/developer') ? true
         : req.nextUrl.pathname.startsWith('/approve') ? true
-        : !!token,
+        : !!token && token.error !== 'ForceLogout',
     },
     pages: { signIn: '/login' },
   }

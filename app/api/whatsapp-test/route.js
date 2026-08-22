@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import { sendWhatsApp, delegationMessage, isWhatsappConfigured, formatNumber } from '@/lib/whatsapp';
+import { requireDeveloper } from '@/lib/api';
 
 // Quick WhatsApp tester — send a sample "task delegated" message without
 // creating a real delegation.
 //   GET /api/whatsapp-test?secret=<DEVELOPER_SECRET>&to=<phone>&name=<doer>
 export async function GET(req) {
+  // Shared guard: constant-time, and refuses outright when DEVELOPER_SECRET
+  // is unset rather than comparing against undefined.
+  const gate = requireDeveloper(req); if (gate) return gate;
+
   const url = new URL(req.url);
-  if (url.searchParams.get('secret') !== process.env.DEVELOPER_SECRET)
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const to = url.searchParams.get('to');
   if (!to) return NextResponse.json({ error: 'pass ?to=<phone number>' }, { status: 400 });

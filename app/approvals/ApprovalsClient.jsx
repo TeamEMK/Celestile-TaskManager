@@ -11,11 +11,36 @@ const fmt = (iso) => {
   return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
+// The "seen" sets are a UI nicety (they dim the new-request highlight), stored
+// per browser. They only ever grew: ids of long-deleted tasks stayed in
+// localStorage forever, and on a busy install the entry creeps towards the
+// 5MB quota until setItem starts throwing. Keep the newest N and drop the rest
+// — an id that has aged out simply shows as new once, which is harmless.
+const SEEN_LIMIT = 500;
+
 function loadSeen(key) {
   try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); } catch { return new Set(); }
 }
 function saveSeen(key, set) {
-  try { localStorage.setItem(key, JSON.stringify([...set])); } catch {}
+  try {
+    const list = [...set];
+    localStorage.setItem(key, JSON.stringify(list.slice(-SEEN_LIMIT)));
+  } catch {}
+}
+
+// Declared at module scope, not inside the component. A component defined in
+// the render body is a NEW type on every render, so React unmounts and
+// remounts its whole subtree each time instead of updating it.
+function EmptyState({ icon: Icon, label }) {
+  return (
+    <div className="p-14 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
+        <Icon className="w-7 h-7 text-primary-400" />
+      </div>
+      <div className="text-[13.5px] font-semibold text-slate-700">No pending {label.toLowerCase()}</div>
+      <div className="text-[12px] text-slate-500 mt-0.5">Requests will appear here when submitted.</div>
+    </div>
+  );
 }
 
 export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [], myTaskApprovals = [] }) {
@@ -36,20 +61,35 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
     setSeenApprovals(loadSeen('seen_approval_ids'));
   }, []);
 
-  // Auto-mark as seen after 6 seconds of viewing
+  // Auto-mark as seen after 6 seconds of viewing.
+  //
+  // The set updates go through the functional form of the setter. Reading
+  // `seenRevise` from the closure meant the effect captured whatever the value
+  // was when it last ran, and its deps deliberately excluded that value (the
+  // eslint rule was disabled) — so a refresh landing mid-timer folded the new
+  // ids into a stale snapshot and quietly dropped everything marked seen since.
+  // The functional form always starts from current state, which is also why the
+  // deps list no longer needs the exception.
   useEffect(() => {
     clearTimeout(timer.current);
+    const reviseIds = reviseRequests.map((r) => r.id);
+    const approvalIds = taskApprovals.map((r) => r.id);
     timer.current = setTimeout(() => {
       if (tab === 'Revise Requests') {
-        const updated = new Set([...seenRevise, ...reviseRequests.map(r => r.id)]);
-        setSeenRevise(updated); saveSeen('seen_revise_ids', updated);
+        setSeenRevise((prev) => {
+          const updated = new Set([...prev, ...reviseIds]);
+          saveSeen('seen_revise_ids', updated);
+          return updated;
+        });
       } else if (tab === 'Task Approvals') {
-        const updated = new Set([...seenApprovals, ...taskApprovals.map(r => r.id)]);
-        setSeenApprovals(updated); saveSeen('seen_approval_ids', updated);
+        setSeenApprovals((prev) => {
+          const updated = new Set([...prev, ...approvalIds]);
+          saveSeen('seen_approval_ids', updated);
+          return updated;
+        });
       }
     }, 6000);
     return () => clearTimeout(timer.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, reviseRequests, taskApprovals]);
 
   const TABS = [
@@ -97,18 +137,6 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
       });
       router.refresh();
     });
-  }
-
-  function EmptyState({ icon: Icon, label }) {
-    return (
-      <div className="p-14 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-primary-50 grid place-items-center mx-auto mb-3">
-          <Icon className="w-7 h-7 text-primary-400" />
-        </div>
-        <div className="text-[13.5px] font-semibold text-slate-700">No pending {label.toLowerCase()}</div>
-        <div className="text-[12px] text-slate-500 mt-0.5">Requests will appear here when submitted.</div>
-      </div>
-    );
   }
 
   return (

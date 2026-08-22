@@ -2,9 +2,14 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
+import { requireDeveloper } from '@/lib/api';
+import { nextSeqId } from '@/lib/ids';
 
 // One-time recovery: reads the old JSON store and re-inserts users into MySQL.
-export async function GET() {
+// Developer-gated — it was an unauthenticated GET that both WROTE to the users
+// table and dumped every row (id, name, email, department, roles) back out.
+export async function GET(req) {
+  const gate = requireDeveloper(req); if (gate) return gate;
   try {
     // Try common JSON store file locations
     const candidates = [
@@ -48,7 +53,10 @@ export async function GET() {
         const [ex] = await pool.query('SELECT id FROM users WHERE email = ?', [u.email.toLowerCase()]);
         if (ex.length) { skipped++; continue; }
 
-        const id = u.id || ('U' + Math.floor(Math.random() * 9000 + 1000));
+        // A random 4-digit id could land on one already in use; take the
+        // next free number in the sequence instead.
+        const [all] = await pool.query('SELECT id FROM users');
+        const id = u.id || nextSeqId(all, 'U', 3);
         const roles = Array.isArray(u.roles) ? u.roles.join(',') : (u.roles || 'User');
         const hash = u.password_hash || (u.password ? await bcrypt.hash(u.password, 10) : null);
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { requireUser, requireAdmin } from '@/lib/api';
+import { newId } from '@/lib/ids';
 
 function normDate(s) {
   if (!s) return null;
@@ -40,9 +41,11 @@ async function rescheduleForHoliday(holidayDate) {
   }
 }
 
+// Collision-proof id (lib/ids.js). The old 'COUNT(*) + 1' scheme re-used a
+// live id the moment any row had ever been deleted, and two concurrent
+// inserts read the same count — both land as a duplicate-primary-key 500.
 async function nextId() {
-  const [rows] = await pool.query('SELECT COUNT(*) AS cnt FROM holidays');
-  return 'H' + (Number(rows[0].cnt) + 1).toString().padStart(3, '0');
+  return newId('H');
 }
 
 export async function GET() {

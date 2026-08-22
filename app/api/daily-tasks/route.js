@@ -3,6 +3,8 @@ import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, dailyTaskConfirmationMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireUser, currentUser } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
+import { newId } from '@/lib/ids';
+import { isAdminRoles } from '@/lib/pages';
 
 const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         client, client_number AS clientNumber, department, description, minutes, created_at AS createdAt,
@@ -63,26 +65,44 @@ async function notifyFirstSubmission({ doerId, doer, entryDate }) {
 
 export async function POST(req) {
   const gate = await requireUser(); if (gate) return gate;
+  const sessionUser = await currentUser();
+  if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     await ensureSchema();
     const body = await req.json();
     const rows = Array.isArray(body.rows) ? body.rows : [];
-    if (!body.entryDate || !body.doer || rows.length === 0)
-      return NextResponse.json({ error: 'entryDate, doer and at least one row required' }, { status: 400 });
+    if (!body.entryDate || rows.length === 0)
+      return NextResponse.json({ error: 'entryDate and at least one row required' }, { status: 400 });
+
+    // Whose report this is comes from the session, not the request body. The
+    // client used to name the doer, so anyone could file a day's work — or a
+    // day of no work — under a colleague's name, and the daily WhatsApp report
+    // reads straight off this table.
+    // An admin may still file on someone else's behalf, explicitly.
+    let doerId = sessionUser.id;
+    let doerName = sessionUser.name || '';
+    if (isAdminRoles(sessionUser.roles) && body.doerId && String(body.doerId) !== String(sessionUser.id)) {
+      const [target] = await pool.query('SELECT id, name FROM users WHERE id = ?', [String(body.doerId)]);
+      if (!target.length) return NextResponse.json({ error: 'Unknown doer' }, { status: 400 });
+      doerId = target[0].id;
+      doerName = target[0].name;
+    }
 
     // First submission of the day for this doer? (mirrors Apps Script isFirstSubmission)
     const [existing] = await pool.query(
       'SELECT COUNT(*) AS cnt FROM daily_tasks WHERE doer = ? AND entry_date = ?',
-      [body.doer, body.entryDate]
+      [doerName, body.entryDate]
     );
     const firstToday = Number(existing[0]?.cnt || 0) === 0;
 
-    const [c] = await pool.query('SELECT COUNT(*) AS cnt FROM daily_tasks');
-    let n = Number(c[0].cnt);
-
+// Collision-proof id (lib/ids.js). The old 'COUNT(*) + 1' scheme re-used a
+// live id the moment any row had ever been deleted, and two concurrent
+// inserts read the same count — both land as a duplicate-primary-key 500.
+    // Worse here than elsewhere: the ids were pre-computed from one count and
+    // handed out down a loop with no transaction, so a collision partway
+    // through left the day's submission half-written.
     for (const r of rows) {
-      n += 1;
-      const id = 'DT' + n.toString().padStart(5, '0');
+      const id = newId('DT');
       const preInstallImage = await maybeUploadToDrive(r.preInstallImage, 'pre-install-photo');
       await pool.query(
         `INSERT INTO daily_tasks
@@ -91,7 +111,7 @@ export async function POST(req) {
             site_location, purpose_of_visit, checks_type, kms_travelled,
             branch, pre_install_image, pre_install_comment)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, body.entryDate, body.doerId || null, body.doer,
+        [id, body.entryDate, doerId || null, doerName,
          r.client || '', r.clientNumber || '', r.department || '', r.description || '', Number(r.minutes) || 0,
          r.orderNumber || '', r.areaName || '', r.taskType || '', r.software || '',
          r.revision === 'Yes' || r.revision === true ? 'Yes' : 'No',
@@ -102,7 +122,7 @@ export async function POST(req) {
     }
 
     if (firstToday) {
-      await notifyFirstSubmission({ doerId: body.doerId, doer: body.doer, entryDate: body.entryDate });
+      await notifyFirstSubmission({ doerId, doer: doerName, entryDate: body.entryDate });
     }
 
     return NextResponse.json({ success: true, inserted: rows.length }, { status: 201 });

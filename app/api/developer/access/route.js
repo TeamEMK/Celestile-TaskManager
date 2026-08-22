@@ -1,37 +1,26 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
-
-function checkSecret(req) {
-  const secret = req.nextUrl.searchParams.get('secret');
-  return secret && secret === process.env.DEVELOPER_SECRET;
-}
+import { requireDeveloper } from '@/lib/api';
+// Read/write the flag through lib/access.js rather than re-issuing the same
+// two queries here. That module owns the short-TTL cache the layout and the
+// API guards read, so a toggle made here has to go through it or the flip
+// would not be seen for the life of the cached value.
+import { isAccessEnabled, setAccessEnabled } from '@/lib/access';
 
 export async function GET(req) {
-  if (!checkSecret(req))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+  const gate = requireDeveloper(req); if (gate) return gate;
   try {
-    const [rows] = await pool.query(
-      "SELECT `value` FROM app_config WHERE `key` = 'access_enabled'"
-    );
-    const enabled = !rows.length || rows[0].value !== 'false';
-    return NextResponse.json({ enabled });
+    return NextResponse.json({ enabled: await isAccessEnabled() });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 export async function POST(req) {
-  if (!checkSecret(req))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { enabled } = await req.json();
+  const gate = requireDeveloper(req); if (gate) return gate;
   try {
-    await pool.query(
-      "INSERT INTO app_config (`key`, `value`) VALUES ('access_enabled', ?) ON DUPLICATE KEY UPDATE `value` = ?",
-      [String(enabled), String(enabled)]
-    );
-    return NextResponse.json({ success: true, enabled });
+    const { enabled } = await req.json();
+    await setAccessEnabled(!!enabled);
+    return NextResponse.json({ success: true, enabled: !!enabled });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
