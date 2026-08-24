@@ -18,13 +18,19 @@ export async function GET(req, { params }) {
     // content this page exists to show, and can run to thousands of rows.
     const shown = redactSheetIds(tracker, await currentUserIsAdmin());
 
-    // Branch users only ever see their own branch's rows. Cut here rather than
-    // in the table, so the other branch's data never leaves the server — and
-    // so the priority breakdown and the row counts agree with what is shown.
+    // Branch users only ever see their own branch's rows — which branch a row
+    // belongs to is read off its order number (H… Hyderabad, B… Bangalore).
+    // Cut here rather than in the table, so the other branch's data never
+    // leaves the server — and so the priority breakdown and the row counts
+    // agree with what is shown.
     const scope = branchScopeFor(await currentUser());
     if (scope) {
-      const { branchIdx } = detectColumns(data.headers, data.rows);
-      const rows = data.rows.filter((r) => rowInBranchScope(r, branchIdx, scope));
+      const cols = detectColumns(data.headers, data.rows);
+      const rows = data.rows.filter((r) => rowInBranchScope(r, cols, scope));
+      // `data.fileLinks` is deliberately NOT cut down to the visible rows:
+      // the drawings are meant to be openable by everyone, and /api/drive
+      // serves them to any signed-in user for the same reason. It is the
+      // order rows that are branch-private, not the drawings attached to them.
       return NextResponse.json({
         tracker: shown, ...data, rows,
         scope: { branches: scope, hidden: data.rows.length - rows.length },

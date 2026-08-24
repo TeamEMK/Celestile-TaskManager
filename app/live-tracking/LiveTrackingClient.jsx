@@ -11,7 +11,7 @@ import {
 } from '../components/ui';
 import {
   buildPriorityStats, cellAttachments, detectColumns,
-  priorityOf, branchOf, isRowDone, rowTint,
+  priorityOf, rowBranch, isRowDone, rowTint,
   parseSheetDate, formatSheetDate, dateToInput,
   EMPTY_FILTERS, activeFilterCount, rowMatchesFilters,
   BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass,
@@ -148,20 +148,22 @@ export default function LiveTrackingClient() {
 
   const stats = useMemo(() => buildPriorityStats(statRows, cols, scopeBranches), [statRows, cols, scopeBranches]);
 
-  // Only the values the sheet actually uses get an option — an empty
-  // "Medium" in a High/Regular tracker is just a dead end for the user.
+  // Only the values the sheet actually uses get an option — a branch with no
+  // orders in this tab is just a dead end for the user. Branch comes off the
+  // order number (H… / B…), so a sheet with no branch column still filters.
   const branchOptions = useMemo(() => {
-    if (cols.branchIdx < 0 || !data?.rows) return [];
-    const seen = new Set(data.rows.map((r) => branchOf(r[cols.branchIdx]) || 'Other'));
+    if (!data?.rows || (cols.orderIdx < 0 && cols.branchIdx < 0)) return [];
+    const seen = new Set(data.rows.map((r) => rowBranch(r, cols) || 'Other'));
     return [...BRANCHES.filter((b) => seen.has(b)), ...(seen.has('Other') ? ['Other'] : [])];
   }, [data, cols]);
 
+  // High and Regular, and "No priority" only when the sheet has left cells
+  // blank — there are no other values left for a sheet to invent.
   const priorityOptions = useMemo(() => {
     if (cols.priorityIdx < 0 || !data?.rows) return [];
     const seen = new Set(data.rows.map((r) => priorityOf(r[cols.priorityIdx]) || NO_PRIORITY));
     return [
       ...PRIORITIES.filter((p) => seen.has(p)),
-      ...[...seen].filter((p) => !PRIORITIES.includes(p) && p !== NO_PRIORITY).sort(),
       ...(seen.has(NO_PRIORITY) ? [NO_PRIORITY] : []),
     ];
   }, [data, cols]);
@@ -334,11 +336,13 @@ export default function LiveTrackingClient() {
               a Bangalore user reads the totals as the whole company's. */}
           {data?.scope?.branches?.length ? (
             <div className="rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-[11.5px] px-3 py-2">
-              Showing <b>{data.scope.branches.join(' / ')}</b> rows only — your branch.
+              Showing <b>{data.scope.branches.join(' / ')}</b> orders only — your branch, read from the
+              order number ({data.scope.branches.includes('Hyderabad') ? 'H' : 'B'}…).
               {data.scope.hidden > 0
-                ? ` ${data.scope.hidden.toLocaleString()} row${data.scope.hidden !== 1 ? 's' : ''} from ${data.scope.hidden !== 1 ? 'other branches are' : 'another branch is'} hidden.`
+                ? ` ${data.scope.hidden.toLocaleString()} other row${data.scope.hidden !== 1 ? 's are' : ' is'} hidden.`
                 : ''}
             </div>
+
           ) : null}
 
           {/* Rows above "First Data Row" are left out on purpose — say so, or
@@ -800,28 +804,19 @@ function DateCell({ value, order }) {
 
 /* ── priority × branch summary ────────────────────────────────────── */
 
-// Which accent rail a priority gets. Only the rail is coloured (see StatCard
-// in components/ui) — High needs to stand out from Regular at a glance, and
-// that is all the colour a stat needs to do.
+// Which colour a priority card carries. Two priorities, two colours: High is
+// the only one that needs to shout, Regular reads as the calm default, and a
+// blank cell stays grey. Same three colours as the row tints in the table.
 const PRIORITY_TONE = {
-  High: 'red', Medium: 'amber', Low: 'blue', [NO_PRIORITY]: 'neutral',
+  High: 'red', Regular: 'blue', [NO_PRIORITY]: 'neutral',
 };
 
 const PRIORITY_ICON = {
-  High: 'alert', Medium: 'clock', Low: 'dot', [NO_PRIORITY]: 'x',
+  High: 'alert', Regular: 'clipboard', [NO_PRIORITY]: 'x',
 };
 const iconFor = (p) => PRIORITY_ICON[p] || 'clipboard';
 
-// Sheets invent their own priority labels ("Regular" is the common one here).
-// Assign from a fixed list by position so a label keeps the same rail across
-// refreshes instead of shifting as counts change.
-const EXTRA_TONES = ['teal', 'violet', 'slate', 'emerald'];
-
-function toneFor(priority, priorities) {
-  if (PRIORITY_TONE[priority]) return PRIORITY_TONE[priority];
-  const extras = priorities.filter((p) => !PRIORITY_TONE[p]);
-  return EXTRA_TONES[Math.max(0, extras.indexOf(priority)) % EXTRA_TONES.length];
-}
+const toneFor = (priority) => PRIORITY_TONE[priority] || 'slate';
 
 function countSub(count, hasDone) {
   if (!hasDone) return '';
@@ -862,7 +857,8 @@ function PriorityStats({ stats, filters, onPick, narrowed, allRows }) {
                 <StatCard
                   key={p} label={p} value={at(b, p).total}
                   sub={countSub(at(b, p), hasDone)}
-                  tone={toneFor(p, priorities)} icon={iconFor(p)}
+                  tone={toneFor(p)} icon={iconFor(p)}
+
                   progress={hasDone && at(b, p).total ? (at(b, p).done / at(b, p).total) * 100 : null}
                   active={filters.branch === b && filters.priority === p}
                   onClick={at(b, p).total > 0 ? () => onPick(b, p) : undefined}

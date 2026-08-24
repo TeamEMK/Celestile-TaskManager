@@ -129,12 +129,9 @@
   .table-row.row-done:hover   { background: #D1FAE5; }
   .table-row.row-high   { background: #FEF2F2; }
   .table-row.row-high:hover   { background: #FEE2E2; }
-  .table-row.row-medium { background: #FFFBEB; }
-  .table-row.row-medium:hover { background: #FEF3C7; }
-  .table-row.row-low    { background: #EFF6FF; }
-  .table-row.row-low:hover    { background: #DBEAFE; }
-  .table-row.row-other  { background: #F1F5F9; }
-  .table-row.row-other:hover  { background: #E2E8F0; }
+  .table-row.row-regular { background: #EFF6FF; }
+  .table-row.row-regular:hover { background: #DBEAFE; }
+
 
   /* ── Controls ──────────────────────────────────────────────────────
      One height (36px) and one type size for every control in a toolbar, so
