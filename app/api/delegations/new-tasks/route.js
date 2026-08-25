@@ -12,11 +12,17 @@ import { isAdminRoles } from '@/lib/pages';
 // server issued, no clock has to agree with any other clock.
 //
 // A missing/unreadable cursor is a first run: it hands back today's high-water
-// mark and announces nothing, so signing in never replays the whole backlog.
+// mark and speaks only for the last minute, so signing in never replays the
+// whole backlog but a task handed over seconds ago is not lost either.
 
 export const dynamic = 'force-dynamic';
 
 const str = (v) => (v == null ? '' : String(v));
+
+// How far back a first-ever poll will still speak up for. See the `floor`
+// below: long enough to cover "task created, then the page opened", short
+// enough that it can never read out yesterday's work.
+const BASELINE_GRACE_MS = 60000;
 
 /**
  * How new a row is, as epoch milliseconds.
@@ -98,9 +104,15 @@ export async function GET(req) {
     // who can already read every task through /all-tasks).
     if (debug) return json(await diagnose({ user, target, rows, cursor, since, raw }));
 
-    if (since === null) return json({ tasks: [], cursor });
+    // No cursor yet — a fresh browser, or the first tab opened today. It must
+    // not replay the backlog, but going completely silent is wrong too: it
+    // means a task handed to you seconds before you opened the page is lost,
+    // and it makes the feature look broken when someone tests it by creating
+    // the task first and opening the page second. Announce only the last
+    // minute; the cursor is stored either way, so this can happen once.
+    const floor = since === null ? Date.now() - BASELINE_GRACE_MS : since;
 
-    const fresh = rows.filter((r) => r.stamp > since);
+    const fresh = rows.filter((r) => r.stamp > floor);
     if (!fresh.length) return json({ tasks: [], cursor });
 
     const names = await namesById([...new Set(fresh.map((r) => str(r.delegatedBy)).filter(Boolean))]);
@@ -199,7 +211,7 @@ async function diagnose({ user, target, rows, cursor, since, raw }) {
     viewOf: String(target.id) === String(user.id) ? '(yourself)' : `?as=${target.id}`,
     cursor: { received: raw || '(none — this poll only sets a baseline)', parsed: since, issuedBack: cursor },
     yourTasks: { matched: rows.length, newest: rows.slice(0, 5).map(show) },
-    wouldAnnounceNow: since === null ? 0 : rows.filter((r) => r.stamp > since).length,
+    wouldAnnounceNow: rows.filter((r) => r.stamp > (since === null ? Date.now() - BASELINE_GRACE_MS : since)).length,
   };
 
   // An admin already sees every task on /all-tasks, so this adds no access —

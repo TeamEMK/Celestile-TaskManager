@@ -71,7 +71,19 @@ export default function NewTaskVoiceAlert() {
   const mutedRef = useRef(false);
 
   useEffect(() => { mutedRef.current = muted; }, [muted]);
-  useEffect(() => { setMuted(read(MUTE_KEY) === '1'); }, []);
+
+  // The mute flag is one setting for the whole browser, so it has to be read
+  // live rather than only at mount. Two windows are the normal case here — an
+  // admin handing out work in one, the person receiving it in another — and
+  // muting in either used to leave the other stuck on whatever the flag said
+  // when its page happened to load. A window that had mounted while muted then
+  // stayed silent through every task, with its own bell showing "on".
+  useEffect(() => {
+    const sync = () => setMuted(read(MUTE_KEY) === '1');
+    sync();
+    window.addEventListener('storage', sync);   // fires in the OTHER tabs
+    return () => window.removeEventListener('storage', sync);
+  }, []);
 
   // ── sound ──────────────────────────────────────────────────────────
   const chime = useCallback(() => {
