@@ -13,6 +13,7 @@ import OrderNumberInput from '../components/OrderNumberInput';
 import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
 import ImsThicknessSelect from '../components/ImsThicknessSelect';
 import { isThicknessField, isMaterialField } from '@/lib/imsFields';
+import { isUniqueField, compareKey } from '@/lib/uniqueIntake';
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Text' },
@@ -220,6 +221,7 @@ export default function FMSClient() {
       label: f.field_label || f.col_letter, col_letter: f.col_letter,
       field_type: f.field_type || 'text', dropdown_options: f.dropdown_options || '',
       required: f.required == null ? 1 : (f.required ? 1 : 0),
+      unique_value: f.unique_value ? 1 : 0,
       auto_fill: f.auto_fill || '', auto_fill_value: f.auto_fill_value || '',
       depends_on: f.depends_on || '', depends_value: f.depends_value || '',
     })));
@@ -249,7 +251,8 @@ export default function FMSClient() {
     setIntakeFields((fs) => fs.map((f, fi) => (fi === i ? { ...f, ...patch } : f)));
   }
   function addIntakeField() {
-    setIntakeFields((fs) => [...fs, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1, auto_fill: '', auto_fill_value: '', depends_on: '', depends_value: '' }]);
+    setIntakeFields((fs) => [...fs, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1, unique_value: 0, auto_fill: '', auto_fill_value: '', depends_on: '', depends_value: '' }]);
+
   }
   function removeIntakeField(i) {
     setIntakeFields((fs) => fs.filter((_, fi) => fi !== i));
@@ -783,7 +786,13 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
 }
 
 function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblings = [] }) {
-  const gridCols = showAutoFill ? 'grid-cols-[1fr_1fr_1fr_1fr_auto_auto]' : 'grid-cols-[1fr_1fr_1fr_auto_auto]';
+  // "Unique" is an intake-form idea only (showAutoFill marks the intake
+  // editor): a step's extra row is filled in against a row that already
+  // exists, so there is nothing there for it to be a duplicate of.
+  const showUnique = showAutoFill && !row.auto_fill && row.field_type !== 'upload';
+  const gridCols = showAutoFill
+    ? `grid-cols-[1fr_1fr_1fr_1fr_auto_${showUnique ? 'auto_' : ''}auto]`
+    : 'grid-cols-[1fr_1fr_1fr_auto_auto]';
 
   // ── Conditional field ("Show only when …") ──────────────────────────
   // Any other field of the same form that has a column can control this one.
@@ -838,6 +847,14 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
         <input type="checkbox" checked={!!row.required} onChange={(e) => onChange({ required: e.target.checked ? 1 : 0 })} className="accent-primary-600" disabled={!!row.auto_fill} />
         Req.
       </label>
+      {showUnique && (
+        <label className="flex items-center gap-1 text-[10.5px] text-slate-500 whitespace-nowrap pt-2"
+          title="No duplicates — a value already entered in this column can't be entered again. Tick this on the enquiry's mobile number so the same enquiry isn't captured twice.">
+          <input type="checkbox" checked={!!row.unique_value} onChange={(e) => onChange({ unique_value: e.target.checked ? 1 : 0 })} className="accent-primary-600" />
+          Unique
+        </label>
+      )}
+
       <button type="button" onClick={onRemove} className="btn-ghost !p-1.5 text-red-500"><Icon name="x" className="w-3.5 h-3.5" /></button>
       {row.field_type === 'dropdown' && (
         <input className="input !text-[11.5px]" style={{ gridColumn: '1 / -1' }} value={row.dropdown_options} onChange={(e) => onChange({ dropdown_options: e.target.value })} placeholder="Comma-separated options e.g. Yes,No,Partial" />
@@ -892,6 +909,10 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [savedInfo, setSavedInfo] = useState('');
+  // fieldId -> { checking } | { message } | null, for the no-duplicate fields.
+  // Answered as they type, so a number already in the sheet is caught at the
+  // top of the form instead of after the whole enquiry has been filled in.
+  const [dupes, setDupes] = useState({});
 
   // Conditional fields — a field configured with "Show only when …" appears
   // only once its controlling field holds the configured value (e.g. Program
@@ -907,6 +928,43 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
   const autoFields = fields.filter((f, i) => shown[i] && f.auto_fill);
 
   const setVal = (id, v) => setValues((s) => ({ ...s, [id]: v }));
+
+  // Fields that may not repeat, checked against the sheet as they are typed.
+  // Debounced, and a reply is dropped if the value moved on while it was in
+  // flight — a warning about a number the person has already finished editing
+  // is worse than no warning at all.
+  const uniqueIds = useMemo(
+    () => fields.filter((f) => isUniqueField(f) && !f.auto_fill).map((f) => f.id),
+    [fields],
+  );
+  const uniqueKey = uniqueIds.map((id) => String(values[id] ?? '').trim()).join('|');
+
+  useEffect(() => {
+    const pending = uniqueIds.filter((id) => compareKey(values[id] ?? ''));
+    if (!pending.length) { setDupes({}); return; }
+    setDupes(Object.fromEntries(pending.map((id) => [id, { checking: true }])));
+
+    let dead = false;
+    const t = setTimeout(async () => {
+      const asked = Object.fromEntries(pending.map((id) => [id, values[id]]));
+      const res = await fetch(`/api/fms-tasks/${fmsId}/intake/check`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: asked }),
+      }).then((r) => r.json()).catch(() => ({ duplicate: null }));
+      if (dead) return;
+      const dup = res.duplicate;
+      setDupes(Object.fromEntries(pending.map((id) => [
+        id, dup && dup.fieldId === id ? { message: dup.message } : null,
+      ])));
+    }, 450);
+
+    return () => { dead = true; clearTimeout(t); };
+    // Keyed on the unique fields' values alone: a keystroke anywhere else on
+    // the form must not re-ask, or every field costs a sheet read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uniqueKey, fmsId]);
+
+  const blockingDupe = uniqueIds.map((id) => dupes[id]).find((d) => d?.message);
 
   // If this form also captures the stone, the thickness list narrows to the
   // sizes that stone is sold in. No material field is fine — the list is then
@@ -926,6 +984,9 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
       isOrderField(f) && String(values[f.id] || '').trim() && !isValidOrderNumber(values[f.id])
     ));
     if (badOrder) { setErr(`"${badOrder.field_label || badOrder.col_letter}" — ${ORDER_HINT}`); return; }
+    // Already entered once. The server refuses it again with the write lock
+    // held — this only saves the round trip and says so in the same words.
+    if (blockingDupe) { setErr(blockingDupe.message); return; }
     // Drop anything typed into a field that a later answer hid again — the
     // server blanks hidden fields too, this just keeps the two in step.
     const payload = {};
@@ -988,7 +1049,14 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
             {visibleFields.map((f) => (
               <div key={f.id}>
-                <label className="label">{f.field_label || f.col_letter}{f.required ? ' *' : ''}</label>
+                <label className="label">
+                  {f.field_label || f.col_letter}{f.required ? ' *' : ''}
+                  {isUniqueField(f) && !dupes[f.id]?.message && (
+                    <span className="ml-1.5 font-normal normal-case text-[10.5px] text-slate-400">
+                      {dupes[f.id]?.checking ? 'checking…' : 'no duplicates'}
+                    </span>
+                  )}
+                </label>
                 {f.field_type === 'dropdown' ? (
                   <select className="input" value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)}>
                     <option value="">-- Select --</option>
@@ -1010,11 +1078,14 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
                   />
                 ) : (
                   <input
-                    className="input"
+                    className={`input${dupes[f.id]?.message ? ' !border-red-300 !bg-red-50' : ''}`}
                     type={f.field_type === 'number' ? 'number' : f.field_type === 'link' ? 'url' : 'text'}
                     value={values[f.id] || ''}
                     onChange={(e) => setVal(f.id, e.target.value)}
                   />
+                )}
+                {dupes[f.id]?.message && (
+                  <div className="mt-1 text-[11.5px] text-red-600">{dupes[f.id].message}</div>
                 )}
               </div>
             ))}
@@ -1023,7 +1094,11 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
 
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 shrink-0">
           <button className="btn-secondary" onClick={onClose} disabled={saving || !!savedInfo}>Cancel</button>
-          <button className="btn-primary" onClick={submit} disabled={saving || !!savedInfo}>{saving ? 'Submitting…' : 'Submit'}</button>
+          <button className="btn-primary" onClick={submit} disabled={saving || !!savedInfo || !!blockingDupe}
+            title={blockingDupe ? blockingDupe.message : undefined}>
+            {saving ? 'Submitting…' : 'Submit'}
+          </button>
+
         </div>
       </div>
     </div>

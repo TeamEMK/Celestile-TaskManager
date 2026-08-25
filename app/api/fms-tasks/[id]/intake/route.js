@@ -35,6 +35,15 @@ export async function POST(req, { params }) {
     if (code === 403) return NextResponse.json({ error: 'Access denied. Sheet write permission needed.' }, { status: 400 });
     if (err.message?.startsWith('Required field')) return NextResponse.json({ error: err.message }, { status: 400 });
     if (err.message?.startsWith('Order number'))   return NextResponse.json({ error: err.message }, { status: 400 });
+    // Already entered. 409 rather than 400: nothing about the request is
+    // malformed, it just collides with a row that is already there.
+    if (err.duplicate) {
+      return NextResponse.json({
+        error: err.message,
+        duplicate: { fieldId: err.duplicate.field?.id, label: err.duplicate.label, row: err.duplicate.row },
+      }, { status: 409 });
+    }
+
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
