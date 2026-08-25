@@ -17,6 +17,7 @@ import { useSession } from 'next-auth/react';
  */
 
 const POLL_MS = 20000;
+const HIDDEN_POLL_MS = 60000;   // backgrounded tab — slower, but never stopped
 const MUTE_KEY = 'celestile.voiceAlert.muted';
 // v2: the cursor changed from a datetime string to epoch milliseconds, so an
 // older stored value has to be discarded rather than compared against.
@@ -162,7 +163,6 @@ export default function NewTaskVoiceAlert() {
 
     const tick = async () => {
       if (stopped || inFlight) return;
-      if (document.visibilityState !== 'visible') return;
       inFlight = true;
       try {
         const since = read(key) || '';
@@ -182,13 +182,24 @@ export default function NewTaskVoiceAlert() {
       finally { inFlight = false; }
     };
 
-    tick();
-    const t = setInterval(tick, POLL_MS);
-    document.addEventListener('visibilitychange', tick);
+    // A background tab has to keep polling. The point of the alert is to reach
+    // someone who is looking at something else — the Sidebar's badge can wait
+    // for you to come back, this cannot. Backgrounded tabs just poll at a third
+    // of the rate, and switching back checks immediately.
+    let timer = null;
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = setTimeout(run, document.visibilityState === 'visible' ? POLL_MS : HIDDEN_POLL_MS);
+    };
+    const run = async () => { await tick(); if (!stopped) schedule(); };
+    const onVisible = () => { schedule(); if (document.visibilityState === 'visible') tick(); };
+
+    run();
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       stopped = true;
-      clearInterval(t);
-      document.removeEventListener('visibilitychange', tick);
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [userId, announce]);
 
