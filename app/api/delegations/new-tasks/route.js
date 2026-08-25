@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { pool, USE_SHEETS } from '@/lib/db';
 import { readStore } from '@/lib/store';
 import { currentUser } from '@/lib/api';
+import { isAdminRoles } from '@/lib/pages';
 
 // Poll endpoint behind the voice alert (app/components/NewTaskVoiceAlert.jsx).
 //
@@ -63,14 +64,20 @@ function stampOf(row) {
   return Math.max(fromId, fromDate);
 }
 
+// The poll must never be answered from a cache — a repeat of the same `since`
+// is exactly what a stale edge copy would pin forever.
+const json = (body) => NextResponse.json(body, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
+
 export async function GET(req) {
   // Deliberately not requireUser(): a polling widget must never turn a signed
   // out (or suspended) session into a console full of 401s. It just goes quiet.
   const user = await currentUser();
-  if (!user?.id) return NextResponse.json({ tasks: [], cursor: null });
+  if (!user?.id) return json({ tasks: [], cursor: null, signedIn: false });
 
-  const raw = str(new URL(req.url).searchParams.get('since')).trim();
+  const url = new URL(req.url);
+  const raw = str(url.searchParams.get('since')).trim();
   const since = /^\d+$/.test(raw) ? Number(raw) : null;
+  const debug = url.searchParams.get('debug') === '1';
 
   try {
     const rows = (await recentForDoer(String(user.id), user.name))
@@ -78,14 +85,22 @@ export async function GET(req) {
       .sort((a, b) => b.stamp - a.stamp);
 
     const cursor = String(rows[0]?.stamp ?? Date.now());
-    if (since === null) return NextResponse.json({ tasks: [], cursor });
+
+    // ?debug=1 — open it in the browser when the alert stays silent. It shows
+    // which user the server thinks you are, which store it is reading, and how
+    // each of your rows dates itself, which is every input the decision uses.
+    // Scoped to the caller's own tasks (plus a system-wide peek for an admin,
+    // who can already read every task through /all-tasks).
+    if (debug) return json(await diagnose({ user, rows, cursor, since, raw }));
+
+    if (since === null) return json({ tasks: [], cursor });
 
     const fresh = rows.filter((r) => r.stamp > since);
-    if (!fresh.length) return NextResponse.json({ tasks: [], cursor });
+    if (!fresh.length) return json({ tasks: [], cursor });
 
     const names = await namesById([...new Set(fresh.map((r) => str(r.delegatedBy)).filter(Boolean))]);
 
-    return NextResponse.json({
+    return json({
       cursor,
       tasks: fresh.slice(0, 5).map((r) => ({
         id: r.id,
@@ -97,15 +112,15 @@ export async function GET(req) {
     });
   } catch (err) {
     console.error('[new-tasks]', err.message);
-    return NextResponse.json({ tasks: [], cursor: raw || null });
+    return json({ tasks: [], cursor: raw || null, error: err.message });
   }
 }
 
 const hasDB = !!process.env.DB_HOST;
 
 // Newest handful of tasks assigned to this user. Anything created between two
-// 25s polls is comfortably inside 50 rows under either ordering, and the query
-// is cheap enough to run in every open tab.
+// polls is comfortably inside 50 rows under either ordering, and the query is
+// cheap enough to run in every open tab.
 async function recentForDoer(userId, userName) {
   if (hasDB) {
     const [rows] = await pool.query(
@@ -148,5 +163,50 @@ async function namesById(ids) {
       if (ids.includes(String(u.id))) out[String(u.id)] = u.name;
     }
   } catch { /* a missing name only costs the announcement its "by X" clause */ }
+  return out;
+}
+
+/**
+ * ?debug=1 — everything the announce/stay-quiet decision is made from, in one
+ * page. Written because the failure it diagnoses is invisible from the outside:
+ * the alert simply stays silent, and silence looks the same whether the row was
+ * never assigned to you, the store dates it strangely, or the cursor is already
+ * past it.
+ */
+async function diagnose({ user, rows, cursor, since, raw }) {
+  const admin = isAdminRoles(user.roles);
+  const show = (r) => ({
+    id: r.id,
+    createdAt: str(r.createdAt) || '(empty)',
+    stamp: r.stamp ?? stampOf(r),
+    dated: new Date(r.stamp ?? stampOf(r)).toISOString(),
+    newerThanCursor: since === null ? null : (r.stamp ?? stampOf(r)) > since,
+  });
+
+  const out = {
+    serverTime: new Date().toISOString(),
+    store: USE_SHEETS ? 'google-sheets' : hasDB ? 'mysql' : 'json-file',
+    youAre: { id: String(user.id), name: user.name || '', admin },
+    cursor: { received: raw || '(none — this poll only sets a baseline)', parsed: since, issuedBack: cursor },
+    yourTasks: { matched: rows.length, newest: rows.slice(0, 5).map(show) },
+    wouldAnnounceNow: since === null ? 0 : rows.filter((r) => r.stamp > since).length,
+  };
+
+  // An admin already sees every task on /all-tasks, so this adds no access —
+  // it answers "did the task I just created land, and whose id is on it?".
+  if (admin) {
+    try {
+      const [all] = await pool.query(
+        `SELECT id, doer_id AS doerId, doer, delegated_by AS delegatedBy, created_at AS createdAt
+           FROM delegations ORDER BY created_at DESC LIMIT 50`
+      );
+      out.newestInSystem = all
+        .map((r) => ({ ...r, stamp: stampOf(r) }))
+        .sort((a, b) => b.stamp - a.stamp)
+        .slice(0, 5)
+        .map((r) => ({ ...show(r), doerId: r.doerId, doer: r.doer, assignedToYou: String(r.doerId ?? '') === String(user.id) }));
+      out.totalRowsScanned = all.length;
+    } catch (e) { out.newestInSystem = `failed: ${e.message}`; }
+  }
   return out;
 }

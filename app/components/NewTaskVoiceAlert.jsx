@@ -22,8 +22,20 @@ const MUTE_KEY = 'celestile.voiceAlert.muted';
 // older stored value has to be discarded rather than compared against.
 const cursorKey = (userId) => `celestile.voiceAlert.cursor.v2.${userId}`;
 
-const read = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
-const write = (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } };
+// localStorage is the memory across reloads, but it is not always there —
+// private windows and "block site data" make every call throw. Falling back to
+// a plain Map keeps the cursor alive for the life of the page instead of
+// pinning it at "no baseline yet", which would silence the alert permanently
+// and leave nothing to see.
+const mem = new Map();
+const read = (k) => {
+  try { const v = localStorage.getItem(k); if (v !== null) return v; } catch { /* blocked */ }
+  return mem.has(k) ? mem.get(k) : null;
+};
+const write = (k, v) => {
+  mem.set(k, v);
+  try { localStorage.setItem(k, v); } catch { /* blocked */ }
+};
 
 // Voices load asynchronously in Chrome; prefer an Indian-English one, then any
 // English one, then whatever the browser defaults to.
