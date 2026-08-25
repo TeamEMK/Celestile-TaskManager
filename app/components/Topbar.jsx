@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import NewTaskVoiceAlert from './NewTaskVoiceAlert';
 
 const TITLES = {
   '/':               'Dashboard',
@@ -47,6 +48,10 @@ export default function Topbar({ onMenuClick = () => {} }) {
         </h1>
 
         <div className="flex-1" />
+
+        {/* Speaks any task the moment it is delegated to you, and doubles as
+            the on/off switch for that alert. */}
+        <NewTaskVoiceAlert />
 
         <div className="hidden xl:flex items-center text-[12px] whitespace-nowrap text-slate-400">
           <svg className="w-3.5 h-3.5 mr-1.5 text-primary-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
