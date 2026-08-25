@@ -5,24 +5,63 @@ import { currentUser } from '@/lib/api';
 
 // Poll endpoint behind the voice alert (app/components/NewTaskVoiceAlert.jsx).
 //
-// The browser keeps an opaque `cursor` — the created_at of the newest task it
-// has already announced — and hands it back on every poll. Anything newer than
-// that is a task the user has not been told about yet. Comparing against a
-// cursor the server itself issued keeps this free of clock skew between the
-// browser, Node and the database, and works the same whether the store is
-// MySQL, the Sheets SQL engine or the JSON file.
+// The browser keeps an opaque `cursor` — the stamp of the newest task it has
+// already announced — and hands it back on every poll. Anything newer is a
+// task the user has not been told about yet. Because the cursor is a value the
+// server issued, no clock has to agree with any other clock.
 //
-// A missing/empty cursor is a first run: it hands back today's high-water mark
-// and announces nothing, so signing in never replays the whole backlog aloud.
+// A missing/unreadable cursor is a first run: it hands back today's high-water
+// mark and announces nothing, so signing in never replays the whole backlog.
 
 export const dynamic = 'force-dynamic';
 
-// Sentinel so "no tasks at all yet" still stores a truthy cursor — otherwise
-// the very first task a brand-new user is given would be swallowed as a
-// baseline instead of announced.
-const EPOCH = '1970-01-01 00:00:00';
-
 const str = (v) => (v == null ? '' : String(v));
+
+/**
+ * How new a row is, as epoch milliseconds.
+ *
+ * `created_at` alone is not enough to lean on. In Sheets mode every delegation
+ * carried over from the old JSON store has an EMPTY created_at (verified
+ * against the live sheet), a spreadsheet can hand a datetime cell back in
+ * whatever format it is displayed in, and a bare "YYYY-MM-DD HH:MM:SS" parses
+ * as local time even though it was written as UTC.
+ *
+ * The row id survives all of that: newId() is `DEL` + Date.now() in base36
+ * (lib/ids.js), so the creation instant is readable straight off the primary
+ * key. Legacy ids (DEL001…) decode to a few milliseconds past the epoch, which
+ * is exactly the right answer — they are old. Taking the larger of the two
+ * readings means a timezone-shifted created_at can only ever be ignored, never
+ * make a new task look old.
+ */
+function stampOf(row) {
+  const id = str(row.id).toUpperCase();
+  let fromId = 0;
+  // newId() is <prefix><8 base36 ms><2 worker><3 seq>, so the clock reading is
+  // measured from the END of the id. Anchoring on the front instead does not
+  // work: base36 digits are letters too, and a greedy prefix match happily eats
+  // the first character of the timestamp ("DELM9X4…" — prefix or clock?).
+  if (id.length >= 14) {
+    const tail = id.slice(-13, -5);
+    if (/^[0-9A-Z]{8}$/.test(tail)) {
+      const n = parseInt(tail, 36);
+      // Sanity window (2020…2100) so a legacy id that happens to be the right
+      // width cannot decode to a date in the far future and mute every task
+      // after it.
+      if (n > 1577836800000 && n < 4102444800000) fromId = n;
+    }
+  }
+  if (!fromId) {
+    const digits = id.replace(/\D/g, '');
+    if (digits) fromId = Number(digits) || 0;      // DEL011 -> 11ms past the epoch
+  }
+  // Only the MySQL/Sheets "YYYY-MM-DD HH:MM:SS" shape wants the T inserted;
+  // forcing it on a spreadsheet's display format ("8/25/2026 10:57:39") turns a
+  // parseable date into NaN.
+  const when = str(row.createdAt).trim();
+  const parsed = Date.parse(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(when) ? when.replace(' ', 'T') : when);
+  const fromDate = Number.isFinite(parsed) ? parsed : 0;
+  return Math.max(fromId, fromDate);
+}
 
 export async function GET(req) {
   // Deliberately not requireUser(): a polling widget must never turn a signed
@@ -30,26 +69,25 @@ export async function GET(req) {
   const user = await currentUser();
   if (!user?.id) return NextResponse.json({ tasks: [], cursor: null });
 
-  const since = str(new URL(req.url).searchParams.get('since')).trim();
-  const me = String(user.id);
+  const raw = str(new URL(req.url).searchParams.get('since')).trim();
+  const since = /^\d+$/.test(raw) ? Number(raw) : null;
 
   try {
-    const rows = await recentForDoer(me, user.name);
-    const cursor = str(rows[0]?.createdAt) || (since || EPOCH);
-    if (!since) return NextResponse.json({ tasks: [], cursor });
+    const rows = (await recentForDoer(String(user.id), user.name))
+      .map((r) => ({ ...r, stamp: stampOf(r) }))
+      .sort((a, b) => b.stamp - a.stamp);
 
-    const fresh = rows.filter((r) =>
-      str(r.createdAt) > since &&
-      // Delegating to yourself shouldn't announce itself back at you.
-      String(r.delegatedBy ?? '') !== me
-    );
+    const cursor = String(rows[0]?.stamp ?? Date.now());
+    if (since === null) return NextResponse.json({ tasks: [], cursor });
+
+    const fresh = rows.filter((r) => r.stamp > since);
     if (!fresh.length) return NextResponse.json({ tasks: [], cursor });
 
     const names = await namesById([...new Set(fresh.map((r) => str(r.delegatedBy)).filter(Boolean))]);
 
     return NextResponse.json({
       cursor,
-      tasks: fresh.map((r) => ({
+      tasks: fresh.slice(0, 5).map((r) => ({
         id: r.id,
         description: str(r.description),
         by: names[str(r.delegatedBy)] || '',
@@ -59,15 +97,15 @@ export async function GET(req) {
     });
   } catch (err) {
     console.error('[new-tasks]', err.message);
-    return NextResponse.json({ tasks: [], cursor: since || null });
+    return NextResponse.json({ tasks: [], cursor: raw || null });
   }
 }
 
 const hasDB = !!process.env.DB_HOST;
 
-// Newest handful of tasks assigned to this user. 20 is well past what anyone
-// can be handed between two 25s polls, and keeps the query cheap enough to run
-// on every open tab.
+// Newest handful of tasks assigned to this user. Anything created between two
+// 25s polls is comfortably inside 50 rows under either ordering, and the query
+// is cheap enough to run in every open tab.
 async function recentForDoer(userId, userName) {
   if (hasDB) {
     const [rows] = await pool.query(
@@ -76,14 +114,14 @@ async function recentForDoer(userId, userName) {
          FROM delegations
         WHERE doer_id = ?
         ORDER BY created_at DESC
-        LIMIT 20`,
+        LIMIT 50`,
       [userId]
     );
     return rows;
   }
   const store = await readStore();
   return (store.delegations || [])
-    .filter((d) => String(d.doerId ?? '') === String(userId) || (!d.doerId && d.doer && d.doer === userName))
+    .filter((d) => String(d.doerId ?? '') === userId || (!d.doerId && d.doer && d.doer === userName))
     .map((d) => ({
       id: d.id,
       description: d.description,
@@ -91,9 +129,7 @@ async function recentForDoer(userId, userName) {
       priority: d.priority,
       dueDate: d.dueDate,
       createdAt: d.createdAt || d.created_at,
-    }))
-    .sort((a, b) => str(b.createdAt).localeCompare(str(a.createdAt)))
-    .slice(0, 20);
+    }));
 }
 
 async function namesById(ids) {

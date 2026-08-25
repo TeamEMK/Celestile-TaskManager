@@ -16,9 +16,11 @@ import { useSession } from 'next-auth/react';
  * soon as priming happens rather than being dropped silently.
  */
 
-const POLL_MS = 25000;
+const POLL_MS = 20000;
 const MUTE_KEY = 'celestile.voiceAlert.muted';
-const cursorKey = (userId) => `celestile.voiceAlert.cursor.${userId}`;
+// v2: the cursor changed from a datetime string to epoch milliseconds, so an
+// older stored value has to be discarded rather than compared against.
+const cursorKey = (userId) => `celestile.voiceAlert.cursor.v2.${userId}`;
 
 const read = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } };
