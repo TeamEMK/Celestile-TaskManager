@@ -78,9 +78,14 @@ export async function GET(req) {
   const raw = str(url.searchParams.get('since')).trim();
   const since = /^\d+$/.test(raw) ? Number(raw) : null;
   const debug = url.searchParams.get('debug') === '1';
+  // An admin debugging someone else's silent alert can ask for their view with
+  // &as=<userId>, instead of having to sign in as them. It reveals no task an
+  // admin cannot already read on /all-tasks.
+  const asId = debug && isAdminRoles(user.roles) ? str(url.searchParams.get('as')).trim() : '';
+  const target = asId ? { id: asId, name: '', roles: [] } : user;
 
   try {
-    const rows = (await recentForDoer(String(user.id), user.name))
+    const rows = (await recentForDoer(String(target.id), target.name))
       .map((r) => ({ ...r, stamp: stampOf(r) }))
       .sort((a, b) => b.stamp - a.stamp);
 
@@ -91,7 +96,7 @@ export async function GET(req) {
     // each of your rows dates itself, which is every input the decision uses.
     // Scoped to the caller's own tasks (plus a system-wide peek for an admin,
     // who can already read every task through /all-tasks).
-    if (debug) return json(await diagnose({ user, rows, cursor, since, raw }));
+    if (debug) return json(await diagnose({ user, target, rows, cursor, since, raw }));
 
     if (since === null) return json({ tasks: [], cursor });
 
@@ -118,9 +123,13 @@ export async function GET(req) {
 
 const hasDB = !!process.env.DB_HOST;
 
-// Newest handful of tasks assigned to this user. Anything created between two
-// polls is comfortably inside 50 rows under either ordering, and the query is
-// cheap enough to run in every open tab.
+// Newest handful of tasks assigned to this user.
+//
+// Ordered by id rather than created_at, because the id is the one column that
+// cannot be blank and cannot be misread: newId() writes the clock into it
+// (lib/ids.js), so id DESC *is* newest-first. Ordering by created_at instead
+// sorts NULLs last in MySQL, which would drop a row with no timestamp out of
+// the LIMIT window entirely — the newest task, silently invisible.
 async function recentForDoer(userId, userName) {
   if (hasDB) {
     const [rows] = await pool.query(
@@ -128,7 +137,7 @@ async function recentForDoer(userId, userName) {
               due_date AS dueDate, created_at AS createdAt
          FROM delegations
         WHERE doer_id = ?
-        ORDER BY created_at DESC
+        ORDER BY id DESC
         LIMIT 50`,
       [userId]
     );
@@ -173,7 +182,7 @@ async function namesById(ids) {
  * never assigned to you, the store dates it strangely, or the cursor is already
  * past it.
  */
-async function diagnose({ user, rows, cursor, since, raw }) {
+async function diagnose({ user, target, rows, cursor, since, raw }) {
   const admin = isAdminRoles(user.roles);
   const show = (r) => ({
     id: r.id,
@@ -187,6 +196,7 @@ async function diagnose({ user, rows, cursor, since, raw }) {
     serverTime: new Date().toISOString(),
     store: USE_SHEETS ? 'google-sheets' : hasDB ? 'mysql' : 'json-file',
     youAre: { id: String(user.id), name: user.name || '', admin },
+    viewOf: String(target.id) === String(user.id) ? '(yourself)' : `?as=${target.id}`,
     cursor: { received: raw || '(none — this poll only sets a baseline)', parsed: since, issuedBack: cursor },
     yourTasks: { matched: rows.length, newest: rows.slice(0, 5).map(show) },
     wouldAnnounceNow: since === null ? 0 : rows.filter((r) => r.stamp > since).length,
@@ -198,7 +208,7 @@ async function diagnose({ user, rows, cursor, since, raw }) {
     try {
       const [all] = await pool.query(
         `SELECT id, doer_id AS doerId, doer, delegated_by AS delegatedBy, created_at AS createdAt
-           FROM delegations ORDER BY created_at DESC LIMIT 50`
+           FROM delegations ORDER BY id DESC LIMIT 50`
       );
       out.newestInSystem = all
         .map((r) => ({ ...r, stamp: stampOf(r) }))
