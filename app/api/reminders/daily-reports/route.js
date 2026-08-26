@@ -15,5 +15,5 @@ export const maxDuration = 60;
 // `Authorization: Bearer <CRON_SECRET>`, schedule "30 21 * * 1-6" IST
 // (= "0 16 * * 1-6" UTC).
 export async function GET(req) {
-  return runDailyReport(req, [REPORTS.design, REPORTS.sales, REPORTS.site]);
+  return runDailyReport(req, [REPORTS.design, REPORTS.sales, REPORTS.salesBlr, REPORTS.site]);
 }
