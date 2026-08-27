@@ -9,7 +9,7 @@ import { findByOrder, resolveRow, writeRows, appendSlabs } from '@/lib/imsSheet'
 // record has no home in that sheet's layout, so it stays in the app's own
 // fsm_step2 table.
 
-const NOTIFY = () => process.env.INVENTORY_NOTIFY || '918008002121';
+const NOTIFY = () => process.env.INVENTORY_NOTIFY || '120363428784416671@g.us';
 const uid = (p) => p + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
 const num = (v) => parseFloat(v) || 0;
 
