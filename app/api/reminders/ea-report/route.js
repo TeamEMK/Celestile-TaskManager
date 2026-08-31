@@ -24,10 +24,9 @@ export async function GET(req) {
   if (istDay() === 0)
     return NextResponse.json({ ok: true, skipped: 'Sunday' });
 
-  // No fallback recipient on purpose — better no message than the wrong chat.
-  const to = process.env.EA_REPORT_NOTIFY || '';
-  if (!to)
-    return NextResponse.json({ ok: false, skipped: 'EA_REPORT_NOTIFY not configured' });
+  // Default recipient is Vinay sir's number (same pattern as the group-report
+  // fallbacks in lib/dailyReport.js); EA_REPORT_NOTIFY overrides it.
+  const to = process.env.EA_REPORT_NOTIFY || '918008000033';
 
   await ensureSchema();
   const today = istDateStr();
