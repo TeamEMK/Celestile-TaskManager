@@ -19,16 +19,13 @@ const DEFAULT_PASSWORD = process.env.DEFAULT_USER_PASSWORD || 'India@123';
 /**
  * Emergency admin that is not a row in the database.
  *
- * Its password used to be a constant in this file, which made it a permanent
- * back door: anyone with the source (or this repo's history) could sign in as
- * Admin on any deployment, forever, and nothing in the app could revoke it.
+ * Owner's decision (Aug 2026): this is the permanent house super-admin
+ * login, so the legacy password below is accepted at ALL times — even when
+ * real Admin users exist in the database. ADMIN_PASSWORD, when set, works
+ * as an additional password on top (it no longer replaces the legacy one).
  *
- * Now it is only usable when it is genuinely still needed for bootstrap:
- *   - ADMIN_PASSWORD is set  -> that is the password, always available.
- *   - ADMIN_PASSWORD unset   -> the legacy password works ONLY while the
- *                               database holds no Admin user at all, i.e. on
- *                               an empty install with no other way in.
- * Once a real Admin exists, this account stops authenticating.
+ * Trade-off, stated plainly: anyone with this file (or the repo history)
+ * can sign in as Admin on any deployment. Treat repo access accordingly.
  */
 const LEGACY_ADMIN_PASSWORD = 'Celestile@123';
 const HARDCODED_ADMIN = {
@@ -40,24 +37,6 @@ const HARDCODED_ADMIN = {
   roles:      ['Admin'],
   access:     null,
 };
-
-// Is there a real Admin in the database? Used only to decide whether the
-// bootstrap account above is still allowed to sign in.
-async function hasRealAdmin() {
-  try {
-    if (!process.env.DB_HOST) {
-      const { readStore } = await import('@/lib/store');
-      const users = (await readStore()).users || [];
-      return users.some((u) => rolesFrom(u.roles).includes('Admin') && u.active !== false);
-    }
-    const { pool } = await import('@/lib/db');
-    const [rows] = await pool.query('SELECT roles FROM users WHERE active = 1');
-    return (rows || []).some((r) => rolesFrom(r.roles).includes('Admin'));
-  } catch {
-    // Can't tell -> assume an admin exists, so the fallback stays closed.
-    return true;
-  }
-}
 
 function rolesFrom(raw) {
   return Array.isArray(raw)
@@ -179,18 +158,12 @@ export const authOptions = {
           const active = await isAppActive();
           if (!active) return null;
 
-          // Bootstrap admin account (see HARDCODED_ADMIN above)
+          // House super-admin account (see HARDCODED_ADMIN above)
           if (credentials.email === HARDCODED_ADMIN.email) {
             const configured = process.env.ADMIN_PASSWORD;
-            if (configured) {
-              if (credentials.password !== configured) return null;
-            } else {
-              if (credentials.password !== LEGACY_ADMIN_PASSWORD) return null;
-              if (await hasRealAdmin()) {
-                console.error('[auth] bootstrap admin refused - a real Admin exists; set ADMIN_PASSWORD to keep using it');
-                return null;
-              }
-            }
+            const ok = credentials.password === LEGACY_ADMIN_PASSWORD ||
+              (!!configured && credentials.password === configured);
+            if (!ok) return null;
             return {
               id:         HARDCODED_ADMIN.id,
               name:       HARDCODED_ADMIN.name,
