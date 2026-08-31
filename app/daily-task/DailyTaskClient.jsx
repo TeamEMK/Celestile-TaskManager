@@ -62,11 +62,22 @@ const HYD_SALES_TASK_TYPES = [
   'Material order Request',
 ];
 
+/* ── Executive Assistant constants ───────────────────────────────────── */
+const OLD_NEW_OPTIONS = ['Old Client', 'New Client'];
+const PAY_MODES = ['Cash', 'UPI', 'Bank Transfer', 'Cheque', 'Card', 'Other'];
+
+// The two forms the Executive Assistant fills — also offered to admins.
+const EA_FORM_OPTIONS = [
+  { label: 'Daily Walk-in Report',    value: 'Walk-in'       },
+  { label: 'Sales Report (Payments)', value: 'Sales Payment' },
+];
+
 /* ── Admin form options ──────────────────────────────────────────────── */
 const FORM_OPTIONS = [
   { label: 'Designer',      value: 'Designer'      },
   { label: 'Site Engineer', value: 'Site Engineer' },
   { label: 'Sales',         value: 'Sales'         },
+  ...EA_FORM_OPTIONS,
 ];
 
 /* ── Blank rows ──────────────────────────────────────────────────────── */
@@ -83,6 +94,14 @@ const blankSalesRow = () => ({
   client: '', clientNumber: '', taskType: '', description: '',
   areaName: '', siteLocation: '', minutes: '',
 });
+const blankWalkinRow = () => ({
+  client: '', clientNumber: '', arcName: '', arcPhone: '',
+  oldNewClient: '', noOfVisits: '', description: '', remarks: '', executive: '',
+});
+const blankPaymentRow = () => ({
+  client: '', arcName: '', description: '',
+  orderValue: '', advPaid: '', balance: '', modeOfPay: '', executive: '',
+});
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 const fmt = (iso) => new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-');
@@ -95,7 +114,15 @@ function deptToFormType(dept) {
   const SITE   = ['sc', 'runner', 'process coordinator', 'pc', 'site engineer'];
   if (SALES.includes(d))  return 'Sales';
   if (SITE.includes(d))   return 'Site Engineer';
+  if (isEaDept(dept))     return 'Walk-in';
   return 'Designer';
+}
+
+// The Executive Assistant fills TWO forms (Walk-in + Payments), so unlike
+// every other department they get a form switcher instead of one fixed form.
+function isEaDept(dept) {
+  const d = (dept || '').toLowerCase().trim();
+  return d === 'ea' || d === 'executive assistant';
 }
 
 export default function DailyTaskClient() {
@@ -134,20 +161,32 @@ export default function DailyTaskClient() {
     setNowLabel(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' }));
   }, []);
 
-  const activeDept     = isAdmin ? selectedForm : deptToFormType(department);
+  const isEaUser       = !isAdmin && isEaDept(department);
+  const activeDept     = isAdmin ? selectedForm
+                       : isEaUser ? (selectedForm || 'Walk-in')
+                       : deptToFormType(department);
   const isSiteEngineer = activeDept === 'Site Engineer';
   const isSales        = activeDept === 'Sales';
+  const isWalkin       = activeDept === 'Walk-in';
+  const isPayments     = activeDept === 'Sales Payment';
+  const isEaForm       = isWalkin || isPayments;
   const isHyderabad    = branch === 'Hyderabad';
-  const blankRow       = isSiteEngineer ? blankSiteRow : isSales ? blankSalesRow : blankDesignerRow;
+  const blankRow       = isSiteEngineer ? blankSiteRow
+                       : isSales        ? blankSalesRow
+                       : isWalkin       ? blankWalkinRow
+                       : isPayments     ? blankPaymentRow
+                       : blankDesignerRow;
 
   const purposeOptions = isHyderabad ? HYD_PURPOSE_OPTIONS : BLR_PURPOSE_OPTIONS;
   const salesTaskTypes = isHyderabad ? HYD_SALES_TASK_TYPES : BLR_SALES_TASK_TYPES;
 
   function handleFormSwitch(val) {
     setSelectedForm(val);
-    if (val === 'Site Engineer') setRows([blankSiteRow()]);
-    else if (val === 'Sales')    setRows([blankSalesRow()]);
-    else                         setRows([blankDesignerRow()]);
+    if (val === 'Site Engineer')       setRows([blankSiteRow()]);
+    else if (val === 'Sales')          setRows([blankSalesRow()]);
+    else if (val === 'Walk-in')        setRows([blankWalkinRow()]);
+    else if (val === 'Sales Payment')  setRows([blankPaymentRow()]);
+    else                               setRows([blankDesignerRow()]);
     setMsg('');
   }
 
@@ -205,6 +244,17 @@ export default function DailyTaskClient() {
 
   const setRow = (i, key, val) =>
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
+  // Payments rows: Bal follows Order Value − Adv Paid, but stays editable.
+  const setPayRow = (i, key, val) =>
+    setRows((rs) => rs.map((r, idx) => {
+      if (idx !== i) return r;
+      const next = { ...r, [key]: val };
+      if (key === 'orderValue' || key === 'advPaid') {
+        next.balance = (next.orderValue === '' && next.advPaid === '') ? ''
+          : String((Number(next.orderValue) || 0) - (Number(next.advPaid) || 0));
+      }
+      return next;
+    }));
   const addRow = () => setRows((rs) => [...rs, blankRow()]);
   const dupRow = (i) => setRows((rs) => [...rs.slice(0, i + 1), { ...rs[i] }, ...rs.slice(i + 1)]);
   const delRow = (i) => setRows((rs) => rs.length === 1 ? [blankRow()] : rs.filter((_, idx) => idx !== i));
@@ -214,13 +264,17 @@ export default function DailyTaskClient() {
       ? (r) => r.client || r.orderNumber || r.siteLocation || r.areaName || r.purposeOfVisit || Number(r.minutes) > 0
       : isSales
       ? (r) => r.client || r.clientNumber || r.taskType || r.description || r.areaName || Number(r.minutes) > 0
+      : isWalkin
+      ? (r) => r.client || r.clientNumber || r.arcName || r.description || r.remarks || r.executive
+      : isPayments
+      ? (r) => r.client || r.arcName || r.description || Number(r.orderValue) > 0 || Number(r.advPaid) > 0
       : (r) => r.client || r.orderNumber || r.areaName || r.taskType || r.software || Number(r.minutes) > 0;
 
     const clean = rows.filter(hasData).map((r) => ({
       ...r,
       department: activeDept,
       branch,
-      ...(!isSiteEngineer && !isSales && { revision: r.revision ? 'Yes' : 'No' }),
+      ...(!isSiteEngineer && !isSales && !isEaForm && { revision: r.revision ? 'Yes' : 'No' }),
     }));
 
     if (clean.length === 0) { setMsg('Add at least one row.'); return; }
@@ -238,6 +292,12 @@ export default function DailyTaskClient() {
     } else if (isSales) {
       const inc = clean.find((r) => !r.client || !r.taskType || !r.minutes);
       if (inc) { setMsg('Client Name, Type of Task, and Duration are required.'); return; }
+    } else if (isWalkin) {
+      const inc = clean.find((r) => !r.client || !r.clientNumber || !r.oldNewClient);
+      if (inc) { setMsg('Client Name, Phone No. and Old/New Client are required.'); return; }
+    } else if (isPayments) {
+      const inc = clean.find((r) => !r.client || (!Number(r.orderValue) && !Number(r.advPaid)));
+      if (inc) { setMsg('Client Name and Order Value (or Adv Paid) are required.'); return; }
     } else {
       const inc = clean.find((r) => !r.client || !r.orderNumber || !r.areaName || !r.taskType || !r.software || !r.minutes);
       if (inc) { setMsg('All fields in every row are required (Revision is optional).'); return; }
@@ -331,6 +391,21 @@ export default function DailyTaskClient() {
           </div>
         )}
 
+        {/* Executive Assistant: picks which of their two reports to fill */}
+        {isEaUser && (
+          <div className="mb-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Report</div>
+            <div className="seg max-w-md">
+              {EA_FORM_OPTIONS.map((f) => (
+                <button key={f.value}
+                  onClick={() => handleFormSwitch(f.value)}
+                  className={`seg-btn flex-1 ${activeDept === f.value ? 'seg-btn-active' : ''}`}
+                >{f.label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Non-admin: branch selector for SE/Sales — hidden when profile branch is locked */}
         {!isAdmin && !profileBranch && (isSiteEngineer || isSales) && (
           <div className="mb-4">
@@ -363,34 +438,143 @@ export default function DailyTaskClient() {
               <table className="w-full">
                 <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
                   <tr>
-                    <th className="table-th">Client Name</th>
-                    {isSales ? (
-                      <th className="table-th">Client Number</th>
-                    ) : (
-                      <th className="table-th">Order Number</th>
-                    )}
-                    {/* Site Location: always for Site Engineer; for Sales only Hyderabad */}
-                    {(isSiteEngineer || (isSales && isHyderabad)) && (
-                      <th className="table-th">Site Location</th>
-                    )}
-                    <th className="table-th">{isSiteEngineer ? 'Area (Space)' : 'Area Name'}</th>
-                    {isSiteEngineer && <th className="table-th">Purpose of Visit</th>}
-                    {!isSiteEngineer && <th className="table-th">Type of Task</th>}
-                    {!isSiteEngineer && !isSales && (
+                    {isWalkin ? (
                       <>
-                        <th className="table-th">Software</th>
-                        <th className="table-th text-center">Revision</th>
+                        <th className="table-th">Client Name</th>
+                        <th className="table-th">Phone No.</th>
+                        <th className="table-th">Arc. Name</th>
+                        <th className="table-th">Arc. Phone No.</th>
+                        <th className="table-th">Old/New Client</th>
+                        <th className="table-th">No. of Visits</th>
+                        <th className="table-th">Requirement</th>
+                        <th className="table-th">Remarks</th>
+                        <th className="table-th">Executive</th>
+                      </>
+                    ) : isPayments ? (
+                      <>
+                        <th className="table-th">Client Name</th>
+                        <th className="table-th">Arc. Name</th>
+                        <th className="table-th">Requirement</th>
+                        <th className="table-th">Order Value</th>
+                        <th className="table-th">Adv Paid</th>
+                        <th className="table-th">Bal</th>
+                        <th className="table-th">Mode of Pay</th>
+                        <th className="table-th">Executive</th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="table-th">Client Name</th>
+                        {isSales ? (
+                          <th className="table-th">Client Number</th>
+                        ) : (
+                          <th className="table-th">Order Number</th>
+                        )}
+                        {/* Site Location: always for Site Engineer; for Sales only Hyderabad */}
+                        {(isSiteEngineer || (isSales && isHyderabad)) && (
+                          <th className="table-th">Site Location</th>
+                        )}
+                        <th className="table-th">{isSiteEngineer ? 'Area (Space)' : 'Area Name'}</th>
+                        {isSiteEngineer && <th className="table-th">Purpose of Visit</th>}
+                        {!isSiteEngineer && <th className="table-th">Type of Task</th>}
+                        {!isSiteEngineer && !isSales && (
+                          <>
+                            <th className="table-th">Software</th>
+                            <th className="table-th text-center">Revision</th>
+                          </>
+                        )}
+                        {isSales && <th className="table-th">Purpose of Task</th>}
+                        {isSiteEngineer && <th className="table-th">KMS Travelled</th>}
+                        <th className="table-th">Duration (min)</th>
                       </>
                     )}
-                    {isSales && <th className="table-th">Purpose of Task</th>}
-                    {isSiteEngineer && <th className="table-th">KMS Travelled</th>}
-                    <th className="table-th">Duration (min)</th>
                     <th className="table-th text-right pr-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={i} className="table-row align-top">
+                      {isWalkin ? (
+                        <>
+                          <td className="table-td min-w-[140px]">
+                            <input className="input" list="dt-clients" placeholder="Client name"
+                              value={r.client} onChange={(e) => setRow(i, 'client', e.target.value)} />
+                          </td>
+                          <td className="table-td w-32">
+                            <input type="number" className="input" placeholder="Phone no."
+                              value={r.clientNumber} onChange={(e) => setRow(i, 'clientNumber', e.target.value)} />
+                          </td>
+                          <td className="table-td min-w-[120px]">
+                            <input className="input" placeholder="Architect name"
+                              value={r.arcName} onChange={(e) => setRow(i, 'arcName', e.target.value)} />
+                          </td>
+                          <td className="table-td w-32">
+                            <input type="number" className="input" placeholder="Arc. phone"
+                              value={r.arcPhone} onChange={(e) => setRow(i, 'arcPhone', e.target.value)} />
+                          </td>
+                          <td className="table-td min-w-[110px]">
+                            <select className="input" value={r.oldNewClient}
+                              onChange={(e) => setRow(i, 'oldNewClient', e.target.value)}>
+                              <option value="">--select--</option>
+                              {OLD_NEW_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </td>
+                          <td className="table-td w-24">
+                            <input type="number" min="1" className="input" placeholder="Visits"
+                              value={r.noOfVisits} onChange={(e) => setRow(i, 'noOfVisits', e.target.value)} />
+                          </td>
+                          <td className="table-td min-w-[140px]">
+                            <input className="input" placeholder="Requirement"
+                              value={r.description} onChange={(e) => setRow(i, 'description', e.target.value)} />
+                          </td>
+                          <td className="table-td min-w-[140px]">
+                            <input className="input" placeholder="Remarks"
+                              value={r.remarks} onChange={(e) => setRow(i, 'remarks', e.target.value)} />
+                          </td>
+                          <td className="table-td min-w-[120px]">
+                            <input className="input" placeholder="Executive"
+                              value={r.executive} onChange={(e) => setRow(i, 'executive', e.target.value)} />
+                          </td>
+                        </>
+                      ) : isPayments ? (
+                        <>
+                          <td className="table-td min-w-[140px]">
+                            <input className="input" list="dt-clients" placeholder="Client name"
+                              value={r.client} onChange={(e) => setRow(i, 'client', e.target.value)} />
+                          </td>
+                          <td className="table-td min-w-[120px]">
+                            <input className="input" placeholder="Architect name"
+                              value={r.arcName} onChange={(e) => setRow(i, 'arcName', e.target.value)} />
+                          </td>
+                          <td className="table-td min-w-[140px]">
+                            <input className="input" placeholder="Requirements"
+                              value={r.description} onChange={(e) => setRow(i, 'description', e.target.value)} />
+                          </td>
+                          <td className="table-td w-28">
+                            <input type="number" min="0" className="input" placeholder="₹"
+                              value={r.orderValue} onChange={(e) => setPayRow(i, 'orderValue', e.target.value)} />
+                          </td>
+                          <td className="table-td w-28">
+                            <input type="number" min="0" className="input" placeholder="₹"
+                              value={r.advPaid} onChange={(e) => setPayRow(i, 'advPaid', e.target.value)} />
+                          </td>
+                          <td className="table-td w-28">
+                            <input type="number" className="input" placeholder="₹"
+                              value={r.balance} onChange={(e) => setRow(i, 'balance', e.target.value)} />
+                          </td>
+                          <td className="table-td min-w-[110px]">
+                            <select className="input" value={r.modeOfPay}
+                              onChange={(e) => setRow(i, 'modeOfPay', e.target.value)}>
+                              <option value="">--select--</option>
+                              {PAY_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                          </td>
+                          <td className="table-td min-w-[120px]">
+                            <input className="input" placeholder="Executive"
+                              value={r.executive} onChange={(e) => setRow(i, 'executive', e.target.value)} />
+                          </td>
+                        </>
+                      ) : (
+                      <>
                       {/* Client Name */}
                       <td className="table-td">
                         <input className="input" list="dt-clients" placeholder="--select--"
@@ -524,6 +708,8 @@ export default function DailyTaskClient() {
                         <input type="number" min="0" step="0.1" className="input" value={r.minutes}
                           onChange={(e) => setRow(i, 'minutes', e.target.value)} />
                       </td>
+                      </>
+                      )}
 
                       {/* Actions */}
                       <td className="table-td">
@@ -541,10 +727,12 @@ export default function DailyTaskClient() {
               </datalist>
             </div>
 
-            <div className="flex items-center justify-between mt-3 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
-              <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Total Duration</span>
-              <span className="text-[18px] font-bold text-amber-500">{total} <span className="text-[12px] text-slate-400">min</span></span>
-            </div>
+            {!isEaForm && (
+              <div className="flex items-center justify-between mt-3 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
+                <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Total Duration</span>
+                <span className="text-[18px] font-bold text-amber-500">{total} <span className="text-[12px] text-slate-400">min</span></span>
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-2 mt-4 flex-wrap">
               {msg && <span className="text-[12px] mr-auto">{msg}</span>}
@@ -614,7 +802,18 @@ export default function DailyTaskClient() {
                       {e.description && <span className="text-slate-500 shrink-0">{e.description}</span>}
                       {e.software    && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.software}</span>}
                       {e.revision === 'Yes' && <span className="pill bg-red-50 text-red-600 shrink-0">Revision</span>}
-                      <span className="ml-auto pill bg-amber-50 text-amber-600 shrink-0">{e.minutes} min</span>
+                      {e.arcName      && <span className="pill bg-teal-50 text-teal-700 shrink-0">Arc: {e.arcName}{e.arcPhone ? ` (${e.arcPhone})` : ''}</span>}
+                      {e.oldNewClient && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.oldNewClient}</span>}
+                      {Number(e.noOfVisits) > 0 && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.noOfVisits} visit{Number(e.noOfVisits) === 1 ? '' : 's'}</span>}
+                      {Number(e.orderValue) > 0 && <span className="pill bg-green-50 text-green-700 shrink-0">Order ₹{Number(e.orderValue).toLocaleString('en-IN')}</span>}
+                      {Number(e.advPaid) > 0 && <span className="pill bg-emerald-50 text-emerald-700 shrink-0">Adv ₹{Number(e.advPaid).toLocaleString('en-IN')}</span>}
+                      {Number(e.balance) > 0 && <span className="pill bg-rose-50 text-rose-600 shrink-0">Bal ₹{Number(e.balance).toLocaleString('en-IN')}</span>}
+                      {e.modeOfPay    && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.modeOfPay}</span>}
+                      {e.executive    && <span className="pill bg-indigo-50 text-indigo-700 shrink-0">Exec: {e.executive}</span>}
+                      {e.remarks      && <span className="text-slate-500 italic shrink-0 text-[11.5px]">{e.remarks}</span>}
+                      {(e.department !== 'Walk-in' && e.department !== 'Sales Payment') && (
+                        <span className="ml-auto pill bg-amber-50 text-amber-600 shrink-0">{e.minutes} min</span>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -12,7 +12,10 @@ const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         task_type AS taskType, software, revision,
         site_location AS siteLocation, purpose_of_visit AS purposeOfVisit,
         checks_type AS checksType, kms_travelled AS kmsTravelled,
-        branch, pre_install_image AS preInstallImage, pre_install_comment AS preInstallComment`;
+        branch, pre_install_image AS preInstallImage, pre_install_comment AS preInstallComment,
+        arc_name AS arcName, arc_phone AS arcPhone, old_new_client AS oldNewClient,
+        no_of_visits AS noOfVisits, remarks, order_value AS orderValue,
+        adv_paid AS advPaid, balance, mode_of_pay AS modeOfPay, executive`;
 
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
@@ -109,15 +112,20 @@ export async function POST(req) {
            (id, entry_date, doer_id, doer, client, client_number, department, description, minutes,
             order_number, area_name, task_type, software, revision,
             site_location, purpose_of_visit, checks_type, kms_travelled,
-            branch, pre_install_image, pre_install_comment)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            branch, pre_install_image, pre_install_comment,
+            arc_name, arc_phone, old_new_client, no_of_visits, remarks,
+            order_value, adv_paid, balance, mode_of_pay, executive)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, body.entryDate, doerId || null, doerName,
          r.client || '', r.clientNumber || '', r.department || '', r.description || '', Number(r.minutes) || 0,
          r.orderNumber || '', r.areaName || '', r.taskType || '', r.software || '',
          r.revision === 'Yes' || r.revision === true ? 'Yes' : 'No',
          r.siteLocation || '', r.purposeOfVisit || '', r.checksType || '',
          Number(r.kmsTravelled) || 0,
-         r.branch || 'Bangalore', preInstallImage || null, r.preInstallComment || null]
+         r.branch || 'Bangalore', preInstallImage || null, r.preInstallComment || null,
+         r.arcName || '', r.arcPhone || '', r.oldNewClient || '', Number(r.noOfVisits) || 0, r.remarks || null,
+         Number(r.orderValue) || 0, Number(r.advPaid) || 0, Number(r.balance) || 0,
+         r.modeOfPay || '', r.executive || '']
       );
     }
 
