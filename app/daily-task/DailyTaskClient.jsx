@@ -100,7 +100,8 @@ const blankWalkinRow = () => ({
 });
 const blankPaymentRow = () => ({
   client: '', arcName: '', description: '',
-  orderValue: '', advPaid: '', balance: '', modeOfPay: '', executive: '',
+  orderValue: '', advPaid: '', balance: '', modeOfPay: '',
+  tillDateReceived: '', balanceTarget: '', executive: '',
 });
 
 const todayISO = () => new Date().toISOString().split('T')[0];
@@ -459,6 +460,8 @@ export default function DailyTaskClient() {
                         <th className="table-th">Adv Paid</th>
                         <th className="table-th">Bal</th>
                         <th className="table-th">Mode of Pay</th>
+                        <th className="table-th">Till Date Received Total</th>
+                        <th className="table-th">Balance Target</th>
                         <th className="table-th">Executive</th>
                       </>
                     ) : (
@@ -567,6 +570,14 @@ export default function DailyTaskClient() {
                               <option value="">--select--</option>
                               {PAY_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                             </select>
+                          </td>
+                          <td className="table-td w-28">
+                            <input type="number" min="0" className="input" placeholder="₹"
+                              value={r.tillDateReceived} onChange={(e) => setRow(i, 'tillDateReceived', e.target.value)} />
+                          </td>
+                          <td className="table-td w-28">
+                            <input type="number" min="0" className="input" placeholder="₹"
+                              value={r.balanceTarget} onChange={(e) => setRow(i, 'balanceTarget', e.target.value)} />
                           </td>
                           <td className="table-td min-w-[120px]">
                             <input className="input" placeholder="Executive"
@@ -809,6 +820,8 @@ export default function DailyTaskClient() {
                       {Number(e.advPaid) > 0 && <span className="pill bg-emerald-50 text-emerald-700 shrink-0">Adv ₹{Number(e.advPaid).toLocaleString('en-IN')}</span>}
                       {Number(e.balance) > 0 && <span className="pill bg-rose-50 text-rose-600 shrink-0">Bal ₹{Number(e.balance).toLocaleString('en-IN')}</span>}
                       {e.modeOfPay    && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.modeOfPay}</span>}
+                      {Number(e.tillDateReceived) > 0 && <span className="pill bg-sky-50 text-sky-700 shrink-0">Till Date ₹{Number(e.tillDateReceived).toLocaleString('en-IN')}</span>}
+                      {Number(e.balanceTarget) > 0 && <span className="pill bg-orange-50 text-orange-600 shrink-0">Target ₹{Number(e.balanceTarget).toLocaleString('en-IN')}</span>}
                       {e.executive    && <span className="pill bg-indigo-50 text-indigo-700 shrink-0">Exec: {e.executive}</span>}
                       {e.remarks      && <span className="text-slate-500 italic shrink-0 text-[11.5px]">{e.remarks}</span>}
                       {(e.department !== 'Walk-in' && e.department !== 'Sales Payment') && (

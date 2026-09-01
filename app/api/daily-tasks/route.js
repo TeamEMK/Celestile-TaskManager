@@ -15,7 +15,8 @@ const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         branch, pre_install_image AS preInstallImage, pre_install_comment AS preInstallComment,
         arc_name AS arcName, arc_phone AS arcPhone, old_new_client AS oldNewClient,
         no_of_visits AS noOfVisits, remarks, order_value AS orderValue,
-        adv_paid AS advPaid, balance, mode_of_pay AS modeOfPay, executive`;
+        adv_paid AS advPaid, balance, mode_of_pay AS modeOfPay, executive,
+        till_date_received AS tillDateReceived, balance_target AS balanceTarget`;
 
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
@@ -114,8 +115,9 @@ export async function POST(req) {
             site_location, purpose_of_visit, checks_type, kms_travelled,
             branch, pre_install_image, pre_install_comment,
             arc_name, arc_phone, old_new_client, no_of_visits, remarks,
-            order_value, adv_paid, balance, mode_of_pay, executive)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            order_value, adv_paid, balance, mode_of_pay, executive,
+            till_date_received, balance_target)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, body.entryDate, doerId || null, doerName,
          r.client || '', r.clientNumber || '', r.department || '', r.description || '', Number(r.minutes) || 0,
          r.orderNumber || '', r.areaName || '', r.taskType || '', r.software || '',
@@ -125,7 +127,8 @@ export async function POST(req) {
          r.branch || 'Bangalore', preInstallImage || null, r.preInstallComment || null,
          r.arcName || '', r.arcPhone || '', r.oldNewClient || '', Number(r.noOfVisits) || 0, r.remarks || null,
          Number(r.orderValue) || 0, Number(r.advPaid) || 0, Number(r.balance) || 0,
-         r.modeOfPay || '', r.executive || '']
+         r.modeOfPay || '', r.executive || '',
+         Number(r.tillDateReceived) || 0, Number(r.balanceTarget) || 0]
       );
     }
 
