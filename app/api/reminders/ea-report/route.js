@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
-import { sendWhatsApp, isWhatsappConfigured, eaDailyReportMessage } from '@/lib/whatsapp';
+import { sendWhatsApp, sendWhatsAppDocument, isWhatsappConfigured, eaDailyReportMessage } from '@/lib/whatsapp';
 import { requireCron } from '@/lib/api';
-import { istDay, istDateStr, toEntry, salesMonthSummary } from '@/lib/dailyReport';
+import { istDay, istDateStr, toEntry, salesMonthSummary, eaReportSig } from '@/lib/dailyReport';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -42,9 +42,18 @@ export async function GET(req) {
   const sales = await salesMonthSummary();
 
   const r = await sendWhatsApp(to, eaDailyReportMessage(today, walkins, payments, sales));
+
+  // Excel-style PDF of the same report, attached as a document. Maytapi
+  // fetches the URL itself, so it carries an HMAC signature instead of auth.
+  const baseUrl = process.env.NEXTAUTH_URL || 'https://celestileoffice.com';
+  const pdfUrl = `${baseUrl}/api/ea-report-pdf?date=${today}&sig=${eaReportSig(today)}`;
+  const d = await sendWhatsAppDocument(to, pdfUrl, `Daily-Report-${today}.pdf`,
+    `📄 Daily Report — ${today}`);
+
   return NextResponse.json({
-    ok: !!r.ok, date: today, to,
+    ok: !!r.ok, pdfOk: !!d.ok, date: today, to,
     walkins: walkins.length, payments: payments.length,
     ...(r.reason || r.error ? { reason: r.reason || r.error } : {}),
+    ...(d.reason || d.error ? { pdfReason: d.reason || d.error } : {}),
   });
 }
