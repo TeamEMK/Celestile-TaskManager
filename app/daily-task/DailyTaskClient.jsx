@@ -98,14 +98,16 @@ const blankWalkinRow = () => ({
   client: '', clientNumber: '', arcName: '', arcPhone: '',
   oldNewClient: '', noOfVisits: '', description: '', remarks: '', executive: '',
 });
+// Till Date Received Total and Balance Target are no longer typed per row —
+// they are computed for the month (see the target panel above the table).
 const blankPaymentRow = () => ({
   client: '', arcName: '', description: '',
-  orderValue: '', advPaid: '', balance: '', modeOfPay: '',
-  tillDateReceived: '', balanceTarget: '', executive: '',
+  orderValue: '', advPaid: '', balance: '', modeOfPay: '', executive: '',
 });
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 const fmt = (iso) => new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-');
+const fmtMonth = (m) => new Date(`${m}-01T00:00:00`).toLocaleString('en-GB', { month: 'long', year: 'numeric' });
 
 // Maps a user's stored department value (old shorthand OR new full name) to
 // the correct daily-task form type: 'Sales' | 'Site Engineer' | 'Designer'.
@@ -180,6 +182,41 @@ export default function DailyTaskClient() {
 
   const purposeOptions = isHyderabad ? HYD_PURPOSE_OPTIONS : BLR_PURPOSE_OPTIONS;
   const salesTaskTypes = isHyderabad ? HYD_SALES_TASK_TYPES : BLR_SALES_TASK_TYPES;
+
+  // Monthly target panel on the Payments form. Till Date Received Total is
+  // computed server-side (this month's Adv Paid summed) — only the target is
+  // typed here; Balance Target = target − received.
+  const [salesMonth, setSalesMonth]     = useState(null);
+  const [targetInput, setTargetInput]   = useState('');
+  const [savingTarget, setSavingTarget] = useState(false);
+
+  async function loadSalesMonth() {
+    try {
+      const res = await fetch('/api/daily-tasks/sales-target');
+      if (!res.ok) return;
+      const data = await res.json();
+      setSalesMonth(data);
+      setTargetInput(Number(data.target) > 0 ? String(data.target) : '');
+    } catch { /* ignore */ }
+  }
+  useEffect(() => { if (isPayments) loadSalesMonth(); }, [isPayments]);
+
+  async function saveTarget() {
+    setSavingTarget(true); setMsg('');
+    try {
+      const res = await fetch('/api/daily-tasks/sales-target', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: Number(targetInput) || 0 }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      setSalesMonth(await res.json());
+    } catch (e) {
+      setMsg(e.message);
+    } finally {
+      setSavingTarget(false);
+    }
+  }
 
   function handleFormSwitch(val) {
     setSelectedForm(val);
@@ -315,6 +352,7 @@ export default function DailyTaskClient() {
       setMsg('Submitted!');
       setRows([blankRow()]);
       loadPast();
+      if (isPayments) loadSalesMonth(); // today's Adv Paid moves the month total
     } catch (e) {
       setMsg(e.message);
     } finally {
@@ -435,6 +473,38 @@ export default function DailyTaskClient() {
               </div>
             </div>
 
+            {/* Payments: month position — set the target here, the rest is computed */}
+            {isPayments && (
+              <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 flex flex-wrap items-end gap-x-8 gap-y-3">
+                <div>
+                  <label className="label">
+                    Monthly Target (₹){salesMonth ? ` — ${fmtMonth(salesMonth.month)}` : ''}
+                  </label>
+                  <div className="flex gap-2">
+                    <input type="number" min="0" className="input w-40" placeholder="₹"
+                      value={targetInput} onChange={(e) => setTargetInput(e.target.value)} />
+                    <button className="btn-secondary shrink-0" disabled={savingTarget} onClick={saveTarget}>
+                      {savingTarget ? 'Saving…' : 'Save Target'}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Till Date Received Total</div>
+                  <div className="text-[15px] font-semibold text-sky-700">
+                    ₹{Number(salesMonth?.received || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Balance Target</div>
+                  <div className="text-[15px] font-semibold text-orange-600">
+                    {Number(salesMonth?.target) > 0
+                      ? `₹${(Number(salesMonth.target) - Number(salesMonth.received || 0)).toLocaleString('en-IN')}`
+                      : '— set target'}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto overflow-y-auto max-h-[520px] rounded-lg border border-slate-200">
               <table className="w-full">
                 <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
@@ -460,8 +530,6 @@ export default function DailyTaskClient() {
                         <th className="table-th">Adv Paid</th>
                         <th className="table-th">Bal</th>
                         <th className="table-th">Mode of Pay</th>
-                        <th className="table-th">Till Date Received Total</th>
-                        <th className="table-th">Balance Target</th>
                         <th className="table-th">Executive</th>
                       </>
                     ) : (
@@ -570,14 +638,6 @@ export default function DailyTaskClient() {
                               <option value="">--select--</option>
                               {PAY_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                             </select>
-                          </td>
-                          <td className="table-td w-28">
-                            <input type="number" min="0" className="input" placeholder="₹"
-                              value={r.tillDateReceived} onChange={(e) => setRow(i, 'tillDateReceived', e.target.value)} />
-                          </td>
-                          <td className="table-td w-28">
-                            <input type="number" min="0" className="input" placeholder="₹"
-                              value={r.balanceTarget} onChange={(e) => setRow(i, 'balanceTarget', e.target.value)} />
                           </td>
                           <td className="table-td min-w-[120px]">
                             <input className="input" placeholder="Executive"

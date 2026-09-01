@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, isWhatsappConfigured, eaDailyReportMessage } from '@/lib/whatsapp';
 import { requireCron } from '@/lib/api';
-import { istDay, istDateStr, toEntry } from '@/lib/dailyReport';
+import { istDay, istDateStr, toEntry, salesMonthSummary } from '@/lib/dailyReport';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -37,7 +37,11 @@ export async function GET(req) {
   const walkins  = rows.filter((r) => r.department === 'Walk-in').map(toEntry);
   const payments = rows.filter((r) => r.department === 'Sales Payment').map(toEntry);
 
-  const r = await sendWhatsApp(to, eaDailyReportMessage(today, walkins, payments));
+  // Month position under the payments: received so far (computed) vs the
+  // monthly target set on the Payments form (app_config sales_target_<month>).
+  const sales = await salesMonthSummary();
+
+  const r = await sendWhatsApp(to, eaDailyReportMessage(today, walkins, payments, sales));
   return NextResponse.json({
     ok: !!r.ok, date: today, to,
     walkins: walkins.length, payments: payments.length,
