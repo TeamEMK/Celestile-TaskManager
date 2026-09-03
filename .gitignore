@@ -29,7 +29,7 @@ node_modules
 .env
 .env.local
 data/store.json
-credentials.json
+credentials*.json
 .vercel
 
 # Claude Code local settings
