@@ -26,21 +26,23 @@ export async function GET(req) {
     await ensureSchema();
     const doerId = new URL(req.url).searchParams.get('doerId');
     let rows;
-    if (doerId && callerBranch) {
-      [rows] = await pool.query(
-        `SELECT ${SELECT_COLS} FROM daily_tasks WHERE doer_id = ? AND LOWER(branch) = ? ORDER BY entry_date DESC, created_at DESC`,
-        [doerId, callerBranch]);
-    } else if (doerId) {
+    if (doerId) {
       [rows] = await pool.query(
         `SELECT ${SELECT_COLS} FROM daily_tasks WHERE doer_id = ? ORDER BY entry_date DESC, created_at DESC`,
         [doerId]);
-    } else if (callerBranch) {
-      [rows] = await pool.query(
-        `SELECT ${SELECT_COLS} FROM daily_tasks WHERE LOWER(branch) = ? ORDER BY entry_date DESC, created_at DESC`,
-        [callerBranch]);
     } else {
       [rows] = await pool.query(
         `SELECT ${SELECT_COLS} FROM daily_tasks ORDER BY entry_date DESC, created_at DESC`);
+    }
+    // Branch scoping in JS, not SQL: rows written before the branch column
+    // existed (all Sheets-mode rows until now) have a blank branch, and a SQL
+    // equality filter made every one of them vanish from "My Past Submissions".
+    // Blank-branch rows stay visible to everyone.
+    if (callerBranch) {
+      rows = rows.filter((r) => {
+        const b = String(r.branch || '').toLowerCase();
+        return !b || b === callerBranch;
+      });
     }
     return NextResponse.json(rows);
   } catch (err) {
