@@ -46,7 +46,14 @@ export default function InventoryClient() {
   const [loading, setLoading] = useState(true);
 
   async function loadMasters() {
-    try { setMasters(await (await fetch('/api/inventory/material')).json()); } catch {}
+    // A failed response here is {error: ...}, not the masters shape — storing
+    // it as-is crashed the whole page at masters.materials.map. Keep the
+    // previous state instead: the page stays up with empty dropdowns.
+    try {
+      const res = await fetch('/api/inventory/material');
+      const d = await res.json();
+      if (res.ok && Array.isArray(d?.materials)) setMasters({ thicknessMap: {}, ...d });
+    } catch {}
   }
   async function loadInv() {
     try { const d = await (await fetch('/api/inventory')).json(); setInv(Array.isArray(d) ? d : []); }
