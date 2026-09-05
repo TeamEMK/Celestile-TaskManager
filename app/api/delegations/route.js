@@ -248,23 +248,39 @@ export async function PATCH(req) {
         return NextResponse.json({ error: 'You can only transfer your own tasks' }, { status: 403 });
       }
       const transferredBy = sessionUser.name || null;
+      // Two Sheets-engine constraints shape this block: `WHERE id IN (...)` is
+      // not parseable (so selective transfer is one UPDATE per id, batched in
+      // a transaction = one sheet flush), and `SET transferred_from = doer`
+      // wrote the literal string "doer" (a bare column on the right-hand side
+      // isn't resolved) — the old doer is `fromDoer`, so stamp that value.
       if (taskIds?.length) {
-        const placeholders = taskIds.map(() => '?').join(',');
         // The doer condition stays in the UPDATE for non-admins so a hand-picked
         // list of ids can't reach past the caller's own rows.
         const ownership = callerIsAdmin ? '' : ' AND doer = ?';
-        await pool.query(
-          `UPDATE delegations SET transferred_from = doer, transferred_by = ?, doer = ?, doer_id = ?
-           WHERE id IN (${placeholders}) AND status != 'done'${ownership}`,
-          callerIsAdmin
-            ? [transferredBy, toDoer, toDoerId || null, ...taskIds]
-            : [transferredBy, toDoer, toDoerId || null, ...taskIds, fromDoer]
-        );
+        const conn = await pool.getConnection();
+        try {
+          await conn.beginTransaction();
+          for (const id of taskIds) {
+            await conn.query(
+              `UPDATE delegations SET transferred_from = ?, transferred_by = ?, doer = ?, doer_id = ?
+               WHERE id = ? AND status != 'done'${ownership}`,
+              callerIsAdmin
+                ? [fromDoer, transferredBy, toDoer, toDoerId || null, id]
+                : [fromDoer, transferredBy, toDoer, toDoerId || null, id, fromDoer]
+            );
+          }
+          await conn.commit();
+        } catch (e) {
+          try { await conn.rollback(); } catch { /* ignore */ }
+          throw e;
+        } finally {
+          conn.release();
+        }
       } else {
         await pool.query(
-          `UPDATE delegations SET transferred_from = doer, transferred_by = ?, doer = ?, doer_id = ?
+          `UPDATE delegations SET transferred_from = ?, transferred_by = ?, doer = ?, doer_id = ?
            WHERE doer = ? AND status != 'done'`,
-          [transferredBy, toDoer, toDoerId || null, fromDoer]
+          [fromDoer, transferredBy, toDoer, toDoerId || null, fromDoer]
         );
       }
       return NextResponse.json({ success: true });

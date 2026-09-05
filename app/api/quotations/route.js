@@ -89,8 +89,28 @@ export async function GET(req) {
     const ref = searchParams.get('ref');
     const full = searchParams.get('full');
 
+    if (searchParams.get('list')) {
+      // Admin panel table: only the columns it actually renders. `full=1`
+      // shipped every stone_items/fixing_items/pdf blob for every quotation
+      // ever saved — megabytes the table never read, re-pulled on each
+      // window focus.
+      const rows = await loadBranchRows(branchParam);
+      return NextResponse.json({
+        quotations: rows.map((r) => ({
+          refNo: r.ref_no || '', branch: r.branch || 'bangalore',
+          quoteDate: r.quote_date || '',
+          clientName: r.client_name || '', clientFirm: r.client_firm || '',
+          consultant: r.consultant || '', grandTotal: r.grand_total || '',
+          status: r.status || 'pending', createdAt: r.created_at || '',
+          createdByName: r.created_by_name || '',
+          approvedBy: r.approved_by || '', approvedAt: r.approved_at || '',
+          approvalToken: r.approval_token || '',
+        })).reverse(),
+      });
+    }
+
     if (full) {
-      // admin panel: full quotation objects, newest first (all branches if no branch)
+      // full quotation objects, newest first (all branches if no branch)
       const rows = await loadBranchRows(branchParam);
       return NextResponse.json({ quotations: rows.map(rowToQuo).reverse() });
     }
@@ -143,10 +163,11 @@ export async function POST(req) {
     let prevRow = null;
     if (isRevision(data.refNo)) {
       const base = baseRef(data.refNo);
-      const [candidates] = await pool.query(
-        'SELECT * FROM quotations WHERE branch = ? AND (ref_no = ? OR ref_no LIKE ?) ORDER BY created_at ASC',
-        [branch, base, `${base}-REV%`]
-      );
+      // No OR / LIKE in the Sheets SQL engine — match the ref family in JS.
+      const [branchRows] = await pool.query('SELECT * FROM quotations WHERE branch = ?', [branch]);
+      const candidates = branchRows
+        .filter((r) => r.ref_no === base || String(r.ref_no || '').startsWith(`${base}-REV`))
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       prevRow = findPreviousVersion(candidates, data.refNo);
     }
 
@@ -159,9 +180,11 @@ export async function POST(req) {
     const creatorName = session?.user?.name || session?.user?.email || 'Unknown';
 
     const stoneItems = Array.isArray(data.stoneItems) ? data.stoneItems : [];
-    for (const item of stoneItems) {
+    // Uploads are independent — in parallel instead of one Drive round trip
+    // per line item while the user waits on the save.
+    await Promise.all(stoneItems.map(async (item) => {
       if (item?.img) item.img = await maybeUploadToDrive(item.img, 'quotation-item');
-    }
+    }));
 
     await pool.query(
       `INSERT INTO quotations

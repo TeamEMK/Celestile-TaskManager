@@ -13,7 +13,8 @@ export async function GET() {
       pool.query("SELECT status, due_date FROM delegations"),
       pool.query("SELECT id FROM masters"),
       pool.query("SELECT id FROM users WHERE active = 1"),
-      pool.query("SELECT DISTINCT master_id FROM checklist_completions WHERE date = ?", [today]),
+      // No DISTINCT — the Sheets SQL engine can't parse it; dedupe in JS below.
+      pool.query("SELECT master_id FROM checklist_completions WHERE date = ?", [today]),
     ]);
 
     const totalTasks    = dels.length;
@@ -25,7 +26,7 @@ export async function GET() {
     ).length;
 
     const totalChecklists = masters.length;
-    const doneChecklists  = chkToday.length;
+    const doneChecklists  = new Set(chkToday.map((c) => c.master_id)).size;
 
     return NextResponse.json({
       totalTasks,

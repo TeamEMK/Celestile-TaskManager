@@ -45,10 +45,18 @@ export async function DELETE(req) {
     const { masterId } = await req.json();
     if (!masterId) return NextResponse.json({ error: 'masterId required' }, { status: 400 });
 
-    await pool.query(
-      'DELETE FROM checklist_completions WHERE master_id = ? AND date = CURDATE() LIMIT 1',
-      [masterId]
-    );
+    // The Sheets SQL engine parses neither `DELETE ... LIMIT 1` nor CURDATE()
+    // in a WHERE — pick today's row in JS and delete it by id, which also
+    // keeps the "exactly one row" semantics the LIMIT 1 was there for.
+    const utcToday = new Date().toISOString().slice(0, 10);
+    const istToday = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+    const dstr = (v) => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v || '').slice(0, 10));
+    const [rows] = await pool.query(
+      'SELECT id, date FROM checklist_completions WHERE master_id = ?', [masterId]);
+    const target = rows.find((r) => { const d = dstr(r.date); return d === utcToday || d === istToday; });
+    if (target) {
+      await pool.query('DELETE FROM checklist_completions WHERE id = ?', [target.id]);
+    }
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

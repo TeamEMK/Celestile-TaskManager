@@ -26,21 +26,33 @@ export async function GET(req) {
   try {
     await ensureSchema();
 
+    // The Sheets SQL engine supports neither JOIN nor OR/parenthesised WHERE
+    // clauses, so both Delegation queries pull plain rows and do the date
+    // window + the users join in JS (same pattern as lib/dailyReport.js).
+    const dstr = (v) => {
+      if (!v) return '';
+      return v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
+    };
+    // A task belongs to the window by due date; an undated one by creation date.
+    const inWindow = (d) => {
+      const day = dstr(d.due_date) || dstr(d.created_at);
+      return day >= start && day <= end;
+    };
+
     // Drill-down: single employee
     if (employee && (type === 'Delegation MIS' || type === 'All MIS')) {
-      const [data] = await pool.query(
-        `SELECT d.id, d.description, d.client, d.due_date, d.priority, d.status,
-                u.name AS delegated_by_name
-         FROM delegations d LEFT JOIN users u ON u.id = d.delegated_by
-         WHERE d.doer = ?
-           AND ((d.due_date IS NOT NULL AND d.due_date BETWEEN ? AND ?)
-             OR (d.due_date IS NULL     AND d.created_at BETWEEN ? AND ?))
-         ORDER BY d.due_date ASC`,
-        [employee, fromDT, toDT, fromDT, toDT]
-      );
+      const [[all], [users]] = await Promise.all([
+        pool.query(
+          `SELECT id, description, client, due_date, created_at, priority, status, delegated_by
+           FROM delegations WHERE doer = ?`, [employee]),
+        pool.query('SELECT id, name FROM users'),
+      ]);
+      const nameById = Object.fromEntries(users.map((u) => [String(u.id), u.name]));
+      const data = all.filter(inWindow)
+        .sort((a, b) => dstr(a.due_date).localeCompare(dstr(b.due_date)));
       const rows = data.map((d, i) => ({
         '#': i + 1, 'Description': (d.description || '').substring(0, 100),
-        'Assigned By': d.delegated_by_name || d.delegated_by || '—',
+        'Assigned By': nameById[String(d.delegated_by)] || d.delegated_by || '—',
         'Client': d.client || '—', 'Due Date': fmtDate(d.due_date),
         'Priority': d.priority || 'Low', 'Status': d.status || '—',
       }));
@@ -49,13 +61,9 @@ export async function GET(req) {
 
     // Delegation MIS
     if (type === 'Delegation MIS' || type === 'All MIS') {
-      const [data] = await pool.query(
-        `SELECT doer, status, due_date FROM delegations
-         WHERE (due_date IS NOT NULL AND due_date BETWEEN ? AND ?)
-            OR (due_date IS NULL     AND created_at BETWEEN ? AND ?)
-         ORDER BY doer ASC`,
-        [fromDT, toDT, fromDT, toDT]
-      );
+      const [all] = await pool.query('SELECT doer, status, due_date, created_at FROM delegations');
+      const data = all.filter(inWindow)
+        .sort((a, b) => String(a.doer || '').localeCompare(String(b.doer || '')));
       const empMap = {};
       for (const t of data) {
         const name = t.doer || 'Unknown';
@@ -72,7 +80,9 @@ export async function GET(req) {
         }
       }
       const rows = Object.values(empMap).map((e) => ({
-        ...e, score: e.total > 0 ? Math.round(((e.completed / e.total) - 1) * 100 - (e.delayed / e.total) * 50) : 0,
+        // 0–100 minus a delay penalty — the "- 1" that used to sit here capped
+        // a perfect employee at exactly 0, so every score rendered negative.
+        ...e, score: e.total > 0 ? Math.round((e.completed / e.total) * 100 - (e.delayed / e.total) * 50) : 0,
       }));
       const summary = {
         'Total Tasks': data.length, 'Employees': rows.length,
@@ -121,7 +131,7 @@ export async function GET(req) {
         else empMap[name].pending++;
       }
       const rows = Object.values(empMap).map((e) => ({
-        ...e, score: e.total > 0 ? Math.round(((e.completed / e.total) - 1) * 100) : 0,
+        ...e, score: e.total > 0 ? Math.round((e.completed / e.total) * 100) : 0,
       }));
       const summary = {
         'Total Checklists': masters.length, 'Employees': rows.length,
@@ -145,7 +155,7 @@ export async function GET(req) {
     if (type === 'FMS MIS') {
       const empRows = await getFmsMisRows(start, end);
       const rows = empRows.map((e) => ({
-        ...e, score: e.total > 0 ? Math.round(((e.completed / e.total) - 1) * 100 - (e.delayed / e.total) * 50) : 0,
+        ...e, score: e.total > 0 ? Math.round((e.completed / e.total) * 100 - (e.delayed / e.total) * 50) : 0,
       }));
       const totalTasks = empRows.reduce((s, e) => s + e.total, 0);
       const completed  = empRows.reduce((s, e) => s + e.completed, 0);

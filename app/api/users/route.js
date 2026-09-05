@@ -20,12 +20,17 @@ export async function GET() {
   const callerBranch = (caller?.branch || '').toLowerCase();
   try {
     await ensureSchema();
-    const [rows] = callerBranch
-      ? await pool.query(
-          "SELECT * FROM users WHERE LOWER(branch) = ? OR roles LIKE '%Admin%' ORDER BY id",
-          [callerBranch]
-        )
-      : await pool.query('SELECT * FROM users ORDER BY id');
+    // OR / LIKE are unparseable in the Sheets SQL engine (the old query threw
+    // and the catch below silently fell back to the legacy JSON store) —
+    // fetch everyone and apply the branch scope in JS. Admins stay visible to
+    // every branch, and rows with no branch yet are not hidden.
+    const [all] = await pool.query('SELECT * FROM users ORDER BY id');
+    const rows = callerBranch
+      ? all.filter((u) => {
+          const b = String(u.branch || '').toLowerCase().trim();
+          return !b || b === callerBranch || String(u.roles || '').includes('Admin');
+        })
+      : all;
     // sanitizeUsers strips password_hash: `SELECT *` was handing every signed-in
     // user the bcrypt hash of everyone else's password.
     if (rows.length > 0) return NextResponse.json(sanitizeUsers(rows));
