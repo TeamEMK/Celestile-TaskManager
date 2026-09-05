@@ -140,7 +140,7 @@ export async function POST(req) {
            r.siteLocation || '', r.purposeOfVisit || '', r.checksType || '',
            Number(r.kmsTravelled) || 0,
            r.branch || 'Bangalore', uploadedImages[i] || null, r.preInstallComment || null,
-           r.arcName || '', r.arcPhone || '', r.oldNewClient || '', Number(r.noOfVisits) || 0, r.remarks || null,
+           r.arcName || '', r.arcPhone || '', r.oldNewClient || '', String(r.noOfVisits ?? '').trim(), r.remarks || null,
            Number(r.orderValue) || 0, Number(r.advPaid) || 0, Number(r.balance) || 0,
            r.modeOfPay || '', r.executive || '',
            Number(r.tillDateReceived) || 0, Number(r.balanceTarget) || 0]

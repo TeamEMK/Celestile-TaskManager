@@ -21,7 +21,7 @@ const shortDate = (iso) => {
   const p = (n) => String(n).padStart(2, '0');
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)}`;
 };
-const TAB_IDS = ['inward', 'stock', 'step2'];
+const TAB_IDS = ['inward', 'stock', 'blocked', 'step2'];
 
 // Step 2 form fields keep a fixed vocabulary (matches the original SK Tiles
 // dispatch sheet) instead of free text, so downstream logic that keys off
@@ -62,7 +62,7 @@ export default function InventoryClient() {
   }
   useEffect(() => { loadMasters(); loadInv(); }, []);
 
-  const TABS = [['inward', 'Inward'], ['stock', 'Stock'], ['step2', 'Blocking for Jointing']];
+  const TABS = [['inward', 'Inward'], ['stock', 'Stock'], ['blocked', 'Blocked Stock'], ['step2', 'Blocking for Jointing']];
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -83,6 +83,7 @@ export default function InventoryClient() {
 
       {tab === 'inward' && <Inward masters={masters} reloadMasters={loadMasters} onSaved={loadInv} />}
       {tab === 'stock' && <Stock inv={inv} loading={loading} masters={masters} reload={loadInv} />}
+      {tab === 'blocked' && <BlockedStock inv={inv} loading={loading} />}
       {tab === 'step2' && <Step2 inv={inv} reload={loadInv} initialOrder={searchParams.get('orderNo') || ''} />}
     </div>
   );
@@ -623,6 +624,197 @@ function Stock({ inv, loading, masters, reload }) {
 
       {photo && <Lightbox src={photo} onClose={() => setPhoto(null)} />}
       {saving && <SaveLoader text="Blocking slabs…" />}
+    </div>
+  );
+}
+
+/* ───────────────────────── BLOCKED STOCK ───────────────────────── */
+// Which slab is booked for which order. Every slab that has been blocked for
+// jointing — status Blocked, or Step2 once its review has started — grouped
+// under the order it was blocked for, so the factory can answer "what is
+// reserved for order X?" without opening the Stock tab lot by lot.
+function BlockedStock({ inv, loading }) {
+  const [q, setQ] = useState('');
+  const [statusF, setStatusF] = useState('All');
+  const [open, setOpen] = useState([]);
+  const [photo, setPhoto] = useState('');
+
+  const orders = useMemo(() => {
+    const map = {};
+    inv.forEach((r) => {
+      if (r.status !== 'Blocked' && r.status !== 'Step2') return;
+      const key = (r.orderNo || '').trim() || '(no order no.)';
+      const o = (map[key] ||= {
+        orderNo: key, client: '', area: '', slabs: [], sft: 0, blocked: 0, step2: 0,
+        materials: new Set(), updatedAt: '',
+      });
+      o.slabs.push(r);
+      o.sft += num(r.sft);
+      if (r.status === 'Blocked') o.blocked++; else o.step2++;
+      if (!o.client && r.client) o.client = r.client;
+      if (!o.area && r.area) o.area = r.area;
+      if (r.material) o.materials.add(`${r.material} ${r.thickness || ''}`.trim());
+      const t = String(r.updatedAt || r.createdAt || '');
+      if (t > o.updatedAt) o.updatedAt = t;
+    });
+    return Object.values(map)
+      .map((o) => ({
+        ...o,
+        sft: Math.round(o.sft * 100) / 100,
+        materials: Array.from(o.materials),
+        slabs: [...o.slabs].sort((a, b) => String(a.slab).localeCompare(String(b.slab), undefined, { numeric: true })),
+      }))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.orderNo.localeCompare(b.orderNo));
+  }, [inv]);
+
+  const t = q.trim().toLowerCase();
+  const rows = orders.filter((o) => {
+    if (statusF === 'Blocked' && !o.blocked) return false;
+    if (statusF === 'Step2' && !o.step2) return false;
+    if (!t) return true;
+    return [o.orderNo, o.client, o.area, ...o.materials, ...o.slabs.map((s) => s.slab)]
+      .some((v) => String(v || '').toLowerCase().includes(t));
+  });
+
+  const totals = useMemo(() => ({
+    orders: orders.length,
+    slabs: orders.reduce((n, o) => n + o.slabs.length, 0),
+    sft: Math.round(orders.reduce((n, o) => n + o.sft, 0) * 100) / 100,
+  }), [orders]);
+
+  const toggle = (k) => setOpen((o) => o.includes(k) ? o.filter((x) => x !== k) : [...o, k]);
+  const expandAll = () => setOpen(rows.map((o) => o.orderNo));
+
+  const exportCsv = () => downloadCsv(
+    `blocked-stock-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['Order', 'Client', 'Area', 'Slab', 'Block', 'Material', 'Thickness', 'L', 'W', 'SFT', 'Status', 'Blocked on'],
+    rows.flatMap((o) => o.slabs.map((s) => [
+      o.orderNo, o.client, o.area, s.slab, s.block, s.material, s.thickness,
+      s.sizeL, s.sizeW, s.sft, s.status, shortDate(s.updatedAt || s.createdAt),
+    ])),
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <UiStatCard label="Orders with stock booked" value={totals.orders} tone="blue" icon={<IconLayers />} />
+        <UiStatCard label="Slabs booked" value={totals.slabs} tone="red" icon={<IconLock />} />
+        <UiStatCard label="Booked SFT" value={totals.sft} tone="amber" icon={<IconLayers />} />
+      </div>
+
+      <div className="card p-4 space-y-3">
+        <div className="flex items-end gap-2 flex-wrap">
+          <div className="flex-1 min-w-[220px]">
+            <label className="label">Search</label>
+            <input className="input" placeholder="Order no., client, area, material or slab no."
+              value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <F label="Stage">
+            <select className="select w-40" value={statusF} onChange={(e) => setStatusF(e.target.value)}>
+              <option value="All">All</option>
+              <option value="Blocked">Blocked</option>
+              <option value="Step2">In Step 2 review</option>
+            </select>
+          </F>
+          <div className="flex gap-1.5 ml-auto">
+            <button className="btn-ghost !px-2.5 !py-1.5" onClick={open.length ? () => setOpen([]) : expandAll}>
+              {open.length ? 'Collapse all' : 'Expand all'}
+            </button>
+            <button className="btn-secondary !px-2.5 !py-1.5" onClick={exportCsv} disabled={!rows.length}>Export CSV</button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="py-10 text-center text-[12.5px] text-slate-400">Loading…</div>
+          ) : rows.length === 0 ? (
+            <div className="py-10 text-center text-[12.5px] text-slate-400">
+              {orders.length ? 'No order matches this search.' : 'No slabs are blocked right now.'}
+            </div>
+          ) : (
+            <table className="w-full text-[12.5px]">
+              <thead>
+                <tr>
+                  {['', 'Order', 'Client', 'Area', 'Material', 'Slabs', 'SFT', 'Stage', 'Last change'].map((h, i) => (
+                    <th key={i} className={`table-th whitespace-nowrap ${['Slabs', 'SFT'].includes(h) ? 'text-right' : ''}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((o) => {
+                  const isOpen = open.includes(o.orderNo);
+                  return (
+                    <Fragment key={o.orderNo}>
+                      <tr className="table-row cursor-pointer" onClick={() => toggle(o.orderNo)}>
+                        <td className="table-td w-6 text-slate-400">{isOpen ? '▾' : '▸'}</td>
+                        <td className="table-td font-semibold text-slate-800 whitespace-nowrap">{o.orderNo}</td>
+                        <td className="table-td">{o.client || '—'}</td>
+                        <td className="table-td">{o.area || '—'}</td>
+                        <td className="table-td text-slate-600">{o.materials.join(', ') || '—'}</td>
+                        <td className="table-td text-right tabular-nums font-semibold text-slate-700">{o.slabs.length}</td>
+                        <td className="table-td text-right tabular-nums font-semibold text-slate-800">{o.sft}</td>
+                        <td className="table-td whitespace-nowrap">
+                          <div className="flex gap-1">
+                            {o.blocked > 0 && <span className={`pill ${STOCK_BADGE('Blocked')}`}>Blocked {o.blocked}</span>}
+                            {o.step2 > 0 && <span className={`pill ${STOCK_BADGE('Step2')}`}>Step 2 {o.step2}</span>}
+                          </div>
+                        </td>
+                        <td className="table-td text-slate-500 whitespace-nowrap">{shortDate(o.updatedAt)}</td>
+                      </tr>
+
+                      {isOpen && (
+                        <tr>
+                          <td colSpan={9} className="p-0 bg-slate-50/60">
+                            <div className="px-3 py-2.5">
+                              <table className="w-full text-[12px] bg-white rounded-lg overflow-hidden">
+                                <thead>
+                                  <tr>
+                                    {['Slab', 'Block', 'Material', 'Thickness', 'L', 'W', 'SFT', 'Status', 'Blocked on', 'Remarks'].map((h, i) => (
+                                      <th key={i} className={`table-th whitespace-nowrap ${['L', 'W', 'SFT'].includes(h) ? 'text-right' : ''}`}>{h}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {o.slabs.map((s) => (
+                                    <tr key={s.id} className="table-row">
+                                      <td className="table-td font-medium text-slate-800 whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5">
+                                          <span>{s.slab}</span>
+                                          {s.slabPhoto ? (
+                                            <button type="button" title="Click to enlarge" onClick={() => setPhoto(s.slabPhoto)}
+                                              className="w-7 h-7 rounded overflow-hidden border border-slate-200 hover:ring-2 hover:ring-primary-300 transition-shadow shrink-0">
+                                              <img src={s.slabPhoto} alt={s.slab} className="w-full h-full object-cover" />
+                                            </button>
+                                          ) : null}
+                                        </div>
+                                      </td>
+                                      <td className="table-td">{s.block || '—'}</td>
+                                      <td className="table-td">{s.material || '—'}</td>
+                                      <td className="table-td">{s.thickness || '—'}</td>
+                                      <td className="table-td text-right tabular-nums">{s.sizeL}</td>
+                                      <td className="table-td text-right tabular-nums">{s.sizeW}</td>
+                                      <td className="table-td text-right tabular-nums font-semibold text-slate-700">{s.sft}</td>
+                                      <td className="table-td"><span className={`pill ${STOCK_BADGE(s.status)}`}>{s.status}</span></td>
+                                      <td className="table-td text-slate-500 whitespace-nowrap">{shortDate(s.updatedAt || s.createdAt)}</td>
+                                      <td className="table-td max-w-[160px] truncate" title={s.remarks}>{s.remarks || '—'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {photo && <Lightbox src={photo} onClose={() => setPhoto('')} />}
     </div>
   );
 }

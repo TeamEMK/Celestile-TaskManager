@@ -572,7 +572,7 @@ export default function DailyTaskClient() {
                               value={r.client} onChange={(e) => setRow(i, 'client', e.target.value)} />
                           </td>
                           <td className="table-td w-32">
-                            <input type="number" className="input" placeholder="Phone no."
+                            <input type="text" inputMode="tel" className="input" placeholder="Phone no."
                               value={r.clientNumber} onChange={(e) => setRow(i, 'clientNumber', e.target.value)} />
                           </td>
                           <td className="table-td min-w-[120px]">
@@ -580,7 +580,7 @@ export default function DailyTaskClient() {
                               value={r.arcName} onChange={(e) => setRow(i, 'arcName', e.target.value)} />
                           </td>
                           <td className="table-td w-32">
-                            <input type="number" className="input" placeholder="Arc. phone"
+                            <input type="text" inputMode="tel" className="input" placeholder="Arc. phone"
                               value={r.arcPhone} onChange={(e) => setRow(i, 'arcPhone', e.target.value)} />
                           </td>
                           <td className="table-td min-w-[110px]">
@@ -591,7 +591,7 @@ export default function DailyTaskClient() {
                             </select>
                           </td>
                           <td className="table-td w-24">
-                            <input type="number" min="1" className="input" placeholder="Visits"
+                            <input type="text" className="input" placeholder="Visits"
                               value={r.noOfVisits} onChange={(e) => setRow(i, 'noOfVisits', e.target.value)} />
                           </td>
                           <td className="table-td min-w-[140px]">
@@ -656,7 +656,7 @@ export default function DailyTaskClient() {
                       {/* Client Number (Sales) / Order Number (SE + Designer) */}
                       {isSales ? (
                         <td className="table-td w-32">
-                          <input type="number" className="input" placeholder="Phone no."
+                          <input type="text" inputMode="tel" className="input" placeholder="Phone no."
                             value={r.clientNumber} onChange={(e) => setRow(i, 'clientNumber', e.target.value)} />
                         </td>
                       ) : (
@@ -876,7 +876,7 @@ export default function DailyTaskClient() {
                       {e.revision === 'Yes' && <span className="pill bg-red-50 text-red-600 shrink-0">Revision</span>}
                       {e.arcName      && <span className="pill bg-teal-50 text-teal-700 shrink-0">Arc: {e.arcName}{e.arcPhone ? ` (${e.arcPhone})` : ''}</span>}
                       {e.oldNewClient && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.oldNewClient}</span>}
-                      {Number(e.noOfVisits) > 0 && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.noOfVisits} visit{Number(e.noOfVisits) === 1 ? '' : 's'}</span>}
+                      {!!(e.noOfVisits && String(e.noOfVisits) !== '0') && <span className="pill bg-slate-100 text-slate-600 shrink-0">Visits: {e.noOfVisits}</span>}
                       {Number(e.orderValue) > 0 && <span className="pill bg-green-50 text-green-700 shrink-0">Order ₹{Number(e.orderValue).toLocaleString('en-IN')}</span>}
                       {Number(e.advPaid) > 0 && <span className="pill bg-emerald-50 text-emerald-700 shrink-0">Adv ₹{Number(e.advPaid).toLocaleString('en-IN')}</span>}
                       {Number(e.balance) > 0 && <span className="pill bg-rose-50 text-rose-600 shrink-0">Bal ₹{Number(e.balance).toLocaleString('en-IN')}</span>}

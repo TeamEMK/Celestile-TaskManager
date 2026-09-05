@@ -1,59 +1,22 @@
 import { NextResponse } from 'next/server';
-import { pool, ensureSchema } from '@/lib/db';
-import { sendWhatsApp, sendWhatsAppDocument, isWhatsappConfigured, eaDailyReportMessage } from '@/lib/whatsapp';
 import { requireCron } from '@/lib/api';
-import { istDay, istDateStr, toEntry, salesMonthSummary, eaReportSig } from '@/lib/dailyReport';
+import { sendEaReport } from '@/lib/eaReport';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-// Executive Assistant evening report: today's Walk-in + Payments entries in
-// ONE combined WhatsApp message to EA_REPORT_NOTIFY (Vinay sir — a plain
-// number or a group JID). Unlike the team reports this is a management
-// summary, so it is one message for the whole day, not one per person, and
-// it goes out even when nothing was filled (so a silent day is visible).
+// Executive Assistant evening report (Walk-in + Payments) — see lib/eaReport.js.
 //
-// Schedule in the external cron provider at 7:00 PM IST, Mon–Sat:
-//   "0 19 * * 1-6" IST  (= "30 13 * * 1-6" UTC)
+// This route is the manual / external-cron entry point. The report normally
+// goes out on its own from the in-app scheduler (lib/scheduler.js) at 7 PM
+// IST Mon–Sat, so no host cron is required any more; hitting this route
+// sends it again on demand.
+//
 // Same auth as the other reminder routes: Authorization: Bearer <CRON_SECRET>
 // (or ?secret=<DEVELOPER_SECRET> for manual testing).
 export async function GET(req) {
   const gate = requireCron(req); if (gate) return gate;
-  if (!isWhatsappConfigured())
-    return NextResponse.json({ error: 'WhatsApp not configured' }, { status: 400 });
-  if (istDay() === 0)
-    return NextResponse.json({ ok: true, skipped: 'Sunday' });
-
-  // Default recipient is Vinay sir's number (same pattern as the group-report
-  // fallbacks in lib/dailyReport.js); EA_REPORT_NOTIFY overrides it.
-  const to = process.env.EA_REPORT_NOTIFY || '918008000033';
-
-  await ensureSchema();
-  const today = istDateStr();
-  // Plain SELECT + JS filter, same reason as lib/dailyReport.js loadToday():
-  // the Sheets SQL engine supports neither DATE(col) nor LIKE.
-  const [all] = await pool.query('SELECT * FROM daily_tasks');
-  const rows = (all || []).filter((r) => String(r.entry_date || '').slice(0, 10) === today);
-  const walkins  = rows.filter((r) => r.department === 'Walk-in').map(toEntry);
-  const payments = rows.filter((r) => r.department === 'Sales Payment').map(toEntry);
-
-  // Month position under the payments: received so far (computed) vs the
-  // monthly target set on the Payments form (app_config sales_target_<month>).
-  const sales = await salesMonthSummary();
-
-  const r = await sendWhatsApp(to, eaDailyReportMessage(today, walkins, payments, sales));
-
-  // Excel-style PDF of the same report, attached as a document. Maytapi
-  // fetches the URL itself, so it carries an HMAC signature instead of auth.
-  const baseUrl = process.env.NEXTAUTH_URL || 'https://celestileoffice.com';
-  const pdfUrl = `${baseUrl}/api/ea-report-pdf?date=${today}&sig=${eaReportSig(today)}`;
-  const d = await sendWhatsAppDocument(to, pdfUrl, `Daily-Report-${today}.pdf`,
-    `📄 Daily Report — ${today}`);
-
-  return NextResponse.json({
-    ok: !!r.ok, pdfOk: !!d.ok, date: today, to,
-    walkins: walkins.length, payments: payments.length,
-    ...(r.reason || r.error ? { reason: r.reason || r.error } : {}),
-    ...(d.reason || d.error ? { pdfReason: d.reason || d.error } : {}),
-  });
+  const r = await sendEaReport();
+  if (r.error) return NextResponse.json({ error: r.error }, { status: 400 });
+  return NextResponse.json(r);
 }
