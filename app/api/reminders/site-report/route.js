@@ -6,7 +6,8 @@ export const maxDuration = 60;
 // Site Engineer daily report — one WhatsApp message PER site engineer into
 // the site eng group, every day except Sunday at 9:30 PM IST, exactly like
 // the designer report. Site Engineer, SC, Runner and Process Coordinator all
-// report here. Group JID is overridable via SITE_GROUP_ID.
+// report here, but the "not filled" nudge goes only to site engineers (SC /
+// Site Engineer). Group JID is overridable via SITE_GROUP_ID.
 //
 // Same cron wiring as design-report, or use /api/reminders/daily-reports to
 // run all three teams off one job.
