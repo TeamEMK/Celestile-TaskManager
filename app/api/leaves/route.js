@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
-import { requireUser, requireAdmin, currentUser } from '@/lib/api';
+import { requireUser, requireUserCtx, requireAdmin } from '@/lib/api';
 import { newId } from '@/lib/ids';
 import { isAdminRoles } from '@/lib/pages';
 
@@ -27,9 +27,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  const gate = await requireUser(); if (gate) return gate;
-  const sessionUser = await currentUser();
-  if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { gate, user: sessionUser } = await requireUserCtx(); if (gate) return gate;
   try {
     await ensureSchema();
     const body = await req.json();

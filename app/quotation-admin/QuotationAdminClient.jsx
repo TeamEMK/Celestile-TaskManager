@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Icon from '../components/Icon';
 import { StatCard as UiStatCard } from '../components/ui';
 import DateField from '../components/DateField';
+import { downloadCsv } from '@/lib/csv';
 
 const numOf = (s) => parseFloat(String(s || '').replace(/[^\d.]/g, '')) || 0;
 const fmtINR = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
@@ -105,11 +106,9 @@ export default function QuotationAdminClient() {
   }
 
   function downloadCSV() {
-    const head = ['Ref', 'Branch', 'Client', 'Firm', 'Consultant', 'Grand Total', 'Status', 'Date'];
-    const cell = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
-    const lines = filtered.map((r) => [r.refNo, r.branch, cell(r.clientName), cell(r.clientFirm || ''), cell(r.consultant), numOf(r.grandTotal), r.status || 'pending', dateOf(r.createdAt)].join(','));
-    const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quotations.csv'; a.click();
+    downloadCsv('quotations.csv',
+      ['Ref', 'Branch', 'Client', 'Firm', 'Consultant', 'Grand Total', 'Status', 'Date'],
+      filtered.map((r) => [r.refNo, r.branch, r.clientName, r.clientFirm || '', r.consultant, numOf(r.grandTotal), r.status || 'pending', dateOf(r.createdAt)]));
   }
   function reset() { setBranch('all'); setStatusFilter('all'); setQ(''); setMonth(''); setFrom(''); setTo(''); }
 

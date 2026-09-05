@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { fileToThumbnail } from '../quotation/imageThumb';
+import { fileToThumbnail, fileToDataUrl } from '../quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
 import { fieldVisibility } from '@/lib/fieldVisibility';
@@ -15,14 +15,6 @@ import { isThicknessField, isMaterialField } from '@/lib/imsFields';
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
 // The resulting data: URI is swapped for a Drive URL server-side (writeStepDone)
 // once actually submitted.
-async function fileToDataUrl(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
 async function pickUploadFile(file) {
   if (!file) return '';
   return file.type === 'application/pdf' ? fileToDataUrl(file) : fileToThumbnail(file, 700, 0.7);

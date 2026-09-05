@@ -5,12 +5,13 @@ import { pool } from '@/lib/db';
 import { getMyFmsPendingRows } from '@/lib/fmsSheet';
 import { FMS_ENABLED } from '@/lib/config';
 import DashboardClient from './DashboardClient';
+import { isAdminRoles } from '@/lib/pages';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const session       = await getServerSession(authOptions);
-  const isAdmin       = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
+  const isAdmin       = isAdminRoles(session?.user?.roles);
   const currentUserId = session?.user?.id;
   const currentName   = session?.user?.name;
 

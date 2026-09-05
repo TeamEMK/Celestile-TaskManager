@@ -10,10 +10,12 @@ import FmsDoneModal from './components/FmsDoneModal';
 import { FMS_ENABLED } from '@/lib/config';
 import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from '@/app/components/ImageLightbox';
-import { stepOpenUrl } from '@/lib/fmsOpenUrl';
+import CompletionFileModal from './components/CompletionFileModal';
+import { useTaskCompletion } from './components/useTaskCompletion';
 import { StatCard, StatGrid } from './components/ui';
 import Icon from './components/Icon';
 import DateField from './components/DateField';
+import Avatar from './components/Avatar';
 
 // FMS answers are raw sheet values, so an uploaded file or a pasted link
 // would otherwise print as a wall of URL text in the details strip (the
@@ -49,11 +51,10 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   const [subTab,       setSubTab]       = useState('All');
   const [userFilter,   setUserFilter]   = useState('All');
   const [fmsNameFilter, setFmsNameFilter] = useState('All');
-  const [fileTask,        setFileTask]        = useState(null);
-  const [completionInput, setCompletionInput] = useState(null);
-  const [fileUploading,   setFileUploading]   = useState(false);
-  const [fmsDone,         setFmsDone]         = useState(null); // { fmsId, row, step }
-  const [fmsDoneLoading,  setFmsDoneLoading]  = useState(false);
+  const {
+    fileTask, setFileTask, completionInput, setCompletionInput, fileUploading,
+    submitCompletionFile, fmsDone, setFmsDone, fmsDoneLoading, openFmsDone,
+  } = useTaskCompletion();
   const { ask, ConfirmUI } = useConfirmToast();
 
   // Computed only after mount (not during the SSR/initial-hydration render)
@@ -89,7 +90,9 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
     [visibleTasks]
   );
 
-  const filtered = visibleTasks
+  // Memoized — this used to re-filter and re-sort (two Date allocations per
+  // comparison) on every keystroke and modal toggle in the component.
+  const filtered = useMemo(() => visibleTasks
     .filter((t) =>
       (subTab === 'All' || t.type === subTab) &&
       (userFilter === 'All' || t.doer === userFilter) &&
@@ -98,8 +101,8 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
       // an FMS name would also hide every Delegation/Checklist row.
       (subTab !== 'FMS' || fmsNameFilter === 'All' || t.fmsName === fmsNameFilter)
     )
-    .slice()
-    .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+    .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date)),
+    [visibleTasks, subTab, userFilter, fmsNameFilter]);
 
   // When an admin picks a specific employee from the filter, the KPI cards
   // should reflect that person, not the whole org — computeDashboard() /
@@ -152,29 +155,6 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
     router.refresh();
   }
 
-  async function openFmsDone(task) {
-    // Opened synchronously, before the await below, so it still counts as a
-    // direct response to the click — an async-deferred window.open gets
-    // silently popup-blocked by most browsers.
-    if (task.openUrl) window.open(stepOpenUrl(task.openUrl, task), '_blank', 'noopener');
-    setFmsDoneLoading(true);
-    try {
-      const d = await fetch(`/api/fms-tasks/${task.fmsId}`).then((r) => r.json());
-      const step = (d.steps || []).find((s) => String(s.id) === String(task.stepId));
-      setFmsDone({
-        fmsId: task.fmsId,
-        step: step || { id: task.stepId, extraRows: [] },
-        row: {
-          sheetRowNumber: task.rowNumber,
-          planValue: task.planValue,
-          orderNo: task.orderNo || '',
-          data: Object.fromEntries((task.details || []).map((x) => [x.header, x.value])),
-        },
-      });
-    } finally {
-      setFmsDoneLoading(false);
-    }
-  }
 
   function handleDoneClick(task) {
     if (task.type === 'FMS') { openFmsDone(task); return; }
@@ -182,29 +162,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
     else markDone(task);
   }
 
-  function fileToDataUrl(file) {
-    return new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
-  }
 
-  async function submitCompletionFile() {
-    if (!fileTask || !completionInput) return;
-    setFileUploading(true);
-    try {
-      const dataUrl = await fileToDataUrl(completionInput);
-      if (fileTask.type === 'Checklist') {
-        await fetch('/api/checklist-completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ masterId: fileTask.id, file: dataUrl }) });
-      } else {
-        await fetch('/api/delegations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: fileTask.id, status: 'done', completionFile: dataUrl }) });
-      }
-      setFileTask(null); setCompletionInput(null);
-      router.refresh();
-    } finally { setFileUploading(false); }
-  }
 
   function requestRevise(task) { setReviseNote(''); setReviseDate(''); setReviseTask({ ...task, _mode: 'request' }); }
   function requestGrant(task)  { setReviseNote(''); setReviseDate(''); setReviseTask({ ...task, _mode: 'grant'   }); }
@@ -535,34 +493,11 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
       )}
 
       {/* File-required completion modal */}
-      {fileTask && (
-        <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4" onClick={() => !fileUploading && (setFileTask(null), setCompletionInput(null))}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 grid place-items-center shrink-0">
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-900 text-sm">Upload Proof of Completion</h3>
-                <p className="text-[12px] text-slate-500 mt-0.5">A file is required to mark this task as done</p>
-              </div>
-            </div>
-            <p className="text-[12px] text-slate-600 bg-slate-50 rounded-lg p-3 mb-4 line-clamp-2">{fileTask.description}</p>
-            <label className="block cursor-pointer border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-violet-300 hover:bg-violet-50 transition mb-4">
-              {completionInput
-                ? <span className="text-sm font-medium text-slate-700"><Icon name="paperclip" className="w-3.5 h-3.5" /> {completionInput.name}</span>
-                : <><span className="text-2xl block mb-1"><Icon name="arrowUp" className="w-3.5 h-3.5" /></span><span className="text-sm text-slate-500">Click to choose Photo or PDF</span></>}
-              <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setCompletionInput(e.target.files?.[0] || null)} />
-            </label>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => { setFileTask(null); setCompletionInput(null); }} disabled={fileUploading} className="btn-secondary">Cancel</button>
-              <button onClick={submitCompletionFile} disabled={fileUploading || !completionInput} className="btn-primary">
-                {fileUploading ? 'Uploading…' : 'Submit & Mark Done'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CompletionFileModal
+        task={fileTask} input={completionInput} setInput={setCompletionInput}
+        uploading={fileUploading} onSubmit={submitCompletionFile}
+        onClose={() => { setFileTask(null); setCompletionInput(null); }}
+      />
 
       {/* Revise modal */}
       {reviseTask && (() => {
@@ -669,12 +604,6 @@ function TypePill({ type }) {
   return <span className={`pill ${map[type] || 'bg-slate-100 text-slate-700'}`}>{type}</span>;
 }
 
-function Avatar({ name = '' }) {
-  const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  // One neutral chip. Initials in five rotating gradients made every table of
-  // names look like a chart legend.
-  return <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[9px] font-semibold shrink-0">{ini}</div>;
-}
 
 function PlusIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
 function CalIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>; }

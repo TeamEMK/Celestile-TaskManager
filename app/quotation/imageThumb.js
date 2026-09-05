@@ -25,3 +25,15 @@ export function fileToThumbnail(file, max = 160, quality = 0.7) {
     reader.readAsDataURL(file);
   });
 }
+
+// Read a file as a data URL, unresized — for attachments that are not
+// thumbnails (completion proofs, delegation attachments). One shared copy;
+// this used to be pasted into five components verbatim.
+export function fileToDataUrl(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}

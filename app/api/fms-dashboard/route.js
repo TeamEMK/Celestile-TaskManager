@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireUser, currentUser } from '@/lib/api';
+import { requireUser, requireUserCtx } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 import { getMyFmsPendingRows } from '@/lib/fmsSheet';
 
@@ -7,9 +7,8 @@ import { getMyFmsPendingRows } from '@/lib/fmsSheet';
 // the Dashboard FMS tab and the All-Tasks FMS tab (client-side refresh path;
 // initial server-render calls getMyFmsPendingRows directly).
 export async function GET() {
-  const gate = await requireUser(); if (gate) return gate;
+  const { gate, user } = await requireUserCtx(); if (gate) return gate;
   try {
-    const user = await currentUser();
     const rows = await getMyFmsPendingRows({ userId: user.id, userName: user.name, isAdmin: isAdminRoles(user.roles) });
     return NextResponse.json({ rows });
   } catch (err) {

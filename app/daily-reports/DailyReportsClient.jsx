@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '../components/Icon';
 import DateField from '../components/DateField';
+import { downloadCsv } from '@/lib/csv';
 
 const monthRange = (ym) => {
   // ym = 'YYYY-MM'
@@ -105,19 +106,12 @@ export default function DailyReportsClient({ isAdmin }) {
   }, [filtered]);
 
   function downloadCSV() {
-    const head = ['Date', 'Doer', 'Client', 'Order Number', 'Area Name', 'Task Type', 'Software', 'Revision', 'Minutes'];
-    const csvCell = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
-    const lines = filtered.map((e) => [
-      fmt(e.entryDate), csvCell(e.doer), csvCell(e.client),
-      csvCell(e.orderNumber), csvCell(e.areaName),
-      csvCell(e.taskType || e.department), csvCell(e.software),
-      e.revision || 'No', e.minutes,
-    ].join(','));
-    const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `daily-report-${win.from}_to_${win.to}.csv`;
-    a.click();
+    downloadCsv(`daily-report-${win.from}_to_${win.to}.csv`,
+      ['Date', 'Doer', 'Client', 'Order Number', 'Area Name', 'Task Type', 'Software', 'Revision', 'Minutes'],
+      filtered.map((e) => [
+        fmt(e.entryDate), e.doer, e.client, e.orderNumber, e.areaName,
+        e.taskType || e.department, e.software, e.revision || 'No', e.minutes,
+      ]));
   }
 
   // PDF via browser print (user picks "Save as PDF")

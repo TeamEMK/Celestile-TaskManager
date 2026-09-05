@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { fileToThumbnail } from '@/app/quotation/imageThumb';
+import { fileToThumbnail, fileToDataUrl } from '@/app/quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
 import Icon from '../components/Icon';
 import DateField from './DateField';
@@ -13,14 +13,6 @@ const blank = () => ({
   attachment: '', requireFile: false,
 });
 
-async function fileToDataUrl(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
 
 function parseCSV(text) {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);

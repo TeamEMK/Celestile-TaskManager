@@ -20,6 +20,7 @@ import {
 } from '../components/ui';
 import DateField from '../components/DateField';
 import { suspectOrderNumbers, ORDER_HINT } from '@/lib/orderNumber';
+import { isAdminRoles } from '@/lib/pages';
 
 const todayISO = () => new Date().toLocaleDateString('en-CA');
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toLocaleDateString('en-CA'); };
@@ -57,7 +58,7 @@ const TABS = [
 
 export default function ProductionClient() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
+  const isAdmin = isAdminRoles(session?.user?.roles);
 
   const [tab, setTab] = useState('daily');
   const [departments, setDepartments] = useState([]);

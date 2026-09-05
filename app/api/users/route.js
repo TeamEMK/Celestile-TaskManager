@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import bcrypt from 'bcryptjs';
-import { requireUser, requireAdmin, currentUser, sanitizeUser, sanitizeUsers } from '@/lib/api';
+import { requireUser, requireUserCtx, requireAdmin, currentUser, sanitizeUser, sanitizeUsers } from '@/lib/api';
 import { nextSeqId } from '@/lib/ids';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 
@@ -15,8 +15,7 @@ function parseRoles(role, userRole) {
 }
 
 export async function GET() {
-  const gate = await requireUser(); if (gate) return gate;
-  const caller = await currentUser();
+  const { gate, user: caller } = await requireUserCtx(); if (gate) return gate;
   const callerBranch = (caller?.branch || '').toLowerCase();
   try {
     await ensureSchema();

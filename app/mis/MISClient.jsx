@@ -4,6 +4,7 @@ import { HorizBarChart } from '@/app/components/Charts';
 import Icon from '@/app/components/Icon';
 import { StatCard } from '@/app/components/ui';
 import DateField from '../components/DateField';
+import { downloadCsv } from '@/lib/csv';
 
 export default function MISClient({ initialRows = [], initialSummary = {}, initialStart, initialEnd, initialType }) {
   const [start,      setStart]      = useState(initialStart);
@@ -47,16 +48,11 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
 
   function exportCSV() {
     if (!rows.length) { alert('Generate the report first.'); return; }
-    const headers = ['#', 'Name', 'Total', 'Pending', 'Completed', 'Revised', 'Delayed', 'Score %'];
-    const csv = [
-      headers.join(','),
-      ...rows.map((r, i) => [i + 1, r.name, r.total, r.pending, r.completed, r.revised, r.delayed, r.score + '%'].join(',')),
-    ].join('\n');
-    const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
-      download: `MIS_${tab.replace(/\s/g, '_')}_${start}_to_${end}.csv`,
-    });
-    a.click();
+    // Every cell goes through csvEscape now - a name containing a comma used
+    // to shift every column after it in the export.
+    downloadCsv(`MIS_${tab.replace(/\s/g, '_')}_${start}_to_${end}.csv`,
+      ['#', 'Name', 'Total', 'Pending', 'Completed', 'Revised', 'Delayed', 'Score %'],
+      rows.map((r, i) => [i + 1, r.name, r.total, r.pending, r.completed, r.revised, r.delayed, r.score + '%']));
   }
 
   const isGood = (score) => score >= 0;

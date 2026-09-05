@@ -1,5 +1,3 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  serverExternalPackages: ['pg'],
-};
+const nextConfig = {};
 export default nextConfig;

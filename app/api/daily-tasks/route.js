@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, dailyTaskConfirmationMessage, isWhatsappConfigured } from '@/lib/whatsapp';
-import { requireUser, currentUser } from '@/lib/api';
+import { requireUser, requireUserCtx } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 import { newId } from '@/lib/ids';
 import { isAdminRoles } from '@/lib/pages';
@@ -24,8 +24,7 @@ const BASE_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
 const SELECT_COLS = `${BASE_COLS}, pre_install_image AS preInstallImage`;
 
 export async function GET(req) {
-  const gate = await requireUser(); if (gate) return gate;
-  const caller = await currentUser();
+  const { gate, user: caller } = await requireUserCtx(); if (gate) return gate;
   const callerBranch = (caller?.branch || '').toLowerCase();
   try {
     await ensureSchema();
@@ -75,9 +74,7 @@ async function notifyFirstSubmission({ doerId, doer, entryDate }) {
 }
 
 export async function POST(req) {
-  const gate = await requireUser(); if (gate) return gate;
-  const sessionUser = await currentUser();
-  if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { gate, user: sessionUser } = await requireUserCtx(); if (gate) return gate;
   try {
     await ensureSchema();
     const body = await req.json();

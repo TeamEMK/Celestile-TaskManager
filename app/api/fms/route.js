@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin, requireUser, currentUser, redactSheetIds } from '@/lib/api';
+import { requireAdmin, requireUser, requireUserCtx, currentUser, redactSheetIds } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 import { createFmsSheet, getFmsSheetsWithStats } from '@/lib/fmsSheet';
 
@@ -9,9 +9,8 @@ import { createFmsSheet, getFmsSheetsWithStats } from '@/lib/fmsSheet';
 // same default-allow rule FMSClient's canSubmitIntake uses on the client.
 // Editing/creating stays admin-only below.
 export async function GET() {
-  const gate = await requireUser(); if (gate) return gate;
+  const { gate, user } = await requireUserCtx(); if (gate) return gate;
   try {
-    const user = await currentUser();
     const isAdmin = isAdminRoles(user.roles);
     const canSubmitIntake = isAdmin || user.access == null || (user.access || []).includes('fms-intake');
     const sheets = await getFmsSheetsWithStats(user.id, isAdmin, canSubmitIntake);

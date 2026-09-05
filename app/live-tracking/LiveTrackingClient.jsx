@@ -17,6 +17,7 @@ import {
   BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass,
 } from '@/lib/liveTrackingView';
 import DateField from '../components/DateField';
+import { isAdminRoles } from '@/lib/pages';
 
 const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1, startRow: '' });
 const REFRESH_MS = 30000;
@@ -25,7 +26,7 @@ const MIN_COL_WIDTH = 60;
 
 export default function LiveTrackingClient() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
+  const isAdmin = isAdminRoles(session?.user?.roles);
   const { ask, ConfirmUI } = useConfirmToast();
 
   const [list, setList]           = useState([]);
@@ -128,12 +129,14 @@ export default function LiveTrackingClient() {
     [data],
   );
 
-  // Does this sheet have a priority column at all? Computed over every row, so
-  // the breakdown block keeps its place when a filter empties it out.
+  // Does this sheet have a priority column at all? Only the *fact* is needed
+  // (the breakdown block keeps its place when a filter empties it out) — this
+  // used to build a full branch×priority matrix over every row on each 30s
+  // poll tick just to be read as a boolean.
   // data.scope is set when the API cut the rows to this user's branch — the
   // breakdown then shows that branch alone (see buildPriorityStats).
   const scopeBranches = data?.scope?.branches || null;
-  const baseStats = useMemo(() => buildPriorityStats(data?.rows || [], cols, scopeBranches), [data, cols, scopeBranches]);
+  const hasPriorityData = cols.priorityIdx >= 0 && (data?.rows?.length || 0) > 0;
 
   // The cards themselves are what set branch/priority, so folding those two
   // back in would collapse the grid to the single card just clicked. Every
@@ -172,11 +175,13 @@ export default function LiveTrackingClient() {
   // applied first, so a tab's number is what that tab will actually show —
   // switching tabs never surprises you with a different total.
   const statusCounts = useMemo(() => {
-    if (!data?.rows) return { all: 0, pending: 0, done: 0 };
+    if (!data?.rows) return { all: 0, pending: 0, done: 0, rows: [] };
     const order = cols.dateOrderByIdx?.[filters.dateIdx] || 'dmy';
     const rows = data.rows.filter((row) => rowMatchesFilters(row, cols, { ...filters, status: '' }, order));
     const done = rows.filter((row) => isRowDone(row, cols.doneIdx)).length;
-    return { all: rows.length, pending: rows.length - done, done };
+    // `rows` rides along so filteredRows below only has to apply the status
+    // predicate, instead of re-scanning the whole sheet a third time.
+    return { all: rows.length, pending: rows.length - done, done, rows };
   }, [data, filters, cols]);
 
   // A key for the row colours. Built from the sheet's own labels, so a tracker
@@ -195,10 +200,10 @@ export default function LiveTrackingClient() {
   }, [data, cols]);
 
   const filteredRows = useMemo(() => {
-    if (!data?.rows) return [];
-    const order = cols.dateOrderByIdx?.[filters.dateIdx] || 'dmy';
-    return data.rows.filter((row) => rowMatchesFilters(row, cols, filters, order));
-  }, [data, filters, cols]);
+    if (!filters.status) return statusCounts.rows;
+    const wantDone = filters.status === 'done';
+    return statusCounts.rows.filter((row) => isRowDone(row, cols.doneIdx) === wantDone);
+  }, [statusCounts, filters.status, cols]);
 
   const nActive = activeFilterCount(filters);
 
@@ -375,7 +380,7 @@ export default function LiveTrackingClient() {
               narrowed={statRows.length !== (data?.rows.length ?? 0)}
               allRows={data?.rows.length ?? 0}
             />
-          ) : baseStats ? (
+          ) : hasPriorityData ? (
             <div className="card p-4 text-center text-[12px] text-slate-500">
               No rows match the current search / status / date filters, so there is nothing to break down yet.
             </div>

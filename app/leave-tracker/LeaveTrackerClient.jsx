@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import DateField from '../components/DateField';
+import Avatar from '../components/Avatar';
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-') : '—');
 const STATUS_STYLE = {
@@ -197,11 +198,6 @@ export default function LeaveTrackerClient({ userId, userName, canApprove }) {
   );
 }
 
-function Avatar({ name = '' }) {
-  const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return <div className={`w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[9px] font-semibold shrink-0`}>{ini}</div>;
-}
 
 function IconPlus()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
 function IconClose()  { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>; }

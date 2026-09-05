@@ -6,6 +6,7 @@ import Icon from '../components/Icon';
 import DateField from '../components/DateField';
 import OrderNumberInput from '../components/OrderNumberInput';
 import { isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
+import { isAdminRoles } from '@/lib/pages';
 
 /* ── Bangalore Site Engineer constants ───────────────────────────────── */
 const BLR_PURPOSE_OPTIONS = [
@@ -134,7 +135,7 @@ export default function DailyTaskClient() {
   const doer       = session?.user?.name       || '';
   const department = session?.user?.department || '';
 
-  const isAdmin = !!(session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD'));
+  const isAdmin = isAdminRoles(session?.user?.roles);
 
   // Branch from user's profile (normalized to title-case: 'Bangalore' or 'Hyderabad').
   // Empty string means no branch locked — user/admin can switch freely.

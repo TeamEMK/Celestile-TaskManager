@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AddMasterModal from '../components/AddMasterModal';
 import CsvImport from '../components/CsvImport';
+import Avatar from '../components/Avatar';
 
 const FREQ_TONE = {
   Daily:              'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -127,7 +128,7 @@ export default function MastersClient({ masters, users = [] }) {
                     <td className="table-td">
                       {m.assignedTo ? (
                         <div className="flex items-center gap-2">
-                          <Avatar name={m.assignedTo} />
+                          <Avatar size="md" name={m.assignedTo} />
                           <span className="text-slate-700">{m.assignedTo}</span>
                         </div>
                       ) : <span className="text-slate-400">—</span>}
@@ -165,10 +166,6 @@ function EmptyState({ onAdd }) {
   );
 }
 
-function Avatar({ name = '' }) {
-  const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  return <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[10px] font-bold shrink-0">{ini}</div>;
-}
 
 function IconChecklist() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>; }
 

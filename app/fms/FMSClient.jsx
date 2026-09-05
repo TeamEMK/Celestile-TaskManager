@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
-import { fileToThumbnail } from '../quotation/imageThumb';
+import { fileToThumbnail, fileToDataUrl } from '../quotation/imageThumb';
 import PcView from './PcView';
 import { ZoomImg } from '../components/ImageLightbox';
 import Icon from '../components/Icon';
@@ -14,6 +14,7 @@ import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber'
 import ImsThicknessSelect from '../components/ImsThicknessSelect';
 import { isThicknessField, isMaterialField } from '@/lib/imsFields';
 import { isUniqueField, compareKey } from '@/lib/uniqueIntake';
+import { isAdminRoles } from '@/lib/pages';
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Text' },
@@ -29,14 +30,6 @@ const FIELD_TYPES = [
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail
 // so the eventual sheet cell — a Drive URL once uploaded — never sees a huge
 // inline blob even transiently. Mirrors AddDelegateModal's pickAttachment.
-async function fileToDataUrl(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
 async function pickUploadFile(file) {
   if (!file) return '';
   return file.type === 'application/pdf' ? fileToDataUrl(file) : fileToThumbnail(file, 700, 0.7);
@@ -53,7 +46,7 @@ function blankStep() {
 export default function FMSClient() {
   const { ask, ConfirmUI } = useConfirmToast();
   const { data: session } = useSession();
-  const isAdmin = session?.user?.roles?.includes('Admin') || session?.user?.roles?.includes('HOD');
+  const isAdmin = isAdminRoles(session?.user?.roles);
   // access list null/unconfigured → default allow, same rule as canAccess()/canSee() in lib/pages.js
   const canSubmitIntake = isAdmin || session?.user?.access == null || (session?.user?.access || []).includes('fms-intake');
 

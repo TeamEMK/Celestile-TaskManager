@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, delegationMessage, taskDoneMessage, approvalWaitingMessage, isWhatsappConfigured } from '@/lib/whatsapp';
-import { requireUser, currentUser } from '@/lib/api';
+import { requireUser, requireUserCtx, currentUser } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 import { newId } from '@/lib/ids';
@@ -228,9 +228,7 @@ export async function POST(req) {
 }
 
 export async function PATCH(req) {
-  const gate = await requireUser(); if (gate) return gate;
-  const sessionUser = await currentUser();
-  if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { gate, user: sessionUser } = await requireUserCtx(); if (gate) return gate;
   const callerIsAdmin = isAdminRoles(sessionUser.roles);
   try {
     const body = await req.json();
@@ -410,9 +408,7 @@ export async function PATCH(req) {
 }
 
 export async function DELETE(req) {
-  const gate = await requireUser(); if (gate) return gate;
-  const sessionUser = await currentUser();
-  if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { gate, user: sessionUser } = await requireUserCtx(); if (gate) return gate;
   try {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });

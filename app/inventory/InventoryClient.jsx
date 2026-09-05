@@ -6,6 +6,7 @@ import { Lightbox, ZoomImg } from '@/app/components/ImageLightbox';
 import Icon from '../components/Icon';
 import { StatCard as UiStatCard } from '../components/ui';
 import OrderNumberInput from '../components/OrderNumberInput';
+import { downloadCsv } from '@/lib/csv';
 
 const num = (v) => parseFloat(v) || 0;
 // The register is hand-fed by the old forms, so the same material/thickness
@@ -391,12 +392,10 @@ function Stock({ inv, loading, masters, reload }) {
   const editThkOpts = (edit && masters.thicknessMap[edit.material]) || [];
 
   function csv() {
-    const head = ['Lot', 'Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Status', 'Order', 'Client', 'Area', 'Remarks'];
-    const cell = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
-    const lines = rows.flatMap((lot) => lot.slabs.map((r) =>
-      [cell(lot.key), cell(r.slab), cell(r.material), r.thickness, r.sizeL, r.sizeW, r.sft, r.status, cell(r.orderNo), cell(r.client), cell(r.area), cell(r.remarks)].join(',')));
-    const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stock.csv'; a.click();
+    downloadCsv('stock.csv',
+      ['Lot', 'Slab', 'Material', 'Thk', 'L', 'W', 'SFT', 'Status', 'Order', 'Client', 'Area', 'Remarks'],
+      rows.flatMap((lot) => lot.slabs.map((r) =>
+        [lot.key, r.slab, r.material, r.thickness, r.sizeL, r.sizeW, r.sft, r.status, r.orderNo, r.client, r.area, r.remarks])));
   }
 
   return (

@@ -2,14 +2,9 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useConfirmToast } from '../components/ConfirmToast';
-import { ZoomImg } from '../components/ImageLightbox';
-import { isImageAttachment } from '@/lib/attachmentType';
 import Icon from '../components/Icon';
+import { fmt, ReviseIcon, TaskIcon, SentIcon, PriorityPill, TaskAttachments, DoerCell, RowActions } from './shared';
 
-const fmt = (iso) => {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
 
 const REVISE_STATUS = {
   pending: { label: 'Pending Admin',  cls: 'bg-amber-50 text-amber-700'    },
@@ -17,15 +12,7 @@ const REVISE_STATUS = {
   denied:  { label: 'Denied',           cls: 'bg-red-50 text-red-700'         },
 };
 
-function ReviseIcon(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>; }
-function TaskIcon(p)   { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>; }
-function SentIcon(p)   { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>; }
 
-function Avatar({ name = '' }) {
-  const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return <div className={`w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[9px] font-semibold shrink-0`}>{ini}</div>;
-}
 
 function EmptyState({ icon: Icon, label }) {
   return (
@@ -118,38 +105,18 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
                       <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
                       <td className="table-td max-w-[220px]">
                         <div className="truncate font-medium text-slate-800">{t.description}</div>
-                        {(t.image || t.attachment || t.url) && (
-                          <div className="flex items-center gap-1.5 mt-1">
-                            {t.image && (
-                              <ZoomImg src={t.image} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0" />
-                            )}
-                            {t.attachment && (
-                              isImageAttachment(t.attachment)
-                                ? <ZoomImg src={t.attachment} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0" />
-                                : <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0"><Icon name="file" className="w-3.5 h-3.5" /> View PDF</a>
-                            )}
-                            {t.url && (
-                              <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0" title={t.url}><Icon name="link" className="w-3.5 h-3.5" /> Link</a>
-                            )}
-                          </div>
-                        )}
+                        <TaskAttachments task={t} />
                       </td>
                       <td className="table-td">
-                        <div className="flex items-center gap-1.5">
-                          <Avatar name={t.doer} />
-                          <span className="text-slate-700">{t.doer}</span>
-                        </div>
+                        <DoerCell name={t.doer} />
                       </td>
                       <td className="table-td text-slate-500">{t.client || '—'}</td>
                       <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.dueDate)}</td>
                       <td className="table-td">
-                        <span className={`pill ${t.priority === 'High' ? 'bg-red-50 text-red-600 border border-red-100' : t.priority === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>{t.priority || 'Low'}</span>
+                        <PriorityPill priority={t.priority} />
                       </td>
                       <td className="table-td">
-                        <div className="flex gap-1.5 justify-end pr-2">
-                          <button onClick={() => approveTask(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Approve</button>
-                          <button onClick={() => rejectTask(t)}  className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Reject</button>
-                        </div>
+                        <RowActions onYes={() => approveTask(t)} onNo={() => rejectTask(t)} yesLabel="Approve" noLabel="Reject" />
                       </td>
                     </tr>
                   ))}
@@ -235,30 +202,12 @@ export default function UserApprovalsClient({ myReviseRequests = [], myTaskAppro
                       <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
                       <td className="table-td font-medium text-slate-800 max-w-[280px]">
                         <div className="truncate">{t.description}</div>
-                        {(t.image || t.attachment || t.url) && (
-                          <div className="flex items-center gap-1.5 mt-1">
-                            {t.image && (
-                              <ZoomImg src={t.image} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0" />
-                            )}
-                            {t.attachment && (
-                              isImageAttachment(t.attachment)
-                                ? <ZoomImg src={t.attachment} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0" />
-                                : <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0"><Icon name="file" className="w-3.5 h-3.5" /> View PDF</a>
-                            )}
-                            {t.url && (
-                              <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0" title={t.url}><Icon name="link" className="w-3.5 h-3.5" /> Link</a>
-                            )}
-                          </div>
-                        )}
+                        <TaskAttachments task={t} />
                       </td>
                       <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.dueDate)}</td>
                       <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.createdAt)}</td>
                       <td className="table-td">
-                        <span className={`pill ${
-                          t.priority === 'High'   ? 'bg-red-50 text-red-600 border border-red-100'   :
-                          t.priority === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                          'bg-blue-50 text-blue-600 border border-blue-100'
-                        }`}>{t.priority || 'Low'}</span>
+                        <PriorityPill priority={t.priority} />
                       </td>
                       <td className="table-td">
                         <span className="pill bg-violet-50 text-violet-700 font-semibold"><Icon name="clock" className="w-3 h-3" /> Awaiting {t.approver || 'Approval'}</span>

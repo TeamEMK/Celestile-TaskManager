@@ -2,14 +2,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useConfirmToast } from '../components/ConfirmToast';
-import { ZoomImg } from '../components/ImageLightbox';
-import { isImageAttachment } from '@/lib/attachmentType';
 import Icon from '../components/Icon';
+import { fmt, ReviseIcon, TaskIcon, SentIcon, PriorityPill, TaskAttachments, DoerCell, RowActions } from './shared';
 
-const fmt = (iso) => {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
 
 // The "seen" sets are a UI nicety (they dim the new-request highlight), stored
 // per browser. They only ever grew: ids of long-deleted tasks stayed in
@@ -187,10 +182,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                           {unseen && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400 text-black">NEW</span>}
                         </td>
                         <td className="table-td">
-                          <div className="flex items-center gap-1.5">
-                            <Avatar name={t.doer} />
-                            <span className="text-slate-700">{t.doer}</span>
-                          </div>
+                          <DoerCell name={t.doer} />
                         </td>
                         <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.createdAt)}</td>
                         <td className="table-td whitespace-nowrap">
@@ -200,10 +192,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                         </td>
                         <td className="table-td text-slate-500">{t.remarks || '—'}</td>
                         <td className="table-td">
-                          <div className="flex gap-1.5 justify-end pr-2">
-                            <button onClick={() => setGrantTask(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Grant</button>
-                            <button onClick={() => denyRevise(t)}  className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Deny</button>
-                          </div>
+                          <RowActions onYes={() => setGrantTask(t)} onNo={() => denyRevise(t)} yesLabel="Grant" noLabel="Deny" />
                         </td>
                       </tr>
                     );
@@ -250,38 +239,18 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                           <span className={`truncate ${unseen ? 'font-semibold text-amber-800' : 'font-medium text-slate-800'}`}>{t.description}</span>
                           {unseen && <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400 text-black">NEW</span>}
                         </div>
-                        {(t.image || t.attachment || t.url) && (
-                          <div className="flex items-center gap-1.5 mt-1">
-                            {t.image && (
-                              <ZoomImg src={t.image} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0" />
-                            )}
-                            {t.attachment && (
-                              isImageAttachment(t.attachment)
-                                ? <ZoomImg src={t.attachment} className="w-6 h-6 rounded object-cover border border-slate-200 shrink-0" />
-                                : <a href={t.attachment} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0"><Icon name="file" className="w-3.5 h-3.5" /> View PDF</a>
-                            )}
-                            {t.url && (
-                              <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary-600 hover:underline shrink-0" title={t.url}><Icon name="link" className="w-3.5 h-3.5" /> Link</a>
-                            )}
-                          </div>
-                        )}
+                        <TaskAttachments task={t} />
                       </td>
                       <td className="table-td">
-                        <div className="flex items-center gap-1.5">
-                          <Avatar name={t.doer} />
-                          <span className="text-slate-700">{t.doer}</span>
-                        </div>
+                        <DoerCell name={t.doer} />
                       </td>
                       <td className="table-td text-slate-500">{t.client || '—'}</td>
                       <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.dueDate)}</td>
                       <td className="table-td">
-                        <span className={`pill ${t.priority === 'High' ? 'bg-red-50 text-red-600 border border-red-100' : t.priority === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>{t.priority || 'Low'}</span>
+                        <PriorityPill priority={t.priority} />
                       </td>
                       <td className="table-td">
-                        <div className="flex gap-1.5 justify-end pr-2">
-                          <button onClick={() => approveTask(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">Approve</button>
-                          <button onClick={() => rejectTask(t)}  className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Reject</button>
-                        </div>
+                        <RowActions onYes={() => approveTask(t)} onNo={() => rejectTask(t)} yesLabel="Approve" noLabel="Reject" />
                       </td>
                     </tr>
                     );
@@ -322,14 +291,11 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                       <td className="table-td text-slate-400 text-xs font-mono">{i + 1}</td>
                       <td className="table-td max-w-[260px] font-medium text-slate-800 truncate">{t.description}</td>
                       <td className="table-td">
-                        <div className="flex items-center gap-1.5">
-                          <Avatar name={t.approver} />
-                          <span className="text-slate-700">{t.approver || '—'}</span>
-                        </div>
+                        <DoerCell name={t.approver || '—'} />
                       </td>
                       <td className="table-td text-slate-500 whitespace-nowrap">{fmt(t.dueDate)}</td>
                       <td className="table-td">
-                        <span className={`pill ${t.priority === 'High' ? 'bg-red-50 text-red-600 border border-red-100' : t.priority === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>{t.priority || 'Low'}</span>
+                        <PriorityPill priority={t.priority} />
                       </td>
                       <td className="table-td text-right pr-2">
                         <span className="pill bg-violet-50 text-violet-700"><Icon name="clock" className="w-3 h-3" /> Awaiting Approval</span>
@@ -392,12 +358,4 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
   );
 }
 
-function ReviseIcon(p) { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>; }
-function TaskIcon(p)   { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>; }
-function SentIcon(p)   { return <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>; }
 
-function Avatar({ name = '' }) {
-  const ini = name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '·';
-  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return <div className={`w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-slate-200 grid place-items-center text-[9px] font-semibold shrink-0`}>{ini}</div>;
-}
