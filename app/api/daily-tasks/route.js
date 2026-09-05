@@ -6,17 +6,22 @@ import { maybeUploadToDrive } from '@/lib/googleDrive';
 import { newId } from '@/lib/ids';
 import { isAdminRoles } from '@/lib/pages';
 
-const SELECT_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
+const BASE_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         client, client_number AS clientNumber, department, description, minutes, created_at AS createdAt,
         order_number AS orderNumber, area_name AS areaName,
         task_type AS taskType, software, revision,
         site_location AS siteLocation, purpose_of_visit AS purposeOfVisit,
         checks_type AS checksType, kms_travelled AS kmsTravelled,
-        branch, pre_install_image AS preInstallImage, pre_install_comment AS preInstallComment,
+        branch, pre_install_comment AS preInstallComment,
         arc_name AS arcName, arc_phone AS arcPhone, old_new_client AS oldNewClient,
         no_of_visits AS noOfVisits, remarks, order_value AS orderValue,
         adv_paid AS advPaid, balance, mode_of_pay AS modeOfPay, executive,
         till_date_received AS tillDateReceived, balance_target AS balanceTarget`;
+// pre_install_image is an inline base64 photo (LONGTEXT) — only the doer's
+// own "My Past Submissions" view renders it. The admin views (daily-reports,
+// daily-task-admin) fetch ALL rows and never read it, so shipping it there
+// dragged megabytes of photos through every page load.
+const SELECT_COLS = `${BASE_COLS}, pre_install_image AS preInstallImage`;
 
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
@@ -32,7 +37,7 @@ export async function GET(req) {
         [doerId]);
     } else {
       [rows] = await pool.query(
-        `SELECT ${SELECT_COLS} FROM daily_tasks ORDER BY entry_date DESC, created_at DESC`);
+        `SELECT ${BASE_COLS} FROM daily_tasks ORDER BY entry_date DESC, created_at DESC`);
     }
     // Branch scoping in JS, not SQL: rows written before the branch column
     // existed (all Sheets-mode rows until now) have a blank branch, and a SQL
@@ -107,31 +112,49 @@ export async function POST(req) {
     // Worse here than elsewhere: the ids were pre-computed from one count and
     // handed out down a loop with no transaction, so a collision partway
     // through left the day's submission half-written.
-    for (const r of rows) {
-      const id = newId('DT');
-      const preInstallImage = await maybeUploadToDrive(r.preInstallImage, 'pre-install-photo');
-      await pool.query(
-        `INSERT INTO daily_tasks
-           (id, entry_date, doer_id, doer, client, client_number, department, description, minutes,
-            order_number, area_name, task_type, software, revision,
-            site_location, purpose_of_visit, checks_type, kms_travelled,
-            branch, pre_install_image, pre_install_comment,
-            arc_name, arc_phone, old_new_client, no_of_visits, remarks,
-            order_value, adv_paid, balance, mode_of_pay, executive,
-            till_date_received, balance_target)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, body.entryDate, doerId || null, doerName,
-         r.client || '', r.clientNumber || '', r.department || '', r.description || '', Number(r.minutes) || 0,
-         r.orderNumber || '', r.areaName || '', r.taskType || '', r.software || '',
-         r.revision === 'Yes' || r.revision === true ? 'Yes' : 'No',
-         r.siteLocation || '', r.purposeOfVisit || '', r.checksType || '',
-         Number(r.kmsTravelled) || 0,
-         r.branch || 'Bangalore', preInstallImage || null, r.preInstallComment || null,
-         r.arcName || '', r.arcPhone || '', r.oldNewClient || '', Number(r.noOfVisits) || 0, r.remarks || null,
-         Number(r.orderValue) || 0, Number(r.advPaid) || 0, Number(r.balance) || 0,
-         r.modeOfPay || '', r.executive || '',
-         Number(r.tillDateReceived) || 0, Number(r.balanceTarget) || 0]
-      );
+    // Drive uploads are independent of each other — run them in parallel
+    // instead of one round trip per row while the user waits on Submit.
+    const uploadedImages = await Promise.all(
+      rows.map((r) => maybeUploadToDrive(r.preInstallImage, 'pre-install-photo')));
+
+    // All inserts inside one transaction: in Sheets mode every standalone
+    // INSERT rewrites the whole daily_tasks tab, so a 6-row submission used to
+    // cost 6 full-table flushes; a transaction buffers them into one.
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const id = newId('DT');
+        await conn.query(
+          `INSERT INTO daily_tasks
+             (id, entry_date, doer_id, doer, client, client_number, department, description, minutes,
+              order_number, area_name, task_type, software, revision,
+              site_location, purpose_of_visit, checks_type, kms_travelled,
+              branch, pre_install_image, pre_install_comment,
+              arc_name, arc_phone, old_new_client, no_of_visits, remarks,
+              order_value, adv_paid, balance, mode_of_pay, executive,
+              till_date_received, balance_target)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, body.entryDate, doerId || null, doerName,
+           r.client || '', r.clientNumber || '', r.department || '', r.description || '', Number(r.minutes) || 0,
+           r.orderNumber || '', r.areaName || '', r.taskType || '', r.software || '',
+           r.revision === 'Yes' || r.revision === true ? 'Yes' : 'No',
+           r.siteLocation || '', r.purposeOfVisit || '', r.checksType || '',
+           Number(r.kmsTravelled) || 0,
+           r.branch || 'Bangalore', uploadedImages[i] || null, r.preInstallComment || null,
+           r.arcName || '', r.arcPhone || '', r.oldNewClient || '', Number(r.noOfVisits) || 0, r.remarks || null,
+           Number(r.orderValue) || 0, Number(r.advPaid) || 0, Number(r.balance) || 0,
+           r.modeOfPay || '', r.executive || '',
+           Number(r.tillDateReceived) || 0, Number(r.balanceTarget) || 0]
+        );
+      }
+      await conn.commit();
+    } catch (e) {
+      try { await conn.rollback(); } catch { /* ignore */ }
+      throw e;
+    } finally {
+      conn.release();
     }
 
     if (firstToday) {

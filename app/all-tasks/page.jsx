@@ -30,6 +30,8 @@ export default async function AllTasksPage() {
         .then(([r]) => r).catch(() => []),
       pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()')
         .then(([r]) => r).catch(() => []),
+      // isAdmin: true is deliberate — All Tasks shows the whole org's queue
+      // to everyone, same as the unscoped delegations query above.
       FMS_ENABLED ? getMyFmsPendingRows({ isAdmin: true }).catch(() => []) : Promise.resolve([]),
     ]);
   } else {

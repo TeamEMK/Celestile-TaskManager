@@ -65,6 +65,12 @@ export default async function RootLayout({ children }) {
 
   return (
     <html lang="en">
+      <head>
+        {/* globals.css @imports Google Fonts (Inter + Fraunces) — warming the
+            connections shaves the serif page-title flash on first paint. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
       <body>
         <Providers>
           <AppShell>{children}</AppShell>

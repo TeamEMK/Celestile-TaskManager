@@ -73,7 +73,14 @@ export default function AllTasksClient({ grouped, users }) {
 
   const STATUS_RANK = { revise: 0, revise_requested: 1, pending: 2, done: 3 };
 
-  const getUserName = (id) => users.find((u) => u.id === id)?.name || id || '—';
+  // A map, not users.find() — the old lookup ran inside the search filter,
+  // i.e. O(tasks × users) on every keystroke over the whole org's task list.
+  const usersById = useMemo(() => {
+    const m = {};
+    users.forEach((u) => { m[u.id] = u.name; });
+    return m;
+  }, [users]);
+  const getUserName = (id) => usersById[id] || id || '—';
 
   const filterTasks = (tasks) => {
     let arr = tasks;
@@ -107,10 +114,16 @@ export default function AllTasksClient({ grouped, users }) {
     return arr;
   };
 
-  const visibleGroups = getBaseGroups(tab)
-    .filter((g) => employeeFilter === 'All' || g.doer === employeeFilter)
-    .map((g) => ({ ...g, tasks: filterTasks(g.tasks) }))
-    .filter((g) => g.tasks.length > 0);
+  // Memoized: this filters + sorts the whole org's task list, and without the
+  // memo it re-ran on every unrelated state change (expanding a row, opening
+  // a modal, the periodic session refresh).
+  const visibleGroups = useMemo(() =>
+    getBaseGroups(tab)
+      .filter((g) => employeeFilter === 'All' || g.doer === employeeFilter)
+      .map((g) => ({ ...g, tasks: filterTasks(g.tasks) }))
+      .filter((g) => g.tasks.length > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [grouped, tab, statusTab, fromDate, toDate, search, employeeFilter, usersById, session?.user?.id, isAdmin, currentUserName]);
 
   const totalTasks = visibleGroups.reduce((s, g) => s + g.tasks.length, 0);
 

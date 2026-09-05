@@ -36,7 +36,9 @@ export default function QuotationAdminClient() {
 
   function loadRows() {
     setRefreshing(true);
-    return fetch('/api/quotations?full=1').then((r) => r.json())
+    // ?list=1 returns only the columns this table renders — ?full=1 dragged
+    // every quotation's item/PDF blobs down on each load and window focus.
+    return fetch('/api/quotations?list=1').then((r) => r.json())
       .then((d) => setRows(Array.isArray(d.quotations) ? d.quotations : []))
       .catch(() => setRows([]))
       .finally(() => { setLoading(false); setRefreshing(false); });

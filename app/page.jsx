@@ -62,7 +62,9 @@ export default async function DashboardPage() {
       performance={performance}
       pendingApprovals={pendingApprovals}
       holidays={store.holidays || []}
-      users={store.users || []}
+      // Names/ids only — `picture` is an inline base64 blob per user and the
+      // dashboard renders no avatars, so it only bloated the RSC payload.
+      users={(store.users || []).map(({ picture, ...u }) => u)}
       isAdmin={isAdmin}
       userName={currentName || ''}
     />
