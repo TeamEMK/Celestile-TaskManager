@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '../components/Icon';
-import { StatCard as UiStatCard } from '../components/ui';
+import { StatCard as UiStatCard, Modal } from '../components/ui';
 import DateField from '../components/DateField';
 import { downloadCsv } from '@/lib/csv';
 
@@ -118,11 +118,7 @@ export default function QuotationAdminClient() {
     <div className="space-y-4 animate-fade-in">
       {/* Approval modal */}
       {modal.open && (
-        <div
-          className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
-          onClick={() => !modal.saving && setModal(BLANK_MODAL)}
-        >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+        <Modal onClose={() => setModal(BLANK_MODAL)} closable={!modal.saving} maxW="max-w-sm">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${isApprove ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
                 {isApprove ? <IconCheck className="w-5 h-5" /> : <IconX className="w-5 h-5" />}
@@ -169,8 +165,7 @@ export default function QuotationAdminClient() {
                 {modal.saving ? 'Saving…' : isApprove ? 'Confirm Approve' : 'Confirm Reject'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       <div className="card p-5 space-y-4">

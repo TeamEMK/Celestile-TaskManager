@@ -32,19 +32,11 @@ export async function GET() {
       : all;
     // sanitizeUsers strips password_hash: `SELECT *` was handing every signed-in
     // user the bcrypt hash of everyone else's password.
-    if (rows.length > 0) return NextResponse.json(sanitizeUsers(rows));
-  } catch {}
-  // Fallback: read from JSON store (used before MySQL was set up)
-  try {
-    const { readStore } = await import('@/lib/store');
-    const store = await readStore();
-    const all = store.users || [];
-    const filtered = callerBranch
-      ? all.filter(u => (u.branch || '').toLowerCase() === callerBranch || (u.roles || []).includes('Admin'))
-      : all;
-    return NextResponse.json(sanitizeUsers(filtered));
-  } catch {
-    return NextResponse.json([]);
+    // sanitizeUsers strips password_hash: `SELECT *` was handing every signed-in
+    // user the bcrypt hash of everyone else's password.
+    return NextResponse.json(sanitizeUsers(rows));
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 

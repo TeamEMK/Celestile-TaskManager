@@ -1,10 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { parseCsvRows } from '@/lib/csv';
 import { useRouter } from 'next/navigation';
 import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from './ImageLightbox';
 import Icon from '../components/Icon';
 import DateField from './DateField';
+import { Modal } from './ui';
 
 const FREQS = [
   { label: 'Daily (365 tasks/year)',            value: 'Daily'            },
@@ -15,31 +17,19 @@ const FREQS = [
   { label: 'Yearly (1 task/year)',               value: 'Yearly'           },
 ];
 
-function parseCSV(text) {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (!lines.length) return [];
-  const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
-  const looksHeader = header.includes('user_email') || header.includes('description');
-  const cols = looksHeader ? header : ['user_email', 'frequency', 'start_date', 'description', 'remarks'];
-  const start = looksHeader ? 1 : 0;
-  return lines.slice(start).map((line) => {
-    const parts = line.split(',');
-    const row = {};
-    cols.forEach((c, i) => { row[c] = (parts[i] || '').trim(); });
-    return row;
-  });
-}
+const parseCSV = (text) => parseCsvRows(text,
+  ['user_email', 'frequency', 'start_date', 'description', 'remarks'],
+  ['user_email', 'description']);
 
 export default function AddMasterModal({ open, onClose, users: propUsers = [] }) {
   const router = useRouter();
-  const [users, setUsers] = useState(propUsers);
 
-  useEffect(() => {
-    if (!open) return;
-    fetch('/api/users').then(r => r.json()).then(d => {
-      if (Array.isArray(d)) setUsers(d.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')));
-    }).catch(() => {});
-  }, [open]);
+  // The dashboard already server-fetched the user list and re-renders it via
+  // router.refresh() after every mutation — copying it into state and
+  // re-fetching /api/users on each open was one avoidable round trip.
+  const users = useMemo(
+    () => propUsers.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+    [propUsers]);
 
   useEffect(() => {
     if (!open) return;
@@ -147,8 +137,7 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
   }
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col animate-pop-in" onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={onClose} className="max-h-[92vh] flex flex-col">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 grid place-items-center">
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M9 4v16"/></svg>
@@ -263,7 +252,6 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
           <button onClick={onClose} className="btn-secondary">Close</button>
           <button onClick={save} disabled={saving} className="btn-success">{saving ? 'Saving…' : 'Generate Tasks'}</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

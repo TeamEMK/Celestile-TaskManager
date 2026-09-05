@@ -18,9 +18,6 @@
   }
 }
 
-/* ── App aurora backdrop ────────────────────────────────────────── */
-.app-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-
 /* ── Marble vein grain — a whisper-thin texture overlay for premium surfaces ── */
 .stone-grain { position: relative; }
 .stone-grain::after {

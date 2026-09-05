@@ -15,6 +15,7 @@ import Icon from '../components/Icon';
 import DateField from '../components/DateField';
 import { isAdminRoles } from '@/lib/pages';
 import Avatar from '../components/Avatar';
+import { fmtDMY, todayISO } from '@/lib/dates';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -33,7 +34,6 @@ export default function AllTasksClient({ grouped, users }) {
   const [reviseDate,       setReviseDate]       = useState('');
   const [reviseSaving,     setReviseSaving]     = useState(false);
   const [employeeFilter, setEmployeeFilter] = useState('All');
-  const todayISO = new Date().toISOString().split('T')[0];
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const {
@@ -45,10 +45,7 @@ export default function AllTasksClient({ grouped, users }) {
   const currentUserName = session?.user?.name;
   const { ask, ConfirmUI } = useConfirmToast();
 
-  const fmt = (iso) => {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
+  const fmt = fmtDMY;
 
   // DB mein type lowercase hai ('delegation'), Checklist explicitly 'Checklist' set hai
   const tabType = {
@@ -525,7 +522,7 @@ export default function AllTasksClient({ grouped, users }) {
               </div>
               <div>
                 <label className="label">Revise until <span className="text-red-500">*</span></label>
-                <DateField className="input" min={todayISO} value={reviseDate} onChange={e => setReviseDate(e.target.value)} />
+                <DateField className="input" min={todayISO()} value={reviseDate} onChange={e => setReviseDate(e.target.value)} />
               </div>
               <div>
                 <label className="label">Revise note <span className="text-red-500">*</span></label>

@@ -2,6 +2,7 @@ import MISClient from './MISClient';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
+import { isoDate } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export default async function MISPage({ searchParams }) {
   const today = new Date();
   const weekAgo = new Date(today);
   weekAgo.setDate(today.getDate() - 7);
-  const fmt = (d) => d.toISOString().slice(0, 10);
+  const fmt = isoDate;
 
   return (
     <MISClient

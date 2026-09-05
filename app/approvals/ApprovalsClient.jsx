@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useConfirmToast } from '../components/ConfirmToast';
 import Icon from '../components/Icon';
 import { fmt, ReviseIcon, TaskIcon, SentIcon, PriorityPill, TaskAttachments, DoerCell, RowActions } from './shared';
+import { Modal } from '../components/ui';
 
 
 // The "seen" sets are a UI nicety (they dim the new-request highlight), stored
@@ -313,9 +314,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
 
       {/* Grant Revise Popup */}
       {grantTask && (
-        <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
-          onClick={() => !granting && setGrantTask(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <Modal onClose={() => setGrantTask(null)} closable={!granting}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 grid place-items-center shrink-0">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>
@@ -351,8 +350,7 @@ export default function ApprovalsClient({ reviseRequests = [], taskApprovals = [
                 {granting ? 'Granting…' : 'Grant Revise'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

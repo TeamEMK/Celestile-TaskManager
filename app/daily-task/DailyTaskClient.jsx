@@ -7,6 +7,7 @@ import DateField from '../components/DateField';
 import OrderNumberInput from '../components/OrderNumberInput';
 import { isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
 import { isAdminRoles } from '@/lib/pages';
+import { fmtDMY, todayISO } from '@/lib/dates';
 
 /* ── Bangalore Site Engineer constants ───────────────────────────────── */
 const BLR_PURPOSE_OPTIONS = [
@@ -106,8 +107,7 @@ const blankPaymentRow = () => ({
   orderValue: '', advPaid: '', balance: '', modeOfPay: '', executive: '',
 });
 
-const todayISO = () => new Date().toISOString().split('T')[0];
-const fmt = (iso) => new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-');
+const fmt = fmtDMY;
 const fmtMonth = (m) => new Date(`${m}-01T00:00:00`).toLocaleString('en-GB', { month: 'long', year: 'numeric' });
 
 // Maps a user's stored department value (old shorthand OR new full name) to

@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { requireUser } from '@/lib/api';
 import { getFmsMisRows, getFmsMisDetailRows } from '@/lib/fmsSheet';
+import { fmtDMY } from '@/lib/dates';
 
 export const maxDuration = 30;
 
-const fmtDate = (iso) =>
-  iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+const fmtDate = fmtDMY;
 
 export async function GET(req) {
   const gate = await requireUser(); if (gate) return gate;
@@ -51,10 +51,11 @@ export async function GET(req) {
       const data = all.filter(inWindow)
         .sort((a, b) => dstr(a.due_date).localeCompare(dstr(b.due_date)));
       const rows = data.map((d, i) => ({
+        // Only the columns the drill-down table renders — Client/Priority were
+        // built per row and never read.
         '#': i + 1, 'Description': (d.description || '').substring(0, 100),
         'Assigned By': nameById[String(d.delegated_by)] || d.delegated_by || '—',
-        'Client': d.client || '—', 'Due Date': fmtDate(d.due_date),
-        'Priority': d.priority || 'Low', 'Status': d.status || '—',
+        'Due Date': fmtDate(d.due_date), 'Status': d.status || '—',
       }));
       return NextResponse.json({ rows, summary: {} });
     }
@@ -91,7 +92,7 @@ export async function GET(req) {
         'Delayed': data.filter((d) => d.status !== 'done' && d.due_date && new Date(d.due_date) < now).length,
         'Period': `${fmtDate(fromDT)} – ${fmtDate(toDT)}`,
       };
-      return NextResponse.json({ rows, summary, view: 'employee' });
+      return NextResponse.json({ rows, summary });
     }
 
     // Checklist MIS drill-down: single employee
@@ -137,7 +138,7 @@ export async function GET(req) {
         'Total Checklists': masters.length, 'Employees': rows.length,
         'Completions': completions.length, 'Period': `${fmtDate(fromDT)} – ${fmtDate(toDT)}`,
       };
-      return NextResponse.json({ rows, summary, view: 'employee' });
+      return NextResponse.json({ rows, summary });
     }
 
     // FMS MIS drill-down: single employee
@@ -145,8 +146,7 @@ export async function GET(req) {
       const detail = await getFmsMisDetailRows(employee, start, end);
       const rows = detail.map((d, i) => ({
         '#': i + 1, 'Description': `${d.fmsName} · ${d.stepName}`,
-        'Assigned By': '—', 'Client': '—', 'Due Date': fmtDate(d.dueDate),
-        'Priority': '—', 'Status': d.status,
+        'Assigned By': '—', 'Due Date': fmtDate(d.dueDate), 'Status': d.status,
       }));
       return NextResponse.json({ rows, summary: {} });
     }
@@ -165,7 +165,7 @@ export async function GET(req) {
         'Delayed': empRows.reduce((s, e) => s + e.delayed, 0),
         'Period': `${fmtDate(fromDT)} – ${fmtDate(toDT)}`,
       };
-      return NextResponse.json({ rows, summary, view: 'employee' });
+      return NextResponse.json({ rows, summary });
     }
   } catch (err) {
     console.error('[MIS API]', err.message);

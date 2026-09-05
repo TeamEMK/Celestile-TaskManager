@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
-import { fileToThumbnail, fileToDataUrl } from '../quotation/imageThumb';
+import { pickUploadFile } from '../quotation/imageThumb';
 import PcView from './PcView';
 import { ZoomImg } from '../components/ImageLightbox';
 import Icon from '../components/Icon';
@@ -30,10 +30,6 @@ const FIELD_TYPES = [
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail
 // so the eventual sheet cell — a Drive URL once uploaded — never sees a huge
 // inline blob even transiently. Mirrors AddDelegateModal's pickAttachment.
-async function pickUploadFile(file) {
-  if (!file) return '';
-  return file.type === 'application/pdf' ? fileToDataUrl(file) : fileToThumbnail(file, 700, 0.7);
-}
 
 function blankStep() {
   return {
@@ -132,13 +128,7 @@ export default function FMSClient() {
       setDetail(d);
       setLoadingDet(false);
     }).catch(() => { if (!cancelled) setLoadingDet(false); });
-    if (canSubmitIntake) {
-      fetch(`/api/fms-tasks/${activeId}/intake`).then((r) => r.json()).then((d) => {
-        if (cancelled) return;
-        setSubmitFields(d.fields || []);
-        setSubmitFormName(d.formName || '');
-      }).catch(() => {});
-    }
+    if (canSubmitIntake) loadSubmitFields();
     return () => { cancelled = true; };
   }, [activeId, canSubmitIntake]);
 

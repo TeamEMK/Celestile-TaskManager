@@ -1,10 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { parseCsvRows } from '@/lib/csv';
 import { useRouter } from 'next/navigation';
 import { fileToThumbnail, fileToDataUrl } from '@/app/quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
 import Icon from '../components/Icon';
 import DateField from './DateField';
+import { Modal } from './ui';
 
 const blank = () => ({
   description: '', doerId: '', dueDate: '', client: '',
@@ -14,22 +16,9 @@ const blank = () => ({
 });
 
 
-function parseCSV(text) {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (!lines.length) return [];
-  const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
-  const looksHeader = header.includes('doer_email') || header.includes('description');
-  const cols = looksHeader ? header : ['doer_email', 'due_date', 'priority', 'approval', 'description', 'remarks', 'client_name'];
-  const start = looksHeader ? 1 : 0;
-  const out = [];
-  for (let i = start; i < lines.length; i++) {
-    const parts = lines[i].split(',');
-    const row = {};
-    cols.forEach((c, idx) => { row[c] = (parts[idx] || '').trim(); });
-    out.push(row);
-  }
-  return out;
-}
+const parseCSV = (text) => parseCsvRows(text,
+  ['doer_email', 'due_date', 'priority', 'approval', 'description', 'remarks', 'client_name'],
+  ['doer_email', 'description']);
 
 const Field = ({ label, required, children }) => (
   <div>
@@ -46,15 +35,14 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
   // outcome, not from sniffing a prefix off the message.
   const [msg, setMsg] = useState(null);
   const [file, setFile] = useState(null);
-  const [users, setUsers] = useState(propUsers);
   const [csvOpen, setCsvOpen] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    fetch('/api/users').then(r => r.json()).then(d => {
-      if (Array.isArray(d)) setUsers(d.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')));
-    }).catch(() => {});
-  }, [open]);
+  // The dashboard already server-fetched the user list and re-renders it via
+  // router.refresh() after every mutation — copying it into state and
+  // re-fetching /api/users on each open was one avoidable round trip.
+  const users = useMemo(
+    () => propUsers.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+    [propUsers]);
 
   if (!open) return null;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -132,14 +120,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
   const hasAttachment = form.image || form.attachment;
 
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-pop-in"
-      >
+    <Modal onClose={onClose} maxW="max-w-lg">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 grid place-items-center shrink-0">
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -287,7 +268,6 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
           <button onClick={onClose} className="btn-secondary">Cancel</button>
           <button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Assigning…' : 'Assign Task'}</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -417,10 +417,10 @@ function Stock({ inv, loading, masters, reload }) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Kpi label="Available" value={stats.avail} tone="emerald" icon={<IconCheck />} />
-        <Kpi label="Blocked" value={stats.blocked} tone="red" icon={<IconLock />} />
-        <Kpi label="Used" value={stats.used} tone="stone" icon={<IconArchive />} />
-        <Kpi label="Available SFT" value={stats.availSft} tone="gold" icon={<IconRuler />} />
+        <UiStatCard label="Available" value={stats.avail} tone="emerald" icon={<IconCheck />} />
+        <UiStatCard label="Blocked" value={stats.blocked} tone="red" icon={<IconLock />} />
+        <UiStatCard label="Used" value={stats.used} tone="slate" icon={<IconArchive />} />
+        <UiStatCard label="Available SFT" value={stats.availSft} tone="gold" icon={<IconRuler />} />
       </div>
 
       {sel.length > 0 && (
@@ -766,10 +766,11 @@ function Step2({ inv, reload, initialOrder = '' }) {
       .map((s) => s.slab);
   }
 
+  const cuttingMissing = cuttingErrors();
+
   async function submit() {
     if (!data || !editableSlabs.length) return;
-    const missing = cuttingErrors();
-    if (missing.length) { setStatus('Cut L & Cut W required for: ' + missing.join(', ')); return; }
+    if (cuttingMissing.length) { setStatus('Cut L & Cut W required for: ' + cuttingMissing.join(', ')); return; }
     setSaving(true); setStatus('Submitting…');
     try {
       const cuttingRows = editableSlabs.map((s) => ({ id: s.id, slab: s.slab, ...cut[s.id] }));
@@ -915,16 +916,11 @@ function Step2({ inv, reload, initialOrder = '' }) {
               </table>
             </div>
           </div>
-          {(() => {
-            const missing = cuttingErrors();
-            return (
-              <div className="flex flex-wrap justify-end items-center gap-2">
-                {missing.length > 0 && <span className="text-[12px] text-red-600">Cut L &amp; Cut W required for: {missing.join(', ')}</span>}
-                <button className="btn-secondary" onClick={printReport}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Cutting Report</button>
-                <button className="btn-warn" disabled={saving || !editableSlabs.length || missing.length > 0} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
-              </div>
-            );
-          })()}
+          <div className="flex flex-wrap justify-end items-center gap-2">
+            {cuttingMissing.length > 0 && <span className="text-[12px] text-red-600">Cut L &amp; Cut W required for: {cuttingMissing.join(', ')}</span>}
+            <button className="btn-secondary" onClick={printReport}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Cutting Report</button>
+            <button className="btn-warn" disabled={saving || !editableSlabs.length || cuttingMissing.length > 0} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
+          </div>
           <p className="text-[11.5px] text-slate-500">Cutting "Yes" → slab marked <b className="text-slate-700">Used</b>, a remnant slab (size − cut) is auto-created as Available, and a WhatsApp update is sent. Cut L &amp; Cut W are required whenever Cutting is Yes.</p>
         </>
       )}
@@ -1050,13 +1046,6 @@ tbody tr:nth-child(even){background:#FAFAFA}
 /* ─── small shared bits ─── */
 function F({ label, children, wide }) {
   return <div className={wide ? 'sm:col-span-2 lg:col-span-2' : ''}><label className="label">{label}</label>{children}</div>;
-}
-
-// Tone names this page already used, mapped onto the shared card's rails.
-const KPI_TONE_MAP = { emerald: 'emerald', red: 'red', stone: 'slate', gold: 'gold' };
-
-function Kpi({ label, value, tone = 'gold', icon }) {
-  return <UiStatCard label={label} value={value} icon={icon} tone={KPI_TONE_MAP[tone] || 'slate'} />;
 }
 
 function Stepper({ current }) {

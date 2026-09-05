@@ -534,7 +534,11 @@ function ImportExcelModal({ departments, defaultDate, onClose, onImported }) {
   const patch = (key, p) => setBlocks((bs) => bs.map((b) => (b.key === key ? { ...b, ...p } : b)));
   const deptById = (id) => departments.find((d) => d.id === id);
 
-  const chosen = blocks.filter((b) => b.include && b.departmentId && b.rows.length);
+  // Memoized so the clashes memo below can actually cache - a bare .filter()
+  // handed it a new array identity every render.
+  const chosen = useMemo(
+    () => blocks.filter((b) => b.include && b.departmentId && b.rows.length),
+    [blocks]);
 
   // Two blocks aimed at the same department and shift would overwrite each
   // other — the day only stores one. That's a mis-read to fix, not something

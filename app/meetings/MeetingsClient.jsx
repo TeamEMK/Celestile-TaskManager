@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { fmtDMY, isoDate } from '@/lib/dates';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
   'August', 'September', 'October', 'November', 'December'];
-const iso = (d) => d.toISOString().split('T')[0];
-const fmt = (s) => new Date(s).toLocaleDateString('en-GB').replaceAll('/', '-');
+const iso = isoDate;
+const fmt = fmtDMY;
 
 export default function MeetingsClient({ createdBy, holidays = [], users = [] }) {
   const [cursor, setCursor] = useState(new Date());      // any date in shown month

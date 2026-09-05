@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Icon from '../components/Icon';
 import DateField from '../components/DateField';
 import { downloadCsv } from '@/lib/csv';
+import { fmtDMY } from '@/lib/dates';
 
 const monthRange = (ym) => {
   // ym = 'YYYY-MM'
@@ -12,7 +13,7 @@ const monthRange = (ym) => {
   return { from, to };
 };
 const curMonth = () => new Date().toISOString().slice(0, 7);
-const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-') : '');
+const fmt = fmtDMY;
 
 // Client WhatsApp update — generated here, sent manually (opens WhatsApp
 // with the message pre-filled via wa.me; nothing is auto-sent from the server).

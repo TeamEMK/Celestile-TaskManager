@@ -2,8 +2,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import DateField from '../components/DateField';
 import Avatar from '../components/Avatar';
+import { fmtDMY } from '@/lib/dates';
 
-const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-') : '—');
+const fmt = fmtDMY;
 const STATUS_STYLE = {
   pending:  'bg-amber-50 text-amber-600 border border-amber-100',
   approved: 'bg-emerald-50 text-emerald-600 border border-emerald-100',

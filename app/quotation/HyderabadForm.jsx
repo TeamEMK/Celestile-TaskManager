@@ -6,21 +6,17 @@ import { CalcInput } from './calcExpr';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 import { useQuotationMaster, AddItemModal, ADD_ITEM_VALUE } from './useQuotationMaster';
 import Icon from '../components/Icon';
+import { MATERIAL_LIST, MONTHS, moduleQty, fixAmount, nextRevRef } from '@/lib/quotation-math';
+import { todayISO } from '@/lib/dates';
 
-const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
 const UNIT_OPTIONS = ['','Piece','Module','SFT','RFT','BAG','KG','GMS','LITER'];
 const DEFAULT_GST = 18;
 
 const inr2 = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const roundDim6 = (n) => Math.ceil((Number(n) || 0) / 6) * 6;
-const moduleQty = (wt, ht) => (roundDim6(wt) * roundDim6(ht)) / 144;
 const inrNeg = (n) => (Number(n) || 0) === 0 ? '– ₹ 0' : '– ₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const todayISO = () => new Date().toISOString().split('T')[0];
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const validityFrom = (s) => { if (!s) return ''; const d = new Date(s); if (isNaN(d)) return ''; d.setDate(d.getDate() + 30); return String(d.getDate()).padStart(2,'0') + '-' + MONTHS[d.getMonth()] + '-' + d.getFullYear(); };
 const fmtDate = (s) => { if (!s) return ''; const d = new Date(s); if (isNaN(d)) return String(s); return String(d.getDate()).padStart(2,'0') + '-' + MONTHS[d.getMonth()] + '-' + d.getFullYear(); };
-function nextRevRef(ref) { const m = String(ref || '').match(/^(.*?)(?:-REV(\d+))?$/i); return m[1] + '-REV' + ((m[2] ? +m[2] : 0) + 1); }
 
 const blankStone = () => ({ desc:'', area:'', sizeWt:'', sizeHt:'', mat:'', thk:'', unit:'', module:false, price:'', qty:'', gst:DEFAULT_GST, img:'' });
 // Wall-fixing rate card (per 100 SFT coverage, priced by stone type) — single
@@ -34,14 +30,6 @@ const FIXING_RATE_CARD = [
 const DEFAULT_FIXING = FIXING_RATE_CARD.map(({ name, rate }) =>
   ({ desc:name, mat:'Wall Fixing', size:'100 SFT', unit:'SFT', price:rate, qty:'', slab:true }));
 
-// A slab-priced ("100 SFT") fixing row bills in whole 100-SFT blocks: up to
-// 100 SFT = 1x the rate, 101–200 SFT = 2x, etc. — i.e. rate × ceil(SFT/100),
-// never a fraction of the rate. Non-slab rows keep plain qty × price.
-function fixAmount(r) {
-  const price = parseFloat(r.price) || 0;
-  const qty = parseFloat(r.qty) || 0;
-  return r.slab ? price * Math.ceil(qty / 100) : price * qty;
-}
 
 /* Hyderabad totals math (mirrors updateTotals) */
 function compute(stoneRows, fixRows, charges) {

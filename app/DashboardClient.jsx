@@ -16,6 +16,7 @@ import { StatCard, StatGrid } from './components/ui';
 import Icon from './components/Icon';
 import DateField from './components/DateField';
 import Avatar from './components/Avatar';
+import { fmtDMY } from '@/lib/dates';
 
 // FMS answers are raw sheet values, so an uploaded file or a pasted link
 // would otherwise print as a wall of URL text in the details strip (the
@@ -63,9 +64,6 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   // between the server and the browser's timezone, triggering React
   // hydration error #418 — which crashes the app and breaks navigation.
   const [todayISO, setTodayISO] = useState('');
-  useEffect(() => {
-    setTodayISO(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })); // en-CA => YYYY-MM-DD
-  }, []);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -78,10 +76,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
     return () => clearInterval(t);
   }, [isAdmin, router]);
 
-  const fmt = (iso) => {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Kolkata' }).replace(/\//g, '-');
-  };
+  const fmt = fmtDMY;
 
   const visibleTasks = data.pendingTasks;
   const allDoers = useMemo(() => users.map((u) => u.name).sort(), [users]);
@@ -120,10 +115,12 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 
   const firstName = (userName || '').split(' ')[0] || 'there';
 
-  // Same hydration-safety reasoning as todayISO above: compute after mount.
+  // Hydration safety: all "now"-derived values are computed after mount, in
+  // ONE effect (they used to be two doing the same thing).
   const [greeting, setGreeting]   = useState('Hello');
   const [todayLabel, setTodayLabel] = useState('');
   useEffect(() => {
+    setTodayISO(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })); // en-CA => YYYY-MM-DD
     const hour = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Kolkata' }));
     setGreeting(hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening');
     setTodayLabel(new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' }));

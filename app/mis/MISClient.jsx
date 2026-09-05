@@ -101,7 +101,7 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
       {Object.keys(summary).length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {Object.entries(summary).map(([k, v], i) => (
-            <SummaryKpi key={k} label={k} value={v} tone={SUMMARY_TONES[i % SUMMARY_TONES.length]} />
+            <StatCard key={k} label={k} value={v} tone={SUMMARY_TONES[i % SUMMARY_TONES.length]} />
           ))}
         </div>
       )}
@@ -305,13 +305,8 @@ export default function MISClient({ initialRows = [], initialSummary = {}, initi
   );
 }
 
-const SUMMARY_TONES = ['blue', 'emerald', 'amber', 'violet', 'red'];
-// The page's own tone names, mapped onto the shared card's accent rails.
-// "blue" was never blue here — it was the gold brand tone.
-const SUMMARY_TONE_MAP = { blue: 'gold', emerald: 'emerald', amber: 'amber', violet: 'violet', red: 'red' };
-
-function SummaryKpi({ label, value, tone = 'blue' }) {
-  return <StatCard label={label} value={value} tone={SUMMARY_TONE_MAP[tone] || 'slate'} />;
-}
+// Card accent rails, cycled per summary tile ('gold' leads — the old 'blue'
+// name here was already mapped to gold).
+const SUMMARY_TONES = ['gold', 'emerald', 'amber', 'violet', 'red'];
 
 function IconTable() { return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>; }

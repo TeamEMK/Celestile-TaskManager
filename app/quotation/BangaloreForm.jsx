@@ -6,9 +6,10 @@ import { CalcInput } from './calcExpr';
 import { ZoomImg } from '@/app/components/ImageLightbox';
 import { useQuotationMaster, AddItemModal, ADD_ITEM_VALUE } from './useQuotationMaster';
 import Icon from '../components/Icon';
+import { MATERIAL_LIST, MONTHS, moduleQty, nextRevRef } from '@/lib/quotation-math';
+import { todayISO } from '@/lib/dates';
 
 /* ── constants (ported from IndexBng) ─────────────────────────────────── */
-const MATERIAL_LIST = ['Marble','Granite','Quartzite','Limestone','Travertine','Onyx','Sandstone','Slate','Porcelain','Ceramic','Vitrified','Natural Stone','Engineered Stone'];
 const UNIT_OPTIONS = ['Piece','Module','SFT','RFT','Set','Nos'];
 const DEFAULT_GST = 18;
 const PACKING_RATE = 160;
@@ -20,11 +21,6 @@ const parseSize = (s) => {
   return { wt: parseFloat(p[0]) || 0, ht: parseFloat(p[1]) || 0 };
 };
 const inr0 = (n) => '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-// Round a single dimension up to the nearest multiple of 6
-const roundDim6 = (n) => Math.ceil((Number(n) || 0) / 6) * 6;
-// SFT per module: round each dimension to nearest-6, then convert sq-inches → SFT
-// e.g. 10×10 → 12×12 = 144 sq-in ÷ 144 = 1 SFT
-const moduleQty = (wt, ht) => (roundDim6(wt) * roundDim6(ht)) / 144;
 
 const blankRow = () => ({ desc:'', area:'', size:'', mat:'', thk:'', unit:'', module:false, price:'', qty:'', gst:DEFAULT_GST, img:'' });
 const defaultTotals = () => ([
@@ -38,18 +34,11 @@ const defaultTotals = () => ([
   { id:'gst', label:'GST', type:'calculated' },
 ]);
 
-const todayISO = () => new Date().toISOString().split('T')[0];
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function validityFrom(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr); if (isNaN(d)) return '';
   d.setDate(d.getDate() + 30);
   return String(d.getDate()).padStart(2,'0') + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
-}
-function nextRevRef(ref) {
-  const m = String(ref || '').match(/^(.*?)(?:-REV(\d+))?$/i);
-  const base = m[1]; const n = m[2] ? parseInt(m[2], 10) : 0;
-  return base + '-REV' + (n + 1);
 }
 
 /* ── the exact totals math (mirrors updateTotals/computeRowGross) ──────── */

@@ -28,7 +28,11 @@ export default function AppShell({ children }) {
       if (document.visibilityState === 'visible') update();
     }, 60000);
     return () => clearInterval(t);
-  }, [session, update]);
+    // session?.error, not the whole session: update() replaces the session
+    // object every 60s, which used to tear the interval down and restart it
+    // on each refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.error, update]);
 
   // Close the mobile drawer whenever the route changes
   useEffect(() => { setMobileNavOpen(false); }, [pathname]);

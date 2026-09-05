@@ -4,18 +4,19 @@ import { DonutChart, HorizBarChart } from '@/app/components/Charts';
 import Icon from '../components/Icon';
 import { StatCard as UiStatCard } from '../components/ui';
 import DateField from '../components/DateField';
+import { fmtDMY, todayISO } from '@/lib/dates';
 
 const ymd    = (v) => (v ? String(v).split('T')[0].slice(0, 10) : '');
-const today  = () => new Date().toISOString().slice(0, 10);
+const today  = todayISO;
 const round1 = (n) => Math.round((Number(n) || 0) * 10) / 10;
-const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB').replaceAll('/', '-') : '');
+const fmtDate = fmtDMY;
 const top  = (map, n = 8) =>
   Object.entries(map)
     .map(([name, value]) => ({ name, value: round1(value) }))
     .sort((a, b) => b.value - a.value)
     .slice(0, n);
 
-const DEPT_MAP = { pc: 'Process Coordinator', sales: 'Sales Person', crm: 'CRM', ea: 'Executive Assistant', sc: 'Site Engineer', runner: 'Runner', designer: 'Designer' };
+const DEPT_MAP = { pc: 'Process Coordinator', sales: 'Sales Person', crm: 'Client Relationship Manager', ea: 'Executive Assistant', sc: 'Sales Coordinator', runner: 'Runner', designer: 'Designer' };
 const deptLabel = (d) => DEPT_MAP[(d || '').toLowerCase()] || d || 'Other';
 
 export default function DailyTaskAdminClient() {

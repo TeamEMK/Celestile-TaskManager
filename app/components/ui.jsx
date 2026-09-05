@@ -15,6 +15,23 @@
  */
 import Icon from './Icon';
 
+/* ── modal shell ──────────────────────────────────────────────────────
+   The blurred overlay + white panel that ~20 modals used to hand-roll (with
+   three competing shadow/animation spellings). Click outside closes unless
+   `closable` is false (a save in flight); clicks inside never bubble out. */
+export function Modal({ onClose, closable = true, maxW = 'max-w-md', className = '', children }) {
+  return (
+    <div
+      className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
+      onClick={() => closable && onClose?.()}
+    >
+      <div className={`bg-white rounded-2xl shadow-2xl w-full ${maxW} animate-pop-in ${className}`} onClick={(e) => e.stopPropagation()}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ── page header ──────────────────────────────────────────────────────
    Title block on the left, actions on the right. Actions collapse under the
    title on a narrow screen rather than squeezing it. */

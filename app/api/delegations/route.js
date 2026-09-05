@@ -111,24 +111,6 @@ function normDate(s) {
   return null;
 }
 
-export async function GET() {
-  const gate = await requireUser(); if (gate) return gate;
-  try {
-    await ensureSchema();
-    const [rows] = await pool.query(
-      `SELECT id, description, doer_id AS doerId, doer,
-              delegated_by AS delegatedBy, due_date AS dueDate,
-              client, status, type, priority, approval, url, remarks, image,
-              require_file AS requireFile, attachment,
-              created_at AS createdAt, completed_at AS completedAt
-       FROM delegations ORDER BY created_at DESC`
-    );
-    return NextResponse.json(rows);
-  } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}
-
 // COUNT(*)+1 collided once any row had ever been deleted (count drops below the
 // highest id already used) — e.g. "Duplicate entry 'DEL568' for key 'PRIMARY'".
 // The local timestamp+random replacement is now the shared one in lib/ids.js,
