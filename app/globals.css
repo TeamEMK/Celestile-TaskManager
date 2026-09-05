@@ -59,7 +59,9 @@
   /* One flat surface. Depth comes from the border, not from a coloured glow —
      a card should not light up gold just because the pointer passed over it. */
   .card        { @apply bg-white rounded-xl border border-slate-200; box-shadow: 0 1px 2px rgba(9,9,11,0.04); transition: box-shadow .18s, border-color .18s; }
-  .card:hover  { box-shadow: 0 1px 3px rgba(9,9,11,0.07); border-color: #cbd5e1; }
+  @media (hover: hover) {
+    .card:hover  { box-shadow: 0 1px 3px rgba(9,9,11,0.07); border-color: #cbd5e1; }
+  }
   .card-hover  { @apply transition-all duration-200 hover:-translate-y-[2px]; }
   .card-accent {
     @apply bg-white rounded-xl border border-slate-200;
@@ -76,7 +78,13 @@
   }
 
   /* Buttons */
-  .btn { @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-[13.5px] font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none; }
+  /* leading-5 pins the height at 38px, matching .input/.ctl so a toolbar of
+     mixed controls lines up. The body's 26.4px line-height used to leak in
+     here and make every button ~4px taller than its neighbouring select. */
+  .btn { @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-[13.5px] font-medium leading-5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none active:scale-[0.98]; }
+  /* Keyboard users got nothing before: `focus:outline-none` beat the global
+     *:focus-visible rule on every button in the app. */
+  .btn:focus-visible { box-shadow: 0 0 0 3px rgba(238,188,46,0.35); }
   /* Gold stays, but flat and only on the primary action — one accent on a
      page, not a gradient with a halo under it. */
   .btn-primary   { @apply btn text-black; background: #EEBC2E; box-shadow: 0 1px 2px rgba(9,9,11,0.08); }
@@ -91,9 +99,9 @@
   .btn-sm        { @apply text-[12px] px-2.5 py-1.5 gap-1; }
 
   /* Form */
-  .pill  { @apply inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-medium rounded-full; }
-  .input { @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-400 transition; }
-  .input:focus { box-shadow: 0 0 0 3px rgba(238,188,46,0.16); }
+  .pill  { @apply inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-medium leading-4 rounded-full; }
+  .input { @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[14px] leading-5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-400 transition disabled:opacity-60 disabled:bg-slate-50 disabled:cursor-not-allowed; }
+  .input:focus { box-shadow: 0 0 0 3px rgba(238,188,46,0.22); }
   .label { @apply block text-[12px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5; }
 
   /* Typography helpers — Fraunces serif for an editorial, atelier-grade voice */
@@ -103,7 +111,7 @@
 
   /* Segmented control */
   .seg            { @apply inline-flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5; }
-  .seg-btn        { @apply px-3.5 py-1.5 rounded-md text-[13px] font-medium text-slate-500 transition-all duration-150; }
+  .seg-btn        { @apply px-3.5 py-1.5 rounded-md text-[13px] font-medium leading-5 text-slate-500 transition-all duration-150 hover:text-slate-700; }
   .seg-btn-active { @apply bg-white shadow-sm text-slate-900 font-semibold; }
 
   /* Table */
@@ -111,14 +119,21 @@
      top edge, so a long sheet had nothing to anchor the eye — and this is how
      the Excel these tables replace prints. */
   .table-th  {
-    @apply text-left px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-white;
-    background: #0F172A;
-    border-right: 1px solid rgba(255,255,255,0.10);
+    @apply text-left px-3 py-2 text-[11px] uppercase tracking-wider font-semibold leading-4 text-white;
+    /* Matches the config's ink/slate-900 (#111111) — the old #0F172A was a
+       second, subtly different near-black next to the sidebar. */
+    background: #111111;
+    border-right: 1px solid rgba(255,255,255,0.08);
   }
   .table-th:last-child { border-right: 0; }
-  .table-td  { @apply px-3 py-2.5 text-[13px] text-slate-600; }
+  /* tabular-nums stops numeric columns (amounts, minutes, counts) from
+     jittering as digits change width; leading-5 tightens row height. */
+  .table-td  { @apply px-3 py-2.5 text-[13px] leading-5 text-slate-600 tabular-nums; }
   .table-row { @apply border-t border-slate-100 transition-colors duration-100; }
-  .table-row:hover { background: #F8FAFC; }
+  /* hover-capable devices only — on touch the highlight used to stick after a tap */
+  @media (hover: hover) {
+    .table-row:hover { background: #F8FAFC; }
+  }
 
   /* Tinted rows (Live Tracking). The whole line carries the colour: green
      once the sheet records an "Actual Complete date", otherwise the row's
@@ -139,10 +154,11 @@
      date pickers or buttons. Before this each page invented its own, which
      is why `!text-[12px]` appeared ~70 times across the app. */
   .ctl {
-    @apply h-9 bg-white border border-slate-200 rounded-lg text-[13px] text-slate-700
-           transition focus:outline-none focus:border-primary-400 hover:border-slate-300;
+    @apply h-[38px] bg-white border border-slate-200 rounded-lg text-[13px] text-slate-700
+           transition focus:outline-none focus:border-primary-400 hover:border-slate-300
+           disabled:opacity-60 disabled:bg-slate-50 disabled:cursor-not-allowed;
   }
-  .ctl:focus { box-shadow: 0 0 0 3px rgba(238,188,46,0.18); }
+  .ctl:focus { box-shadow: 0 0 0 3px rgba(238,188,46,0.22); }
   /* Native select/date rendering is kept on purpose: a hand-rolled chevron
      costs an inline data-URI in a class name and breaks the OS date picker. */
   .select    { @apply ctl pl-2.5 pr-7 cursor-pointer; }
@@ -153,14 +169,15 @@
      would crowd the row out. Always give it a title/aria-label. */
   .icon-btn {
     @apply inline-grid place-items-center w-8 h-8 rounded-lg text-slate-500
-           border border-transparent transition hover:bg-slate-100 hover:text-slate-900;
+           border border-transparent transition hover:bg-slate-100 hover:text-slate-900
+           disabled:opacity-40 disabled:pointer-events-none;
   }
   .icon-btn-danger { @apply icon-btn hover:bg-red-50 hover:text-red-600; }
 
   /* ── Badges ────────────────────────────────────────────────────────
      A status word in a table cell. `.pill` stays for the rounder, softer
      tags; a badge is the squarer, denser one that belongs inside a row. */
-  .badge         { @apply inline-flex items-center gap-1 px-2 py-0.5 text-[11.5px] font-semibold rounded-md border whitespace-nowrap; }
+  .badge         { @apply inline-flex items-center gap-1 px-2 py-0.5 text-[11.5px] font-semibold leading-4 rounded-md border whitespace-nowrap; }
   .badge-neutral { @apply badge bg-slate-50 text-slate-600 border-slate-200; }
   .badge-success { @apply badge bg-emerald-50 text-emerald-700 border-emerald-200; }
   .badge-warn    { @apply badge bg-amber-50 text-amber-700 border-amber-200; }
@@ -189,10 +206,20 @@
 }
 
 /* ── Scrollbar ──────────────────────────────────────────────────── */
-::-webkit-scrollbar       { width: 5px; height: 5px; }
+/* 8px: the app's wide tables scroll sideways constantly and a 5px bar was a
+   hard grab target. scrollbar-width/color covers Firefox, which the WebKit
+   rules never touched. */
+* { scrollbar-width: thin; scrollbar-color: #D1D5DB transparent; }
+::-webkit-scrollbar       { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+/* The dark sidebar rail gets a thumb that reads against near-black. */
+aside ::-webkit-scrollbar-thumb, aside::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); }
+aside * { scrollbar-color: rgba(255,255,255,0.22) transparent; }
+
+/* Text selection in the brand gold instead of browser-default blue. */
+::selection { background: rgba(238,188,46,0.35); color: #09090B; }
 
 /* ── Sticky header backdrops ────────────────────────────────────── */
 thead.bg-slate-50\/95, thead.bg-slate-50\/80 { background-color: transparent; }

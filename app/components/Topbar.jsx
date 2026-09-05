@@ -34,8 +34,11 @@ export default function Topbar({ onMenuClick = () => {} }) {
   }, []);
 
   return (
+    // Neutral bar matching the #F7F7F8 page ground — the warm cream + gold
+    // border was a leftover of the "gold wash" the app deliberately dropped
+    // (see globals.css base comment).
     <header className="sticky top-0 z-20 backdrop-blur-md"
-      style={{ background: 'rgba(255,253,247,0.88)', borderBottom: '1px solid rgba(238,188,46,0.22)' }}>
+      style={{ background: 'rgba(247,247,248,0.86)', borderBottom: '1px solid #E5E7EB' }}>
       <div className="px-4 lg:px-8 h-14 flex items-center gap-3 lg:gap-4">
 
         <button onClick={onMenuClick} aria-label="Open menu"
