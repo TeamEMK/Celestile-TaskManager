@@ -36,8 +36,6 @@ export default function ApproveClient({ token, quotation: initial, initError }) 
 
   if (error && !quotation) return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 overflow-y-auto">
-      <div className="app-bg" aria-hidden="true">
-      </div>
       <div className="relative z-10 w-full max-w-sm card-glass shadow-glass rounded-2xl p-8 text-center animate-pop-in">
         <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -56,9 +54,6 @@ export default function ApproveClient({ token, quotation: initial, initError }) 
 
   return (
     <div className="fixed inset-0 z-[200] overflow-y-auto">
-      <div className="app-bg" aria-hidden="true">
-      </div>
-
       <div className="relative z-10 min-h-full flex items-center justify-center p-4 sm:p-6">
         <div className="w-full max-w-md animate-pop-in">
           <div className="card-glass shadow-glass rounded-2xl overflow-hidden">

@@ -161,15 +161,6 @@ export function ResultCount({ shown, total, noun = 'row' }) {
 
 /* ── misc ─────────────────────────────────────────────────────────── */
 
-export function Badge({ tone = 'neutral', icon, children }) {
-  return (
-    <span className={`badge-${tone}`}>
-      {icon && <Icon name={icon} className="w-3 h-3" />}
-      {children}
-    </span>
-  );
-}
-
 export function SectionTitle({ children, note, right }) {
   return (
     <div className="flex items-baseline justify-between gap-2 flex-wrap">

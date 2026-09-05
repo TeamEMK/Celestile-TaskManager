@@ -126,9 +126,6 @@ export default function DeveloperPage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 sm:p-6" style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif" }}>
-      <div className="app-bg" aria-hidden="true">
-      </div>
-
       <div className={`relative z-10 w-full ${authed ? 'max-w-2xl' : 'max-w-md'} animate-fade-in`}>
 
         {!authed ? (

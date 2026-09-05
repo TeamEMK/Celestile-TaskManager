@@ -29,7 +29,7 @@ function DetailValue({ value }) {
     return (
       <a href={v} target="_blank" rel="noopener noreferrer" title={v}
         className="text-primary-600 hover:text-primary-700 hover:underline font-medium">
-        {isFile ? '' : ''} Click here
+        Click here
       </a>
     );
   }

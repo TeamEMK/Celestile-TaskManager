@@ -19,11 +19,6 @@ module.exports = {
           900: '#3D2E06',
           950: '#241A03',
         },
-        coral: {
-          400: '#F3C955',
-          500: '#EEBC2E',
-          600: '#B78A16',
-        },
         // Ink — neutral near-black scale for dark shell surfaces (sidebar, login).
         ink: {
           50:  '#F5F5F5',
@@ -61,7 +56,6 @@ module.exports = {
       boxShadow: {
         card:     '0 1px 3px rgba(9,9,11,0.06), 0 1px 2px rgba(9,9,11,0.05)',
         elevated: '0 24px 60px rgba(9,9,11,0.18), 0 4px 16px rgba(9,9,11,0.10)',
-        ring:     '0 0 0 3px rgba(238,188,46,0.28)',
         gold:     '0 0 0 1px rgba(238,188,46,0.30), 0 8px 28px rgba(238,188,46,0.33)',
         glass:    'inset 0 1px 0 rgba(255,255,255,0.4), 0 8px 32px rgba(9,9,11,0.12)',
       },
@@ -71,22 +65,10 @@ module.exports = {
           '0%': { opacity: 0, transform: 'scale(0.96) translateY(8px)' },
           '100%': { opacity: 1, transform: 'scale(1) translateY(0)' },
         },
-        shimmer: { '0%': { backgroundPosition: '200% 0' }, '100%': { backgroundPosition: '-200% 0' } },
-        'gold-sheen': {
-          '0%':   { backgroundPosition: '0% 50%' },
-          '100%': { backgroundPosition: '200% 50%' },
-        },
-        float: {
-          '0%,100%': { transform: 'translateY(0)' },
-          '50%':     { transform: 'translateY(-6px)' },
-        },
       },
       animation: {
         'fade-in':   'fade-in 200ms ease-out',
         'pop-in':    'pop-in 220ms cubic-bezier(0.16,1,0.3,1)',
-        shimmer:     'shimmer 2.5s linear infinite',
-        'gold-sheen':'gold-sheen 3s ease-in-out infinite',
-        float:       'float 4s ease-in-out infinite',
       },
     },
   },

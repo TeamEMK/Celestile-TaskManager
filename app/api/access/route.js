@@ -4,7 +4,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { GRANTABLE_PAGES, isAdminRoles, parseAccess } from '@/lib/pages';
 
-const hasDB = !!process.env.DB_HOST;
 const rolesFrom = (raw) => Array.isArray(raw) ? raw : typeof raw === 'string' ? raw.split(',').map((r) => r.trim()).filter(Boolean) : ['User'];
 
 async function requireAdmin() {
@@ -18,18 +17,10 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const callerBranch = (session?.user?.branch || '').toLowerCase();
   try {
-    let users = [];
-    if (hasDB) {
-      await ensureSchema();
-      const [rows] = callerBranch
-        ? await pool.query('SELECT id, name, email, roles, access FROM users WHERE LOWER(branch) = ? ORDER BY id', [callerBranch])
-        : await pool.query('SELECT id, name, email, roles, access FROM users ORDER BY id');
-      users = rows;
-    } else {
-      const { readStore } = await import('@/lib/store');
-      const all = (await readStore()).users || [];
-      users = callerBranch ? all.filter(u => (u.branch || '').toLowerCase() === callerBranch) : all;
-    }
+    await ensureSchema();
+    const [users] = callerBranch
+      ? await pool.query('SELECT id, name, email, roles, access FROM users WHERE LOWER(branch) = ? ORDER BY id', [callerBranch])
+      : await pool.query('SELECT id, name, email, roles, access FROM users ORDER BY id');
     const out = users.map((u) => ({
       id: u.id, name: u.name, email: u.email,
       roles: rolesFrom(u.roles), access: parseAccess(u.access),
@@ -48,7 +39,7 @@ export async function POST(req) {
     const { userId, access } = await req.json();
     if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
     // If caller is branch-scoped, reject cross-branch access edits
-    if (callerBranch && hasDB) {
+    if (callerBranch) {
       await ensureSchema();
       const [target] = await pool.query('SELECT branch FROM users WHERE id = ?', [userId]);
       if (target.length && (target[0].branch || '').toLowerCase() !== callerBranch) {
@@ -59,15 +50,8 @@ export async function POST(req) {
     const valid = new Set(GRANTABLE_PAGES.map((p) => p.key));
     const value = access == null ? null : JSON.stringify((access || []).filter((k) => valid.has(k)));
 
-    if (hasDB) {
-      await ensureSchema();
-      await pool.query('UPDATE users SET access = ? WHERE id = ?', [value, userId]);
-    } else {
-      const { readStore, writeStore } = await import('@/lib/store');
-      const store = await readStore();
-      const u = (store.users || []).find((x) => x.id === userId);
-      if (u) { u.access = value; await writeStore(store); }
-    }
+    await ensureSchema();
+    await pool.query('UPDATE users SET access = ? WHERE id = ?', [value, userId]);
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

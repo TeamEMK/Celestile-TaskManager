@@ -1,17 +1,14 @@
 import AllTasksClient from './AllTasksClient';
 import { pool } from '@/lib/db';
-import { readStore } from '@/lib/store';
 import { FMS_ENABLED } from '@/lib/config';
 import { getMyFmsPendingRows } from '@/lib/fmsSheet';
 
 export const dynamic = 'force-dynamic';
 
-const hasDB = !!process.env.DB_HOST;
-
 export default async function AllTasksPage() {
   let delegations = [], users = [], masters = [], completions = [], fmsTasks = [];
 
-  if (hasDB) {
+  {
     // FMS pending-rows (a separate, independent Google Sheets fetch) used to
     // run *after* this Promise.all resolved instead of alongside it, adding
     // its full latency serially to every All Tasks page load.
@@ -34,20 +31,6 @@ export default async function AllTasksPage() {
       // to everyone, same as the unscoped delegations query above.
       FMS_ENABLED ? getMyFmsPendingRows({ isAdmin: true }).catch(() => []) : Promise.resolve([]),
     ]);
-  } else {
-    const store = await readStore();
-    delegations = (store.delegations || [])
-      .map((d) => ({
-        id: d.id, description: d.description, doerId: d.doerId,
-        doer: d.doer, delegatedBy: d.delegatedBy, dueDate: d.dueDate,
-        client: d.client || '', status: d.status, type: d.type || 'delegation',
-        priority: d.priority, approval: d.approval, approverId: d.approverId, approver: d.approver,
-        url: d.url || '', image: d.image || '',
-        transferredBy: d.transferredBy || null, transferredFrom: d.transferredFrom || null, createdAt: d.createdAt,
-      }));
-    users = store.users || [];
-    masters = (store.masters || []).map((m) => ({ id: m.id, task: m.task, assignedTo: m.assignedTo, frequency: m.frequency, createdAt: m.createdAt }));
-    completions = [];
   }
 
   const completedToday = new Set(completions.map((c) => c.master_id));

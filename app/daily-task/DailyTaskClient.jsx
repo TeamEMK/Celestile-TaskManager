@@ -38,7 +38,7 @@ const CHECKS_OPTIONS = [
 
 /* ── Designer constants ──────────────────────────────────────────────── */
 const TASK_TYPES = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
-const SOFTWARES  = ['2D drawing', '3D drawing', 'render', 'jointing details', 'measurement file', 'program'];
+const SOFTWARES  = TASK_TYPES; // same list today; split only if the sets ever diverge
 
 /* ── Bangalore Sales constants ───────────────────────────────────────── */
 const BLR_SALES_TASK_TYPES = [

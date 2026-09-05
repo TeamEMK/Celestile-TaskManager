@@ -399,14 +399,6 @@ function Stock({ inv, loading, masters, reload }) {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stock.csv'; a.click();
   }
 
-  const badge = (s) => ({
-    Available: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-    Blocked: 'bg-red-50 text-red-700 border border-red-100',
-    Step2: 'bg-amber-50 text-amber-700 border border-amber-100',
-    Sold: 'bg-blue-50 text-blue-700 border border-blue-100',
-    Used: 'bg-slate-100 text-slate-500 border border-slate-200',
-  }[s] || 'bg-slate-100 text-slate-600 border border-slate-200');
-
   return (
     <div className="space-y-4">
       <div className="card p-4 flex flex-wrap items-end gap-3">
@@ -541,7 +533,7 @@ function Stock({ inv, loading, masters, reload }) {
                                       <td className="table-td text-right tabular-nums">{r.sizeL}</td>
                                       <td className="table-td text-right tabular-nums">{r.sizeW}</td>
                                       <td className="table-td text-right tabular-nums font-semibold text-slate-700">{r.sft}</td>
-                                      <td className="table-td"><span className={`pill ${badge(r.status)}`}>{r.status}</span></td>
+                                      <td className="table-td"><span className={`pill ${STOCK_BADGE(r.status)}`}>{r.status}</span></td>
                                       <td className="table-td">{r.orderNo || '—'}</td><td className="table-td">{r.client || '—'}</td><td className="table-td">{r.area || '—'}</td>
                                       <td className="table-td max-w-[140px] truncate" title={r.remarks}>{r.remarks || '—'}</td>
                                       <td className="table-td whitespace-nowrap">

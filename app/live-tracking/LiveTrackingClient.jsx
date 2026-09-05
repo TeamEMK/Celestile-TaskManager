@@ -814,10 +814,6 @@ const PRIORITY_TONE = {
 const PRIORITY_ICON = {
   High: 'alert', Regular: 'clipboard', [NO_PRIORITY]: 'x',
 };
-const iconFor = (p) => PRIORITY_ICON[p] || 'clipboard';
-
-const toneFor = (priority) => PRIORITY_TONE[priority] || 'slate';
-
 function countSub(count, hasDone) {
   if (!hasDone) return '';
   if (count.total === 0) return 'None';
@@ -853,22 +849,26 @@ function PriorityStats({ stats, filters, onPick, narrowed, allRows }) {
               className="grid gap-2.5"
               style={{ gridTemplateColumns: `repeat(${priorities.length + 1}, minmax(0, 1fr))` }}
             >
-              {priorities.map((p) => (
+              {priorities.map((p) => {
+                const c = at(b, p);
+                return (
+                  <StatCard
+                    key={p} label={p} value={c.total}
+                    sub={countSub(c, hasDone)}
+                    tone={PRIORITY_TONE[p]} icon={PRIORITY_ICON[p]}
+                    progress={hasDone && c.total ? (c.done / c.total) * 100 : null}
+                    active={filters.branch === b && filters.priority === p}
+                    onClick={c.total > 0 ? () => onPick(b, p) : undefined}
+                  />
+                );
+              })}
+              {(() => { const t = rowTotal(b); return (
                 <StatCard
-                  key={p} label={p} value={at(b, p).total}
-                  sub={countSub(at(b, p), hasDone)}
-                  tone={toneFor(p)} icon={iconFor(p)}
-
-                  progress={hasDone && at(b, p).total ? (at(b, p).done / at(b, p).total) * 100 : null}
-                  active={filters.branch === b && filters.priority === p}
-                  onClick={at(b, p).total > 0 ? () => onPick(b, p) : undefined}
+                  label="Total" value={t.total} icon="chart"
+                  sub={countSub(t, hasDone)} tone="gold"
+                  progress={hasDone && t.total ? (t.done / t.total) * 100 : null}
                 />
-              ))}
-              <StatCard
-                label="Total" value={rowTotal(b).total} icon="chart"
-                sub={countSub(rowTotal(b), hasDone)} tone="gold"
-                progress={hasDone && rowTotal(b).total ? (rowTotal(b).done / rowTotal(b).total) * 100 : null}
-              />
+              ); })()}
             </div>
           </div>
         ))}

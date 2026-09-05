@@ -1025,8 +1025,8 @@ function DepartmentSetup({ departments, reload }) {
                 <label className="label">Columns</label>
                 <div className="space-y-1.5">
                   {ALL_FIELDS.map((f) => {
-                    const on = editing.fields.some((x) => x.key === f.key);
                     const cur = editing.fields.find((x) => x.key === f.key);
+                    const on = !!cur;
                     return (
                       <div key={f.key} className="flex items-center gap-2">
                         <input type="checkbox" checked={on} disabled={f.key === 'worker'}

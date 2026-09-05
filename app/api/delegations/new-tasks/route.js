@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { pool, USE_SHEETS } from '@/lib/db';
-import { readStore } from '@/lib/store';
 import { currentUser } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 
@@ -91,7 +90,7 @@ export async function GET(req) {
   const target = asId ? { id: asId, name: '', roles: [] } : user;
 
   try {
-    const rows = (await recentForDoer(String(target.id), target.name))
+    const rows = (await recentForDoer(String(target.id)))
       .map((r) => ({ ...r, stamp: stampOf(r) }))
       .sort((a, b) => b.stamp - a.stamp);
 
@@ -133,8 +132,6 @@ export async function GET(req) {
   }
 }
 
-const hasDB = !!process.env.DB_HOST;
-
 // Newest handful of tasks assigned to this user.
 //
 // Ordered by id rather than created_at, because the id is the one column that
@@ -142,46 +139,26 @@ const hasDB = !!process.env.DB_HOST;
 // (lib/ids.js), so id DESC *is* newest-first. Ordering by created_at instead
 // sorts NULLs last in MySQL, which would drop a row with no timestamp out of
 // the LIMIT window entirely — the newest task, silently invisible.
-async function recentForDoer(userId, userName) {
-  if (hasDB) {
-    const [rows] = await pool.query(
-      `SELECT id, description, delegated_by AS delegatedBy, priority,
-              due_date AS dueDate, created_at AS createdAt
-         FROM delegations
-        WHERE doer_id = ?
-        ORDER BY id DESC
-        LIMIT 50`,
-      [userId]
-    );
-    return rows;
-  }
-  const store = await readStore();
-  return (store.delegations || [])
-    .filter((d) => String(d.doerId ?? '') === userId || (!d.doerId && d.doer && d.doer === userName))
-    .map((d) => ({
-      id: d.id,
-      description: d.description,
-      delegatedBy: d.delegatedBy,
-      priority: d.priority,
-      dueDate: d.dueDate,
-      createdAt: d.createdAt || d.created_at,
-    }));
+async function recentForDoer(userId) {
+  const [rows] = await pool.query(
+    `SELECT id, description, delegated_by AS delegatedBy, priority,
+            due_date AS dueDate, created_at AS createdAt
+       FROM delegations
+      WHERE doer_id = ?
+      ORDER BY id DESC
+      LIMIT 50`,
+    [userId]
+  );
+  return rows;
 }
 
 async function namesById(ids) {
   const out = {};
   if (!ids.length) return out;
   try {
-    if (hasDB) {
-      for (const id of ids) {
-        const [rows] = await pool.query('SELECT name FROM users WHERE id = ?', [id]);
-        if (rows[0]?.name) out[id] = rows[0].name;
-      }
-      return out;
-    }
-    const store = await readStore();
-    for (const u of store.users || []) {
-      if (ids.includes(String(u.id))) out[String(u.id)] = u.name;
+    for (const id of ids) {
+      const [rows] = await pool.query('SELECT name FROM users WHERE id = ?', [id]);
+      if (rows[0]?.name) out[id] = rows[0].name;
     }
   } catch { /* a missing name only costs the announcement its "by X" clause */ }
   return out;
@@ -206,7 +183,7 @@ async function diagnose({ user, target, rows, cursor, since, raw }) {
 
   const out = {
     serverTime: new Date().toISOString(),
-    store: USE_SHEETS ? 'google-sheets' : hasDB ? 'mysql' : 'json-file',
+    store: USE_SHEETS ? 'google-sheets' : 'mysql',
     youAre: { id: String(user.id), name: user.name || '', admin },
     viewOf: String(target.id) === String(user.id) ? '(yourself)' : `?as=${target.id}`,
     cursor: { received: raw || '(none — this poll only sets a baseline)', parsed: since, issuedBack: cursor },

@@ -48,8 +48,9 @@ function rolesFrom(raw) {
 
 async function isAppActive() {
   try {
-    const hasMySQL = !!(process.env.DB_HOST);
-    if (!hasMySQL) return true;
+    // No "no DB → active" escape hatch here any more: lib/db.js always sets
+    // the DB_HOST sentinel, so that branch was dead — and had it ever become
+    // live, it would have quietly disabled the kill switch.
     const { pool } = await import('@/lib/db');
     const [rows] = await pool.query("SELECT `value` FROM app_config WHERE `key` = 'app_active'");
     if (rows.length === 0) return true;
@@ -58,26 +59,13 @@ async function isAppActive() {
 }
 
 async function findUser(email) {
-  const hasMySQL = !!(process.env.DB_HOST);
-
-  if (hasMySQL) {
-    try {
-      const { pool, ensureSchema } = await import('@/lib/db');
-      await ensureSchema();
-      const [rows] = await pool.query('SELECT * FROM users WHERE email = ? AND active = 1', [email]);
-      return { user: rows[0] || null };
-    } catch (err) {
-      console.error('[auth] MySQL error:', err.message);
-    }
-  }
-
   try {
-    const { readStore } = await import('@/lib/store');
-    const store = await readStore();
-    const user = (store.users || []).find(u => u.email === email && u.active !== false);
-    return { user: user || null };
+    const { pool, ensureSchema } = await import('@/lib/db');
+    await ensureSchema();
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ? AND active = 1', [email]);
+    return { user: rows[0] || null };
   } catch (err) {
-    console.error('[auth] store error:', err.message);
+    console.error('[auth] DB error:', err.message);
     return { user: null };
   }
 }
@@ -119,24 +107,16 @@ async function getUserAuthState(userId) {
 
 async function fetchUserAuthState(userId) {
   try {
-    const hasMySQL = !!(process.env.DB_HOST);
-    if (hasMySQL) {
-      const { pool } = await import('@/lib/db');
-      const [rows] = await pool.query('SELECT roles, access, force_logout_after, branch FROM users WHERE id = ?', [userId]);
-      if (!rows.length) return { forceLogoutAfter: Date.now() }; // deleted → force logout
-      const r = rows[0];
-      return {
-        forceLogoutAfter: r.force_logout_after ? new Date(r.force_logout_after).getTime() : 0,
-        roles: rolesFrom(r.roles),
-        access: parseAccess(r.access),
-        branch: r.branch || '',
-      };
-    }
-    const { readStore } = await import('@/lib/store');
-    const store = await readStore();
-    const u = (store.users || []).find(x => x.id === userId);
-    if (!u) return { forceLogoutAfter: Date.now() };
-    return { forceLogoutAfter: u.forceLogoutAfter || 0, roles: rolesFrom(u.roles), access: parseAccess(u.access), branch: u.branch || '' };
+    const { pool } = await import('@/lib/db');
+    const [rows] = await pool.query('SELECT roles, access, force_logout_after, branch FROM users WHERE id = ?', [userId]);
+    if (!rows.length) return { forceLogoutAfter: Date.now() }; // deleted → force logout
+    const r = rows[0];
+    return {
+      forceLogoutAfter: r.force_logout_after ? new Date(r.force_logout_after).getTime() : 0,
+      roles: rolesFrom(r.roles),
+      access: parseAccess(r.access),
+      branch: r.branch || '',
+    };
   } catch {
     return {};
   }

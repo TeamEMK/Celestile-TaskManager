@@ -2,9 +2,6 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { pool } from '@/lib/db';
-import { readStore } from '@/lib/store';
-
-const hasDB = !!process.env.DB_HOST;
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -16,20 +13,12 @@ export async function GET() {
   const isAdmin  = rolesArr.includes('Admin') || rolesArr.includes('HOD');
 
   try {
-    if (hasDB) {
-      const queries = [
-        pool.query(`SELECT COUNT(*) AS cnt FROM delegations WHERE approver_id = ? AND status = 'approval_pending'`, [userId]),
-      ];
-      if (isAdmin) queries.push(pool.query(`SELECT COUNT(*) AS cnt FROM delegations WHERE status = 'revise_requested'`));
-      const results = await Promise.all(queries);
-      const count = results.reduce((sum, [rows]) => sum + Number(rows[0]?.cnt || 0), 0);
-      return NextResponse.json({ count });
-    }
-
-    const store = await readStore();
-    const dels = store.delegations || [];
-    let count = dels.filter(d => d.approverId === userId && d.status === 'approval_pending').length;
-    if (isAdmin) count += dels.filter(d => d.status === 'revise_requested').length;
+    const queries = [
+      pool.query(`SELECT COUNT(*) AS cnt FROM delegations WHERE approver_id = ? AND status = 'approval_pending'`, [userId]),
+    ];
+    if (isAdmin) queries.push(pool.query(`SELECT COUNT(*) AS cnt FROM delegations WHERE status = 'revise_requested'`));
+    const results = await Promise.all(queries);
+    const count = results.reduce((sum, [rows]) => sum + Number(rows[0]?.cnt || 0), 0);
     return NextResponse.json({ count });
   } catch {
     return NextResponse.json({ count: 0 });
