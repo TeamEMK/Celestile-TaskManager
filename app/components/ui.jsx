@@ -22,7 +22,7 @@ import Icon from './Icon';
 export function Modal({ onClose, closable = true, maxW = 'max-w-md', className = '', children }) {
   return (
     <div
-      className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
+      className="fixed inset-0 bg-slate-900/25 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4"
       onClick={() => closable && onClose?.()}
     >
       <div className={`bg-white rounded-2xl shadow-2xl w-full ${maxW} animate-pop-in ${className}`} onClick={(e) => e.stopPropagation()}>
@@ -45,7 +45,7 @@ export function PageHeader({ icon, title, subtitle, children }) {
           </div>
         )}
         <div className="min-w-0">
-          <h1 className="font-display text-[16px] font-semibold tracking-tight text-slate-900 truncate">{title}</h1>
+          <h1 className="font-display text-[17px] font-semibold tracking-tight text-slate-900 truncate">{title}</h1>
           {subtitle && <div className="text-[11.5px] text-slate-500 flex items-center gap-1.5 flex-wrap">{subtitle}</div>}
         </div>
       </div>
@@ -111,8 +111,9 @@ export function ErrorState({ title, hint }) {
 
 export function LoadingState({ label = 'Loading…' }) {
   return (
-    <div className="p-10 text-center text-slate-400 text-[12.5px] flex items-center justify-center gap-2">
-      <Icon name="refresh" className="w-4 h-4 animate-spin" /> {label}
+    <div className="p-12 flex flex-col items-center justify-center gap-2.5 text-slate-400">
+      <span className="w-9 h-9 rounded-full border-2 border-slate-200 border-t-primary-400 animate-spin" aria-hidden="true" />
+      <span className="text-[12.5px]">{label}</span>
     </div>
   );
 }

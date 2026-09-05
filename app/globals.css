@@ -64,7 +64,8 @@
   /* Gold stays, but flat and only on the primary action — one accent on a
      page, not a gradient with a halo under it. */
   .btn-primary   { @apply btn text-black; background: #EEBC2E; box-shadow: 0 1px 2px rgba(9,9,11,0.08); }
-  .btn-primary:hover { background: #E0AF1E; }
+  .btn-primary:hover  { background: #E0AF1E; }
+  .btn-primary:active { background: #D4A51B; }
   .btn-secondary { @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300; box-shadow: 0 1px 2px rgba(9,9,11,0.04); }
   .btn-ghost     { @apply btn text-slate-500 hover:bg-slate-100 hover:text-slate-700; }
   .btn-danger    { @apply btn bg-red-600 text-white hover:bg-red-700; box-shadow: 0 1px 2px rgba(9,9,11,0.08); }
@@ -202,6 +203,23 @@ thead.bg-slate-50\/95, thead.bg-slate-50\/80 { background-color: transparent; }
 
 /* ── Focus ring for accessibility ───────────────────────────────── */
 *:focus-visible { outline: 2px solid #EEBC2E; outline-offset: 2px; }
+.seg-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(238,188,46,0.35); }
+
+/* ── Number inputs ──────────────────────────────────────────────────
+   The data-entry tables are full of number cells; the browser's spinner
+   buttons crowd them and grab accidental scroll-wheel changes. Type to
+   change a number. */
+input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ── Mobile ─────────────────────────────────────────────────────────
+   iOS Safari zooms the whole page when a focused input's font-size is
+   under 16px — every form on a phone did that lurch. 16px only on small
+   screens; desktop keeps the denser sizes. */
+@media (max-width: 640px) {
+  .input, .ctl, .select, .input-ctl, .date-ctl { font-size: 16px; }
+}
 
 /* ── Print ──────────────────────────────────────────────────────────
    The production report is printed / saved as PDF daily, and that copy has

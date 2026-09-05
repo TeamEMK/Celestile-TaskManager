@@ -125,7 +125,7 @@ export default function HolidaysModal({ open, onClose, holidays: initial = [] })
   }
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/25 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-10 px-4 pb-4 animate-fade-in" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-elevated w-full max-w-lg max-h-[90vh] flex flex-col animate-pop-in" onClick={(e) => e.stopPropagation()}>
         {/* header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0">
