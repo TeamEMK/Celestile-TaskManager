@@ -14,6 +14,8 @@ import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber'
 import ImsThicknessSelect from '../components/ImsThicknessSelect';
 import { isThicknessField, isMaterialField } from '@/lib/imsFields';
 import { isUniqueField, compareKey } from '@/lib/uniqueIntake';
+import { DATE_OFFSET_TYPE, isDateOffsetField, computeDateOffset, parseDateOffsetConfig, serializeDateOffsetConfig, parseDaysTable, formatDaysTable } from '@/lib/dateOffset';
+import { fmtDMY, todayISO } from '@/lib/dates';
 import { isAdminRoles } from '@/lib/pages';
 
 const FIELD_TYPES = [
@@ -25,6 +27,9 @@ const FIELD_TYPES = [
   { value: 'link',     label: 'Link' },
   { value: 'dropdown', label: 'Dropdown' },
   { value: 'upload',   label: 'Upload' },
+  // Intake form only: a date box that fills itself in (start date + days by
+  // another field's value) when left blank — see lib/dateOffset.js.
+  { value: DATE_OFFSET_TYPE, label: 'Tentative Date (date + days)' },
 ];
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail
@@ -772,7 +777,11 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
   // "Unique" is an intake-form idea only (showAutoFill marks the intake
   // editor): a step's extra row is filled in against a row that already
   // exists, so there is nothing there for it to be a duplicate of.
-  const showUnique = showAutoFill && !row.auto_fill && row.field_type !== 'upload';
+  const isOffset = isDateOffsetField(row);
+  const showUnique = showAutoFill && !row.auto_fill && !isOffset && row.field_type !== 'upload';
+  // Only the intake form computes these (submitIntakeRow) — a step's extra
+  // row would just store whatever was typed, so don't offer it there.
+  const fieldTypes = FIELD_TYPES.filter((t) => showAutoFill || t.value !== DATE_OFFSET_TYPE);
   const gridCols = showAutoFill
     ? `grid-cols-[1fr_1fr_1fr_1fr_auto_${showUnique ? 'auto_' : ''}auto]`
     : 'grid-cols-[1fr_1fr_1fr_auto_auto]';
@@ -815,19 +824,30 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
         <input className="input !text-[11.5px]" value={row.col_letter} onChange={(e) => onChange({ col_letter: e.target.value })} placeholder="Col e.g. AS" />
       )}
       <input className="input !text-[11.5px]" value={row.label} onChange={(e) => onChange({ label: e.target.value })} placeholder="Label" />
-      <select className="select" value={row.field_type} onChange={(e) => onChange({ field_type: e.target.value })}>
-        {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+      <select className="select" value={row.field_type} onChange={(e) => {
+        const t = e.target.value;
+        // A Tentative Date is typed OR computed, never server-only, and can't
+        // be "required" (blank is the normal case) or unique.
+        onChange(t === DATE_OFFSET_TYPE
+          ? { field_type: t, auto_fill: '', auto_fill_value: '', required: 0, unique_value: 0 }
+          : { field_type: t, ...(isOffset ? { auto_fill_value: '' } : {}) });
+      }}>
+        {fieldTypes.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
       </select>
-      {showAutoFill && (
+      {showAutoFill && (isOffset ? (
+        <select className="select" value="" disabled title="Shown on the form as a date box — filled in automatically only when left blank">
+          <option value="">Auto if left blank</option>
+        </select>
+      ) : (
         <select className="select" value={row.auto_fill || ''} onChange={(e) => onChange({ auto_fill: e.target.value, ...(e.target.value ? { depends_on: '', depends_value: '' } : {}) })} title="Auto-fill — skips this field on the submit form and fills it in automatically">
           <option value="">Manual entry</option>
           <option value="timestamp">Current date/time</option>
           <option value="user_name">Logged-in user's name</option>
           <option value="fixed">Fixed value</option>
         </select>
-      )}
+      ))}
       <label className="flex items-center gap-1 text-[10.5px] text-slate-500 whitespace-nowrap pt-2">
-        <input type="checkbox" checked={!!row.required} onChange={(e) => onChange({ required: e.target.checked ? 1 : 0 })} className="accent-primary-600" disabled={!!row.auto_fill} />
+        <input type="checkbox" checked={!!row.required} onChange={(e) => onChange({ required: e.target.checked ? 1 : 0 })} className="accent-primary-600" disabled={!!row.auto_fill || isOffset} />
         Req.
       </label>
       {showUnique && (
@@ -844,6 +864,9 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
       )}
       {showAutoFill && row.auto_fill === 'fixed' && (
         <input className="input !text-[11.5px]" style={{ gridColumn: '1 / -1' }} value={row.auto_fill_value || ''} onChange={(e) => onChange({ auto_fill_value: e.target.value })} placeholder="Value to always write into this column" />
+      )}
+      {showAutoFill && isOffset && (
+        <DateOffsetConfig row={row} siblings={siblings} onChange={onChange} />
       )}
 
       {/* Conditional field — e.g. "Program File Received Date" only appears
@@ -884,6 +907,81 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
   );
 }
 
+// "Tentative Date" setup: which column holds the start date, which column's
+// value picks the number of days, and the name→days table itself. Stored as
+// JSON in auto_fill_value (lib/dateOffset.js). This is the sheet's old
+// ARRAYFORMULA — TO_DATE(D) + VLOOKUP(J, {"CNC",45; …}) — moved into the app
+// so the date can also be picked by hand on the form.
+function DateOffsetConfig({ row, siblings, onChange }) {
+  const cfg = parseDateOffsetConfig(row);
+  // The textarea keeps its own text: re-rendering it from the parsed table
+  // on every keystroke would eat a half-typed line ("Inlay:" → gone).
+  const [daysText, setDaysText] = useState(() => formatDaysTable(cfg.days));
+  const save = (patch) => onChange({ auto_fill_value: serializeDateOffsetConfig({ ...cfg, ...patch }) });
+  const sources = siblings.filter((s) => s !== row && colKey(s.col_letter));
+  const nameOf = (s) => `${s.label || s.col_letter} (COL ${colKey(s.col_letter)})`;
+  const missingCol = (col) => !!col && !sources.some((s) => colKey(s.col_letter) === col);
+  const tableSize = Object.keys(cfg.days).length;
+  return (
+    <div style={{ gridColumn: '1 / -1' }} className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5 border-t border-slate-100 mt-0.5">
+      <div>
+        <div className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Start date column</div>
+        <select className="select !text-[11.5px]" value={cfg.dateCol} onChange={(e) => save({ dateCol: e.target.value })}>
+          <option value="">-- pick the date field --</option>
+          {sources.map((s) => <option key={s.col_letter} value={colKey(s.col_letter)}>{nameOf(s)}</option>)}
+          {missingCol(cfg.dateCol) && <option value={cfg.dateCol}>COL {cfg.dateCol} — not on this form</option>}
+        </select>
+        <div className="text-[10.5px] text-slate-400 mt-0.5">A Date field, or the auto-filled Timestamp.</div>
+      </div>
+      <div>
+        <div className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Days depend on</div>
+        <select className="select !text-[11.5px]" value={cfg.byCol} onChange={(e) => save({ byCol: e.target.value })}>
+          <option value="">-- pick the field --</option>
+          {sources.map((s) => <option key={s.col_letter} value={colKey(s.col_letter)}>{nameOf(s)}</option>)}
+          {missingCol(cfg.byCol) && <option value={cfg.byCol}>COL {cfg.byCol} — not on this form</option>}
+        </select>
+        <div className="text-[10.5px] text-slate-400 mt-0.5">Usually the process / work-type dropdown.</div>
+      </div>
+      <div>
+        <div className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Days per value {tableSize ? `(${tableSize})` : ''}</div>
+        <textarea className="input !text-[11.5px] font-mono" rows={5} value={daysText}
+          onChange={(e) => { setDaysText(e.target.value); save({ days: parseDaysTable(e.target.value) }); }}
+          placeholder={'One per line, Name:days\nCNC:45\nInlay:50\n3D Overlay:50\nScooping:20'} />
+      </div>
+      <div>
+        <div className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Days when value not in the list</div>
+        <input type="number" className="input !text-[11.5px]" value={cfg.defaultDays} onChange={(e) => save({ defaultDays: Number(e.target.value) || 0 })} />
+        <div className="text-[10.5px] text-slate-400 mt-1.5 leading-snug">
+          On the form this is a normal date box. Left blank, it is saved as start date + days.
+          Remove any formula from this column in the sheet, or the app's value will break it.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The Tentative Date box on the submit form: pick a date, or leave it blank
+// and see the one that will be saved instead.
+function DateOffsetInput({ field, value, onChange, preview }) {
+  const cfg = parseDateOffsetConfig(field);
+  let hint;
+  if (value) {
+    hint = <span>Picked by hand — <button type="button" className="underline" onClick={() => onChange('')}>clear</button> to go back to auto{preview.iso ? ` (${fmtDMY(preview.iso)})` : ''}</span>;
+  } else if (preview.iso) {
+    hint = <span>Blank = auto <b className="text-slate-700">{fmtDMY(preview.iso)}</b> ({fmtDMY(preview.startIso)} + {preview.days} days{preview.by ? ` for ${preview.by}` : ''})</span>;
+  } else if (!cfg.dateCol) {
+    hint = <span className="text-amber-600">Auto date not set up for this field — pick a date, or ask an admin to configure it</span>;
+  } else {
+    hint = <span>Blank = auto (fill the start date first)</span>;
+  }
+  return (
+    <>
+      <DateField className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Auto (or pick a date)" />
+      <div className="mt-1 text-[11px] text-slate-500">{hint}</div>
+    </>
+  );
+}
+
 // Fill-in-and-submit form for the intake fields an admin configured — appends
 // a brand-new row to the FMS's connected sheet. Distinct from the admin
 // config modal above (that one edits which fields exist; this one fills them in).
@@ -911,6 +1009,15 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
   const autoFields = fields.filter((f, i) => shown[i] && f.auto_fill);
 
   const setVal = (id, v) => setValues((s) => ({ ...s, [id]: v }));
+
+  // What a blank Tentative Date will be saved as, shown under its box as the
+  // form is filled. Same arithmetic as the server (lib/dateOffset); the
+  // Timestamp auto-fill is today from here.
+  const offsetPreview = (f) => computeDateOffset(f, fields, (g) => (
+    g.auto_fill === 'timestamp' ? todayISO()
+      : g.auto_fill === 'fixed' ? (g.auto_fill_value || '')
+      : (values[g.id] ?? '')
+  ));
 
   // Fields that may not repeat, checked against the sheet as they are typed.
   // Debounced, and a reply is dropped if the value moved on while it was in
@@ -959,7 +1066,7 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
 
   async function submit() {
     setErr('');
-    const missing = visibleFields.find((f) => f.required && !String(values[f.id] || '').trim());
+    const missing = visibleFields.find((f) => f.required && !isDateOffsetField(f) && !String(values[f.id] || '').trim());
     if (missing) { setErr(`"${missing.field_label || missing.col_letter}" is required`); return; }
     // An order number is a join key with no table behind it — one typed
     // "H 1774" splits that job's history in every report that groups by it.
@@ -1051,6 +1158,8 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
                   <UploadField value={values[f.id] || ''} onChange={(v) => setVal(f.id, v)} />
                 ) : f.field_type === 'date' ? (
                   <DateField className="input" value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)} />
+                ) : isDateOffsetField(f) ? (
+                  <DateOffsetInput field={f} value={values[f.id] || ''} onChange={(v) => setVal(f.id, v)} preview={offsetPreview(f)} />
                 ) : isOrderField(f) ? (
                   <OrderNumberInput value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)} />
                 ) : isThicknessField(f) ? (
