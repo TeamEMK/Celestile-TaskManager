@@ -52,9 +52,13 @@ export default async function DashboardPage() {
   if (fmsTasks.length) {
     data.total   += fmsTasks.length;
     data.pending += fmsTasks.length;
-    data.pendingTasks = [...data.pendingTasks, ...fmsTasks]
-      .sort((a, b) => new Date(b.createdAt || b.date || b.dueDate) - new Date(a.createdAt || a.date || a.dueDate))
-      .slice(0, 50);
+    // Every FMS row stays on the list. computeDashboard already caps the
+    // delegation/checklist part at 50; capping the merged list at 50 as
+    // well pushed out whole FMS's — their plan dates are older than the
+    // newest delegations, and a row with no readable plan date sorted as
+    // NaN, i.e. anywhere. Newest first, undated rows last.
+    const when = (t) => { const ms = new Date(t.createdAt || t.date || t.dueDate || '').getTime(); return Number.isNaN(ms) ? -Infinity : ms; };
+    data.pendingTasks = [...data.pendingTasks, ...fmsTasks].sort((a, b) => when(b) - when(a));
   }
 
   return (

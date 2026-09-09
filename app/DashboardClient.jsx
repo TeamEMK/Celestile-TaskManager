@@ -87,16 +87,22 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 
   // Memoized — this used to re-filter and re-sort (two Date allocations per
   // comparison) on every keystroke and modal toggle in the component.
+  const when = (t) => { const ms = new Date(t.createdAt || t.date || '').getTime(); return Number.isNaN(ms) ? -Infinity : ms; };
   const filtered = useMemo(() => visibleTasks
     .filter((t) =>
       (subTab === 'All' || t.type === subTab) &&
-      (userFilter === 'All' || t.doer === userFilter) &&
+      // An FMS step with several doers lists them as "A, B" — picking any
+      // one of them should still show the row.
+      (userFilter === 'All' || t.doer === userFilter
+        || (t.type === 'FMS' && String(t.doer || '').split(',').map((n) => n.trim()).includes(userFilter))) &&
       // Only meaningful on the FMS tab — non-FMS tasks have no fmsName, so
       // gate on subTab rather than comparing t.fmsName directly, or picking
       // an FMS name would also hide every Delegation/Checklist row.
       (subTab !== 'FMS' || fmsNameFilter === 'All' || t.fmsName === fmsNameFilter)
     )
-    .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date)),
+    // Undated rows (an FMS plan cell that isn't a date) sort last instead
+    // of comparing as NaN and landing anywhere.
+    .sort((a, b) => when(b) - when(a)),
     [visibleTasks, subTab, userFilter, fmsNameFilter]);
 
   // When an admin picks a specific employee from the filter, the KPI cards
