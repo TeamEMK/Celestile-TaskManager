@@ -21,7 +21,7 @@ const MAX_BYTES = 50 * 1024 * 1024;
  * the route an open proxy: change the id in the URL and you fetch whatever
  * else that account can see. A file is only served if it actually belongs to
  * the app: the attachments folder it uploads into, or one of the AppSheet
- * "<Table>_Files_" folders behind a configured Live Tracking sheet.
+ * "<Table>_Files_" / "<Table>_Images" folders behind a configured Live Tracking sheet.
  */
 async function isAppOwnedFile(drive, meta) {
   const parents = meta.data.parents || [];

@@ -393,7 +393,8 @@ export default function LiveTrackingClient() {
             <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11.5px] px-3 py-2">
               <b>Uploaded files aren&apos;t linked yet.</b> {data.fileLinkError} Share that Drive folder
               (Viewer is enough) with the app&apos;s Google service account and the uploads will open
-              in one click. Until then, &quot;Click here&quot; opens a Drive search for the file name.
+              in one click. Until then, &quot;Click here&quot; only opens a Drive search for the file name, and
+              Google will ask for sign-in / access there because the folder isn&apos;t shared.
             </div>
           ) : data?.fileStats && data.fileStats.resolved < data.fileStats.total ? (
             // The folder was read fine — these uploads were deleted from Drive
