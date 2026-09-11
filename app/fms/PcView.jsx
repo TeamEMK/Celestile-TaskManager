@@ -1,8 +1,11 @@
 'use client';
 
-// Cross-step pending overview ("Process Coordinator" view) — monitoring
-// only, no Done action (that lives in Dashboard / All Tasks via FmsDoneModal).
-export default function PcView({ items }) {
+// Cross-step pending overview ("Process Coordinator" view) — monitoring, no
+// Done action (that lives in Dashboard / All Tasks via FmsDoneModal). The one
+// action it does carry is Assign / Reassign for steps whose doer is picked
+// per row: `canAssign(stepId)` says whether the viewer may do that for a
+// step, `onAssign(item)` opens the picker.
+export default function PcView({ items, canAssign, onAssign }) {
   if (!items.length) {
     return (
       <div className="card p-14 text-center">
@@ -15,6 +18,7 @@ export default function PcView({ items }) {
   }
 
   const colKeys = [...new Set(items.flatMap((it) => Object.keys(it.data)))];
+  const showActions = !!onAssign && items.some((it) => it.assigned && canAssign?.(it.stepId));
 
   return (
     <div className="card overflow-hidden">
@@ -26,15 +30,30 @@ export default function PcView({ items }) {
               <th className="table-th">Doer</th>
               <th className="table-th">Planned Date</th>
               {colKeys.map((k) => <th key={k} className="table-th">{k}</th>)}
+              {showActions && <th className="table-th"></th>}
             </tr>
           </thead>
           <tbody>
             {items.map((it, i) => (
               <tr key={i} className="table-row">
                 <td className="table-td font-medium text-slate-800">{it.stepName}</td>
-                <td className="table-td text-slate-700">{it.doer}</td>
+                <td className="table-td text-slate-700">
+                  {it.needsAssign
+                    ? <span className="pill bg-amber-50 text-amber-700">Unassigned</span>
+                    : it.doer}
+                </td>
                 <td className="table-td text-slate-700">{it.plannedDate || '—'}</td>
                 {colKeys.map((k) => <td key={k} className="table-td text-slate-600">{it.data[k] || '—'}</td>)}
+                {showActions && (
+                  <td className="table-td whitespace-nowrap">
+                    {it.assigned && canAssign?.(it.stepId) && (
+                      <button type="button" onClick={() => onAssign(it)}
+                        className={`pill cursor-pointer ${it.needsAssign ? 'bg-primary-50 text-primary-700 hover:bg-primary-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                        {it.needsAssign ? 'Assign' : 'Reassign'}
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

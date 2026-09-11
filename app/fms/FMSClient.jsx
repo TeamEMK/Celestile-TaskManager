@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
 import { pickUploadFile } from '../quotation/imageThumb';
 import PcView from './PcView';
+import FmsAssignModal from '../components/FmsAssignModal';
 import { ZoomImg } from '../components/ImageLightbox';
 import Icon from '../components/Icon';
 import { fieldVisibility, colKey } from '@/lib/fieldVisibility';
@@ -38,7 +39,7 @@ const FIELD_TYPES = [
 
 function blankStep() {
   return {
-    stepName: '', doers: [], planCol: '', actualCol: '',
+    stepName: '', doers: [], assigners: [], planCol: '', actualCol: '',
     extraInput: 'no', extraCol: '', showCols: [], delayReasonCol: '', doerNameCol: '', openUrl: '',
     extraRows: [],
   };
@@ -63,6 +64,8 @@ export default function FMSClient() {
   const [showPc,     setShowPc]     = useState(false);
   const [pcItems,    setPcItems]    = useState(null);
   const [loadingPc,  setLoadingPc]  = useState(false);
+  // Assign / Reassign picker opened from the PC view — { fmsId, step, row, currentDoer }.
+  const [fmsAssign,  setFmsAssign]  = useState(null);
 
   const [modal,   setModal]   = useState(null); // 'add' | 'edit' | null
   const [form,    setForm]    = useState(null);
@@ -165,6 +168,7 @@ export default function FMSClient() {
       steps: detail.steps.map((s) => ({
         stepName: s.step_name,
         doers: s.doers.map((d) => d.user_id),
+        assigners: (s.assigners || []).map((a) => a.user_id),
         planCol: s.plan_col || '', actualCol: s.actual_col || '',
         extraInput: s.extra_input || 'no', extraCol: s.extra_col || '',
         showCols: s.show_cols_parsed || [],
@@ -414,8 +418,33 @@ export default function FMSClient() {
             loadingPc || pcItems == null ? (
               <div className="card p-10 text-center text-slate-400 text-[13px]">Loading pending entries…</div>
             ) : (
-              <PcView items={pcItems} />
+              <PcView
+                items={pcItems}
+                // Admins may (re)assign any assigned-mode step; everyone else
+                // only the steps they were named an assigner on.
+                canAssign={(stepId) => {
+                  const st = (detail?.steps || []).find((s) => String(s.id) === String(stepId));
+                  if (!st) return false;
+                  return isAdmin || (st.assigners || []).some((a) => String(a.user_id) === String(session?.user?.id));
+                }}
+                onAssign={(it) => {
+                  const st = (detail?.steps || []).find((s) => String(s.id) === String(it.stepId));
+                  if (!st) return;
+                  setFmsAssign({
+                    fmsId: activeId, step: st,
+                    currentDoer: it.needsAssign ? '' : it.doer,
+                    row: { sheetRowNumber: it.rowNumber, orderNo: it.orderNo || '', planValue: it.planValue, data: it.data },
+                  });
+                }}
+              />
             )
+          )}
+          {fmsAssign && (
+            <FmsAssignModal
+              fmsId={fmsAssign.fmsId} row={fmsAssign.row} step={fmsAssign.step} currentDoer={fmsAssign.currentDoer}
+              onClose={() => setFmsAssign(null)}
+              onSaved={() => { setFmsAssign(null); loadPc(); }}
+            />
           )}
         </>
       )}
@@ -579,24 +608,77 @@ export default function FMSClient() {
   );
 }
 
-function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDuplicate, onMove, fmsSheetId, fmsSheetName, fmsHeaderRow, onLoadedDoers }) {
-  const [doerDropOpen, setDoerDropOpen] = useState(false);
-  const [doerQuery, setDoerQuery] = useState('');
-  const [loadingDoers, setLoadingDoers] = useState(false);
-  const [loadDoersMsg, setLoadDoersMsg] = useState('');
-  const doerBoxRef = useRef(null);
+// Multi-select of users with a type-to-filter list. A step uses it twice:
+// once for the people who may do the step, once for the people who choose
+// the doer at run time (which turns the first list into a pool to pick from).
+function UserMultiPicker({ label, hint, selected, users, onChange, placeholder = 'Select users…' }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const boxRef = useRef(null);
 
-  // The picker stays open while several doers are ticked, so it needs its own
-  // way out: a click anywhere outside it, or Escape. Without this it only
+  // The picker stays open while several people are ticked, so it needs its
+  // own way out: a click anywhere outside it, or Escape. Without this it only
   // closed by hitting the field again and sat on top of the fields below.
   useEffect(() => {
-    if (!doerDropOpen) return;
-    const onDown = (e) => { if (!doerBoxRef.current?.contains(e.target)) setDoerDropOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setDoerDropOpen(false); };
+    if (!open) return;
+    const onDown = (e) => { if (!boxRef.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [doerDropOpen]);
+  }, [open]);
+
+  const toggle = (uid) => onChange(selected.includes(uid) ? selected.filter((d) => d !== uid) : [...selected, uid]);
+  const names = users.filter((u) => selected.includes(u.id)).map((u) => u.name);
+  const matches = users.filter((u) => String(u.name || '').toLowerCase().includes(query.trim().toLowerCase()));
+
+  return (
+    <div className="relative" ref={boxRef}>
+      <label className="label">{label}{hint ? <span className="text-slate-400 font-normal normal-case"> {hint}</span> : null}</label>
+      <div onClick={() => { setOpen((v) => !v); setQuery(''); }}
+        className="input !text-[12px] cursor-pointer flex flex-wrap gap-1 min-h-[34px] items-center">
+        {names.length ? names.map((n) => <span key={n} className="pill bg-primary-50 text-primary-700 !text-[10px]">{n}</span>) : <span className="text-slate-400">{placeholder}</span>}
+      </div>
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-elevated overflow-hidden">
+          <div className="p-1.5 border-b border-slate-100">
+            <input
+              autoFocus
+              className="input !text-[12px] !py-1"
+              placeholder="Type a name…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter picks the only match left, so a name can be added
+                // without reaching for the mouse.
+                if (e.key === 'Enter' && matches.length === 1) { e.preventDefault(); toggle(matches[0].id); setQuery(''); }
+              }}
+            />
+          </div>
+          <div className="max-h-[180px] overflow-y-auto">
+            {matches.length === 0 ? (
+              <div className="px-3 py-3 text-[12px] text-slate-400">No user matches “{query}”</div>
+            ) : matches.map((u) => (
+              <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 text-[12px] hover:bg-slate-50 cursor-pointer">
+                <input type="checkbox" checked={selected.includes(u.id)} onChange={() => toggle(u.id)} className="accent-primary-600" />
+                {u.name}
+              </label>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-t border-slate-100 bg-slate-50/60">
+            <span className="text-[11px] text-slate-400">{selected.length} selected</span>
+            <button type="button" className="btn-ghost btn-sm !px-2 !py-0.5" onClick={() => setOpen(false)}>Done</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDuplicate, onMove, fmsSheetId, fmsSheetName, fmsHeaderRow, onLoadedDoers }) {
+  const [loadingDoers, setLoadingDoers] = useState(false);
+  const [loadDoersMsg, setLoadDoersMsg] = useState('');
+  const assigners = step.assigners || [];
 
   const colOptions = (value, onPick) => (
     headers.length ? (
@@ -620,13 +702,6 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
     setLoadDoersMsg(`Matched ${r.matched.length}/${r.total_unique}${r.unmatched.length ? ` — unmatched: ${r.unmatched.join(', ')}` : ''}`);
   }
 
-  const toggleDoer = (uid) => {
-    const has = step.doers.includes(uid);
-    onChange({ doers: has ? step.doers.filter((d) => d !== uid) : [...step.doers, uid] });
-  };
-  const doerNames = users.filter((u) => step.doers.includes(u.id)).map((u) => u.name);
-  const doerMatches = users.filter((u) => String(u.name || '').toLowerCase().includes(doerQuery.trim().toLowerCase()));
-
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 relative">
       <div className="flex items-center gap-2 mb-3">
@@ -644,45 +719,11 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
           <label className="label">Step Name</label>
           <input className="input !text-[12px]" value={step.stepName} onChange={(e) => onChange({ stepName: e.target.value })} placeholder="Step Name" />
         </div>
-        <div className="relative" ref={doerBoxRef}>
-          <label className="label">Step Doer(s)</label>
-          <div onClick={() => { setDoerDropOpen((v) => !v); setDoerQuery(''); }}
-            className="input !text-[12px] cursor-pointer flex flex-wrap gap-1 min-h-[34px] items-center">
-            {doerNames.length ? doerNames.map((n) => <span key={n} className="pill bg-primary-50 text-primary-700 !text-[10px]">{n}</span>) : <span className="text-slate-400">Select users…</span>}
-          </div>
-          {doerDropOpen && (
-            <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-elevated overflow-hidden">
-              <div className="p-1.5 border-b border-slate-100">
-                <input
-                  autoFocus
-                  className="input !text-[12px] !py-1"
-                  placeholder="Type a name…"
-                  value={doerQuery}
-                  onChange={(e) => setDoerQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    // Enter picks the only match left, so a name can be added
-                    // without reaching for the mouse.
-                    if (e.key === 'Enter' && doerMatches.length === 1) { e.preventDefault(); toggleDoer(doerMatches[0].id); setDoerQuery(''); }
-                  }}
-                />
-              </div>
-              <div className="max-h-[180px] overflow-y-auto">
-                {doerMatches.length === 0 ? (
-                  <div className="px-3 py-3 text-[12px] text-slate-400">No user matches “{doerQuery}”</div>
-                ) : doerMatches.map((u) => (
-                  <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 text-[12px] hover:bg-slate-50 cursor-pointer">
-                    <input type="checkbox" checked={step.doers.includes(u.id)} onChange={() => toggleDoer(u.id)} className="accent-primary-600" />
-                    {u.name}
-                  </label>
-                ))}
-              </div>
-              <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-t border-slate-100 bg-slate-50/60">
-                <span className="text-[11px] text-slate-400">{step.doers.length} selected</span>
-                <button type="button" className="btn-ghost btn-sm !px-2 !py-0.5" onClick={() => setDoerDropOpen(false)}>Done</button>
-              </div>
-            </div>
-          )}
-        </div>
+        <UserMultiPicker
+          label={assigners.length ? 'Doer pool (picked from at run time)' : 'Step Doer(s)'}
+          selected={step.doers} users={users}
+          onChange={(doers) => onChange({ doers })}
+        />
         <div>
           <label className="label">Plan <span className="text-slate-400 font-normal normal-case">(Plan {idx + 1})</span></label>
           {colOptions(step.planCol, (v) => onChange({ planCol: v }))}
@@ -691,6 +732,30 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
           <label className="label">Actual <span className="text-slate-400 font-normal normal-case">(Actual {idx + 1})</span></label>
           {colOptions(step.actualCol, (v) => onChange({ actualCol: v }))}
         </div>
+      </div>
+
+      {/* Assigned mode: leave empty and the doers above simply share the
+          step. Name someone here and, once the previous step is done, THEY
+          get an "Assign" task to pick one of the doers for that row — the
+          task then shows for that one person only. Needs the Doer Name
+          column below, which is where the pick is written. */}
+      <div className="mt-3">
+        <UserMultiPicker
+          label="Who chooses the doer?"
+          hint="(optional — leave blank if the doers above share the step)"
+          placeholder="Nobody — doers above see every pending row"
+          selected={assigners} users={users}
+          onChange={(next) => onChange({ assigners: next })}
+        />
+        {assigners.length > 0 && (
+          <div className={`text-[11px] mt-1.5 ${step.doerNameCol && step.doers.length ? 'text-slate-500' : 'text-amber-700'}`}>
+            {!step.doers.length
+              ? 'Add at least one person to the doer pool above — that is who they will pick from.'
+              : !step.doerNameCol
+                ? 'Set the Doer Name Column below — the chosen name is saved there.'
+                : 'After the previous step is done, these people get an "Assign" task and pick a doer from the pool. Only that doer then sees the row.'}
+          </div>
+        )}
       </div>
 
       <div className="mt-3">
@@ -725,7 +790,7 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
       </div>
 
       <div className="mt-3">
-        <label className="label">Doer Name Column <span className="text-slate-400 font-normal normal-case">(auto-saved on completion)</span></label>
+        <label className="label">Doer Name Column <span className="text-slate-400 font-normal normal-case">{assigners.length ? '(required — the assigned doer is saved here)' : '(auto-saved on completion)'}</span></label>
         <div className="flex gap-2">
           {headers.length ? (
             <select className="select flex-1" value={step.doerNameCol} onChange={(e) => onChange({ doerNameCol: e.target.value })}>

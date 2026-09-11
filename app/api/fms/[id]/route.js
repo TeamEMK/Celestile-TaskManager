@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin, requireUser, currentUserIsAdmin, redactSheetIds } from '@/lib/api';
-import { getFmsSheet, getFullSteps, updateFmsSheet, deleteFmsSheet } from '@/lib/fmsSheet';
+import { getFmsSheet, getFullSteps, updateFmsSheet, deleteFmsSheet, validateStepsConfig } from '@/lib/fmsSheet';
 
 // Read-only detail is open to any signed-in user (the FMS View / PC View
 // tabs need it too); editing/deleting below stays admin-only.
@@ -25,6 +25,8 @@ export async function PUT(req, { params }) {
     const body = await req.json();
     const sheet = await getFmsSheet(id);
     if (!sheet) return NextResponse.json({ error: 'FMS not found' }, { status: 404 });
+    const stepErr = validateStepsConfig(body.steps || []);
+    if (stepErr) return NextResponse.json({ error: stepErr }, { status: 400 });
     await updateFmsSheet(id, {
       fmsName: body.fmsName, sheetName: body.sheetName, sheetId: body.sheetId,
       headerRow: body.headerRow, steps: body.steps || [],

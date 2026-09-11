@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import AddDelegateModal from '../components/AddDelegateModal';
 import AddMasterModal   from '../components/AddMasterModal';
 import FmsDoneModal     from '../components/FmsDoneModal';
+import FmsAssignModal   from '../components/FmsAssignModal';
 import { useConfirmToast } from '../components/ConfirmToast';
 import { FMS_ENABLED } from '@/lib/config';
 import { isImageAttachment } from '@/lib/attachmentType';
@@ -39,6 +40,7 @@ export default function AllTasksClient({ grouped, users }) {
   const {
     fileTask, setFileTask, completionInput, setCompletionInput, fileUploading,
     submitCompletionFile, fmsDone, setFmsDone, fmsDoneLoading, openFmsDone,
+    fmsAssign, setFmsAssign, openFmsAssign,
   } = useTaskCompletion();
 
   const isAdmin = isAdminRoles(session?.user?.roles);
@@ -383,9 +385,17 @@ export default function AllTasksClient({ grouped, users }) {
                                         )}
                                       </>
                                     )}
-                                    {t.type === 'FMS' && t.status !== 'done' && canComplete && (
+                                    {t.type === 'FMS' && t.status !== 'done' && t.needsAssign && (
+                                      <button title="Choose who does this step" disabled={fmsDoneLoading} onClick={() => openFmsAssign(t)}
+                                        className="pill bg-primary-50 text-primary-700 hover:bg-primary-100 cursor-pointer text-[11px] disabled:opacity-50">Assign</button>
+                                    )}
+                                    {t.type === 'FMS' && t.status !== 'done' && !t.needsAssign && canComplete && (
                                       <button title="Mark Done" disabled={fmsDoneLoading} onClick={() => openFmsDone(t)}
                                         className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer text-[11px] disabled:opacity-50">Done</button>
+                                    )}
+                                    {t.type === 'FMS' && t.status !== 'done' && !t.needsAssign && t.canAssign && (
+                                      <button title="Give this step to someone else" disabled={fmsDoneLoading} onClick={() => openFmsAssign(t)}
+                                        className="pill bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer text-[11px] disabled:opacity-50">Reassign</button>
                                     )}
                                     {t.type === 'Checklist' && t.status !== 'done' && canComplete && (
                                       <button
@@ -489,6 +499,13 @@ export default function AllTasksClient({ grouped, users }) {
           fmsId={fmsDone.fmsId} row={fmsDone.row} step={fmsDone.step}
           onClose={() => setFmsDone(null)}
           onSaved={() => { setFmsDone(null); router.refresh(); }}
+        />
+      )}
+      {fmsAssign && (
+        <FmsAssignModal
+          fmsId={fmsAssign.fmsId} row={fmsAssign.row} step={fmsAssign.step} currentDoer={fmsAssign.currentDoer}
+          onClose={() => setFmsAssign(null)}
+          onSaved={() => { setFmsAssign(null); router.refresh(); }}
         />
       )}
 

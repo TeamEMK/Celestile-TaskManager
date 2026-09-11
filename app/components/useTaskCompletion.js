@@ -14,6 +14,31 @@ export function useTaskCompletion() {
   const [fileUploading,   setFileUploading]   = useState(false);
   const [fmsDone,         setFmsDone]         = useState(null); // { fmsId, row, step }
   const [fmsDoneLoading,  setFmsDoneLoading]  = useState(false);
+  const [fmsAssign,       setFmsAssign]       = useState(null); // { fmsId, row, step, currentDoer }
+
+  // "Assign" / "Reassign" on an FMS row whose doer is picked per row (a step
+  // with assigners). The step's doers list is the pool to choose from, and
+  // that list only comes with the full step config, hence the fetch.
+  async function openFmsAssign(task) {
+    setFmsDoneLoading(true);
+    try {
+      const d = await fetch(`/api/fms-tasks/${task.fmsId}`).then((r) => r.json());
+      const step = (d.steps || []).find((s) => String(s.id) === String(task.stepId));
+      setFmsAssign({
+        fmsId: task.fmsId,
+        step: step || { id: task.stepId, doers: [], step_name: task.stepName || '' },
+        currentDoer: task.needsAssign ? '' : (task.doer || ''),
+        row: {
+          sheetRowNumber: task.rowNumber,
+          planValue: task.planValue,
+          orderNo: task.orderNo || '',
+          data: Object.fromEntries((task.details || []).map((x) => [x.header, x.value])),
+        },
+      });
+    } finally {
+      setFmsDoneLoading(false);
+    }
+  }
 
   async function openFmsDone(task) {
     // Opened synchronously, before the await below, so it still counts as a
@@ -67,5 +92,6 @@ export function useTaskCompletion() {
   return {
     fileTask, setFileTask, completionInput, setCompletionInput, fileUploading,
     submitCompletionFile, fmsDone, setFmsDone, fmsDoneLoading, openFmsDone,
+    fmsAssign, setFmsAssign, openFmsAssign,
   };
 }

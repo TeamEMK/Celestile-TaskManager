@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin, requireUser, requireUserCtx, currentUser, redactSheetIds } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
-import { createFmsSheet, getFmsSheetsWithStats } from '@/lib/fmsSheet';
+import { createFmsSheet, getFmsSheetsWithStats, validateStepsConfig } from '@/lib/fmsSheet';
 
 // Any signed-in user can browse: admins see every FMS; everyone else sees
 // flows they're a doer on, PLUS flows with an "open form" (intake) they're
@@ -28,6 +28,8 @@ export async function POST(req) {
     const body = await req.json();
     if (!body.sheetName?.trim()) return NextResponse.json({ error: 'Sheet Tab Name required' }, { status: 400 });
     if (!body.sheetId?.trim())   return NextResponse.json({ error: 'Google Sheet ID required' }, { status: 400 });
+    const stepErr = validateStepsConfig(body.steps || []);
+    if (stepErr) return NextResponse.json({ error: stepErr }, { status: 400 });
     const user = await currentUser();
     const id = await createFmsSheet({
       fmsName: body.fmsName, sheetName: body.sheetName, sheetId: body.sheetId,

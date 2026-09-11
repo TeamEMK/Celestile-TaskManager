@@ -7,6 +7,7 @@ import HolidaysModal    from './components/HolidaysModal';
 import { useConfirmToast } from './components/ConfirmToast';
 import { DonutChart, HorizBarChart } from './components/Charts';
 import FmsDoneModal from './components/FmsDoneModal';
+import FmsAssignModal from './components/FmsAssignModal';
 import { FMS_ENABLED } from '@/lib/config';
 import { isImageAttachment } from '@/lib/attachmentType';
 import { ZoomImg } from '@/app/components/ImageLightbox';
@@ -55,6 +56,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   const {
     fileTask, setFileTask, completionInput, setCompletionInput, fileUploading,
     submitCompletionFile, fmsDone, setFmsDone, fmsDoneLoading, openFmsDone,
+    fmsAssign, setFmsAssign, openFmsAssign,
   } = useTaskCompletion();
   const { ask, ConfirmUI } = useConfirmToast();
 
@@ -396,8 +398,20 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                             )
                           ) : (
                             <>
-                              {(t.type === 'FMS' || !isAdmin || t.doer === userName) && (
+                              {/* An FMS row nobody has been given yet is an
+                                  "assign" task for the step's assigners, not
+                                  something to mark done. */}
+                              {t.type === 'FMS' && t.needsAssign ? (
+                                <button onClick={() => openFmsAssign(t)} disabled={fmsDoneLoading}
+                                  className="pill bg-primary-50 text-primary-700 hover:bg-primary-100 cursor-pointer disabled:opacity-50">
+                                  <Icon name="user" className="w-3.5 h-3.5" /> Assign
+                                </button>
+                              ) : (t.type === 'FMS' || !isAdmin || t.doer === userName) && (
                                 <button onClick={() => handleDoneClick(t)} className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"><Icon name="check" className="w-3.5 h-3.5" /> Done</button>
+                              )}
+                              {t.type === 'FMS' && !t.needsAssign && t.canAssign && (
+                                <button onClick={() => openFmsAssign(t)} disabled={fmsDoneLoading} title="Give this step to someone else"
+                                  className="pill bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer disabled:opacity-50">Reassign</button>
                               )}
                               {t.type === 'Delegation' && (
                                 <button onClick={() => requestRevise(t)} className="pill bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer">Revise</button>
@@ -492,6 +506,13 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
           fmsId={fmsDone.fmsId} row={fmsDone.row} step={fmsDone.step}
           onClose={() => setFmsDone(null)}
           onSaved={() => { setFmsDone(null); router.refresh(); }}
+        />
+      )}
+      {fmsAssign && (
+        <FmsAssignModal
+          fmsId={fmsAssign.fmsId} row={fmsAssign.row} step={fmsAssign.step} currentDoer={fmsAssign.currentDoer}
+          onClose={() => setFmsAssign(null)}
+          onSaved={() => { setFmsAssign(null); router.refresh(); }}
         />
       )}
 
