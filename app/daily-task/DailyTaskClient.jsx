@@ -184,23 +184,29 @@ export default function DailyTaskClient() {
   const purposeOptions = isHyderabad ? HYD_PURPOSE_OPTIONS : BLR_PURPOSE_OPTIONS;
   const salesTaskTypes = isHyderabad ? HYD_SALES_TASK_TYPES : BLR_SALES_TASK_TYPES;
 
-  // Monthly target panel on the Payments form. Till Date Received Total is
-  // computed server-side (this month's Adv Paid summed) — only the target is
-  // typed here; Balance Target = target − received.
+  // Month-position panel on the Payments form, the Excel footer: TOTAL
+  // (the entry date's Adv Paid), TILL DATE RECD TOTAL and BALANCE TARGET.
+  // Two numbers are typed — the monthly target (carried forward from the
+  // previous month when this month has none) and "Received before app" (what
+  // the month had already collected before entries moved into the app).
+  // Everything else is computed server-side for the month of the entry date.
   const [salesMonth, setSalesMonth]     = useState(null);
   const [targetInput, setTargetInput]   = useState('');
+  const [openingInput, setOpeningInput] = useState('');
   const [savingTarget, setSavingTarget] = useState(false);
 
   async function loadSalesMonth() {
     try {
-      const res = await fetch('/api/daily-tasks/sales-target');
+      const res = await fetch(`/api/daily-tasks/sales-target?date=${encodeURIComponent(entryDate)}`);
       if (!res.ok) return;
       const data = await res.json();
       setSalesMonth(data);
       setTargetInput(Number(data.target) > 0 ? String(data.target) : '');
+      setOpeningInput(Number(data.opening) > 0 ? String(data.opening) : '');
     } catch { /* ignore */ }
   }
-  useEffect(() => { if (isPayments) loadSalesMonth(); }, [isPayments]);
+  // Loaded for both EA forms: Walk-in only needs the signed PDF link.
+  useEffect(() => { if (isEaForm) loadSalesMonth(); }, [isEaForm, entryDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function saveTarget() {
     setSavingTarget(true); setMsg('');
@@ -208,7 +214,11 @@ export default function DailyTaskClient() {
       const res = await fetch('/api/daily-tasks/sales-target', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target: Number(targetInput) || 0 }),
+        body: JSON.stringify({
+          date: entryDate,
+          target: Number(targetInput) || 0,
+          opening: Number(openingInput) || 0,
+        }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
       setSalesMonth(await res.json());
@@ -474,19 +484,41 @@ export default function DailyTaskClient() {
               </div>
             </div>
 
-            {/* Payments: month position — set the target here, the rest is computed */}
+            {/* Walk-in: the same day's report PDF (Walk-in + Payments) the EA gets at 7 PM */}
+            {isWalkin && salesMonth?.pdfUrl && (
+              <div className="mb-4">
+                <a className="btn-secondary" href={salesMonth.pdfUrl} target="_blank" rel="noreferrer">
+                  View Report PDF ({fmt(entryDate)})
+                </a>
+              </div>
+            )}
+
+            {/* Payments: month position — target + received-before-app are typed, the rest is computed */}
             {isPayments && (
               <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 flex flex-wrap items-end gap-x-8 gap-y-3">
                 <div>
                   <label className="label">
                     Monthly Target (₹){salesMonth ? ` — ${fmtMonth(salesMonth.month)}` : ''}
                   </label>
-                  <div className="flex gap-2">
-                    <input type="number" min="0" className="input w-40" placeholder="₹"
-                      value={targetInput} onChange={(e) => setTargetInput(e.target.value)} />
-                    <button className="btn-secondary shrink-0" disabled={savingTarget} onClick={saveTarget}>
-                      {savingTarget ? 'Saving…' : 'Save Target'}
-                    </button>
+                  <input type="number" min="0" className="input w-40" placeholder="₹"
+                    value={targetInput} onChange={(e) => setTargetInput(e.target.value)} />
+                  {salesMonth?.carried && (
+                    <div className="text-[11px] text-slate-400 mt-1">carried from {fmtMonth(salesMonth.targetFrom)}</div>
+                  )}
+                </div>
+                <div>
+                  <label className="label">Received before app (₹)</label>
+                  <input type="number" min="0" className="input w-40" placeholder="₹"
+                    title="Amount this month had already received before entries were made in the app"
+                    value={openingInput} onChange={(e) => setOpeningInput(e.target.value)} />
+                </div>
+                <button className="btn-secondary shrink-0" disabled={savingTarget} onClick={saveTarget}>
+                  {savingTarget ? 'Saving…' : 'Save'}
+                </button>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Total ({fmt(entryDate)})</div>
+                  <div className="text-[15px] font-semibold text-emerald-700">
+                    ₹{Number(salesMonth?.today || 0).toLocaleString('en-IN')}
                   </div>
                 </div>
                 <div>
@@ -503,6 +535,11 @@ export default function DailyTaskClient() {
                       : '— set target'}
                   </div>
                 </div>
+                {salesMonth?.pdfUrl && (
+                  <a className="btn-secondary shrink-0" href={salesMonth.pdfUrl} target="_blank" rel="noreferrer">
+                    View Report PDF
+                  </a>
+                )}
               </div>
             )}
 

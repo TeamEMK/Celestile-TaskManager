@@ -27,7 +27,7 @@ export async function GET(req) {
     const rows = (all || []).filter((r) => String(r.entry_date || '').slice(0, 10) === date);
     const walkins  = rows.filter((r) => r.department === 'Walk-in').map(toEntry);
     const payments = rows.filter((r) => r.department === 'Sales Payment').map(toEntry);
-    const sales = await salesMonthSummary(date.slice(0, 7));
+    const sales = await salesMonthSummary(date.slice(0, 7), date);
 
     const pdf = await generateEaReportPdf({ dateStr: date, walkins, payments, sales });
     return new NextResponse(pdf, {
