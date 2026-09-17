@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
 import Icon from '../components/Icon';
+import { canManageUsers } from '@/lib/pages';
 
 const ROLES = ['Admin', 'User', 'HOD'];
 
@@ -79,6 +80,9 @@ export default function UsersClient() {
   const { data: session } = useSession();
   const roles   = normalizeRoles(session?.user?.roles);
   const isAdmin = roles.includes('Admin') || roles.includes('HOD');
+  // The Executive Assistant may add users (canManageUsers in lib/pages.js);
+  // edit / delete / passwords stay admin-only.
+  const canAdd  = canManageUsers(roles, session?.user?.department);
   const { ask, ConfirmUI } = useConfirmToast();
 
   const [users,     setUsers]     = useState([]);
@@ -180,7 +184,7 @@ export default function UsersClient() {
             className="bg-transparent border-none outline-none text-[13px] text-slate-700 placeholder:text-slate-400 w-full"
           />
         </div>
-        {isAdmin && (
+        {canAdd && (
           <button onClick={openAdd} className="btn-primary flex items-center gap-1.5 shrink-0">
             <PlusIcon /> Add User
           </button>
@@ -271,6 +275,7 @@ export default function UsersClient() {
         departments={departments}
         onAddDepartment={addDepartment}
         defaultBranch={session?.user?.branch || ''}
+        canPickRoles={isAdmin}
         onSaved={() => { setModalOpen(false); reloadUsers(); }}
       />
       {ConfirmUI}
@@ -285,7 +290,7 @@ export default function UsersClient() {
 
 const ADD_DEPT_VALUE = '__add_new_department__';
 
-function UserModal({ open, onClose, user, departments, onAddDepartment, defaultBranch, onSaved }) {
+function UserModal({ canPickRoles = true, open, onClose, user, departments, onAddDepartment, defaultBranch, onSaved }) {
   const fileRef    = useRef(null);
   const [form,           setForm]          = useState({});
   const [picture,        setPicture]       = useState(null);
@@ -556,8 +561,8 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
             </div>
           )}
 
-          {/* Roles */}
-          <div>
+          {/* Roles — hidden for a non-admin creator (EA): the API makes those plain Users anyway */}
+          {canPickRoles && (<div>
             <label className="label">Roles</label>
             <div className="flex gap-2">
               {ROLES.map(r => {
@@ -575,7 +580,7 @@ function UserModal({ open, onClose, user, departments, onAddDepartment, defaultB
                 );
               })}
             </div>
-          </div>
+          </div>)}
 
           {/* Bulk upload — add mode only */}
           {!user && (

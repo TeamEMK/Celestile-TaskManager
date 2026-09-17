@@ -103,8 +103,8 @@ const blankWalkinRow = () => ({
 // Till Date Received Total and Balance Target are no longer typed per row —
 // they are computed for the month (see the target panel above the table).
 const blankPaymentRow = () => ({
-  client: '', arcName: '', description: '',
-  orderValue: '', advPaid: '', balance: '', modeOfPay: '', executive: '',
+  client: '', orderNumber: '', arcName: '', description: '',
+  orderValue: '', advPaid: '', receivedToday: '', balance: '', modeOfPay: '', executive: '',
 });
 
 const fmt = fmtDMY;
@@ -302,6 +302,8 @@ export default function DailyTaskClient() {
         next.balance = (next.orderValue === '' && next.advPaid === '') ? ''
           : String((Number(next.orderValue) || 0) - (Number(next.advPaid) || 0));
       }
+      // Recd Today follows Adv Paid until someone types it by hand.
+      if (key === 'advPaid' && (r.receivedToday === '' || r.receivedToday === r.advPaid)) next.receivedToday = val;
       return next;
     }));
   const addRow = () => setRows((rs) => [...rs, blankRow()]);
@@ -316,7 +318,7 @@ export default function DailyTaskClient() {
       : isWalkin
       ? (r) => r.client || r.clientNumber || r.arcName || r.description || r.remarks || r.executive
       : isPayments
-      ? (r) => r.client || r.arcName || r.description || Number(r.orderValue) > 0 || Number(r.advPaid) > 0
+      ? (r) => r.client || r.orderNumber || r.arcName || r.description || Number(r.orderValue) > 0 || Number(r.advPaid) > 0 || Number(r.receivedToday) > 0
       : (r) => r.client || r.orderNumber || r.areaName || r.taskType || r.software || Number(r.minutes) > 0;
 
     const clean = rows.filter(hasData).map((r) => ({
@@ -562,10 +564,12 @@ export default function DailyTaskClient() {
                     ) : isPayments ? (
                       <>
                         <th className="table-th">Client Name</th>
+                        <th className="table-th">Order No.</th>
                         <th className="table-th">Arc. Name</th>
                         <th className="table-th">Requirement</th>
                         <th className="table-th">Order Value</th>
                         <th className="table-th">Adv Paid</th>
+                        <th className="table-th">Recd Today</th>
                         <th className="table-th">Bal</th>
                         <th className="table-th">Mode of Pay</th>
                         <th className="table-th">Executive</th>
@@ -650,6 +654,10 @@ export default function DailyTaskClient() {
                             <input className="input" list="dt-clients" placeholder="Client name"
                               value={r.client} onChange={(e) => setRow(i, 'client', e.target.value)} />
                           </td>
+                          <td className="table-td w-32">
+                            <input className="input" placeholder="Order no."
+                              value={r.orderNumber} onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
+                          </td>
                           <td className="table-td min-w-[120px]">
                             <input className="input" placeholder="Architect name"
                               value={r.arcName} onChange={(e) => setRow(i, 'arcName', e.target.value)} />
@@ -665,6 +673,11 @@ export default function DailyTaskClient() {
                           <td className="table-td w-28">
                             <input type="number" min="0" className="input" placeholder="₹"
                               value={r.advPaid} onChange={(e) => setPayRow(i, 'advPaid', e.target.value)} />
+                          </td>
+                          <td className="table-td w-28">
+                            <input type="number" min="0" className="input" placeholder="₹"
+                              title="Amount received today (follows Adv Paid until typed)"
+                              value={r.receivedToday} onChange={(e) => setRow(i, 'receivedToday', e.target.value)} />
                           </td>
                           <td className="table-td w-28">
                             <input type="number" className="input" placeholder="₹"
@@ -916,6 +929,7 @@ export default function DailyTaskClient() {
                       {!!(e.noOfVisits && String(e.noOfVisits) !== '0') && <span className="pill bg-slate-100 text-slate-600 shrink-0">Visits: {e.noOfVisits}</span>}
                       {Number(e.orderValue) > 0 && <span className="pill bg-green-50 text-green-700 shrink-0">Order ₹{Number(e.orderValue).toLocaleString('en-IN')}</span>}
                       {Number(e.advPaid) > 0 && <span className="pill bg-emerald-50 text-emerald-700 shrink-0">Adv ₹{Number(e.advPaid).toLocaleString('en-IN')}</span>}
+                      {e.receivedToday != null && String(e.receivedToday) !== '' && <span className="pill bg-lime-50 text-lime-700 shrink-0">Recd ₹{Number(e.receivedToday).toLocaleString('en-IN')}</span>}
                       {Number(e.balance) > 0 && <span className="pill bg-rose-50 text-rose-600 shrink-0">Bal ₹{Number(e.balance).toLocaleString('en-IN')}</span>}
                       {e.modeOfPay    && <span className="pill bg-slate-100 text-slate-600 shrink-0">{e.modeOfPay}</span>}
                       {Number(e.tillDateReceived) > 0 && <span className="pill bg-sky-50 text-sky-700 shrink-0">Till Date ₹{Number(e.tillDateReceived).toLocaleString('en-IN')}</span>}

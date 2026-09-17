@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { FMS_ENABLED, RACE_TRACKER_ENABLED } from '@/lib/config';
-import { canSee } from '@/lib/pages';
+import { canSee, canManageUsers } from '@/lib/pages';
 import { useEffect, useState } from 'react';
 const Icon = {
   dashboard: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>,
@@ -53,7 +53,8 @@ const SECTIONS = [
     { href: '/daily-reports', label: 'Daily Reports',         icon: 'reports',  adminOnly: true },
   ]},
   { title: 'Administration', items: [
-    { href: '/users',   label: 'Users & Access', icon: 'users',   adminOnly: true },
+    // manageUsers: Admin/HOD plus the Executive Assistant (canManageUsers).
+    { href: '/users',   label: 'Users & Access', icon: 'users',   manageUsers: true },
     { href: '/profile', label: 'Profile',        icon: 'profile' },
   ]},
 ];
@@ -95,6 +96,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
     (n.flag !== 'fms'  || FMS_ENABLED) &&
     (n.flag !== 'race' || RACE_TRACKER_ENABLED) &&
     (!n.adminOnly || isAdmin) &&
+    (!n.manageUsers || canManageUsers(roles, session?.user?.department)) &&
     canSee(n.href, roles, access);
 
   return (

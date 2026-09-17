@@ -16,7 +16,8 @@ const BASE_COLS = `id, entry_date AS entryDate, doer_id AS doerId, doer,
         arc_name AS arcName, arc_phone AS arcPhone, old_new_client AS oldNewClient,
         no_of_visits AS noOfVisits, remarks, order_value AS orderValue,
         adv_paid AS advPaid, balance, mode_of_pay AS modeOfPay, executive,
-        till_date_received AS tillDateReceived, balance_target AS balanceTarget`;
+        till_date_received AS tillDateReceived, balance_target AS balanceTarget,
+        received_today AS receivedToday`;
 // pre_install_image is an inline base64 photo (LONGTEXT) — only the doer's
 // own "My Past Submissions" view renders it. The admin views (daily-reports,
 // daily-task-admin) fetch ALL rows and never read it, so shipping it there
@@ -131,8 +132,8 @@ export async function POST(req) {
               branch, pre_install_image, pre_install_comment,
               arc_name, arc_phone, old_new_client, no_of_visits, remarks,
               order_value, adv_paid, balance, mode_of_pay, executive,
-              till_date_received, balance_target)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              till_date_received, balance_target, received_today)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [id, body.entryDate, doerId || null, doerName,
            r.client || '', r.clientNumber || '', r.department || '', r.description || '', Number(r.minutes) || 0,
            r.orderNumber || '', r.areaName || '', r.taskType || '', r.software || '',
@@ -143,7 +144,9 @@ export async function POST(req) {
            r.arcName || '', r.arcPhone || '', r.oldNewClient || '', String(r.noOfVisits ?? '').trim(), r.remarks || null,
            Number(r.orderValue) || 0, Number(r.advPaid) || 0, Number(r.balance) || 0,
            r.modeOfPay || '', r.executive || '',
-           Number(r.tillDateReceived) || 0, Number(r.balanceTarget) || 0]
+           Number(r.tillDateReceived) || 0, Number(r.balanceTarget) || 0,
+           // Blank stays NULL (→ counts as Adv Paid); a typed 0 is a real 0.
+           r.receivedToday == null || String(r.receivedToday).trim() === '' ? null : (Number(r.receivedToday) || 0)]
         );
       }
       await conn.commit();

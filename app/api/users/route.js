@@ -3,6 +3,7 @@ import { pool, ensureSchema } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { requireUser, requireUserCtx, requireAdmin, currentUser, sanitizeUser, sanitizeUsers } from '@/lib/api';
 import { nextSeqId } from '@/lib/ids';
+import { isAdminRoles, canManageUsers } from '@/lib/pages';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 
 function parseRoles(role, userRole) {
@@ -40,8 +41,14 @@ export async function GET() {
   }
 }
 
+// Admin/HOD, or the Executive Assistant (canManageUsers). A non-admin
+// creator can only ever mint plain 'User' accounts — whatever roles the
+// request names — so the EA right cannot become an Admin right.
 export async function POST(req) {
-  const gate = await requireAdmin(); if (gate) return gate;
+  const { gate, user: caller } = await requireUserCtx(); if (gate) return gate;
+  if (!canManageUsers(caller.roles, caller.department))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const callerIsAdmin = isAdminRoles(caller.roles);
   try {
     const body = await req.json();
     await ensureSchema();
@@ -57,7 +64,7 @@ export async function POST(req) {
         if (ex.length) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
         const [allIds] = await pool.query('SELECT id FROM users');
         const id = nextSeqId(allIds, 'U', 3);
-        const roles = parseRoles(row.role || '', row.user_role || '');
+        const roles = callerIsAdmin ? parseRoles(row.role || '', row.user_role || '') : ['User'];
         const hash = row.password ? await bcrypt.hash(row.password, 10) : null;
         await pool.query(
           'INSERT INTO users (id,name,email,phone,department,roles,active,password_hash,created_at) VALUES (?,?,?,?,?,?,1,?,NOW())',
@@ -76,7 +83,7 @@ export async function POST(req) {
     // 'U999', the sequence stuck at 999 and every further insert collided.
     const [allIds] = await pool.query('SELECT id FROM users');
     const id = nextSeqId(allIds, 'U', 3);
-    const roles = body.roles?.length ? body.roles : ['User'];
+    const roles = callerIsAdmin && body.roles?.length ? body.roles : ['User'];
     const hash = body.password ? await bcrypt.hash(body.password, 10) : null;
     await pool.query(
       'INSERT INTO users (id, name, email, phone, department, branch, roles, active, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())',

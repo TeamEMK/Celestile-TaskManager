@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import UsersClient from './UsersClient';
 import AccessClient from '../access/AccessClient';
 
@@ -30,12 +31,18 @@ const TABS = [
 
 export default function UsersPage() {
   const [tab, setTab] = useState('users');
+  // The Executive Assistant reaches this page to add users (canManageUsers
+  // in lib/pages.js) but the access matrix stays Admin/HOD only.
+  const { data: session } = useSession();
+  const roles = String(session?.user?.roles || '');
+  const isAdmin = roles.includes('Admin') || roles.includes('HOD');
+  const tabs = isAdmin ? TABS : TABS.filter((t) => t.id === 'users');
 
   return (
     <div className="space-y-4">
-      <PageTabs tabs={TABS} active={tab} onChange={setTab} />
+      {tabs.length > 1 && <PageTabs tabs={tabs} active={tab} onChange={setTab} />}
       {tab === 'users'  && <UsersClient />}
-      {tab === 'access' && <AccessClient />}
+      {tab === 'access' && isAdmin && <AccessClient />}
     </div>
   );
 }
