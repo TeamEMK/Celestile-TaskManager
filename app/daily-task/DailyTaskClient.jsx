@@ -293,19 +293,8 @@ export default function DailyTaskClient() {
 
   const setRow = (i, key, val) =>
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
-  // Payments rows: Bal follows Order Value − Adv Paid, but stays editable.
-  const setPayRow = (i, key, val) =>
-    setRows((rs) => rs.map((r, idx) => {
-      if (idx !== i) return r;
-      const next = { ...r, [key]: val };
-      if (key === 'orderValue' || key === 'advPaid') {
-        next.balance = (next.orderValue === '' && next.advPaid === '') ? ''
-          : String((Number(next.orderValue) || 0) - (Number(next.advPaid) || 0));
-      }
-      // Recd Today follows Adv Paid until someone types it by hand.
-      if (key === 'advPaid' && (r.receivedToday === '' || r.receivedToday === r.advPaid)) next.receivedToday = val;
-      return next;
-    }));
+  // Payments rows: Order Value, Adv Paid, Recd Today and Bal are all typed by
+  // the EA — nothing is derived or pre-filled (asked 2026-09-17).
   const addRow = () => setRows((rs) => [...rs, blankRow()]);
   const dupRow = (i) => setRows((rs) => [...rs.slice(0, i + 1), { ...rs[i] }, ...rs.slice(i + 1)]);
   const delRow = (i) => setRows((rs) => rs.length === 1 ? [blankRow()] : rs.filter((_, idx) => idx !== i));
@@ -668,15 +657,15 @@ export default function DailyTaskClient() {
                           </td>
                           <td className="table-td w-28">
                             <input type="number" min="0" className="input" placeholder="₹"
-                              value={r.orderValue} onChange={(e) => setPayRow(i, 'orderValue', e.target.value)} />
+                              value={r.orderValue} onChange={(e) => setRow(i, 'orderValue', e.target.value)} />
                           </td>
                           <td className="table-td w-28">
                             <input type="number" min="0" className="input" placeholder="₹"
-                              value={r.advPaid} onChange={(e) => setPayRow(i, 'advPaid', e.target.value)} />
+                              value={r.advPaid} onChange={(e) => setRow(i, 'advPaid', e.target.value)} />
                           </td>
                           <td className="table-td w-28">
                             <input type="number" min="0" className="input" placeholder="₹"
-                              title="Amount received today (follows Adv Paid until typed)"
+                              title="Amount received today"
                               value={r.receivedToday} onChange={(e) => setRow(i, 'receivedToday', e.target.value)} />
                           </td>
                           <td className="table-td w-28">

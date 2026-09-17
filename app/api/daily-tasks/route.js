@@ -145,8 +145,9 @@ export async function POST(req) {
            Number(r.orderValue) || 0, Number(r.advPaid) || 0, Number(r.balance) || 0,
            r.modeOfPay || '', r.executive || '',
            Number(r.tillDateReceived) || 0, Number(r.balanceTarget) || 0,
-           // Blank stays NULL (→ counts as Adv Paid); a typed 0 is a real 0.
-           r.receivedToday == null || String(r.receivedToday).trim() === '' ? null : (Number(r.receivedToday) || 0)]
+           // Typed by the EA; a blank is a real 0. Only rows from before this
+           // column existed (NULL) fall back to Adv Paid — see receivedAmount().
+           Number(r.receivedToday) || 0]
         );
       }
       await conn.commit();
