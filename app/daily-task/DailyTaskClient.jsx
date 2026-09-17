@@ -293,8 +293,37 @@ export default function DailyTaskClient() {
 
   const setRow = (i, key, val) =>
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
-  // Payments rows: Order Value, Adv Paid, Recd Today and Bal are all typed by
-  // the EA — nothing is derived or pre-filled (asked 2026-09-17).
+  // Payments rows (flow agreed 2026-09-17): Order Value is typed once per new
+  // order; Adv Paid is what the order has already received — the sum of Recd
+  // Today on its earlier rows, looked up by order number when the EA leaves
+  // that field; Recd Today starts blank and is typed fresh; Bal = Order Value
+  // − Adv Paid. Adv Paid and Bal stay editable for corrections.
+  const calcBal = (r) => (r.orderValue === '' && r.advPaid === '') ? ''
+    : String((Number(r.orderValue) || 0) - (Number(r.advPaid) || 0));
+  const setPayRow = (i, key, val) =>
+    setRows((rs) => rs.map((r, idx) => {
+      if (idx !== i) return r;
+      const next = { ...r, [key]: val };
+      if (key === 'orderValue' || key === 'advPaid') next.balance = calcBal(next);
+      return next;
+    }));
+  async function lookupOrder(i, orderNumber) {
+    const key = (orderNumber || '').trim();
+    if (!key) return;
+    try {
+      const res = await fetch(`/api/daily-tasks/order-summary?orderNumber=${encodeURIComponent(key)}`);
+      if (!res.ok) return;
+      const d = await res.json();
+      setRows((rs) => rs.map((r, idx) => {
+        if (idx !== i || (r.orderNumber || '').trim() !== key) return r; // retyped meanwhile
+        const next = { ...r, advPaid: String(Number(d.received) || 0) };
+        // A repeat order brings its value along; a new one must be typed.
+        if (d.entries > 0 && r.orderValue === '' && Number(d.orderValue) > 0) next.orderValue = String(d.orderValue);
+        next.balance = calcBal(next);
+        return next;
+      }));
+    } catch { /* leave the row as typed */ }
+  }
   const addRow = () => setRows((rs) => [...rs, blankRow()]);
   const dupRow = (i) => setRows((rs) => [...rs.slice(0, i + 1), { ...rs[i] }, ...rs.slice(i + 1)]);
   const delRow = (i) => setRows((rs) => rs.length === 1 ? [blankRow()] : rs.filter((_, idx) => idx !== i));
@@ -336,8 +365,8 @@ export default function DailyTaskClient() {
       const inc = clean.find((r) => !r.client || !r.clientNumber || !r.oldNewClient);
       if (inc) { setMsg('Client Name, Phone No. and Old/New Client are required.'); return; }
     } else if (isPayments) {
-      const inc = clean.find((r) => !r.client || (!Number(r.orderValue) && !Number(r.advPaid)));
-      if (inc) { setMsg('Client Name and Order Value (or Adv Paid) are required.'); return; }
+      const inc = clean.find((r) => !r.client || !r.orderNumber || !Number(r.orderValue));
+      if (inc) { setMsg('Client Name, Order No. and Order Value are required.'); return; }
     } else {
       const inc = clean.find((r) => !r.client || !r.orderNumber || !r.areaName || !r.taskType || !r.software || !r.minutes);
       if (inc) { setMsg('All fields in every row are required (Revision is optional).'); return; }
@@ -645,7 +674,8 @@ export default function DailyTaskClient() {
                           </td>
                           <td className="table-td w-32">
                             <input className="input" placeholder="Order no."
-                              value={r.orderNumber} onChange={(e) => setRow(i, 'orderNumber', e.target.value)} />
+                              value={r.orderNumber} onChange={(e) => setRow(i, 'orderNumber', e.target.value)}
+                              onBlur={(e) => lookupOrder(i, e.target.value)} />
                           </td>
                           <td className="table-td min-w-[120px]">
                             <input className="input" placeholder="Architect name"
@@ -657,11 +687,12 @@ export default function DailyTaskClient() {
                           </td>
                           <td className="table-td w-28">
                             <input type="number" min="0" className="input" placeholder="₹"
-                              value={r.orderValue} onChange={(e) => setRow(i, 'orderValue', e.target.value)} />
+                              value={r.orderValue} onChange={(e) => setPayRow(i, 'orderValue', e.target.value)} />
                           </td>
                           <td className="table-td w-28">
                             <input type="number" min="0" className="input" placeholder="₹"
-                              value={r.advPaid} onChange={(e) => setRow(i, 'advPaid', e.target.value)} />
+                              title="Received on this order so far (filled from earlier entries of the same order no.)"
+                              value={r.advPaid} onChange={(e) => setPayRow(i, 'advPaid', e.target.value)} />
                           </td>
                           <td className="table-td w-28">
                             <input type="number" min="0" className="input" placeholder="₹"
