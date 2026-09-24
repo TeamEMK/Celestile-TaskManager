@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireUser } from '@/lib/api';
+import { requireUser, requireAccess } from '@/lib/api';
 import { listMaterials, addMaterial } from '@/lib/imsSheet';
 
 // Material + thickness master = the IMS spreadsheet's "Stone Name" tab, the
@@ -44,12 +44,15 @@ export async function GET() {
       thicknessByMaterial,
     });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[inventory/material GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load materials' }, { status: 500 });
   }
 }
 
+// Adding a new material/thickness type is Inventory-specific (unlike the
+// shared GET above, which forms outside Inventory also read from).
 export async function POST(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAccess('/inventory'); if (gate) return gate;
   try {
     let { material, thickness } = await req.json();
     material = String(material || '').trim();
@@ -67,6 +70,7 @@ export async function POST(req) {
 
     return NextResponse.json({ ok: true, material, thickness });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[inventory/material POST]', err.message);
+    return NextResponse.json({ error: 'Failed to save material' }, { status: 500 });
   }
 }

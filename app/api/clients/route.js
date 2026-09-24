@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
-import { requireUser } from '@/lib/api';
+import { requireAccess, requireAdmin } from '@/lib/api';
 import { newId } from '@/lib/ids';
 
 export async function GET() {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAccess('/client-master'); if (gate) return gate;
   try {
     await ensureSchema();
     const [rows] = await pool.query(
@@ -14,12 +14,14 @@ export async function GET() {
     );
     return NextResponse.json(rows);
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[clients GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load clients' }, { status: 500 });
   }
 }
 
+// Add is admin-only, matching the UI's canEdit-gated "Add Client" button.
 export async function POST(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAdmin(); if (gate) return gate;
   try {
     await ensureSchema();
     const b = await req.json();
@@ -34,12 +36,16 @@ export async function POST(req) {
     );
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[clients POST]', err.message);
+    return NextResponse.json({ error: 'Failed to save client' }, { status: 500 });
   }
 }
 
+// Edit is admin-only, matching the UI (ClientMasterClient's canEdit prop is
+// isAdmin-gated) — this closes the gap where a non-admin calling the API
+// directly could bypass that.
 export async function PATCH(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAdmin(); if (gate) return gate;
   try {
     await ensureSchema();
     const b = await req.json();
@@ -59,12 +65,15 @@ export async function PATCH(req) {
     );
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[clients PATCH]', err.message);
+    return NextResponse.json({ error: 'Failed to update client' }, { status: 500 });
   }
 }
 
+// Delete is admin-only — clients have no per-row owner to check against, and
+// a permanent delete is a heavier action than the page-access grant implies.
 export async function DELETE(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAdmin(); if (gate) return gate;
   try {
     await ensureSchema();
     const id = new URL(req.url).searchParams.get('id');
@@ -72,6 +81,7 @@ export async function DELETE(req) {
     await pool.query('DELETE FROM clients WHERE id = ?', [id]);
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[clients DELETE]', err.message);
+    return NextResponse.json({ error: 'Failed to delete client' }, { status: 500 });
   }
 }

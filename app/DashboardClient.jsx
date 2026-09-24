@@ -152,10 +152,16 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 
   /* ── handlers (unchanged) ───────────────────────────────────────── */
   async function markDone(task) {
+    let res;
     if (task.type === 'Delegation') {
-      await fetch('/api/delegations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: task.id, status: 'done' }) });
+      res = await fetch('/api/delegations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: task.id, status: 'done' }) });
     } else if (task.type === 'Checklist') {
-      await fetch('/api/checklist-completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ masterId: task.id }) });
+      res = await fetch('/api/checklist-completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ masterId: task.id }) });
+    }
+    if (res && !res.ok) {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || 'Failed to mark task done');
+      return;
     }
     router.refresh();
   }

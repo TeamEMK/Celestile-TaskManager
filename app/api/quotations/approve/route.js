@@ -4,6 +4,13 @@ import {
   sendWhatsApp, sendWhatsAppDocument, quotationApprovedMessage, quotationRejectedMessage, isWhatsappConfigured,
 } from '@/lib/whatsapp';
 
+// A row whose approval_expires_at has passed reads as "not found" — same
+// message as a bad token, so an expired link can't be distinguished from a
+// wrong one by probing.
+function isExpired(row) {
+  return row.approval_expires_at && new Date(row.approval_expires_at) < new Date();
+}
+
 export async function GET(req) {
   try {
     await ensureSchema();
@@ -12,11 +19,11 @@ export async function GET(req) {
 
     const [rows] = await pool.query(
       `SELECT ref_no, branch, client_name, grand_total, status,
-              created_by_name, approved_by, approved_at
+              created_by_name, approved_by, approved_at, approval_expires_at
        FROM quotations WHERE approval_token = ? LIMIT 1`,
       [token]
     );
-    if (!rows[0]) return NextResponse.json({ error: 'Invalid or expired link' }, { status: 404 });
+    if (!rows[0] || isExpired(rows[0])) return NextResponse.json({ error: 'Invalid or expired link' }, { status: 404 });
 
     const r = rows[0];
     return NextResponse.json({
@@ -25,7 +32,8 @@ export async function GET(req) {
       createdByName: r.created_by_name, approvedBy: r.approved_by, approvedAt: r.approved_at,
     });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[quotations/approve GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load quotation' }, { status: 500 });
   }
 }
 
@@ -38,21 +46,26 @@ export async function POST(req) {
       return NextResponse.json({ error: 'invalid action' }, { status: 400 });
 
     const [rows] = await pool.query(
-      `SELECT id, ref_no, branch, client_name, grand_total, status, created_by_id, approval_token
+      `SELECT id, ref_no, branch, client_name, grand_total, status, created_by_id, approval_token, approval_expires_at
        FROM quotations WHERE approval_token = ? LIMIT 1`,
       [token]
     );
-    if (!rows[0]) return NextResponse.json({ error: 'Invalid or expired link' }, { status: 404 });
+    if (!rows[0] || isExpired(rows[0])) return NextResponse.json({ error: 'Invalid or expired link' }, { status: 404 });
 
     const q = rows[0];
     if (q.status !== 'pending')
       return NextResponse.json({ error: `Already ${q.status}` }, { status: 409 });
 
     const approvedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    await pool.query(
-      'UPDATE quotations SET status = ?, approved_by = ?, approved_at = ? WHERE approval_token = ?',
+    // Condition the UPDATE on status still being 'pending' rather than
+    // trusting the SELECT above — two near-simultaneous POSTs with the same
+    // token could otherwise both pass the pending check before either write
+    // landed. affectedRows === 0 means someone else's request won the race.
+    const [result] = await pool.query(
+      "UPDATE quotations SET status = ?, approved_by = ?, approved_at = ? WHERE approval_token = ? AND status = 'pending'",
       [action, approverName || 'Unknown', approvedAt, token]
     );
+    if (!result.affectedRows) return NextResponse.json({ error: 'Already decided' }, { status: 409 });
 
     // Notify creator via WhatsApp (text + PDF on approval)
     if (isWhatsappConfigured() && q.created_by_id) {
@@ -76,6 +89,7 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, action });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[quotations/approve POST]', err.message);
+    return NextResponse.json({ error: 'Failed to record decision' }, { status: 500 });
   }
 }

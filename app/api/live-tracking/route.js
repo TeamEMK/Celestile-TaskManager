@@ -12,7 +12,8 @@ export async function GET() {
     // the id the "Open in Sheets" link would be built from.
     return NextResponse.json(redactSheetIds(list, await currentUserIsAdmin()));
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[live-tracking GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load live trackers' }, { status: 500 });
   }
 }
 
@@ -30,6 +31,7 @@ export async function POST(req) {
     });
     return NextResponse.json({ id }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[live-tracking POST]', err.message);
+    return NextResponse.json({ error: 'Failed to create live tracker' }, { status: 500 });
   }
 }

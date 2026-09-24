@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { pool, ensureSchema } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
@@ -6,6 +7,30 @@ import { sendWhatsApp, sendWhatsAppDocument, quotationRevisionMessage, quotation
 import { normalizeBranch, isRevision, baseRef, buildChangeList } from '@/lib/quotation';
 import { requireUser } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
+import { computeBangaloreCharges, computeHyderabadCharges } from '@/lib/quotation-pdf';
+
+// The Grand Total is entirely client-computed (BangaloreForm.jsx /
+// HyderabadForm.jsx) and used to be stored verbatim — a tampered or stale
+// request could persist an arbitrary total that then flows unchanged into
+// the WhatsApp approval flow and the customer-facing PDF. Recompute it
+// server-side from the same submitted line items using the identical
+// formulas the PDF renderer uses, and refuse to save if they disagree by
+// more than a rounding cent. `grandTotal` arrives as a formatted display
+// string ("₹ 1,23,456.00"), hence the strip-to-digits parse.
+const parseMoney = (s) => parseFloat(String(s ?? '').replace(/[^0-9.]/g, '')) || 0;
+
+function expectedGrandTotal(branch, data, stoneItems) {
+  if (normalizeBranch(branch) === 'hyderabad') {
+    const fixingItems = Array.isArray(data.fixingItems) ? data.fixingItems : [];
+    const c = computeHyderabadCharges(stoneItems, fixingItems, {
+      discount_pct: data.discountPct, design_fees: data.designFees,
+      installation_charges: data.installationCharges, packing_charges: data.packingCharges,
+    });
+    return c.netStone + c.designFees + c.fixSum + c.packing + c.installation + c.totalGst;
+  }
+  const c = computeBangaloreCharges(stoneItems, Array.isArray(data.totalsConfig) ? data.totalsConfig : []);
+  return c.subTotal + c.totalGst;
+}
 
 // Per-branch WhatsApp recipient (ported from getBranchNotifyNumber). Configurable
 // via env; falls back to the numbers from the Apps Script.
@@ -17,9 +42,12 @@ function branchNotifyNumber(branch) {
 
 const parseJson = (s) => { try { return JSON.parse(s || '[]'); } catch { return []; } };
 
-// Generate a random 40-char hex approval token
+// Generate a random 40-char hex approval token. This gates an unauthenticated,
+// irreversible financial action (approve/reject a quotation, and fetching the
+// priced customer PDF) — crypto.randomBytes, not Math.random(), which is not
+// cryptographically secure.
 function genToken() {
-  return Array.from({ length: 40 }, () => (Math.random() * 16 | 0).toString(16)).join('');
+  return crypto.randomBytes(20).toString('hex');
 }
 
 // Return approver phone numbers from env vars (already configured in Hostinger).
@@ -132,7 +160,8 @@ export async function GET(req) {
     const refs = rows.map((r) => String(r.ref_no || '').trim()).filter(Boolean).reverse();
     return NextResponse.json({ refs });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[quotations GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load quotations' }, { status: 500 });
   }
 }
 
@@ -157,6 +186,21 @@ export async function POST(req) {
     const branch = normalizeBranch(data.branch);
     if (!data.refNo) return NextResponse.json({ error: 'refNo required' }, { status: 400 });
 
+    // Numeric fields stored as raw strings with no validation used to accept
+    // negative or non-numeric values with no defense before they reached the
+    // customer-facing PDF.
+    for (const [key, label] of [
+      ['discountPct', 'Discount %'], ['designFees', 'Design Fees'],
+      ['installationCharges', 'Installation Charges'], ['packingCharges', 'Packing Charges'],
+    ]) {
+      if (data[key] === undefined || data[key] === null || data[key] === '') continue;
+      const n = Number(data[key]);
+      if (!Number.isFinite(n) || n < 0)
+        return NextResponse.json({ error: `${label} must be a number ≥ 0` }, { status: 400 });
+    }
+    if (data.discountPct !== undefined && Number(data.discountPct) > 100)
+      return NextResponse.json({ error: 'Discount % cannot exceed 100' }, { status: 400 });
+
     // Only look up prior versions for an actual revision save — a brand-new
     // quotation has none, so skip the (previously unconditional) SELECT * of
     // every quotation in the branch just to maybe find one prior row.
@@ -169,6 +213,21 @@ export async function POST(req) {
         .filter((r) => r.ref_no === base || String(r.ref_no || '').startsWith(`${base}-REV`))
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       prevRow = findPreviousVersion(candidates, data.refNo);
+    } else {
+      // nextRefNo() (the /next-ref lookup the form calls to prefill this
+      // field) is a read-then-compute with no uniqueness constraint behind
+      // it — two quotations created around the same time in the same branch
+      // could be assigned the identical ref_no, silently orphaning one of
+      // them from ref-based lookup/revision diffing. Re-check right before
+      // the insert to narrow that window as much as a check-then-act guard
+      // can.
+      const [dupe] = await pool.query('SELECT id FROM quotations WHERE branch = ? AND ref_no = ?', [branch, data.refNo]);
+      if (dupe.length) {
+        return NextResponse.json({
+          status: 'error',
+          message: `Ref number ${data.refNo} was just taken by another quotation. Please refresh and try again.`,
+        }, { status: 409 });
+      }
     }
 
     const id = 'Q' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
@@ -176,10 +235,26 @@ export async function POST(req) {
     const contact = data.clientContact || data.contact || '';
     const cemail = data.clientEmail || data.email || '';
     const approvalToken = genToken();
+    // 30 days, matching the "Quotation valid for 30 days" terms already
+    // printed on the PDF — an approval/PDF link no longer works forever.
+    const approvalExpiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19);
     const creatorId = session?.user?.id || null;
     const creatorName = session?.user?.name || session?.user?.email || 'Unknown';
 
     const stoneItems = Array.isArray(data.stoneItems) ? data.stoneItems : [];
+
+    // Reject a Grand Total that doesn't foot to the submitted line items —
+    // ₹1 tolerance covers rounding drift between the client's live display
+    // format and this recomputation (see expectedGrandTotal above).
+    const expected = expectedGrandTotal(branch, data, stoneItems);
+    const submitted = parseMoney(data.grandTotal);
+    if (Math.abs(expected - submitted) > 1) {
+      return NextResponse.json({
+        status: 'error',
+        message: `Grand Total does not match the line items (expected ~₹${expected.toFixed(2)}). Please refresh and try again.`,
+      }, { status: 400 });
+    }
+
     // Uploads are independent — in parallel instead of one Drive round trip
     // per line item while the user waits on the save.
     await Promise.all(stoneItems.map(async (item) => {
@@ -193,8 +268,8 @@ export async function POST(req) {
          boutique, payment_terms, validity, lead_time, transport, billing_address, site_address,
          grand_total, discount_pct, design_fees, installation_charges, packing_charges,
          stone_items, totals_config, fixing_items, pdf, created_at,
-         status, created_by_id, created_by_name, approval_token, quote_date)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         status, created_by_id, created_by_name, approval_token, quote_date, approval_expires_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         id, data.refNo, branch, data.clientName || '', data.clientFirm || '', contact, cemail, data.pan || '',
         data.architectName || '', data.architectFirm || '', data.architect || '', data.consultant || '',
@@ -205,7 +280,7 @@ export async function POST(req) {
         data.packingCharges || '',
         JSON.stringify(stoneItems), JSON.stringify(data.totalsConfig || []),
         JSON.stringify(data.fixingItems || []), data.pdf || '', createdAt,
-        'pending', creatorId, creatorName, approvalToken, data.quoteDate || '',
+        'pending', creatorId, creatorName, approvalToken, data.quoteDate || '', approvalExpiresAt,
       ]
     );
 
@@ -257,7 +332,8 @@ export async function POST(req) {
 
     return NextResponse.json({ status: 'success', refNo: data.refNo, id }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ status: 'error', message: err.message }, { status: 500 });
+    console.error('[quotations POST]', err.message);
+    return NextResponse.json({ status: 'error', message: 'Failed to save quotation' }, { status: 500 });
   }
 }
 

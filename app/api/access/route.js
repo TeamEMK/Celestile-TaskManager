@@ -1,21 +1,26 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { currentUser } from '@/lib/api';
+import { isAccessEnabled } from '@/lib/access';
 import { GRANTABLE_PAGES, isAdminRoles, parseAccess } from '@/lib/pages';
 
 const rolesFrom = (raw) => Array.isArray(raw) ? raw : typeof raw === 'string' ? raw.split(',').map((r) => r.trim()).filter(Boolean) : ['User'];
 
+// currentUser() (not a raw getServerSession read) so a session stamped
+// 'ForceLogout' is refused here too — same class of gap as /api/profile
+// used to have. Also respects the "Service Suspended" kill switch, which
+// this route's own requireAdmin() used to skip entirely.
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!isAdminRoles(session?.user?.roles)) return null;
-  return session;
+  const user = await currentUser();
+  if (!user) return { gate: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  if (!isAdminRoles(user.roles)) return { gate: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  if (!(await isAccessEnabled())) return { gate: NextResponse.json({ error: 'Service suspended' }, { status: 503 }) };
+  return { user };
 }
 
 export async function GET() {
-  const session = await requireAdmin();
-  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  const callerBranch = (session?.user?.branch || '').toLowerCase();
+  const { gate, user: sessionUser } = await requireAdmin(); if (gate) return gate;
+  const callerBranch = (sessionUser.branch || '').toLowerCase();
   try {
     await ensureSchema();
     const [users] = callerBranch
@@ -27,14 +32,14 @@ export async function GET() {
     }));
     return NextResponse.json({ pages: GRANTABLE_PAGES, users: out });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[access GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load access matrix' }, { status: 500 });
   }
 }
 
 export async function POST(req) {
-  const session = await requireAdmin();
-  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  const callerBranch = (session?.user?.branch || '').toLowerCase();
+  const { gate, user: sessionUser } = await requireAdmin(); if (gate) return gate;
+  const callerBranch = (sessionUser.branch || '').toLowerCase();
   try {
     const { userId, access } = await req.json();
     if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
@@ -54,6 +59,7 @@ export async function POST(req) {
     await pool.query('UPDATE users SET access = ? WHERE id = ?', [value, userId]);
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[access POST]', err.message);
+    return NextResponse.json({ error: 'Failed to update access' }, { status: 500 });
   }
 }

@@ -10,6 +10,40 @@ import { invalidateAccessCache } from '@/lib/access';
 // in this file's history and must be treated as public.
 const MASTER_KEY = process.env.MASTER_KEY || '';
 
+// Flip the app_active kill switch. Called from POST below (key travels in the
+// request body, never the URL) so a proxy/CDN/hosting access log never
+// captures MASTER_KEY the way a "?key=...&action=disable" GET would, and so
+// every flip leaves a line in the server log — there was no audit trail at
+// all before this, just a bare shared secret with no actor attribution.
+async function setActive(active) {
+  await ensureSchema();
+  await pool.query(
+    "INSERT INTO app_config (`key`, `value`) VALUES ('app_active', ?) ON DUPLICATE KEY UPDATE `value` = ?",
+    [String(active), String(active)]
+  );
+  invalidateAccessCache();
+  console.log(`[master panel] app_active set to ${active} at ${new Date().toISOString()}`);
+}
+
+export async function POST(req) {
+  if (!MASTER_KEY) {
+    return NextResponse.json({ error: 'Master panel is disabled (MASTER_KEY not set)' }, { status: 503 });
+  }
+  const body = await req.json().catch(() => ({}));
+  if (!timingSafeEqual(String(body.key || ''), MASTER_KEY))
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (body.action === 'disable') {
+    await setActive(false);
+    return NextResponse.json({ success: true, app_active: false, message: 'App DISABLED — client cannot login' });
+  }
+  if (body.action === 'enable') {
+    await setActive(true);
+    return NextResponse.json({ success: true, app_active: true, message: 'App ENABLED — client can login' });
+  }
+  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+}
+
 export async function GET(req) {
   if (!MASTER_KEY) {
     return NextResponse.json({ error: 'Master panel is disabled (MASTER_KEY not set)' }, { status: 503 });
@@ -22,20 +56,6 @@ export async function GET(req) {
   // Get current status
   const [rows] = await pool.query("SELECT `value` FROM app_config WHERE `key` = 'app_active'");
   const isActive = rows.length === 0 ? true : rows[0].value === 'true';
-
-  const action = new URL(req.url).searchParams.get('action');
-
-  if (action === 'disable') {
-    await pool.query("INSERT INTO app_config (`key`, `value`) VALUES ('app_active', 'false') ON DUPLICATE KEY UPDATE `value` = 'false'");
-    invalidateAccessCache();
-    return NextResponse.json({ success: true, app_active: false, message: 'App DISABLED — client cannot login' });
-  }
-
-  if (action === 'enable') {
-    await pool.query("INSERT INTO app_config (`key`, `value`) VALUES ('app_active', 'true') ON DUPLICATE KEY UPDATE `value` = 'true'");
-    invalidateAccessCache();
-    return NextResponse.json({ success: true, app_active: true, message: 'App ENABLED — client can login' });
-  }
 
   // Show control panel HTML
   const html = `
@@ -76,13 +96,29 @@ export async function GET(req) {
   </div>
 
   ${isActive
-    ? `<a href="?key=${MASTER_KEY}&action=disable" class="btn btn-red" onclick="return confirm('Are you sure? Client will lose access immediately.')">
+    ? `<button class="btn btn-red" onclick="doAction('disable', 'Are you sure? Client will lose access immediately.')">
         🔴 Disable App (Block Client Access)
-      </a>`
-    : `<a href="?key=${MASTER_KEY}&action=enable" class="btn btn-green">
+      </button>`
+    : `<button class="btn btn-green" onclick="doAction('enable')">
         🟢 Enable App (Restore Client Access)
-      </a>`
+      </button>`
   }
+  <script>
+    // The key travels in a POST body, not the URL — a GET with
+    // "?action=disable&key=..." would leave the secret in every proxy/CDN
+    // access log for a destructive, whole-app action.
+    function doAction(action, confirmMsg) {
+      if (confirmMsg && !confirm(confirmMsg)) return;
+      fetch(location.pathname, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: ${JSON.stringify(MASTER_KEY)}, action }),
+      }).then((r) => r.json()).then((d) => {
+        if (!d.success) { alert(d.error || 'Failed'); return; }
+        location.reload();
+      }).catch(() => alert('Request failed'));
+    }
+  </script>
 
   <div class="divider"></div>
 

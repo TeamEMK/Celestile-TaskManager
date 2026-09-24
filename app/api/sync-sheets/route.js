@@ -14,12 +14,15 @@ export async function POST() {
   const { client_email, private_key } = getGoogleCredentials();
   if (!client_email || !private_key)
     return NextResponse.json({ error: 'Google credentials not configured' }, { status: 500 });
+  if (!process.env.SYNC_SHEET_ID)
+    return NextResponse.json({ error: 'SYNC_SHEET_ID not configured' }, { status: 500 });
 
   try {
     await ensureSchema();
     await syncAll(sql);
     return NextResponse.json({ success: true, message: 'All tabs synced to Google Sheets' });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[sync-sheets POST]', err.message);
+    return NextResponse.json({ error: 'Sync failed' }, { status: 500 });
   }
 }

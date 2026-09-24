@@ -6,6 +6,31 @@ import { nextSeqId } from '@/lib/ids';
 import { isAdminRoles, canManageUsers } from '@/lib/pages';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 
+// nextSeqId() is a read-then-compute — two concurrent creates can read the
+// same snapshot and land on the same id. On MySQL the second INSERT throws a
+// duplicate-key error (ER_DUP_ENTRY); retrying with a freshly re-read id
+// resolves it instead of failing the request. This can't fully close the
+// same race in Sheets mode (an INSERT there silently overwrites a colliding
+// row rather than throwing — see lib/sql-sheets.js), but re-reading
+// immediately before each attempt narrows that window from "whenever" to a
+// couple of round trips, and user creation is infrequent enough that this is
+// a proportionate mitigation rather than a full fix.
+async function insertUserWithUniqueId(buildQuery, maxAttempts = 5) {
+  let lastErr;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const [allIds] = await pool.query('SELECT id FROM users');
+    const id = nextSeqId(allIds, 'U', 3);
+    try {
+      await buildQuery(id);
+      return id;
+    } catch (err) {
+      lastErr = err;
+      if (err.code !== 'ER_DUP_ENTRY') throw err;
+    }
+  }
+  throw lastErr;
+}
+
 function parseRoles(role, userRole) {
   const combined = [role, userRole].join(',').toLowerCase();
   const roles = [];
@@ -37,7 +62,8 @@ export async function GET() {
     // user the bcrypt hash of everyone else's password.
     return NextResponse.json(sanitizeUsers(rows));
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[users GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load users' }, { status: 500 });
   }
 }
 
@@ -62,14 +88,12 @@ export async function POST(req) {
         if (!name || !email) { errors.push(`Row ${i+1}: name/email missing`); continue; }
         const [ex] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
         if (ex.length) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
-        const [allIds] = await pool.query('SELECT id FROM users');
-        const id = nextSeqId(allIds, 'U', 3);
         const roles = callerIsAdmin ? parseRoles(row.role || '', row.user_role || '') : ['User'];
         const hash = row.password ? await bcrypt.hash(row.password, 10) : null;
-        await pool.query(
+        await insertUserWithUniqueId((id) => pool.query(
           'INSERT INTO users (id,name,email,phone,department,roles,active,password_hash,created_at) VALUES (?,?,?,?,?,?,1,?,NOW())',
           [id, name, email, row.phone||'', row.department||'', roles.join(','), hash]
-        );
+        ));
         inserted++;
       }
       return NextResponse.json({ success: true, inserted, errors }, { status: 201 });
@@ -81,14 +105,12 @@ export async function POST(req) {
     // Numeric max over every row. 'ORDER BY id DESC LIMIT 1' sorted ids as
     // STRINGS, so once the table passed U999 the next id 'U1000' sorted below
     // 'U999', the sequence stuck at 999 and every further insert collided.
-    const [allIds] = await pool.query('SELECT id FROM users');
-    const id = nextSeqId(allIds, 'U', 3);
     const roles = callerIsAdmin && body.roles?.length ? body.roles : ['User'];
     const hash = body.password ? await bcrypt.hash(body.password, 10) : null;
-    await pool.query(
+    const id = await insertUserWithUniqueId((id) => pool.query(
       'INSERT INTO users (id, name, email, phone, department, branch, roles, active, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())',
       [id, body.name.trim(), body.email.trim(), body.phone || '', body.department || '', body.branch || '', roles.join(','), hash]
-    );
+    ));
     if (body.picture) {
       const picture = await maybeUploadToDrive(body.picture, 'user-photo');
       await pool.query('UPDATE users SET picture = ? WHERE id = ?', [picture, id]);
@@ -96,7 +118,8 @@ export async function POST(req) {
     const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
     return NextResponse.json(sanitizeUser(result[0]), { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[users POST]', err.message);
+    return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
   }
 }
 
@@ -152,7 +175,8 @@ export async function PATCH(req) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(sanitizeUser(result[0]));
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[users PATCH]', err.message);
+    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }
 }
 
@@ -173,6 +197,7 @@ export async function DELETE(req) {
     await pool.query('DELETE FROM users WHERE id = ?', [id]);
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[users DELETE]', err.message);
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
 }

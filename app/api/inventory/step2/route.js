@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, isWhatsappConfigured } from '@/lib/whatsapp';
-import { requireUser } from '@/lib/api';
+import { requireAccess } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
+import { newId } from '@/lib/ids';
 import { findByOrder, resolveRow, writeRows, appendSlabs } from '@/lib/imsSheet';
 
 // Slabs come from the IMS spreadsheet (lib/imsSheet.js). The Step-2 header
@@ -10,14 +11,13 @@ import { findByOrder, resolveRow, writeRows, appendSlabs } from '@/lib/imsSheet'
 // fsm_step2 table.
 
 const NOTIFY = () => process.env.INVENTORY_NOTIFY || '120363428784416671@g.us';
-const uid = (p) => p + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
 const num = (v) => parseFloat(v) || 0;
 
 // GET ?orderNo=... → every slab ever attached to that order, any status —
 // Used/Sold rows stay visible for context, the UI just disables editing on
 // them. Use the `status` field to gate actions.
 export async function GET(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAccess('/inventory'); if (gate) return gate;
   try {
     const orderNo = (new URL(req.url).searchParams.get('orderNo') || '').trim();
     if (!orderNo) return NextResponse.json({ error: 'orderNo required' }, { status: 400 });
@@ -32,14 +32,15 @@ export async function GET(req) {
       orderNo, key: slabs[0].key || orderNo, client: slabs[0].client || '', area: slabs[0].area || '', slabs,
     });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[inventory/step2 GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load slabs for order' }, { status: 500 });
   }
 }
 
 // PATCH { orderNo, from, to } → bulk-transition every slab in an order between
 // two statuses (e.g. Blocked → Step2 to start review, or back).
 export async function PATCH(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAccess('/inventory'); if (gate) return gate;
   try {
     const { orderNo, from, to } = await req.json();
     if (!orderNo || !from || !to) return NextResponse.json({ error: 'orderNo, from, to required' }, { status: 400 });
@@ -50,13 +51,14 @@ export async function PATCH(req) {
     await writeRows(updates);
     return NextResponse.json({ ok: true, count: updates.length });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[inventory/step2 PATCH]', err.message);
+    return NextResponse.json({ error: 'Failed to update slabs' }, { status: 500 });
   }
 }
 
 // POST submit Step 2: record cutting, mark Used, create remnants, log + WhatsApp
 export async function POST(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAccess('/inventory'); if (gate) return gate;
   try {
     await ensureSchema();
     const info = await req.json();
@@ -134,7 +136,7 @@ export async function POST(req) {
     await pool.query(
       `INSERT INTO fsm_step2 (id, inv_key, created_at, order_no, material, all_pieces, grain, grain_img, issue, cutting_required, mat_img, sizes_packing)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [uid('FSM'), info.key || orderNo, createdAt, orderNo, info.material || '', info.allPieces || '',
+      [newId('FSM'), info.key || orderNo, createdAt, orderNo, info.material || '', info.allPieces || '',
        info.grain || '', grainImg || '', info.issue || '', hasCutting ? 'Yes' : 'No', matImg || '', info.sizesPacking || '']
     );
 
@@ -144,6 +146,7 @@ export async function POST(req) {
 
     return NextResponse.json({ ok: true, count: updates.length });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[inventory/step2 POST]', err.message);
+    return NextResponse.json({ error: 'Failed to submit step 2' }, { status: 500 });
   }
 }

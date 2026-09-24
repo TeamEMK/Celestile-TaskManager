@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { fmtDMY, isoDate } from '@/lib/dates';
+import { useConfirmToast } from '../components/ConfirmToast';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
@@ -15,6 +16,7 @@ export default function MeetingsClient({ createdBy, holidays = [], users = [] })
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: '', startTime: '', endTime: '', attendees: '', notes: '' });
   const [saving, setSaving] = useState(false);
+  const { ask, ConfirmUI } = useConfirmToast();
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -63,20 +65,24 @@ export default function MeetingsClient({ createdBy, holidays = [], users = [] })
     if (!form.title.trim()) return;
     setSaving(true);
     try {
-      await fetch('/api/meetings', {
+      const res = await fetch('/api/meetings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, date: selected, createdBy }),
       });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Failed to schedule meeting'); return; }
       setOpen(false);
       setForm({ title: '', startTime: '', endTime: '', attendees: '', notes: '' });
       load();
     } finally { setSaving(false); }
   }
 
-  async function remove(id) {
-    await fetch(`/api/meetings?id=${id}`, { method: 'DELETE' });
-    load();
+  function remove(id) {
+    ask('Delete this meeting?', async () => {
+      const res = await fetch(`/api/meetings?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Failed to delete meeting'); return; }
+      load();
+    });
   }
 
   const move = (delta) => setCursor(new Date(year, month + delta, 1));
@@ -218,6 +224,7 @@ export default function MeetingsClient({ createdBy, holidays = [], users = [] })
           </div>
         </div>
       )}
+      {ConfirmUI}
     </div>
   );
 }

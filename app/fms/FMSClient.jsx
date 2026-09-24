@@ -392,7 +392,9 @@ export default function FMSClient() {
                             <span className="text-slate-400 text-[12px]">Loading…</span>
                           ) : detail && (
                             <div className="flex gap-2 flex-wrap justify-end" onClick={(e) => e.stopPropagation()}>
-                              <button className="btn-secondary btn-sm" onClick={togglePc}><Icon name="user" className="w-3.5 h-3.5" /> {showPc ? 'Hide' : ''} PC Report</button>
+                              {(isAdmin || String(detail?.sheet?.process_coordinator_id || '') === String(session?.user?.id || '')) && (
+                                <button className="btn-secondary btn-sm" onClick={togglePc}><Icon name="user" className="w-3.5 h-3.5" /> {showPc ? 'Hide' : ''} PC Report</button>
+                              )}
                               {canSubmitIntake && submitFields.length > 0 && (
                                 <button className="btn-primary btn-sm" onClick={() => setShowSubmitForm(true)}><Icon name="edit" className="w-3.5 h-3.5" /> {submitFormName || 'Submit Entry'}</button>
                               )}

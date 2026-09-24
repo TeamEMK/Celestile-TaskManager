@@ -5,10 +5,15 @@ import { newId } from '@/lib/ids';
 import { isAdminRoles } from '@/lib/pages';
 
 export async function GET(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const { gate, user: caller } = await requireUserCtx(); if (gate) return gate;
   try {
     await ensureSchema();
-    const userId = new URL(req.url).searchParams.get('userId');
+    let userId = new URL(req.url).searchParams.get('userId');
+    // Leave reasons are HR-sensitive. A non-admin may only ever see their own
+    // leave applications — omitting userId used to return every employee's
+    // leave history (reasons included), and an arbitrary userId let anyone
+    // read a specific colleague's.
+    if (!isAdminRoles(caller.roles)) userId = caller.id;
     const [rows] = userId
       ? await pool.query(
           `SELECT id, user_id AS userId, user_name AS userName, type,
@@ -22,7 +27,8 @@ export async function GET(req) {
            FROM leaves ORDER BY created_at DESC`);
     return NextResponse.json(rows);
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[leaves GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load leaves' }, { status: 500 });
   }
 }
 
@@ -58,7 +64,8 @@ export async function POST(req) {
     );
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[leaves POST]', err.message);
+    return NextResponse.json({ error: 'Failed to save leave application' }, { status: 500 });
   }
 }
 
@@ -73,6 +80,7 @@ export async function PATCH(req) {
       [body.status, body.id]);
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[leaves PATCH]', err.message);
+    return NextResponse.json({ error: 'Failed to update leave' }, { status: 500 });
   }
 }

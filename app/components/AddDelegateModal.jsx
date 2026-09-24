@@ -7,6 +7,7 @@ import { ZoomImg } from './ImageLightbox';
 import Icon from '../components/Icon';
 import DateField from './DateField';
 import { Modal } from './ui';
+import { isHttpUrl } from '@/lib/url';
 
 const blank = () => ({
   description: '', doerId: '', dueDate: '', client: '',
@@ -67,6 +68,10 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
     }
     if (form.approval === 'Approval Required' && !form.approverId) {
       setMsg({ text: 'Please select an approver.', ok: false });
+      return;
+    }
+    if (form.url && !isHttpUrl(form.url)) {
+      setMsg({ text: 'URL must start with http:// or https://', ok: false });
       return;
     }
     setSaving(true); setMsg(null);

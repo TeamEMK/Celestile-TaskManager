@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
-import { requireUser, requireAdmin } from '@/lib/api';
+import { requireAccess, requireAdmin } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 import { newId } from '@/lib/ids';
 
 export async function GET() {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAccess('/masters'); if (gate) return gate;
   try {
     await ensureSchema();
     const [rows] = await pool.query('SELECT * FROM masters ORDER BY created_at DESC');
     return NextResponse.json(rows);
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[masters GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load checklists' }, { status: 500 });
   }
 }
 
@@ -55,7 +56,8 @@ export async function POST(req) {
     );
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[masters POST]', err.message);
+    return NextResponse.json({ error: 'Failed to save checklist' }, { status: 500 });
   }
 }
 
@@ -71,7 +73,8 @@ export async function PATCH(req) {
     );
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[masters PATCH]', err.message);
+    return NextResponse.json({ error: 'Failed to update checklist' }, { status: 500 });
   }
 }
 
@@ -84,6 +87,7 @@ export async function DELETE(req) {
     await pool.query('DELETE FROM masters WHERE id = ?', [id]);
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[masters DELETE]', err.message);
+    return NextResponse.json({ error: 'Failed to delete checklist' }, { status: 500 });
   }
 }

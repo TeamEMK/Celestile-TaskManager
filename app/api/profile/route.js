@@ -1,18 +1,22 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import bcrypt from 'bcryptjs';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
+import { requireUserCtx } from '@/lib/api';
 
 const DEFAULT_PASSWORD = 'India@123';
 
 export async function PATCH(req) {
   try {
     await ensureSchema();
-    const session = await getServerSession(authOptions);
-    const id = session?.user?.id;
-    if (!id) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    // requireUserCtx (not a raw getServerSession read) so a session stamped
+    // 'ForceLogout' (account deleted, or an admin pressed force-logout) is
+    // refused here too — this route used to skip that check entirely, so a
+    // revoked JWT could still be used to change the account's own password.
+    // It also applies the "Service Suspended" gate every other guarded route
+    // respects.
+    const { gate, user: sessionUser } = await requireUserCtx(); if (gate) return gate;
+    const id = sessionUser.id;
 
     const body = await req.json();
     // Update core fields without picture first
@@ -39,6 +43,12 @@ export async function PATCH(req) {
 
     // Password change
     if (body.newPassword) {
+      // Same minimum the admin-driven "Set Password" flow enforces
+      // (app/api/users/set-password/route.js) — this self-service path used
+      // to accept a password of any length, including a single character.
+      if (String(body.newPassword).length < 6)
+        return NextResponse.json({ error: 'New password must be at least 6 characters' }, { status: 400 });
+
       const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [id]);
       if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
@@ -55,6 +65,7 @@ export async function PATCH(req) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[profile PATCH]', err.message);
+    return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
   }
 }

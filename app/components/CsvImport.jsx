@@ -1,5 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
+import { csvEscape } from '@/lib/csv';
 
 /**
  * CSV Template + Upload control.
@@ -94,12 +95,6 @@ export default function CsvImport({ templateName, columns, sampleRow, parseRow, 
       )}
     </div>
   );
-}
-
-function csvEscape(v) {
-  const s = String(v ?? '');
-  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
-  return s;
 }
 
 function parseCsv(text) {

@@ -12,6 +12,7 @@ export async function GET(req) {
     const refs = (rows || []).map((r) => r.ref_no);
     return NextResponse.json({ refNo: nextRefNo(refs, branch) });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[quotations/next-ref GET]', err.message);
+    return NextResponse.json({ error: 'Failed to compute next ref number' }, { status: 500 });
   }
 }

@@ -29,7 +29,14 @@ export async function GET(req) {
   const callerBranch = (caller?.branch || '').toLowerCase();
   try {
     await ensureSchema();
-    const doerId = new URL(req.url).searchParams.get('doerId');
+    let doerId = new URL(req.url).searchParams.get('doerId');
+    // `doerId` selects the SELECT_COLS branch, which includes the inline
+    // base64 pre_install_image meant only for the doer's own "My Past
+    // Submissions" view. Without this check any signed-in user could pull a
+    // colleague's full submission history (and photos) by passing their id.
+    if (doerId && String(doerId) !== String(caller.id) && !isAdminRoles(caller.roles)) {
+      doerId = caller.id;
+    }
     let rows;
     if (doerId) {
       [rows] = await pool.query(
@@ -51,7 +58,8 @@ export async function GET(req) {
     }
     return NextResponse.json(rows);
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[daily-tasks GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load daily tasks' }, { status: 500 });
   }
 }
 
@@ -82,6 +90,19 @@ export async function POST(req) {
     const rows = Array.isArray(body.rows) ? body.rows : [];
     if (!body.entryDate || rows.length === 0)
       return NextResponse.json({ error: 'entryDate and at least one row required' }, { status: 400 });
+
+    // Money/quantity fields must not be negative — a stray minus sign here
+    // silently skews the EA sales-report totals that read straight off this
+    // table (see sales-target/route.js for the same check applied there).
+    const NUMERIC_FIELDS = ['minutes', 'kmsTravelled', 'orderValue', 'advPaid', 'balance', 'tillDateReceived', 'balanceTarget', 'receivedToday'];
+    for (const r of rows) {
+      for (const f of NUMERIC_FIELDS) {
+        if (r[f] === undefined || r[f] === null || r[f] === '') continue;
+        const n = Number(r[f]);
+        if (!Number.isFinite(n) || n < 0)
+          return NextResponse.json({ error: `${f} must be a number ≥ 0` }, { status: 400 });
+      }
+    }
 
     // Whose report this is comes from the session, not the request body. The
     // client used to name the doer, so anyone could file a day's work — or a
@@ -164,6 +185,7 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, inserted: rows.length }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[daily-tasks POST]', err.message);
+    return NextResponse.json({ error: 'Failed to save daily tasks' }, { status: 500 });
   }
 }

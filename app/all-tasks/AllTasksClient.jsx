@@ -17,6 +17,7 @@ import DateField from '../components/DateField';
 import { isAdminRoles } from '@/lib/pages';
 import Avatar from '../components/Avatar';
 import { fmtDMY, todayISO } from '@/lib/dates';
+import { isHttpUrl } from '@/lib/url';
 
 export default function AllTasksClient({ grouped, users }) {
   const router = useRouter();
@@ -135,38 +136,42 @@ export default function AllTasksClient({ grouped, users }) {
 
   async function updateStatus(id, status, type) {
     if (type === 'Checklist') return;
-    await fetch('/api/delegations', {
+    const res = await fetch('/api/delegations', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
     });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Failed to update task'); return; }
     router.refresh();
   }
 
   async function markChecklistDone(taskId) {
-    await fetch('/api/checklist-completions', {
+    const res = await fetch('/api/checklist-completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ masterId: taskId }),
     });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Failed to mark checklist done'); return; }
     router.refresh();
   }
 
 
   async function undoTask(task) {
+    let res;
     if (task.type === 'Checklist') {
-      await fetch('/api/checklist-completions', {
+      res = await fetch('/api/checklist-completions', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ masterId: task.id }),
       });
     } else {
-      await fetch('/api/delegations', {
+      res = await fetch('/api/delegations', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: task.id, status: 'pending' }),
       });
     }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Failed to undo task'); return; }
     router.refresh();
   }
 
@@ -574,6 +579,7 @@ function EditTaskModal({ task, users, onClose, onSaved }) {
 
   async function save() {
     if (!form.description.trim()) { alert('Description required'); return; }
+    if (form.url && !isHttpUrl(form.url)) { alert('URL must start with http:// or https://'); return; }
     setSaving(true);
     const selectedUser = users.find((u) => u.id === form.doerId);
     const res = await fetch('/api/delegations', {

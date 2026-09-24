@@ -15,11 +15,13 @@ export async function GET(req) {
               boutique, payment_terms, validity, lead_time, transport,
               billing_address, site_address, grand_total,
               discount_pct, design_fees, installation_charges, packing_charges,
-              stone_items, fixing_items, totals_config, quote_date
+              stone_items, fixing_items, totals_config, quote_date, approval_expires_at
        FROM quotations WHERE approval_token = ? LIMIT 1`,
       [token]
     );
     if (!rows[0]) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (rows[0].approval_expires_at && new Date(rows[0].approval_expires_at) < new Date())
+      return NextResponse.json({ error: 'Link expired' }, { status: 404 });
 
     const pdfBuffer = await generateQuotationPdf(rows[0]);
     const refNo = String(rows[0].ref_no || 'quotation').replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -34,6 +36,6 @@ export async function GET(req) {
     });
   } catch (err) {
     console.error('[quotation pdf]', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 });
   }
 }

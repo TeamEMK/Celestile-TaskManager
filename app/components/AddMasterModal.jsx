@@ -95,25 +95,17 @@ export default function AddMasterModal({ open, onClose, users: propUsers = [] })
     try {
       const rows = parseCSV(await file.text());
       if (!rows.length) { setMsg('No valid rows found.'); setSaving(false); return; }
-      let inserted = 0; const errors = [];
-      for (const [i, row] of rows.entries()) {
-        const email = (row.user_email || '').trim().toLowerCase();
-        const desc  = (row.description || '').trim();
-        if (!email || !desc) { errors.push(`Row ${i + 1}: missing fields`); continue; }
-        const user = users.find(u => u.email?.toLowerCase() === email);
-        if (!user) { errors.push(`Row ${i + 1}: user not found (${email})`); continue; }
-        const freq = FREQS.find(f => f.value.toLowerCase() === (row.frequency || '').toLowerCase())?.value || 'Daily';
-        const res = await fetch('/api/masters', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            task: desc, assignedTo: user.name, frequency: freq,
-            startDate: row.start_date || new Date().toISOString().slice(0, 10),
-            remarks: row.remarks || '',
-          }),
-        });
-        if (res.ok) inserted++; else errors.push(`Row ${i + 1}: save failed`);
-      }
-      setMsg(`${inserted} added${errors.length ? ` · ${errors.length} skipped` : ''}`);
+      // One request for the whole file — /api/masters already accepts this
+      // exact bulk shape (user_email/description/frequency/start_date), so
+      // there's no need for a request-per-row loop (N sequential round trips
+      // for an N-row CSV, more likely to time out partway through).
+      const res = await fetch('/api/masters', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bulk: rows }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setMsg(d.error || 'Upload failed'); setSaving(false); return; }
+      setMsg(`${d.inserted} added${d.errors?.length ? ` · ${d.errors.length} skipped` : ''}`);
       setFile(null);
       router.refresh();
     } catch (e) {

@@ -5,6 +5,7 @@ import { requireUser, requireUserCtx, currentUser } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 import { newId } from '@/lib/ids';
+import { isHttpUrl } from '@/lib/url';
 
 // Fire a WhatsApp "task delegated" notice to the doer (best-effort).
 async function notifyDelegation({ doerUser, delegatedById, del }) {
@@ -162,6 +163,9 @@ export async function POST(req) {
         const desc        = (row.description || '').trim();
         const rowApproval = row.approval || resolvedApproval;
         if (!email || !dueDate || !desc) { errors.push(`Row ${i+1}: missing fields`); continue; }
+        // A non-http(s) URL (e.g. `javascript:...`) is rendered later as a
+        // plain <a href> — reject rather than store it.
+        if (row.url && !isHttpUrl(row.url)) { errors.push(`Row ${i+1}: url must start with http:// or https://`); continue; }
         const [users] = await pool.query('SELECT id, name, phone FROM users WHERE LOWER(email) = ?', [email]);
         if (!users.length) { errors.push(`Row ${i+1}: no user ${email}`); continue; }
         let approverId = '', approverName = '';
@@ -187,6 +191,10 @@ export async function POST(req) {
       return NextResponse.json({ error: 'description, doerId, dueDate required' }, { status: 400 });
     if (resolvedApproval === 'Approval Required' && !body.approverId)
       return NextResponse.json({ error: 'approverId required when approval is required' }, { status: 400 });
+    // A non-http(s) URL (e.g. `javascript:...`) is rendered later as a plain
+    // <a href> — reject rather than store it.
+    if (body.url && !isHttpUrl(body.url))
+      return NextResponse.json({ error: 'url must start with http:// or https://' }, { status: 400 });
     const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [body.doerId]);
     let approverName = '';
     if (body.approverId) {
@@ -204,8 +212,8 @@ export async function POST(req) {
     await notifyDelegation({ doerUser: users[0], delegatedById: sessionUser.id, del: row });
     return NextResponse.json(row, { status: 201 });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[delegations POST]', err);
+    return NextResponse.json({ error: 'Failed to save task' }, { status: 500 });
   }
 }
 
@@ -267,6 +275,10 @@ export async function PATCH(req) {
     }
 
     if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+    // A non-http(s) URL (e.g. `javascript:...`) is rendered later as a plain
+    // <a href> — reject rather than store it.
+    if (body.url && !isHttpUrl(body.url))
+      return NextResponse.json({ error: 'url must start with http:// or https://' }, { status: 400 });
 
     const [existingRows] = await pool.query('SELECT * FROM delegations WHERE id = ?', [body.id]);
     const current = existingRows[0];
@@ -384,8 +396,8 @@ export async function PATCH(req) {
     else if (status === 'done') await notifyTaskDone(result[0]);
     return NextResponse.json(result[0]);
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[delegations PATCH]', err);
+    return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
   }
 }
 
@@ -405,6 +417,7 @@ export async function DELETE(req) {
     await pool.query('DELETE FROM delegations WHERE id = ?', [id]);
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[delegations DELETE]', err.message);
+    return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
   }
 }

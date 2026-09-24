@@ -50,7 +50,8 @@ export async function GET(req, { params }) {
         timeout: true,
       }, { status: 504 });
     }
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[live-tracking/[id] GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load live tracker data' }, { status: 500 });
   }
 }
 
@@ -67,7 +68,8 @@ export async function PUT(req, { params }) {
     await updateLiveTracker(id, body);
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[live-tracking/[id] PUT]', err.message);
+    return NextResponse.json({ error: 'Failed to update live tracker' }, { status: 500 });
   }
 }
 
@@ -78,6 +80,7 @@ export async function DELETE(req, { params }) {
     await deleteLiveTracker(id);
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[live-tracking/[id] DELETE]', err.message);
+    return NextResponse.json({ error: 'Failed to delete live tracker' }, { status: 500 });
   }
 }

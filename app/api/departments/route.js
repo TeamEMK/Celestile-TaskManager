@@ -20,7 +20,8 @@ export async function GET() {
     await ensureSchema();
     return NextResponse.json(await readList());
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[departments GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load departments' }, { status: 500 });
   }
 }
 
@@ -31,6 +32,7 @@ export async function POST(req) {
     const { name } = await req.json();
     const trimmed = (name || '').trim();
     if (!trimmed) return NextResponse.json({ error: 'name required' }, { status: 400 });
+    if (trimmed.length > 100) return NextResponse.json({ error: 'name must be 100 characters or fewer' }, { status: 400 });
 
     const list = await readList();
     if (!list.some((d) => d.toLowerCase() === trimmed.toLowerCase())) {
@@ -42,6 +44,7 @@ export async function POST(req) {
     }
     return NextResponse.json(list);
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[departments POST]', err.message);
+    return NextResponse.json({ error: 'Failed to save department' }, { status: 500 });
   }
 }

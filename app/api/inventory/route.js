@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendWhatsApp, slabBlockedMessage, slabReleasedMessage, isWhatsappConfigured } from '@/lib/whatsapp';
-import { requireUser } from '@/lib/api';
+import { requireAccess } from '@/lib/api';
 import { maybeUploadToDriveWithLink } from '@/lib/googleDrive';
 import { listSlabs, resolveRow, appendSlabs, writeRows, deleteRow, nextLotKey, publicSlab } from '@/lib/imsSheet';
 
@@ -13,17 +13,18 @@ import { listSlabs, resolveRow, appendSlabs, writeRows, deleteRow, nextLotKey, p
 const NOTIFY = () => process.env.INVENTORY_NOTIFY || '120363428784416671@g.us';
 
 export async function GET() {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAccess('/inventory'); if (gate) return gate;
   try {
     const rows = await listSlabs();
     return NextResponse.json(rows.map(publicSlab));
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[inventory GET]', err.message);
+    return NextResponse.json({ error: 'Failed to load inventory' }, { status: 500 });
   }
 }
 
 export async function POST(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAccess('/inventory'); if (gate) return gate;
   try {
     const body = await req.json();
     const entries = Array.isArray(body.entries) ? body.entries : [];
@@ -55,7 +56,8 @@ export async function POST(req) {
     const count = await appendSlabs(rows);
     return NextResponse.json({ ok: true, count, lotKey }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[inventory POST]', err.message);
+    return NextResponse.json({ error: 'Failed to save inventory entries' }, { status: 500 });
   }
 }
 
@@ -77,7 +79,7 @@ async function notifyStatus(prev, next) {
 }
 
 export async function PATCH(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAccess('/inventory'); if (gate) return gate;
   try {
     const e = await req.json();
     const ids = Array.isArray(e.ids) && e.ids.length ? e.ids : (e.id ? [e.id] : []);
@@ -109,12 +111,13 @@ export async function PATCH(req) {
 
     return NextResponse.json({ ok: true, count: updates.length });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[inventory PATCH]', err.message);
+    return NextResponse.json({ error: 'Failed to update inventory' }, { status: 500 });
   }
 }
 
 export async function DELETE(req) {
-  const gate = await requireUser(); if (gate) return gate;
+  const gate = await requireAccess('/inventory'); if (gate) return gate;
   try {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
@@ -123,6 +126,7 @@ export async function DELETE(req) {
     await deleteRow(cur.__row);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[inventory DELETE]', err.message);
+    return NextResponse.json({ error: 'Failed to delete inventory row' }, { status: 500 });
   }
 }

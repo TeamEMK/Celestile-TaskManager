@@ -66,6 +66,10 @@ export default function ProfileClient({ me, notificationEmail }) {
       alert('New passwords do not match');
       return;
     }
+    if (form.newPassword && form.newPassword.length < 6) {
+      alert('New password must be at least 6 characters');
+      return;
+    }
     setSaving(true);
     const payload = { ...form };
     const res = await fetch('/api/profile', {
