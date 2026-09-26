@@ -157,7 +157,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
 
                   return (
                     <Link key={n.href} href={n.href} title={n.label} onClick={onClose}
-                      className={`group/item flex items-center gap-3 h-10 px-2.5 rounded-lg text-[14px] relative transition-colors duration-150 ${active ? 'font-bold' : 'font-medium'}`}
+                      className={`group/item flex items-center gap-3 h-10 px-2.5 rounded-lg text-[14px] relative transition-colors duration-150 min-w-0 ${active ? 'font-bold' : 'font-medium'}`}
                       style={{
                         background: active ? 'rgba(238,188,46,0.18)' : 'transparent',
                         color: active ? '#FBEAB8' : '#D4D4D4',
@@ -181,7 +181,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
                           </span>
                         )}
                       </span>
-                      <span className={`whitespace-nowrap opacity-100 md:opacity-100 ${lgLabel} transition-opacity duration-200`}>
+                      <span className={`truncate min-w-0 opacity-100 md:opacity-100 ${lgLabel} transition-opacity duration-200`}>
                         {n.label}
                       </span>
                     </Link>
