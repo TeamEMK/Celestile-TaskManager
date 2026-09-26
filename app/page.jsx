@@ -23,7 +23,7 @@ export default async function DashboardPage() {
     pool.query('SELECT master_id FROM checklist_completions WHERE date = CURDATE()')
       .then(([rows]) => rows).catch(() => []),
     FMS_ENABLED
-      ? getMyFmsPendingRows({ userId: currentUserId, userName: currentName, isAdmin, branch: session?.user?.branch }).catch(() => [])
+      ? getMyFmsPendingRows({ userId: currentUserId, userName: currentName, isAdmin, branch: session?.user?.branch, department: session?.user?.department }).catch(() => [])
       : Promise.resolve([]),
   ]);
 

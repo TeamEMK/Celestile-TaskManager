@@ -9,7 +9,7 @@ import { getMyFmsPendingRows } from '@/lib/fmsSheet';
 export async function GET() {
   const { gate, user } = await requireUserCtx(); if (gate) return gate;
   try {
-    const rows = await getMyFmsPendingRows({ userId: user.id, userName: user.name, isAdmin: isAdminRoles(user.roles), branch: user.branch });
+    const rows = await getMyFmsPendingRows({ userId: user.id, userName: user.name, isAdmin: isAdminRoles(user.roles), branch: user.branch, department: user.department });
     return NextResponse.json({ rows });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
