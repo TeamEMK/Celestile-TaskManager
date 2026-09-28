@@ -15,6 +15,8 @@ export default async function LeaveTrackerPage() {
       userId={session?.user?.id || ''}
       userName={session?.user?.name || ''}
       canApprove={canApprove}
+      isAdmin={roles.includes('Admin')}
+      isHod={roles.includes('HOD')}
     />
   );
 }
