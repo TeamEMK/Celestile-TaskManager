@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAccess, currentUser } from '@/lib/api';
-import { getFmsSheet, getIntakeFields, submitIntakeRow, effectiveIntakeSheet } from '@/lib/fmsSheet';
+import { getFmsSheet, getIntakeFields, submitIntakeRow, effectiveIntakeSheet, isSheetTimeout } from '@/lib/fmsSheet';
 
 // GET the configured intake-form fields, for rendering the "+ New Entry" form.
 export async function GET(req, { params }) {
@@ -42,6 +42,16 @@ export async function POST(req, { params }) {
         error: err.message,
         duplicate: { fieldId: err.duplicate.field?.id, label: err.duplicate.label, row: err.duplicate.row },
       }, { status: 409 });
+    }
+    // Google didn't answer in time (already retried once) — say so plainly
+    // instead of leaking the raw "The operation was aborted." under no
+    // explanation. This can time out on the write itself, so it can't
+    // promise the row wasn't saved — only that we never got confirmation.
+    if (isSheetTimeout(err)) {
+      return NextResponse.json({
+        error: 'Google Sheets took too long to answer. It is reachable — just slow right now (often because several people are submitting at once). Check the sheet before retrying, in case it actually saved right as the connection timed out.',
+        timeout: true,
+      }, { status: 504 });
     }
 
     return NextResponse.json({ error: err.message }, { status: 500 });

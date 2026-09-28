@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser, currentUser } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
-import { getFmsSheet, getFullSteps, writeStepDone } from '@/lib/fmsSheet';
+import { getFmsSheet, getFullSteps, writeStepDone, isSheetTimeout } from '@/lib/fmsSheet';
 
 // Writes the Actual timestamp (+ delay reason + extra fields + doer name)
 // back to the exact cells of the live Google Sheet.
@@ -40,6 +40,15 @@ export async function POST(req, { params }) {
     const code = err?.code || err?.response?.status;
     if (code === 403) return NextResponse.json({ error: 'Access denied. Sheet write permission needed.' }, { status: 400 });
     if (err.message?.startsWith('Order number')) return NextResponse.json({ error: err.message }, { status: 400 });
+    // Same "Google didn't answer in time" case as the intake route — see the
+    // comment there. It can time out on the write itself, so it can't promise
+    // the completion wasn't saved.
+    if (isSheetTimeout(err)) {
+      return NextResponse.json({
+        error: 'Google Sheets took too long to answer. It is reachable — just slow right now. Check the row before retrying, in case it actually saved right as the connection timed out.',
+        timeout: true,
+      }, { status: 504 });
+    }
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
