@@ -52,14 +52,15 @@ export default async function DashboardPage() {
   if (fmsTasks.length) {
     data.total   += fmsTasks.length;
     data.pending += fmsTasks.length;
-    // Every FMS row stays on the list. computeDashboard already caps the
-    // delegation/checklist part at 50; capping the merged list at 50 as
-    // well pushed out whole FMS's — their plan dates are older than the
-    // newest delegations, and a row with no readable plan date sorted as
-    // NaN, i.e. anywhere. Newest first, undated rows last.
-    const when = (t) => { const ms = new Date(t.createdAt || t.date || t.dueDate || '').getTime(); return Number.isNaN(ms) ? -Infinity : ms; };
-    data.pendingTasks = [...data.pendingTasks, ...fmsTasks].sort((a, b) => when(b) - when(a));
   }
+  // KPI totals above count every row; the rendered list is capped so the
+  // page doesn't ship/render thousands of task cards (13k+ FMS pending rows
+  // made the dashboard extremely heavy — huge RSC payload, huge DOM, and a
+  // full re-fetch of all of it on every 60s auto-refresh). Sort delegations/
+  // checklist + FMS together BEFORE capping — newest first, undated rows
+  // last — so capping doesn't push whole FMS's off the list.
+  const when = (t) => { const ms = new Date(t.createdAt || t.date || t.dueDate || '').getTime(); return Number.isNaN(ms) ? -Infinity : ms; };
+  data.pendingTasks = [...data.pendingTasks, ...fmsTasks].sort((a, b) => when(b) - when(a)).slice(0, 50);
 
   return (
     <DashboardClient
