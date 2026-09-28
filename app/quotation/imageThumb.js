@@ -38,10 +38,11 @@ export function fileToDataUrl(file) {
   });
 }
 
-// PDF -> full data URL; image -> 700px thumbnail. What the FMS flows attach
-// before the server swaps it for a Drive URL. (Was pasted into FMSClient and
-// FmsDoneModal verbatim.)
+// Image -> 700px thumbnail; anything else (PDF, zip, …) -> full data URL, since
+// only an image can be loaded into a canvas to resize. What the FMS flows
+// attach before the server swaps it for a Drive URL. (Was pasted into
+// FMSClient and FmsDoneModal verbatim.)
 export async function pickUploadFile(file) {
   if (!file) return '';
-  return file.type === 'application/pdf' ? fileToDataUrl(file) : fileToThumbnail(file, 700, 0.7);
+  return file.type.startsWith('image/') ? fileToThumbnail(file, 700, 0.7) : fileToDataUrl(file);
 }
