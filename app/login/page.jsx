@@ -68,7 +68,7 @@ export default function LoginPage() {
       setMoodAndQuip('happy');
       setParty(true);
       showToast('Login successful! Redirecting… ', 'success');
-      setTimeout(() => { window.location.href = '/'; }, 1400);
+      setTimeout(() => { window.location.href = '/'; }, 550);
     }
   }
 
