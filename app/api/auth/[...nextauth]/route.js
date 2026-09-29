@@ -51,7 +51,17 @@ async function isAppActive() {
     // No "no DB → active" escape hatch here any more: lib/db.js always sets
     // the DB_HOST sentinel, so that branch was dead — and had it ever become
     // live, it would have quietly disabled the kill switch.
-    const { pool } = await import('@/lib/db');
+    const { pool, USE_SHEETS } = await import('@/lib/db');
+    // Login is usually the first request of a session, so it's the request
+    // most likely to find the Sheets cache cold — go through loadSubset so it
+    // only pays for the app_config tab instead of the whole spreadsheet
+    // (images/PDFs/backups included) the generic pool.query() path would.
+    if (USE_SHEETS) {
+      const { loadSubset } = await import('@/lib/sheets-client');
+      const { app_config } = await loadSubset(['app_config']);
+      const row = app_config.find((r) => r.key === 'app_active');
+      return !row || row.value !== 'false';
+    }
     const [rows] = await pool.query("SELECT `value` FROM app_config WHERE `key` = 'app_active'");
     if (rows.length === 0) return true;
     return rows[0].value !== 'false';
@@ -60,8 +70,14 @@ async function isAppActive() {
 
 async function findUser(email) {
   try {
-    const { pool, ensureSchema } = await import('@/lib/db');
+    const { pool, ensureSchema, USE_SHEETS } = await import('@/lib/db');
     await ensureSchema();
+    if (USE_SHEETS) {
+      const { loadSubset } = await import('@/lib/sheets-client');
+      const { users } = await loadSubset(['users']);
+      const user = users.find((u) => u.email === email && Number(u.active) === 1) || null;
+      return { user };
+    }
     const [rows] = await pool.query('SELECT * FROM users WHERE email = ? AND active = 1', [email]);
     return { user: rows[0] || null };
   } catch (err) {
@@ -107,10 +123,17 @@ async function getUserAuthState(userId) {
 
 async function fetchUserAuthState(userId) {
   try {
-    const { pool } = await import('@/lib/db');
-    const [rows] = await pool.query('SELECT roles, access, force_logout_after, branch FROM users WHERE id = ?', [userId]);
-    if (!rows.length) return { forceLogoutAfter: Date.now() }; // deleted → force logout
-    const r = rows[0];
+    const { pool, USE_SHEETS } = await import('@/lib/db');
+    let r;
+    if (USE_SHEETS) {
+      const { loadSubset } = await import('@/lib/sheets-client');
+      const { users } = await loadSubset(['users']);
+      r = users.find((u) => String(u.id) === String(userId));
+    } else {
+      const [rows] = await pool.query('SELECT roles, access, force_logout_after, branch FROM users WHERE id = ?', [userId]);
+      r = rows[0];
+    }
+    if (!r) return { forceLogoutAfter: Date.now() }; // deleted → force logout
     return {
       forceLogoutAfter: r.force_logout_after ? new Date(r.force_logout_after).getTime() : 0,
       roles: rolesFrom(r.roles),
