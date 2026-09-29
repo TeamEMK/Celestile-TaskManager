@@ -40,9 +40,12 @@ async function loadMaster() {
   return inFlight;
 }
 
-export default function ImsThicknessSelect({ value = '', onChange, material = '', className = 'input', disabled }) {
+let listSeq = 0;
+
+export default function ImsThicknessSelect({ value = '', onChange, material = '', className = 'input', disabled, allowTyping = false, placeholder }) {
   const [master, setMaster] = useState(cache);
   const [failed, setFailed] = useState(false);
+  const [listId] = useState(() => `ims-thickness-${++listSeq}`);
 
   useEffect(() => {
     let alive = true;
@@ -51,6 +54,20 @@ export default function ImsThicknessSelect({ value = '', onChange, material = ''
   }, []);
 
   const emit = (v) => onChange?.({ target: { value: v } });
+
+  // Free-typed thickness (e.g. one value per slab: "20MM, 18MM, 20MM") with
+  // the master sizes offered as suggestions rather than enforced.
+  if (allowTyping) {
+    const own = master ? (master.byMaterial[String(material || '').trim().toLowerCase()] || []) : [];
+    const sizes = master ? [...own, ...master.thicknesses.filter((t) => !own.includes(t))] : [];
+    return (
+      <>
+        <input className={className} value={value} disabled={disabled} list={sizes.length ? listId : undefined}
+          placeholder={placeholder || 'e.g. 20MM, 18MM, 20MM'} onChange={(e) => emit(e.target.value)} />
+        {sizes.length > 0 && <datalist id={listId}>{sizes.map((t) => <option key={t} value={t} />)}</datalist>}
+      </>
+    );
+  }
 
   // No master, no dropdown — but still a usable field.
   if (failed) {

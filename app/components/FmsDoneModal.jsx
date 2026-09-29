@@ -182,6 +182,11 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
 function ExtraField({ row, value, onChange, material = '' }) {
   const label = row.row_label || row.col_letter;
   const required = !(row.required === 0 || row.required === false || row.required === '0');
+  const dropdownOptions = (row.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean);
+  // A dropdown with nothing to pick from would be impossible to fill in.
+  const isDropdown = row.field_type === 'dropdown' && dropdownOptions.length > 0;
+  const isText = (!row.field_type || row.field_type === 'text' || (row.field_type === 'dropdown' && !isDropdown))
+    && !isOrderField(row) && !isThicknessField(row);
   return (
     <div>
       <label className="label">
@@ -191,17 +196,16 @@ function ExtraField({ row, value, onChange, material = '' }) {
       {row.field_type === 'number'   && <input type="number" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter number…" />}
       {row.field_type === 'date'     && <DateField className="input" value={value} onChange={(e) => onChange(e.target.value)} />}
       {row.field_type === 'link'     && <input type="url" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="https://…" />}
-      {row.field_type === 'dropdown' && (
+      {isDropdown && (
         <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">-- Select --</option>
-          {(row.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean).map((o) => <option key={o} value={o}>{o}</option>)}
+          {dropdownOptions.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
       )}
       {row.field_type === 'upload' && <UploadField value={value} onChange={onChange} />}
       {isOrderField(row) && <OrderNumberInput value={value} onChange={(e) => onChange(e.target.value)} />}
-      {isThicknessField(row) && <ImsThicknessSelect value={value} material={material} onChange={(e) => onChange(e.target.value)} />}
-      {(!row.field_type || row.field_type === 'text') && !isOrderField(row) && !isThicknessField(row)
-        && <input type="text" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter value…" />}
+      {isThicknessField(row) && <ImsThicknessSelect allowTyping value={value} material={material} onChange={(e) => onChange(e.target.value)} />}
+      {isText && <input type="text" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter value…" />}
     </div>
   );
 }
