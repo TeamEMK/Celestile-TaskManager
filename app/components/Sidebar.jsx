@@ -25,6 +25,7 @@ const Icon = {
   quote:        (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>,
   access:       (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
   production:   (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 20h20"/><path d="M4 20V9l6 4V9l6 4V4h4v16"/><path d="M8 20v-3M14 20v-3"/></svg>,
+  help:         (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>,
   inventory:    (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7 12 3 4 7l8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>,
 };
 
@@ -33,6 +34,7 @@ const SECTIONS = [
     { href: '/',          label: 'Dashboard', icon: 'dashboard' },
     { href: '/all-tasks', label: 'All Tasks', icon: 'tasks' },
     { href: '/approvals', label: 'Approvals', icon: 'approve' },
+    { href: '/help-tickets', label: 'Help Tickets', icon: 'help' },
   ]},
   { title: 'Operations', items: [
     { href: '/fms',           label: 'FMS',           icon: 'fms',          flag: 'fms' },
@@ -67,6 +69,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
   const isAdmin = roles.includes('Admin') || roles.includes('HOD');
 
   const [pendingCount, setPendingCount] = useState(0);
+  const [ticketCount, setTicketCount] = useState(0);
 
   useEffect(() => {
     const fetchCount = async () => {
@@ -74,11 +77,22 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
       // every signed-in user, so a background tab was still hitting the API
       // (and, behind it, a DB query) every 15s for no visible benefit.
       if (document.visibilityState !== 'visible') return;
+      // Each badge fails on its own — allSettled plus its own try/catch, so a
+      // problem with one endpoint (or a non-JSON body from one) can't also
+      // suppress the other badge's update, the way a shared Promise.all did.
+      const [approvals, tickets] = await Promise.allSettled([
+        fetch('/api/approvals/pending-count'),
+        fetch('/api/help-tickets/open-count'),
+      ]);
       try {
-        const res = await fetch('/api/approvals/pending-count');
-        if (!res.ok) return;
-        const { count } = await res.json();
-        setPendingCount(count);
+        if (approvals.status === 'fulfilled' && approvals.value.ok) {
+          setPendingCount((await approvals.value.json()).count);
+        }
+      } catch {}
+      try {
+        if (tickets.status === 'fulfilled' && tickets.value.ok) {
+          setTicketCount((await tickets.value.json()).count);
+        }
       } catch {}
     };
     fetchCount();
@@ -172,12 +186,12 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
                       <span className="relative shrink-0">
                         <IconComp className="w-[17px] h-[17px]"
                           style={{ color: active ? '#F3C955' : 'inherit' }} />
-                        {n.href === '/approvals' && pendingCount > 0 && (
+                        {((n.href === '/approvals' && pendingCount > 0) || (n.href === '/help-tickets' && ticketCount > 0)) && (
                           <span
                             className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] rounded-full text-[9px] font-bold text-black flex items-center justify-center"
                             style={{ background: '#EEBC2E', boxShadow: '0 0 0 2px #000000' }}
                           >
-                            {pendingCount}
+                            {n.href === '/approvals' ? pendingCount : ticketCount}
                           </span>
                         )}
                       </span>

@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
 import Icon from '../components/Icon';
 import { canManageUsers } from '@/lib/pages';
+import { DEPARTMENTS } from '@/lib/departments';
 
 const ROLES = ['Admin', 'User', 'HOD'];
 
@@ -27,22 +28,6 @@ function normalizeRoles(roles) {
   if (typeof roles === 'string') return roles.split(',').map(r => r.trim()).filter(Boolean);
   return ['User'];
 }
-
-const DEPARTMENTS = [
-  { value: 'Process Coordinator',         label: 'Process Coordinator'         },
-  { value: 'Sales Person',                label: 'Sales Person'                },
-  { value: 'Client Relationship Manager', label: 'Client Relationship Manager' },
-  { value: 'Executive Assistant',         label: 'Executive Assistant'         },
-  { value: 'Accounts',                    label: 'Accounts'                    },
-  { value: 'Business Coordinator',        label: 'Business Coordinator'        },
-  { value: 'HOD Production',              label: 'HOD Production'              },
-  { value: 'SC',                          label: 'SC'                          },
-  { value: 'HR',                          label: 'HR'                          },
-  { value: 'Runner',                      label: 'Runner'                      },
-  { value: 'Dispatch',                    label: 'Dispatch'                    },
-  { value: 'Designer',                    label: 'Designer'                    },
-  { value: 'Management',                  label: 'Management'                  },
-];
 
 // Maps old stored values (lowercase/shorthand) → full display label
 const DEPT_DISPLAY = {
