@@ -21,11 +21,14 @@ export async function GET(req) {
     if (!key) return NextResponse.json({ error: 'orderNumber required' }, { status: 400 });
 
     await ensureSchema();
+    // department is an exact-string filter the SQL layer can do (order_number
+    // still needs a JS pass — no LOWER()/LIKE — but this cuts out every
+    // non-payment row before that scan, on a route hit live per keystroke).
     const [all] = await pool.query(
-      'SELECT entry_date, created_at, department, order_number, order_value, adv_paid, received_today FROM daily_tasks');
+      'SELECT entry_date, created_at, department, order_number, order_value, adv_paid, received_today FROM daily_tasks WHERE department = ?',
+      ['Sales Payment']);
     const rows = (all || [])
-      .filter((r) => r.department === 'Sales Payment'
-        && String(r.order_number || '').trim().toLowerCase() === key)
+      .filter((r) => String(r.order_number || '').trim().toLowerCase() === key)
       .sort((a, b) => String(a.entry_date || '').localeCompare(String(b.entry_date || ''))
         || String(a.created_at || '').localeCompare(String(b.created_at || '')));
 

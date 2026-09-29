@@ -164,10 +164,14 @@ export async function PATCH(req) {
     const newName = body.name?.trim();
     if (newName && oldName && newName !== oldName) {
       // Match on doer_id where we have one, and fall back to the old name for
-      // rows created before doer_id existed.
-      await pool.query('UPDATE delegations SET doer = ? WHERE doer_id = ?', [newName, body.id]);
-      await pool.query('UPDATE delegations SET doer = ? WHERE doer = ? AND doer_id IS NULL', [newName, oldName]);
-      await pool.query('UPDATE daily_tasks SET doer = ? WHERE doer_id = ?', [newName, body.id]);
+      // rows created before doer_id existed. Independent row sets (two on
+      // delegations, one on daily_tasks) — run together instead of one after
+      // another.
+      await Promise.all([
+        pool.query('UPDATE delegations SET doer = ? WHERE doer_id = ?', [newName, body.id]),
+        pool.query('UPDATE delegations SET doer = ? WHERE doer = ? AND doer_id IS NULL', [newName, oldName]),
+        pool.query('UPDATE daily_tasks SET doer = ? WHERE doer_id = ?', [newName, body.id]),
+      ]);
     }
 
     const [result] = await pool.query('SELECT * FROM users WHERE id = ?', [body.id]);

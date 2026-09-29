@@ -208,7 +208,19 @@ export async function POST(req) {
     if (isRevision(data.refNo)) {
       const base = baseRef(data.refNo);
       // No OR / LIKE in the Sheets SQL engine — match the ref family in JS.
-      const [branchRows] = await pool.query('SELECT * FROM quotations WHERE branch = ?', [branch]);
+      // Column list instead of `SELECT *`: buildChangeList() below only reads
+      // the line-item/config fields, never `pdf` — no reason to pull every
+      // prior revision's rendered PDF blob just to diff a ref-number family.
+      const [branchRows] = await pool.query(
+        `SELECT id, ref_no, branch, client_name, client_firm, client_contact, client_email, pan,
+                architect_name, architect_firm, architect, consultant, consultant_number, consultant_email,
+                boutique, payment_terms, validity, lead_time, transport, billing_address, site_address,
+                grand_total, discount_pct, design_fees, installation_charges, packing_charges,
+                stone_items, totals_config, fixing_items, created_at, status,
+                created_by_id, created_by_name, approval_token, approved_by, approved_at,
+                quote_date, approval_expires_at
+         FROM quotations WHERE branch = ?`,
+        [branch]);
       const candidates = branchRows
         .filter((r) => r.ref_no === base || String(r.ref_no || '').startsWith(`${base}-REV`))
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));

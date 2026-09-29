@@ -87,17 +87,21 @@ export async function PATCH(req) {
 
     const fields = Array.isArray(e.ids) && e.ids.length ? BULK_FIELDS : EDIT_FIELDS;
     const updatedAt = new Date().toISOString();
+
+    // Independent row lookups (each a read against the IMS cache) — a bulk
+    // status change on dozens of slabs was resolving them one at a time.
+    const resolved = await Promise.all(ids.map((id) => resolveRow(id)));
+
     const updates = [];
     const notify = [];
-
-    for (const id of ids) {
-      const cur = await resolveRow(id);
+    for (const cur of resolved) {
       if (!cur) continue;
       const prev = { ...cur };
       const next = { ...cur, updatedAt };
       for (const f of fields) if (e[f] !== undefined && e[f] !== null) next[f] = e[f];
       // A photo edit may arrive as a fresh base64 capture — park it in Drive
-      // before it ever reaches a cell.
+      // before it ever reaches a cell. Only ever reachable for a single-id
+      // edit (slabPhoto isn't in BULK_FIELDS), so this doesn't repeat.
       if (fields.includes('slabPhoto') && e.slabPhoto !== undefined) {
         next.slabPhoto = await maybeUploadToDriveWithLink(e.slabPhoto, 'slab-photo');
       }
@@ -107,7 +111,9 @@ export async function PATCH(req) {
 
     if (!updates.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     await writeRows(updates);
-    for (const [prev, next] of notify) await notifyStatus(prev, next);
+    // Independent WhatsApp sends (notifyStatus already catches its own
+    // errors) — a multi-slab bulk edit was sending these one at a time too.
+    await Promise.all(notify.map(([prev, next]) => notifyStatus(prev, next)));
 
     return NextResponse.json({ ok: true, count: updates.length });
   } catch (err) {
