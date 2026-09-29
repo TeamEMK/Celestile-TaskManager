@@ -48,7 +48,7 @@ const SECTIONS = [
     { href: '/daily-task',    label: 'Daily Task',            icon: 'dailytask' },
     { href: '/quotation',     label: 'Quotation',             icon: 'quote' },
     { href: '/inventory',     label: 'Stone Inventory Factory', icon: 'inventory' },
-    { href: '/leave-tracker', label: 'Leave Tracker',         icon: 'leave',    hidden: true },
+    { href: '/leave-tracker', label: 'Leave Tracker',         icon: 'leave' },
     { href: '/meetings',      label: 'Meetings',              icon: 'meetings', hidden: true },
     { href: '/daily-reports', label: 'Daily Reports',         icon: 'reports',  adminOnly: true },
   ]},
