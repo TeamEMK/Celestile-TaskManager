@@ -42,7 +42,7 @@ export function fileToDataUrl(file) {
 // only an image can be loaded into a canvas to resize. What the FMS flows
 // attach before the server swaps it for a Drive URL. (Was pasted into
 // FMSClient and FmsDoneModal verbatim.)
-const MAX_UPLOAD_MB = 20;
+const MAX_UPLOAD_MB = 50;
 
 export async function pickUploadFile(file) {
   if (!file) return '';
