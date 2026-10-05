@@ -25,12 +25,22 @@ function DetailValue({ value }) {
 
 // The sheet row behind an FMS task (order no, client, …) as a "Header: value"
 // strip under its description — without it every row of one step reads the
-// same. Shared by the Dashboard and All Tasks tables.
+// same. Shared by the Dashboard and All Tasks tables. Rows without an order
+// number column fall back to the step's displayed columns alone.
 export default function FmsDetails({ task }) {
-  if (task.type !== 'FMS' || !task.details?.length) return null;
+  if (task.type !== 'FMS') return null;
+  const details = task.details || [];
+  // The order number is read off every row, but only shows here if the step
+  // lists that column among the ones to display — lead with it regardless,
+  // it's what tells one row of a step from the next.
+  const order = String(task.orderNo || '').trim();
+  const rows = order && !details.some((d) => String(d.value ?? '').trim() === order)
+    ? [{ header: 'Order No', value: order }, ...details]
+    : details;
+  if (!rows.length) return null;
   return (
     <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
-      {task.details.map(({ header, value }) => (
+      {rows.map(({ header, value }) => (
         <span key={header} className="inline-flex items-center gap-1">
           <span className="font-semibold text-slate-600">{header}:</span>
           <DetailValue value={value} />

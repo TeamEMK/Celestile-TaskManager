@@ -106,8 +106,9 @@ export default function AllTasksClient({ grouped, users }) {
       // Match anything the row actually displays, so searching a name someone
       // can see in the Doer/Assignee column finds their tasks.
       arr = arr.filter((t) =>
-        [t.description, t.client, t.doer, getUserName(t.delegatedBy), t.remarks]
-          .some((v) => (v || '').toLowerCase().includes(s))
+        [t.description, t.client, t.doer, getUserName(t.delegatedBy), t.remarks,
+          t.orderNo, ...(t.details || []).map((d) => d.value)]
+          .some((v) => String(v || '').toLowerCase().includes(s))
       );
     }
 
@@ -278,7 +279,7 @@ export default function AllTasksClient({ grouped, users }) {
         <div className="flex-1" />
         <div className="relative">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search description, doer, client…" className="input pl-9 w-64" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search description, doer, client, order…" className="input pl-9 w-64" />
         </div>
       </div>
 
