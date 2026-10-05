@@ -42,9 +42,16 @@ export function fileToDataUrl(file) {
 // only an image can be loaded into a canvas to resize. What the FMS flows
 // attach before the server swaps it for a Drive URL. (Was pasted into
 // FMSClient and FmsDoneModal verbatim.)
+const MAX_UPLOAD_MB = 20;
+
 export async function pickUploadFile(file) {
   if (!file) return '';
   if (file.type.startsWith('image/')) return fileToThumbnail(file, 700, 0.7);
+  // Same cap the server's Drive upload enforces (lib/googleDrive.js) — say so
+  // now instead of after the whole file has been sent.
+  if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+    throw new Error(`This file is ${(file.size / 1024 / 1024).toFixed(1)} MB — the limit is ${MAX_UPLOAD_MB} MB.`);
+  }
   const url = await fileToDataUrl(file);
   // Windows often reports a .zip with no type at all (or application/x-zip),
   // which reads back as data:application/octet-stream — the server's Drive

@@ -1269,6 +1269,7 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
 // server-side (see submitIntakeRow / writeStepDone) once actually submitted.
 function UploadField({ value, onChange }) {
   const [busy, setBusy] = useState(false);
+  const [pickErr, setPickErr] = useState('');
   const isImage = (value || '').startsWith('data:image/');
   const isPdf = (value || '').startsWith('data:application/pdf');
   const isZip = (value || '').startsWith('data:application/zip') || (value || '').startsWith('data:application/x-zip-compressed');
@@ -1283,12 +1284,14 @@ function UploadField({ value, onChange }) {
           e.target.value = '';
           if (!file) return;
           setBusy(true);
+          setPickErr('');
           try { onChange(await pickUploadFile(file)); }
-          catch { /* ignore — user can retry */ }
+          catch (err) { setPickErr(err?.message || 'Could not read that file — try again.'); }
           finally { setBusy(false); }
         }}
       />
       {busy && <div className="text-[11px] text-slate-400 mt-1">Processing…</div>}
+      {!busy && pickErr && <div className="text-[11.5px] text-red-600 mt-1">{pickErr}</div>}
       {!busy && value && (
         <div className="flex items-center gap-2 mt-1.5">
           {isImage
