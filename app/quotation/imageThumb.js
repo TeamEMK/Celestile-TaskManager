@@ -44,5 +44,12 @@ export function fileToDataUrl(file) {
 // FMSClient and FmsDoneModal verbatim.)
 export async function pickUploadFile(file) {
   if (!file) return '';
-  return file.type.startsWith('image/') ? fileToThumbnail(file, 700, 0.7) : fileToDataUrl(file);
+  if (file.type.startsWith('image/')) return fileToThumbnail(file, 700, 0.7);
+  const url = await fileToDataUrl(file);
+  // Windows often reports a .zip with no type at all (or application/x-zip),
+  // which reads back as data:application/octet-stream — the server's Drive
+  // allow-list then refuses it. Go by the extension for the types it accepts.
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const mime = { zip: 'application/zip', pdf: 'application/pdf' }[ext];
+  return mime ? url.replace(/^data:[^;,]*/, `data:${mime}`) : url;
 }
