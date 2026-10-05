@@ -13,6 +13,7 @@ import { ZoomImg } from '@/app/components/ImageLightbox';
 import CompletionFileModal from '../components/CompletionFileModal';
 import { useTaskCompletion } from '../components/useTaskCompletion';
 import Icon from '../components/Icon';
+import FmsDetails from '../components/FmsDetails';
 import DateField from '../components/DateField';
 import { isAdminRoles } from '@/lib/pages';
 import Avatar from '../components/Avatar';
@@ -414,7 +415,7 @@ export default function AllTasksClient({ grouped, users }) {
                                   </div>
                                 </td>
                                 {/* DESC */}
-                                <td className="table-td max-w-[280px]">
+                                <td className={`table-td ${t.type === 'FMS' ? 'max-w-[380px]' : 'max-w-[280px]'}`}>
                                   <div className="flex items-start gap-1">
                                     <span className="text-slate-800 font-medium">{t.description}</span>
                                     {t.url && (
@@ -439,6 +440,7 @@ export default function AllTasksClient({ grouped, users }) {
                                       <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 rounded px-1 shrink-0"><Icon name="paperclip" className="w-3.5 h-3.5" /> File req.</span>
                                     )}
                                   </div>
+                                  <FmsDetails task={t} />
                                   {t.transferredFrom && (
                                     <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium border border-amber-100 mt-0.5">
                                       <Icon name="refresh" className="w-3.5 h-3.5" /> from {t.transferredFrom}

@@ -15,30 +15,10 @@ import CompletionFileModal from './components/CompletionFileModal';
 import { useTaskCompletion } from './components/useTaskCompletion';
 import { StatCard, StatGrid } from './components/ui';
 import Icon from './components/Icon';
+import FmsDetails from './components/FmsDetails';
 import DateField from './components/DateField';
 import Avatar from './components/Avatar';
 import { fmtDMY } from '@/lib/dates';
-
-// FMS answers are raw sheet values, so an uploaded file or a pasted link
-// would otherwise print as a wall of URL text in the details strip (the
-// "Quotation pdf" field is the worst offender). Show a thumbnail for images
-// and a short "Click here" for anything else that is openable.
-function DetailValue({ value }) {
-  const v = typeof value === 'string' ? value.trim() : '';
-  if (isImageAttachment(v)) {
-    return <ZoomImg src={v} className="w-6 h-6 rounded object-cover border border-slate-200" />;
-  }
-  const isFile = v.includes('/api/drive/') || v.startsWith('data:application/pdf');
-  if (isFile || /^https?:\/\//i.test(v)) {
-    return (
-      <a href={v} target="_blank" rel="noopener noreferrer" title={v}
-        className="text-primary-600 hover:text-primary-700 hover:underline font-medium">
-        Click here
-      </a>
-    );
-  }
-  return <>{value || '—'}</>;
-}
 
 export default function DashboardClient({ data, performance, pendingApprovals, holidays, users = [], isAdmin, userName = '' }) {
   const router = useRouter();
@@ -352,16 +332,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                               )
                           )}
                         </div>
-                        {t.type === 'FMS' && t.details?.length > 0 && (
-                          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
-                            {t.details.map(({ header, value }) => (
-                              <span key={header} className="inline-flex items-center gap-1">
-                                <span className="font-semibold text-slate-600">{header}:</span>
-                                <DetailValue value={value} />
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                        <FmsDetails task={t} />
                         {t.transferredFrom && (
                           <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium border border-amber-100 mt-1" title={t.transferredBy ? `Transferred by ${t.transferredBy}` : ''}><Icon name="refresh" className="w-3.5 h-3.5" /> from {t.transferredFrom}</span>
                         )}
