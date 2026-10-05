@@ -53,10 +53,10 @@ export async function pickUploadFile(file) {
     throw new Error(`This file is ${(file.size / 1024 / 1024).toFixed(1)} MB — the limit is ${MAX_UPLOAD_MB} MB.`);
   }
   const url = await fileToDataUrl(file);
-  // Windows often reports a .zip with no type at all (or application/x-zip),
+  // Windows often reports a .zip/.rar with no type at all (or application/x-zip),
   // which reads back as data:application/octet-stream — the server's Drive
   // allow-list then refuses it. Go by the extension for the types it accepts.
   const ext = (file.name.split('.').pop() || '').toLowerCase();
-  const mime = { zip: 'application/zip', pdf: 'application/pdf' }[ext];
+  const mime = { zip: 'application/zip', rar: 'application/vnd.rar', pdf: 'application/pdf' }[ext];
   return mime ? url.replace(/^data:[^;,]*/, `data:${mime}`) : url;
 }

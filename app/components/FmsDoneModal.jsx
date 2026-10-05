@@ -216,11 +216,12 @@ function UploadField({ value, onChange }) {
   const isImage = (value || '').startsWith('data:image/');
   const isPdf = (value || '').startsWith('data:application/pdf');
   const isZip = (value || '').startsWith('data:application/zip') || (value || '').startsWith('data:application/x-zip-compressed');
+  const isRar = (value || '').startsWith('data:application/vnd.rar') || (value || '').startsWith('data:application/x-rar-compressed');
   return (
     <div>
       <input
         type="file"
-        accept="image/*,application/pdf,.zip,application/zip,application/x-zip-compressed"
+        accept="image/*,application/pdf,.zip,application/zip,application/x-zip-compressed,.rar,application/vnd.rar,application/x-rar-compressed"
         className="input !py-1.5"
         onChange={async (e) => {
           const file = e.target.files[0];
@@ -239,7 +240,7 @@ function UploadField({ value, onChange }) {
         <div className="flex items-center gap-2 mt-1.5">
           {isImage
             ? <ZoomImg src={value} className="w-10 h-10 object-cover rounded border border-slate-200" />
-            : <span className="text-[11.5px] text-slate-600"><Icon name="file" className="w-3.5 h-3.5" /> {isPdf ? 'PDF attached' : isZip ? 'Zip attached' : 'File attached'}</span>}
+            : <span className="text-[11.5px] text-slate-600"><Icon name="file" className="w-3.5 h-3.5" /> {isPdf ? 'PDF attached' : isZip ? 'Zip attached' : isRar ? 'RAR attached' : 'File attached'}</span>}
           <button type="button" className="text-[11px] text-red-500 hover:underline" onClick={() => onChange('')}>Remove</button>
         </div>
       )}
