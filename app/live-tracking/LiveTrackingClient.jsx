@@ -14,7 +14,7 @@ import {
   priorityOf, rowBranch, isRowDone, rowTint,
   parseSheetDate, formatSheetDate, dateToInput,
   EMPTY_FILTERS, activeFilterCount, rowMatchesFilters,
-  BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass,
+  BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass, PROGRAM_SENT_OPTIONS,
 } from '@/lib/liveTrackingView';
 import DateField from '../components/DateField';
 import { isAdminRoles } from '@/lib/pages';
@@ -206,6 +206,42 @@ export default function LiveTrackingClient() {
   }, [statusCounts, filters.status, cols]);
 
   const nActive = activeFilterCount(filters);
+
+  // Sheet row number for each row object — filtering keeps the same array
+  // references, so a row found in filteredRows maps straight back to the
+  // sheet row it was read from (blank rows make the index useless).
+  const rowNumberOf = useMemo(() => {
+    const m = new Map();
+    (data?.rows || []).forEach((r, i) => m.set(r, data.rowNumbers?.[i]));
+    return m;
+  }, [data]);
+
+  // "Program file sent" is set from the table: optimistic, written straight
+  // into the sheet, and rolled back if the sheet refuses it.
+  const [savingRow, setSavingRow] = useState(null);
+  async function setProgramSent(row, value) {
+    const rowNumber = rowNumberOf.get(row);
+    const ci = cols.programSentIdx;
+    if (!rowNumber || ci < 0 || String(row[ci] ?? '').trim() === value) return;
+    const prev = row[ci];
+    // Edited in place: the row keeps its identity, so rowNumberOf still finds it.
+    const patch = (v) => { row[ci] = v; setData((d) => d && { ...d }); };
+    patch(value);
+    setSavingRow(rowNumber);
+    try {
+      const res = await fetch(`/api/live-tracking/${activeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowNumber, value, order: cols.orderIdx >= 0 ? row[cols.orderIdx] : '' }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { patch(prev); alert(d.error || 'Could not update the sheet'); }
+    } catch {
+      patch(prev); alert('Could not update the sheet');
+    } finally {
+      setSavingRow(null);
+    }
+  }
 
   // A stat card toggles: clicking the one already applied clears it.
   const toggleStatCard = useCallback((branch, priority) => {
@@ -497,7 +533,16 @@ export default function LiveTrackingClient() {
                                   // in the same colour, so the tint has a start.
                                   ...(ci === 0 && tint ? { boxShadow: `inset 3px 0 0 ${tint.rail}` } : null),
                                 }}>
-                                {badge
+                                {ci === cols.programSentIdx && rowNumberOf.get(row)
+                                  ? <select
+                                      className={`text-[12.5px] rounded-md border px-1.5 py-0.5 bg-white/80 ${val === 'Yes' ? 'border-emerald-300 text-emerald-700' : val === 'No' ? 'border-rose-300 text-rose-700' : 'border-slate-200 text-slate-500'}`}
+                                      value={PROGRAM_SENT_OPTIONS.includes(val) ? val : ''}
+                                      disabled={savingRow === rowNumberOf.get(row)}
+                                      onChange={(e) => setProgramSent(row, e.target.value)}>
+                                      {!PROGRAM_SENT_OPTIONS.includes(val) && <option value="" disabled>{val || '—'}</option>}
+                                      {PROGRAM_SENT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                                    </select>
+                                  : badge
                                   ? <span className={badge}>{val}</span>
                                   : isDoneCol
                                     ? (done

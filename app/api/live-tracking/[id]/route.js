@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { currentUser, currentUserIsAdmin, redactSheetIds, requireAdmin, requireUser } from '@/lib/api';
-import { deleteLiveTracker, getLiveTracker, getLiveTrackerData, updateLiveTracker } from '@/lib/liveTracking';
-import { branchScopeFor, detectColumns, rowInBranchScope } from '@/lib/liveTrackingView';
+import { currentUser, currentUserIsAdmin, redactSheetIds, requireAdmin, requireUser, requireUserCtx } from '@/lib/api';
+import { deleteLiveTracker, getLiveTracker, getLiveTrackerData, setLiveTrackerCell, updateLiveTracker } from '@/lib/liveTracking';
+import { branchScopeFor, detectColumns, rowInBranchScope, PROGRAM_SENT_OPTIONS } from '@/lib/liveTrackingView';
 import { isSheetTimeout } from '@/lib/fmsSheet';
 
 // Config + a fresh live read of the connected tab — open to any signed-in
@@ -26,13 +26,15 @@ export async function GET(req, { params }) {
     const scope = branchScopeFor(await currentUser());
     if (scope) {
       const cols = detectColumns(data.headers, data.rows);
-      const rows = data.rows.filter((r) => rowInBranchScope(r, cols, scope));
+      const keep = data.rows.map((r) => rowInBranchScope(r, cols, scope));
+      const rows = data.rows.filter((_, i) => keep[i]);
+      const rowNumbers = data.rowNumbers.filter((_, i) => keep[i]);
       // `data.fileLinks` is deliberately NOT cut down to the visible rows:
       // the drawings are meant to be openable by everyone, and /api/drive
       // serves them to any signed-in user for the same reason. It is the
       // order rows that are branch-private, not the drawings attached to them.
       return NextResponse.json({
-        tracker: shown, ...data, rows,
+        tracker: shown, ...data, rows, rowNumbers,
         scope: { branches: scope, hidden: data.rows.length - rows.length },
       });
     }
@@ -70,6 +72,43 @@ export async function PUT(req, { params }) {
   } catch (err) {
     console.error('[live-tracking/[id] PUT]', err.message);
     return NextResponse.json({ error: 'Failed to update live tracker' }, { status: 500 });
+  }
+}
+
+// Set "Program file sent" on one row, straight into the sheet. Open to any
+// signed-in user who can see that row — it is order data, not tracker
+// config — but only that column, and only Yes / No.
+export async function PATCH(req, { params }) {
+  const { gate, user } = await requireUserCtx(); if (gate) return gate;
+  try {
+    const { id } = await params;
+    const { rowNumber, value, order } = await req.json();
+    const rowNum = parseInt(rowNumber);
+    if (!PROGRAM_SENT_OPTIONS.includes(value)) return NextResponse.json({ error: 'Value must be Yes or No' }, { status: 400 });
+    const tracker = await getLiveTracker(id);
+    if (!tracker) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const firstData = (parseInt(tracker.header_row) || 1) + 1;
+    if (!rowNum || rowNum < firstData) return NextResponse.json({ error: 'Invalid row' }, { status: 400 });
+
+    const data = await getLiveTrackerData(tracker);
+    const cols = detectColumns(data.headers, data.rows);
+    if (cols.programSentIdx < 0) return NextResponse.json({ error: 'This sheet has no "Program file sent" column' }, { status: 400 });
+    // A branch user may only touch rows the GET would have shown them.
+    const current = data.rows[data.rowNumbers.indexOf(rowNum)];
+    const scope = branchScopeFor(user);
+    if (!current || !rowInBranchScope(current, cols, scope)) {
+      return NextResponse.json({ error: 'You cannot edit this row' }, { status: 403 });
+    }
+
+    const row = await setLiveTrackerCell(tracker, {
+      rowNumber: rowNum, colIdx: cols.programSentIdx, value,
+      orderIdx: cols.orderIdx, expectOrder: order,
+    }).catch((err) => { if (err.status === 409) return err; throw err; });
+    if (row instanceof Error) return NextResponse.json({ error: row.message }, { status: 409 });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('[live-tracking/[id] PATCH]', err.message);
+    return NextResponse.json({ error: 'Failed to update the sheet' }, { status: 500 });
   }
 }
 
