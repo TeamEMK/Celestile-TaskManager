@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { pickUploadFile } from '../quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
-import { fieldVisibility } from '@/lib/fieldVisibility';
+import { fieldVisibility, matchesCondition } from '@/lib/fieldVisibility';
 import Icon from '../components/Icon';
 import DateField from './DateField';
 import OrderNumberInput from './OrderNumberInput';
@@ -40,6 +40,9 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   const [extraValues, setExtraValues] = useState({});
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  // Set when the save raised a QC alert instead of completing the step —
+  // { alerts: [{ check, answer, sentTo, unset, error }] }.
+  const [heldResult, setHeldResult] = useState(null);
 
   // Only prompt for a delay reason if this step actually has a Delay Reason
   // Column configured — otherwise there's nowhere to write it, and the user
@@ -49,11 +52,19 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   // Conditional fields — a row configured with "Show only when …" appears
   // only once its controlling row holds the configured value (e.g. a date
   // that's only asked for when "Received?" is answered Yes).
+  // A field may also hang off a column of the sheet row itself ("only for
+  // Stone" → the row's Material cell); the pending row carries those values.
+  const refValues = row.refValues;
   const shown = useMemo(
-    () => fieldVisibility(configuredRows, (r) => extraValues[r.col_letter] ?? ''),
-    [configuredRows, extraValues]
+    () => fieldVisibility(configuredRows, (r) => extraValues[r.col_letter] ?? '',
+      refValues ? (c) => refValues[c] ?? '' : undefined),
+    [configuredRows, extraValues, refValues]
   );
   const extraRows = configuredRows.filter((_, i) => shown[i]);
+  // Answers that will send a QC alert (and keep the step pending) on save.
+  const alerting = extraRows.filter((r) => String(r.alert_on || '').trim() && String(r.alert_to || '').trim()
+    && (extraValues[r.col_letter] || '').trim() && matchesCondition(extraValues[r.col_letter], r.alert_on));
+  const alertGroups = [...new Set(alerting.flatMap((r) => r.alert_to.split(/[,\n]+/).map((g) => g.trim()).filter(Boolean)))];
   // The stone this step captured, if it captures one — narrows the thickness
   // list to the sizes that stone comes in.
   const materialValue = (() => {
@@ -82,6 +93,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
       if (required && !extraValues[r.col_letter]?.trim()) { setErr(`"${r.row_label || r.col_letter}" is required.`); return; }
       const typed = extraValues[r.col_letter]?.trim();
       if (isOrderField(r) && typed && !isValidOrderNumber(typed)) { setErr(`"${r.row_label || r.col_letter}" — ${ORDER_HINT}`); return; }
+      if (r.field_type === 'pieces' && typed && !piecesComplete(typed)) { setErr(`"${r.row_label || r.col_letter}" — enter the thickness of every piece.`); return; }
     }
     setSaving(true);
     try {
@@ -95,6 +107,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setErr(d.error || 'Failed to save'); setSaving(false); return; }
+      if (d.held) { setHeldResult(d); setSaving(false); return; }
       onSaved();
     } catch (e) {
       setErr(e.message); setSaving(false);
@@ -117,6 +130,9 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
           </button>
         </div>
 
+        {heldResult ? (
+          <HeldResult result={heldResult} onClose={onSaved} />
+        ) : (<>
         <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
           {err && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{err}</div>}
 
@@ -162,24 +178,101 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
                 {extraRows.map((r) => (
                   <ExtraField key={r.col_letter} row={r} value={extraValues[r.col_letter] || ''}
                     material={materialValue}
+                    alerting={alerting.includes(r)}
                     onChange={(v) => setExtraValues((ev) => ({ ...ev, [r.col_letter]: v }))} />
                 ))}
               </div>
+            </div>
+          )}
+
+          {alerting.length > 0 && (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-[12.5px] text-red-700">
+              <div className="font-semibold mb-0.5"><Icon name="alert" className="w-3.5 h-3.5" /> This will raise a QC alert</div>
+              Your answers are saved and {alertGroups.join(', ')} {alertGroups.length > 1 ? 'are' : 'is'} alerted on WhatsApp. The step stays pending until it is rechecked.
             </div>
           )}
         </div>
 
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
           <button onClick={onClose} disabled={saving} className="btn-secondary">Cancel</button>
-          <button onClick={save} disabled={saving} className="btn-success">{saving ? 'Saving…' : 'Save to Sheet'}</button>
+          <button onClick={save} disabled={saving} className={alerting.length ? 'btn-danger' : 'btn-success'}>
+            {saving ? 'Saving…' : alerting.length ? 'Save & Raise Alert' : 'Save to Sheet'}
+          </button>
         </div>
+        </>)}
       </div>
     </div>,
     document.body
   );
 }
 
-function ExtraField({ row, value, onChange, material = '' }) {
+// Alert sent, step held — say exactly which groups heard about it, and which
+// named groups have no WhatsApp ID yet (set on the FMS page → QC Alerts).
+function HeldResult({ result, onClose }) {
+  return (
+    <>
+      <div className="p-6 space-y-3">
+        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-[12.5px] text-amber-800">
+          <div className="font-semibold mb-0.5"><Icon name="alert" className="w-3.5 h-3.5" /> Answers saved — QC alert raised</div>
+          The step is still pending. Recheck it once the issue is fixed and mark it done again.
+        </div>
+        {(result.alerts || []).map((a, i) => (
+          <div key={i} className="rounded-lg border border-slate-200 p-3 text-[12.5px] space-y-0.5">
+            <div className="font-semibold text-slate-800">{a.check}: <span className="text-red-600">{a.answer}</span></div>
+            {a.sentTo?.length > 0 && <div className="text-emerald-700">Sent to {a.sentTo.join(', ')}</div>}
+            {a.unset?.length > 0 && <div className="text-amber-700">No WhatsApp ID set for {a.unset.join(', ')} — logged only</div>}
+            {a.error && <div className="text-red-600">{a.error} — the answers are still saved on the sheet</div>}
+          </div>
+        ))}
+      </div>
+      <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
+        <button onClick={onClose} className="btn-primary">Close</button>
+      </div>
+    </>
+  );
+}
+
+// "Thickness of each piece": a stone ordered at 18mm arrives anywhere from
+// 17 to 19mm, so every piece is measured and entered before production.
+// Stored in one cell as "4 pcs: 18, 17.5, 18, 19".
+function parsePieces(value) {
+  const m = String(value || '').match(/^\s*(\d+)\s*pcs?\s*:\s*(.*)$/i);
+  if (!m) return { count: '', list: [] };
+  return { count: m[1], list: m[2].split(',').map((x) => x.trim()) };
+}
+function piecesComplete(value) {
+  const { count, list } = parsePieces(value);
+  const n = parseInt(count, 10) || 0;
+  return n > 0 && list.length === n && list.every((x) => x !== '' && !isNaN(parseFloat(x)));
+}
+function PiecesField({ value, onChange }) {
+  const { count, list } = parsePieces(value);
+  const n = Math.min(parseInt(count, 10) || 0, 200);
+  const emit = (c, l) => {
+    const k = Math.min(parseInt(c, 10) || 0, 200);
+    if (!k) { onChange(''); return; }
+    onChange(`${k} pcs: ${Array.from({ length: k }, (_, i) => l[i] ?? '').join(', ')}`);
+  };
+  return (
+    <div className="space-y-2">
+      <input type="number" min="1" max="200" className="input" value={count} placeholder="Number of pieces…"
+        onChange={(e) => emit(e.target.value, list)} />
+      {n > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          {Array.from({ length: n }, (_, i) => (
+            <label key={i} className="block">
+              <span className="text-[10.5px] text-slate-500">Piece {i + 1} (mm)</span>
+              <input type="number" step="0.1" className="input !py-1.5" value={list[i] ?? ''}
+                onChange={(e) => emit(count, Array.from({ length: n }, (_, j) => (j === i ? e.target.value.replace(/,/g, '') : (list[j] ?? ''))))} />
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExtraField({ row, value, onChange, material = '', alerting = false }) {
   const label = row.row_label || row.col_letter;
   const required = !(row.required === 0 || row.required === false || row.required === '0');
   const dropdownOptions = (row.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean);
@@ -196,8 +289,9 @@ function ExtraField({ row, value, onChange, material = '' }) {
       {row.field_type === 'number'   && <input type="number" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter number…" />}
       {row.field_type === 'date'     && <DateField className="input" value={value} onChange={(e) => onChange(e.target.value)} />}
       {row.field_type === 'link'     && <input type="url" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="https://…" />}
+      {row.field_type === 'pieces' && <PiecesField value={value} onChange={onChange} />}
       {isDropdown && (
-        <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
+        <select className={`input ${alerting ? '!border-red-400 !bg-red-50' : ''}`} value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">-- Select --</option>
           {dropdownOptions.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>

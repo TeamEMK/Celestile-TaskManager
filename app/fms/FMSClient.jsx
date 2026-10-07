@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { useConfirmToast } from '../components/ConfirmToast';
 import { pickUploadFile } from '../quotation/imageThumb';
+import QcAlertsPanel from './QcAlertsPanel';
 import PcView from './PcView';
 import FmsAssignModal from '../components/FmsAssignModal';
 import { ZoomImg } from '../components/ImageLightbox';
@@ -19,6 +20,7 @@ import { DATE_OFFSET_TYPE, isDateOffsetField, computeDateOffset, parseDateOffset
 import { fmtDMY, todayISO } from '@/lib/dates';
 import { isAdminRoles } from '@/lib/pages';
 
+const PIECES_TYPE = 'pieces';
 const FIELD_TYPES = [
   { value: 'text',     label: 'Text' },
   { value: 'order',    label: 'Order Number (H001)' },
@@ -28,6 +30,8 @@ const FIELD_TYPES = [
   { value: 'link',     label: 'Link' },
   { value: 'dropdown', label: 'Dropdown' },
   { value: 'upload',   label: 'Upload' },
+  // Steps only: "number of pieces" + one thickness box per piece.
+  { value: PIECES_TYPE, label: 'Thickness per Piece' },
   // Intake form only: a date box that fills itself in (start date + days by
   // another field's value) when left blank — see lib/dateOffset.js.
   { value: DATE_OFFSET_TYPE, label: 'Tentative Date (date + days)' },
@@ -66,6 +70,9 @@ export default function FMSClient() {
   const [loadingPc,  setLoadingPc]  = useState(false);
   // Assign / Reassign picker opened from the PC view — { fmsId, step, row, currentDoer }.
   const [fmsAssign,  setFmsAssign]  = useState(null);
+
+  // QC Alerts — the O2D rework record + alert group setup (admins).
+  const [showQc,     setShowQc]     = useState(false);
 
   const [modal,   setModal]   = useState(null); // 'add' | 'edit' | null
   const [form,    setForm]    = useState(null);
@@ -179,6 +186,7 @@ export default function FMSClient() {
           field_type: r.field_type || 'text', dropdown_options: r.dropdown_options || '',
           required: r.required == null ? 1 : (r.required ? 1 : 0),
           depends_on: r.depends_on || '', depends_value: r.depends_value || '',
+          alert_on: r.alert_on || '', alert_to: r.alert_to || '',
         })),
       })),
     });
@@ -341,8 +349,15 @@ export default function FMSClient() {
             <div className="text-[11px] text-slate-500 mt-0.5">{sheets.length} flow{sheets.length === 1 ? '' : 's'} · each points at a live Google Sheet</div>
           </div>
         </div>
-        {isAdmin && <button className="btn-primary btn-sm" onClick={openAdd}><PlusIcon /> Add New FMS</button>}
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <button className={`${showQc ? 'btn-primary' : 'btn-secondary'} btn-sm`} onClick={() => setShowQc((v) => !v)}>QC Alerts</button>
+            <button className="btn-primary btn-sm" onClick={openAdd}><PlusIcon /> Add New FMS</button>
+          </div>
+        )}
       </div>
+
+      {isAdmin && showQc && <QcAlertsPanel />}
 
       {loadingList ? (
         <div className="card p-10 text-center text-slate-400 text-[13px]">Loading…</div>
@@ -831,7 +846,7 @@ function StepBox({ idx, step, total, headers, users, onChange, onRemove, onDupli
               onRemove={() => onChange({ extraRows: step.extraRows.filter((_, eri) => eri !== ri) })}
             />
           ))}
-          <button type="button" className="btn-secondary btn-sm" onClick={() => onChange({ extraRows: [...step.extraRows, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1, depends_on: '', depends_value: '' }] })}>
+          <button type="button" className="btn-secondary btn-sm" onClick={() => onChange({ extraRows: [...step.extraRows, { label: '', col_letter: '', field_type: 'text', dropdown_options: '', required: 1, depends_on: '', depends_value: '', alert_on: '', alert_to: '' }] })}>
             + Add Row
           </button>
         </div>
@@ -848,7 +863,7 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
   const showUnique = showAutoFill && !row.auto_fill && !isOffset && row.field_type !== 'upload';
   // Only the intake form computes these (submitIntakeRow) — a step's extra
   // row would just store whatever was typed, so don't offer it there.
-  const fieldTypes = FIELD_TYPES.filter((t) => showAutoFill || t.value !== DATE_OFFSET_TYPE);
+  const fieldTypes = FIELD_TYPES.filter((t) => (showAutoFill ? t.value !== PIECES_TYPE : t.value !== DATE_OFFSET_TYPE));
   const gridCols = showAutoFill
     ? `grid-cols-[1fr_1fr_1fr_1fr_auto_${showUnique ? 'auto_' : ''}auto]`
     : 'grid-cols-[1fr_1fr_1fr_auto_auto]';
@@ -866,6 +881,11 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
     return parent ? dependsOnThis(parent, guard + 1) : false;
   };
   const condSources = siblings.filter((s) => s !== row && colKey(s.col_letter) && !s.auto_fill && !dependsOnThis(s));
+  // A step's form is filled in against an existing sheet row, so it can also
+  // hang off one of that row's own columns — "only when Material is Stone".
+  const formCols = new Set(siblings.map((s) => colKey(s.col_letter)));
+  const sheetSources = showAutoFill ? [] : headers.filter((h) => !formCols.has(colKey(h.col)));
+  const isSheetDep = sheetSources.some((h) => colKey(h.col) === colKey(row.depends_on));
   const parent = siblings.find((s) => colKey(s.col_letter) === colKey(row.depends_on));
   const parentOptions = (parent?.field_type === 'dropdown' ? (parent.dropdown_options || '') : '')
     .split(',').map((o) => o.trim()).filter(Boolean);
@@ -876,7 +896,7 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
   // A rule can outlive the field it points at (column changed, field deleted).
   // Keep it visible in the dropdown instead of silently reading as "Always
   // show" — at runtime such a field falls back to always showing.
-  const orphanDep = !!colKey(row.depends_on) && !condSources.some((s) => colKey(s.col_letter) === colKey(row.depends_on));
+  const orphanDep = !!colKey(row.depends_on) && !isSheetDep && !condSources.some((s) => colKey(s.col_letter) === colKey(row.depends_on));
   return (
     <div className={`bg-white border border-slate-200 rounded-lg p-2.5 grid ${gridCols} gap-2 items-start`}>
       {headers.length ? (
@@ -953,6 +973,11 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
                 {s.label || s.row_label || s.col_letter} (COL {colKey(s.col_letter)})
               </option>
             ))}
+            {sheetSources.length > 0 && (
+              <optgroup label="Sheet column (this row's value)">
+                {sheetSources.map((h) => <option key={'sh' + h.col} value={colKey(h.col)}>{h.name} (COL {h.col})</option>)}
+              </optgroup>
+            )}
             {orphanDep && <option value={colKey(row.depends_on)}>COL {colKey(row.depends_on)} — not on this form</option>}
           </select>
           {!!row.depends_on && (useOptionSelect ? (
@@ -967,6 +992,23 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
           ))}
           {orphanDep && (
             <span className="text-[10.5px] text-amber-600">that column isn't a field on this form — this field will always show</span>
+          )}
+        </div>
+      )}
+
+      {/* QC alert — steps only. "Base has 9mm? No" → WhatsApp the Design
+          group, and the step stays pending until it is rechecked. Group
+          names are set up on the FMS page → QC Alerts. */}
+      {!showAutoFill && (
+        <div style={{ gridColumn: '1 / -1' }} className="flex flex-wrap items-center gap-1.5 pt-0.5 border-t border-slate-100 mt-0.5">
+          <span className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400 shrink-0 pt-1">Alert when</span>
+          <input className="input !text-[11.5px] w-28" value={row.alert_on || ''} onChange={(e) => onChange({ alert_on: e.target.value })}
+            placeholder="answer e.g. No" title="Answer(s) that raise the alert — comma-separate several" />
+          <span className="text-[10.5px] text-slate-400 pt-1">to</span>
+          <input className="input !text-[11.5px] flex-1 min-w-[180px]" value={row.alert_to || ''} onChange={(e) => onChange({ alert_to: e.target.value })}
+            placeholder="groups e.g. Design, SKM — or Stone Order {branch}, HOD {material}" />
+          {!!String(row.alert_on || '').trim() !== !!String(row.alert_to || '').trim() && (
+            <span className="text-[10.5px] text-amber-600">fill in both the answer and the group(s)</span>
           )}
         </div>
       )}

@@ -67,7 +67,8 @@ export async function POST(req) {
 
     let message = '🪨 *STEP 2 UPDATE*\n\n';
     let hasCutting = false;
-    const hasIssue = info.issue && String(info.issue).toLowerCase() !== 'no';
+    // "No issue" (current form) and "No" (older submits) both mean clean.
+    const hasIssue = !!info.issue && !['no', 'no issue'].includes(String(info.issue).trim().toLowerCase());
     const createdAt = new Date().toISOString();
 
     // Resolve every slab first, then write once — each sheet write invalidates

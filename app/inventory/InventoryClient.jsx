@@ -26,8 +26,15 @@ const TAB_IDS = ['inward', 'stock', 'blocked', 'step2'];
 // Step 2 form fields keep a fixed vocabulary (matches the original SK Tiles
 // dispatch sheet) instead of free text, so downstream logic that keys off
 // these values (e.g. "is there a material issue?") can't be broken by a typo.
-const STEP2_MATERIALS = ['Tile', 'Stone', 'Wood Vineer', 'Acralic', 'WPC', 'PLY Wood', 'MOP'];
-const STEP2_ISSUES = ['No', 'Chiping', 'Breakage', 'Grain Opening', 'Flaking', 'Color Matching'];
+const STEP2_MATERIALS = ['Stone', 'Tile', 'MOP', 'Brass', 'Wood Vineer', 'Acralic', 'WPC', 'PLY Wood'];
+// "No issue" first — it is the answer that lets Step 2 go through.
+const STEP2_ISSUES = ['No issue', 'Flaking', 'Fissures', 'Colour issue', 'Chipping', 'Breakage', 'Grain Opening'];
+// Where a slab is going in the client's home. Blocking is per area, so the
+// factory can see which slabs were set aside for the kitchen and which for
+// the puja room of the same order.
+const AREAS = ['Living Area', 'Kitchen', 'Dining', 'Bedroom', 'Master Bedroom', 'Puja Room', 'Bathroom', 'Balcony', 'Staircase', 'Elevation'];
+// A failed Step 2 check goes to both teams that can fix it.
+const STEP2_ALERT_TO = 'Design, SKM';
 const MAX_IMG_BYTES = 4 * 1024 * 1024;
 // Slab photos are click-to-enlarge in the Stock table, so they are stored
 // bigger than the 220px thumbnail they used to be — the file lands in Google
@@ -377,6 +384,10 @@ function Stock({ inv, loading, masters, reload }) {
   async function confirmBlock() {
     const ids = block?.ids || [];
     if (!ids.length) return;
+    if (!String(block.orderNo || '').trim() || !String(block.area || '').trim()) {
+      setBlock({ ...block, err: 'Order No. and Area are both needed — slabs are blocked per area of an order.' });
+      return;
+    }
     setSaving(true);
     try {
       await patch({ ids, status: 'Blocked', orderNo: block.orderNo, client: block.client, area: block.area });
@@ -567,9 +578,23 @@ function Stock({ inv, loading, masters, reload }) {
 
       {block && (
         <Modal title={block.slab ? `Block Slab ${block.slab}` : `Block ${block.ids.length} Slab${block.ids.length > 1 ? 's' : ''}`} onClose={() => setBlock(null)}>
-          <F label="Order No."><OrderNumberInput value={block.orderNo} onChange={(e) => setBlock({ ...block, orderNo: e.target.value })} /></F>
+          <F label="Order No. *"><OrderNumberInput value={block.orderNo} onChange={(e) => {
+            // Same order blocked before → its client carries over, so the
+            // name is typed once per order, not once per area.
+            const o = e.target.value;
+            const prev = inv.find((r) => r.client && String(r.orderNo || '').trim().toUpperCase() === String(o || '').trim().toUpperCase());
+            setBlock({ ...block, orderNo: o, client: block.client || prev?.client || '' });
+          }} /></F>
           <F label="Client Name"><input className="input" value={block.client} onChange={(e) => setBlock({ ...block, client: e.target.value })} /></F>
-          <F label="Area / Project"><input className="input" value={block.area} onChange={(e) => setBlock({ ...block, area: e.target.value })} /></F>
+          <F label="Area *">
+            <input className="input" list="inv-area-list" value={block.area} placeholder="Kitchen, Puja Room…" onChange={(e) => setBlock({ ...block, area: e.target.value })} />
+            <datalist id="inv-area-list">{AREAS.map((a) => <option key={a} value={a} />)}</datalist>
+          </F>
+          {!!block.orderNo && (() => {
+            const already = blockedAreas(inv, block.orderNo);
+            return already.length ? <div className="text-[11.5px] text-slate-500 mt-1">Already blocked for this order: {already.map((a) => `${a.area} (${a.count})`).join(', ')}</div> : null;
+          })()}
+          {block.err && <div className="text-[11.5px] text-red-600 mt-2">{block.err}</div>}
           <div className="flex gap-2 justify-end mt-3"><button className="btn-ghost" onClick={() => setBlock(null)}>Cancel</button><button className="btn-warn" disabled={saving} onClick={confirmBlock}>{saving ? 'Blocking…' : `Block ${block.ids.length} Slab${block.ids.length > 1 ? 's' : ''}`}</button></div>
         </Modal>
       )}
@@ -645,14 +670,14 @@ function BlockedStock({ inv, loading }) {
       if (r.status !== 'Blocked' && r.status !== 'Step2') return;
       const key = (r.orderNo || '').trim() || '(no order no.)';
       const o = (map[key] ||= {
-        orderNo: key, client: '', area: '', slabs: [], sft: 0, blocked: 0, step2: 0,
+        orderNo: key, client: '', areas: new Set(), slabs: [], sft: 0, blocked: 0, step2: 0,
         materials: new Set(), updatedAt: '',
       });
       o.slabs.push(r);
       o.sft += num(r.sft);
       if (r.status === 'Blocked') o.blocked++; else o.step2++;
       if (!o.client && r.client) o.client = r.client;
-      if (!o.area && r.area) o.area = r.area;
+      if (r.area) o.areas.add(String(r.area).trim());
       if (r.material) o.materials.add(`${r.material} ${r.thickness || ''}`.trim());
       const t = String(r.updatedAt || r.createdAt || '');
       if (t > o.updatedAt) o.updatedAt = t;
@@ -662,6 +687,7 @@ function BlockedStock({ inv, loading }) {
         ...o,
         sft: Math.round(o.sft * 100) / 100,
         materials: Array.from(o.materials),
+        area: Array.from(o.areas).join(', '),
         slabs: [...o.slabs].sort((a, b) => String(a.slab).localeCompare(String(b.slab), undefined, { numeric: true })),
       }))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.orderNo.localeCompare(b.orderNo));
@@ -689,7 +715,7 @@ function BlockedStock({ inv, loading }) {
     `blocked-stock-${new Date().toISOString().slice(0, 10)}.csv`,
     ['Order', 'Client', 'Area', 'Slab', 'Block', 'Material', 'Thickness', 'L', 'W', 'SFT', 'Status', 'Blocked on'],
     rows.flatMap((o) => o.slabs.map((s) => [
-      o.orderNo, o.client, o.area, s.slab, s.block, s.material, s.thickness,
+      o.orderNo, o.client, s.area || '', s.slab, s.block, s.material, s.thickness,
       s.sizeL, s.sizeW, s.sft, s.status, shortDate(s.updatedAt || s.createdAt),
     ])),
   );
@@ -769,7 +795,7 @@ function BlockedStock({ inv, loading }) {
                               <table className="w-full text-[12px] bg-white rounded-lg overflow-hidden">
                                 <thead>
                                   <tr>
-                                    {['Slab', 'Block', 'Material', 'Thickness', 'L', 'W', 'SFT', 'Status', 'Blocked on', 'Remarks'].map((h, i) => (
+                                    {['Slab', 'Area', 'Block', 'Material', 'Thickness', 'L', 'W', 'SFT', 'Status', 'Blocked on', 'Remarks'].map((h, i) => (
                                       <th key={i} className={`table-th whitespace-nowrap ${['L', 'W', 'SFT'].includes(h) ? 'text-right' : ''}`}>{h}</th>
                                     ))}
                                   </tr>
@@ -788,6 +814,7 @@ function BlockedStock({ inv, loading }) {
                                           ) : null}
                                         </div>
                                       </td>
+                                      <td className="table-td font-medium text-slate-700">{s.area || '—'}</td>
                                       <td className="table-td">{s.block || '—'}</td>
                                       <td className="table-td">{s.material || '—'}</td>
                                       <td className="table-td">{s.thickness || '—'}</td>
@@ -829,6 +856,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
   const [data, setData] = useState(null); // {key, client, area, slabs}
   const [cut, setCut] = useState({}); // { [slabId]: {cutting, cuttingReason, cuttingSizeL, cuttingSizeW} }
   const [hdr, setHdr] = useState({ material: '', allPieces: '', grain: '', issue: '', sizesPacking: '', grainImg: '', matImg: '' });
+  const [alertSent, setAlertSent] = useState(null); // { check, sentTo, unset } after a failed check is raised
   const [imgStatus, setImgStatus] = useState({ grainImg: '', matImg: '' }); // '' | 'ready' | 'toolarge'
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
@@ -862,7 +890,13 @@ function Step2({ inv, reload, initialOrder = '' }) {
       const c = {};
       (d.slabs || []).forEach((s) => { c[s.id] = { cutting: 'No', cuttingReason: '', cuttingSizeL: '', cuttingSizeW: '' }; });
       setCut(c);
-      setHdr((h) => ({ ...h, material: (d.slabs || [])[0]?.material || '' }));
+      // Slabs in the register are stone by definition; the checklist below
+      // only asks the stone questions for Stone. "All stone pieces marked in
+      // stock list" starts from what the register actually shows for the
+      // order — Yes when slabs are blocked to it — and the doer confirms.
+      const live = (d.slabs || []).filter((x) => x.status === 'Blocked' || x.status === 'Step2');
+      setHdr({ material: live.length ? 'Stone' : '', allPieces: live.length ? 'Yes' : 'No', grain: '', issue: '', sizesPacking: '', grainImg: '', matImg: '' });
+      setAlertSent(null);
       setStatus(d.slabs?.length ? '' : 'No slabs for this order (block slabs to this order first).');
     } catch (e) { setStatus(e.message); }
   }
@@ -960,8 +994,48 @@ function Step2({ inv, reload, initialOrder = '' }) {
 
   const cuttingMissing = cuttingErrors();
 
+  // The checklist is sequential: the first failed answer is the alert, and
+  // nothing after it is asked (no point checking grain on stone that was
+  // never blocked). Only Stone gets the stock-list and grain questions.
+  const isStone = hdr.material === 'Stone';
+  const issueFound = !!hdr.issue && hdr.issue !== 'No issue';
+  const failedCheck = (isStone && hdr.allPieces === 'No')
+    ? { check: 'All stone pieces marked in stock list', answer: 'No' }
+    : (isStone && hdr.allPieces === 'Yes' && hdr.grain === 'No')
+      ? { check: 'Grain matching', answer: 'No' }
+      : issueFound
+        ? { check: 'Issue in material selection', answer: hdr.issue, needsPhoto: true }
+        : null;
+  const missingPhoto = (isStone && hdr.grain === 'Yes' && !hdr.grainImg) ? 'Upload the grain-matching photo.'
+    : (!hdr.material ? 'Pick the material.' : (isStone && !hdr.grain) ? 'Answer grain matching.' : !hdr.issue ? 'Answer the material-issue check.' : '');
+
+  async function raiseAlert() {
+    if (!failedCheck) return;
+    setSaving(true); setStatus('');
+    try {
+      const areas = [...new Set(editableSlabs.map((x) => x.area).filter(Boolean))].join(', ');
+      const res = await fetch('/api/qc-alerts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'Factory O2D', stepName: 'Step 2 — Quality Checking',
+          orderNo: orderNo.trim(), area: areas || data?.area || '', material: hdr.material,
+          check: failedCheck.check, answer: failedCheck.answer,
+          note: failedCheck.check.startsWith('All stone') ? `${editableSlabs.length} slab(s) blocked to this order in the stock list` : '',
+          photo: failedCheck.needsPhoto ? hdr.matImg : '',
+          to: STEP2_ALERT_TO,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed to raise alert');
+      setAlertSent({ check: failedCheck.check, sentTo: d.sentTo || [], unset: d.unset || [] });
+    } catch (e) { setStatus(e.message); }
+    finally { setSaving(false); }
+  }
+
   async function submit() {
     if (!data || !editableSlabs.length) return;
+    if (failedCheck) { setStatus('A check failed — raise the alert instead.'); return; }
+    if (missingPhoto) { setStatus(missingPhoto); return; }
     if (cuttingMissing.length) { setStatus('Cut L & Cut W required for: ' + cuttingMissing.join(', ')); return; }
     setSaving(true); setStatus('Submitting…');
     try {
@@ -979,7 +1053,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
   return (
     <div className="space-y-4">
       <div className="card p-4">
-        <Stepper current={hasSlabs ? 1 : 0} />
+        <Stepper current={!hasSlabs ? 0 : (failedCheck || missingPhoto) ? 1 : 2} />
       </div>
 
       <div className="card p-5">
@@ -1029,39 +1103,8 @@ function Step2({ inv, reload, initialOrder = '' }) {
             </div>
           </div>
 
-          <div className="card p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <F label="Material">
-              <select className="input" value={hdr.material} onChange={(e) => setHdr({ ...hdr, material: e.target.value })}>
-                <option value="">Select</option>{STEP2_MATERIALS.map((m) => <option key={m}>{m}</option>)}
-              </select>
-            </F>
-            <F label="All pieces used?">
-              <select className="input" value={hdr.allPieces} onChange={(e) => setHdr({ ...hdr, allPieces: e.target.value })}>
-                <option value="">Select</option><option>Yes</option><option>No</option>
-              </select>
-            </F>
-            <F label="Grain matching">
-              <select className="input" value={hdr.grain} onChange={(e) => setHdr({ ...hdr, grain: e.target.value })}>
-                <option value="">Select</option><option value="Y">Y</option><option value="N">N</option>
-              </select>
-            </F>
-            <F label="Material issue">
-              <select className="input" value={hdr.issue} onChange={(e) => setHdr({ ...hdr, issue: e.target.value })}>
-                <option value="">Select</option>{STEP2_ISSUES.map((i) => <option key={i}>{i}</option>)}
-              </select>
-            </F>
-            <F label="Sizes given to packing?">
-              <select className="input" value={hdr.sizesPacking} onChange={(e) => setHdr({ ...hdr, sizesPacking: e.target.value })}>
-                <option value="">Select</option><option>Yes</option><option>No</option>
-              </select>
-            </F>
-            <div className="flex gap-3">
-              <ImgUpload label="Grain Photo" value={hdr.grainImg} imgStatus={imgStatus.grainImg}
-                onPick={(f) => pick('grainImg', (v) => setHdr((h) => ({ ...h, grainImg: v })), f)} />
-              <ImgUpload label="Material Photo" value={hdr.matImg} imgStatus={imgStatus.matImg}
-                onPick={(f) => pick('matImg', (v) => setHdr((h) => ({ ...h, matImg: v })), f)} />
-            </div>
-          </div>
+          <Step2Checklist hdr={hdr} setHdr={(h) => { setHdr(h); setAlertSent(null); }} slabs={editableSlabs}
+            imgStatus={imgStatus} pick={pick} failed={failedCheck} />
 
           <div className="card p-0 overflow-hidden">
             <div className="overflow-x-auto">
@@ -1109,9 +1152,21 @@ function Step2({ inv, reload, initialOrder = '' }) {
             </div>
           </div>
           <div className="flex flex-wrap justify-end items-center gap-2">
-            {cuttingMissing.length > 0 && <span className="text-[12px] text-red-600">Cut L &amp; Cut W required for: {cuttingMissing.join(', ')}</span>}
+            {alertSent && (
+              <span className="text-[12px] text-amber-700">
+                Alert raised{alertSent.sentTo.length ? ` to ${alertSent.sentTo.join(', ')}` : ''}{alertSent.unset.length ? ` — no WhatsApp ID set for ${alertSent.unset.join(', ')}, logged only` : ''}. Fix it, then recheck.
+              </span>
+            )}
+            {!failedCheck && cuttingMissing.length > 0 && <span className="text-[12px] text-red-600">Cut L &amp; Cut W required for: {cuttingMissing.join(', ')}</span>}
+            {!failedCheck && missingPhoto && <span className="text-[12px] text-red-600">{missingPhoto}</span>}
             <button className="btn-secondary" onClick={printReport}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Cutting Report</button>
-            <button className="btn-warn" disabled={saving || !editableSlabs.length || cuttingMissing.length > 0} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
+            {failedCheck ? (
+              <button className="btn-danger" disabled={saving || !!alertSent || (failedCheck.needsPhoto && !hdr.matImg)} onClick={raiseAlert}>
+                {saving ? 'Sending…' : alertSent ? 'Alert Sent' : 'Raise Alert to Design & SKM'}
+              </button>
+            ) : (
+              <button className="btn-warn" disabled={saving || !editableSlabs.length || cuttingMissing.length > 0 || !!missingPhoto} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
+            )}
           </div>
           <p className="text-[11.5px] text-slate-500">Cutting "Yes" → slab marked <b className="text-slate-700">Used</b>, a remnant slab (size − cut) is auto-created as Available, and a WhatsApp update is sent. Cut L &amp; Cut W are required whenever Cutting is Yes.</p>
         </>
@@ -1240,8 +1295,103 @@ function F({ label, children, wide }) {
   return <div className={wide ? 'sm:col-span-2 lg:col-span-2' : ''}><label className="label">{label}</label>{children}</div>;
 }
 
+// Areas an order already has slabs blocked for, with counts.
+function blockedAreas(inv, orderNo) {
+  const key = String(orderNo || '').trim().toUpperCase();
+  const m = new Map();
+  inv.forEach((r) => {
+    if (String(r.orderNo || '').trim().toUpperCase() !== key) return;
+    if (r.status !== 'Blocked' && r.status !== 'Step2') return;
+    const a = String(r.area || '').trim() || '(no area)';
+    m.set(a, (m.get(a) || 0) + 1);
+  });
+  return [...m.entries()].map(([area, count]) => ({ area, count }));
+}
+
+// O2D Step 2 — quality checking before the slab is cut. Sequential: each
+// question only appears once the one before it has passed.
+function Step2Checklist({ hdr, setHdr, slabs, imgStatus, pick, failed }) {
+  const isStone = hdr.material === 'Stone';
+  const byArea = new Map();
+  slabs.forEach((x) => {
+    const a = String(x.area || '').trim() || '(no area)';
+    byArea.set(a, [...(byArea.get(a) || []), x.slab]);
+  });
+  const yesNo = (key, label, extra) => (
+    <F label={label}>
+      <select className={`input ${hdr[key] === 'No' ? '!border-red-400 !bg-red-50' : ''}`} value={hdr[key]} onChange={(e) => setHdr({ ...hdr, [key]: e.target.value, ...(extra || {}) })}>
+        <option value="">Select</option><option>Yes</option><option>No</option>
+      </select>
+    </F>
+  );
+  const stoneOk = !isStone || hdr.allPieces === 'Yes';
+  const grainOk = !isStone || hdr.grain === 'Yes';
+  return (
+    <div className="card p-5 space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <F label="Material">
+          <select className="input" value={hdr.material} onChange={(e) => setHdr({ ...hdr, material: e.target.value })}>
+            <option value="">Select</option>{STEP2_MATERIALS.map((m) => <option key={m}>{m}</option>)}
+          </select>
+        </F>
+      </div>
+
+      {isStone && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+          <div className="text-[12px] font-semibold text-slate-700 mb-1.5">Stock list — slabs blocked for this order, by area</div>
+          {byArea.size ? (
+            <div className="flex flex-wrap gap-2">
+              {[...byArea.entries()].map(([a, list]) => (
+                <span key={a} className="pill bg-white border border-slate-200 text-slate-700">
+                  <b>{a}</b>: {list.length} slab{list.length > 1 ? 's' : ''} ({list.join(', ')})
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="text-[12px] text-red-600">Nothing is blocked to this order in the stock list.</div>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {isStone && yesNo('allPieces', 'All stone pieces marked in stock list?', { grain: '', grainImg: '', issue: '', matImg: '' })}
+        {isStone && hdr.allPieces === 'Yes' && yesNo('grain', 'Grain matching?', { grainImg: '', issue: '', matImg: '' })}
+        {isStone && hdr.grain === 'Yes' && (
+          <ImgUpload label="Grain Photo" value={hdr.grainImg} imgStatus={imgStatus.grainImg}
+            onPick={(f) => pick('grainImg', (v) => setHdr({ ...hdr, grainImg: v }), f)} />
+        )}
+        {stoneOk && grainOk && !!hdr.material && (
+          <F label="Any issue in material selection?">
+            <select className={`input ${hdr.issue && hdr.issue !== 'No issue' ? '!border-red-400 !bg-red-50' : ''}`} value={hdr.issue} onChange={(e) => setHdr({ ...hdr, issue: e.target.value })}>
+              <option value="">Select</option>{STEP2_ISSUES.map((i) => <option key={i}>{i}</option>)}
+            </select>
+          </F>
+        )}
+        {hdr.issue && hdr.issue !== 'No issue' && (
+          <ImgUpload label="Issue Photo" value={hdr.matImg} imgStatus={imgStatus.matImg}
+            onPick={(f) => pick('matImg', (v) => setHdr({ ...hdr, matImg: v }), f)} />
+        )}
+        {!failed && hdr.issue === 'No issue' && (
+          <F label="Sizes given to packing?">
+            <select className="input" value={hdr.sizesPacking} onChange={(e) => setHdr({ ...hdr, sizesPacking: e.target.value })}>
+              <option value="">Select</option><option>Yes</option><option>No</option>
+            </select>
+          </F>
+        )}
+      </div>
+
+      {failed && (
+        <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-[12.5px] text-red-700">
+          <b>{failed.check}: {failed.answer}</b> — this order can&apos;t go through Step 2 yet.
+          {failed.needsPhoto ? ' Upload a photo of the issue, then raise' : ' Raise'} the alert to the Design and SKM groups; once it&apos;s fixed, recheck and submit.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Stepper({ current }) {
-  const steps = ['Load Order', 'Cutting & Submit'];
+  const steps = ['Load Order', 'Checks', 'Cutting & Submit'];
   return (
     <div className="flex items-center gap-3 px-1">
       {steps.map((label, i) => {

@@ -4,7 +4,9 @@ import { isAdminRoles } from '@/lib/pages';
 import { getFmsSheet, getFullSteps, writeStepDone, isSheetTimeout } from '@/lib/fmsSheet';
 
 // Writes the Actual timestamp (+ delay reason + extra fields + doer name)
-// back to the exact cells of the live Google Sheet.
+// back to the exact cells of the live Google Sheet — or, when a checklist
+// answer raises a QC alert, the answers alone, leaving the row pending (see
+// writeStepDone). The response says which: { held, alerts }.
 export async function POST(req, { params }) {
   const gate = await requireUser(); if (gate) return gate;
   try {
@@ -33,7 +35,7 @@ export async function POST(req, { params }) {
     }
 
     const result = await writeStepDone({
-      sheet, step, rowNumber, delayReason, extraInputs, doerName: user?.name || '',
+      sheet, step, rowNumber, delayReason, extraInputs, doerName: user?.name || '', doerId: user?.id || null,
     });
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
