@@ -1,5 +1,7 @@
 'use client';
 
+import Icon from './Icon';
+
 const PALETTE = ['#EEBC2E', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#0d9488', '#9333ea', '#db2777'];
 
 // Gradient definitions for bar charts
@@ -132,9 +134,9 @@ export function HorizBarChart({ title, items = [], valueKey = 'value', color, ic
     <div className="card p-4 flex flex-col gap-3">
       <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
         {icon && (
-          <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[14px] leading-none shrink-0"
-            style={{ background: `${color || PALETTE[0]}15` }}>
-            {icon}
+          <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: `${color || PALETTE[0]}15`, color: color || PALETTE[0] }}>
+            <Icon name={icon} className="w-[15px] h-[15px]" />
           </span>
         )}
         <div className="flex-1 min-w-0">
