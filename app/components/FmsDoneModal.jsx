@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { pickUploadFile } from '../quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
@@ -179,6 +179,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
                   <ExtraField key={r.col_letter} row={r} value={extraValues[r.col_letter] || ''}
                     material={materialValue}
                     alerting={alerting.includes(r)}
+                    stockFor={{ orderNo: row.orderNo || '', area: row.area || '' }}
                     onChange={(v) => setExtraValues((ev) => ({ ...ev, [r.col_letter]: v }))} />
                 ))}
               </div>
@@ -232,38 +233,92 @@ function HeldResult({ result, onClose }) {
   );
 }
 
-// "Thickness of each piece": a stone ordered at 18mm arrives anywhere from
-// 17 to 19mm, so every piece is measured and entered before production.
-// Stored in one cell as "4 pcs: 18, 17.5, 18, 19".
+// "Thickness per piece": a slab billed at 18mm arrives anywhere from 17 to
+// 19mm, so every piece is measured before production. The pieces are the
+// slabs blocked to this order's area in the stock list (Inventory) — 10
+// slabs blocked for the kitchen means 10 boxes, each named by its slab no.
+// With nothing in the stock list it falls back to a typed piece count.
+// Stored in one cell: "3 pcs: S12=18, S13=17.5, S14=18" (or "3 pcs: 18, 17.5, 18").
 function parsePieces(value) {
   const m = String(value || '').match(/^\s*(\d+)\s*pcs?\s*:\s*(.*)$/i);
   if (!m) return { count: '', list: [] };
-  return { count: m[1], list: m[2].split(',').map((x) => x.trim()) };
+  const list = m[2].split(',').map((x) => {
+    const [label, val] = x.includes('=') ? x.split('=') : ['', x];
+    return { label: label.trim(), val: (val ?? '').trim() };
+  });
+  return { count: m[1], list };
 }
 function piecesComplete(value) {
   const { count, list } = parsePieces(value);
   const n = parseInt(count, 10) || 0;
-  return n > 0 && list.length === n && list.every((x) => x !== '' && !isNaN(parseFloat(x)));
+  return n > 0 && list.length === n && list.every((x) => x.val !== '' && !isNaN(parseFloat(x.val)));
 }
-function PiecesField({ value, onChange }) {
+function formatPieces(entries) {
+  if (!entries.length) return '';
+  return `${entries.length} pcs: ${entries.map((e) => (e.label ? `${e.label}=${e.val}` : e.val)).join(', ')}`;
+}
+function PiecesField({ value, onChange, stockFor }) {
+  const { orderNo = '', area = '' } = stockFor || {};
+  const [slabs, setSlabs] = useState(null); // null = loading/not looked up
+  const [lookupErr, setLookupErr] = useState('');
+
+  useEffect(() => {
+    if (!orderNo) { setSlabs([]); return; }
+    let live = true;
+    fetch(`/api/fms-tasks/blocked-slabs?orderNo=${encodeURIComponent(orderNo)}&area=${encodeURIComponent(area)}`)
+      .then((r) => r.json())
+      .then((d) => { if (live) { if (d.error) setLookupErr(d.error); setSlabs(d.slabs || []); } })
+      .catch((e) => { if (live) { setLookupErr(e.message); setSlabs([]); } });
+    return () => { live = false; };
+  }, [orderNo, area]);
+
   const { count, list } = parsePieces(value);
+  const valOf = (label, i) => (label ? list.find((x) => x.label === label)?.val : list[i]?.val) ?? '';
+
+  if (slabs === null) return <div className="text-[12px] text-slate-400">Reading the stock list for {orderNo}{area ? ` · ${area}` : ''}…</div>;
+
+  // Slabs found → one box per slab, in stock-list order.
+  if (slabs.length) {
+    const set = (i, v) => onChange(formatPieces(slabs.map((sl, j) => ({ label: sl.slab, val: j === i ? v.replace(/[,=]/g, '') : valOf(sl.slab, j) }))));
+    return (
+      <div className="space-y-2">
+        <div className="text-[11.5px] text-slate-500">
+          {slabs.length} slab{slabs.length > 1 ? 's' : ''} blocked for {orderNo}{area ? ` · ${area}` : ''} in the stock list — enter each one&apos;s measured thickness.
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {slabs.map((sl, i) => (
+            <label key={sl.slab + i} className="block">
+              <span className="text-[10.5px] text-slate-500">{sl.slab}{sl.thickness ? ` · bill ${sl.thickness}` : ''}</span>
+              <input type="number" step="0.1" className="input !py-1.5" value={valOf(sl.slab, i)} placeholder="mm"
+                onChange={(e) => set(i, e.target.value)} />
+            </label>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Nothing blocked (or no order on the row) → typed count.
   const n = Math.min(parseInt(count, 10) || 0, 200);
-  const emit = (c, l) => {
+  const emit = (c, vals) => {
     const k = Math.min(parseInt(c, 10) || 0, 200);
-    if (!k) { onChange(''); return; }
-    onChange(`${k} pcs: ${Array.from({ length: k }, (_, i) => l[i] ?? '').join(', ')}`);
+    onChange(k ? formatPieces(Array.from({ length: k }, (_, i) => ({ label: '', val: vals[i] ?? '' }))) : '');
   };
+  const vals = list.map((x) => x.val);
   return (
     <div className="space-y-2">
+      <div className="text-[11.5px] text-amber-700">
+        {lookupErr ? `Couldn't read the stock list (${lookupErr}).` : orderNo ? `No slabs are blocked for ${orderNo}${area ? ` · ${area}` : ''} in the stock list.` : 'This row has no order number to look up in the stock list.'} Enter the number of pieces.
+      </div>
       <input type="number" min="1" max="200" className="input" value={count} placeholder="Number of pieces…"
-        onChange={(e) => emit(e.target.value, list)} />
+        onChange={(e) => emit(e.target.value, vals)} />
       {n > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {Array.from({ length: n }, (_, i) => (
             <label key={i} className="block">
               <span className="text-[10.5px] text-slate-500">Piece {i + 1} (mm)</span>
-              <input type="number" step="0.1" className="input !py-1.5" value={list[i] ?? ''}
-                onChange={(e) => emit(count, Array.from({ length: n }, (_, j) => (j === i ? e.target.value.replace(/,/g, '') : (list[j] ?? ''))))} />
+              <input type="number" step="0.1" className="input !py-1.5" value={vals[i] ?? ''}
+                onChange={(e) => emit(count, Array.from({ length: n }, (_, j) => (j === i ? e.target.value.replace(/[,=]/g, '') : (vals[j] ?? ''))))} />
             </label>
           ))}
         </div>
@@ -272,7 +327,7 @@ function PiecesField({ value, onChange }) {
   );
 }
 
-function ExtraField({ row, value, onChange, material = '', alerting = false }) {
+function ExtraField({ row, value, onChange, material = '', alerting = false, stockFor }) {
   const label = row.row_label || row.col_letter;
   const required = !(row.required === 0 || row.required === false || row.required === '0');
   const dropdownOptions = (row.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean);
@@ -289,7 +344,7 @@ function ExtraField({ row, value, onChange, material = '', alerting = false }) {
       {row.field_type === 'number'   && <input type="number" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter number…" />}
       {row.field_type === 'date'     && <DateField className="input" value={value} onChange={(e) => onChange(e.target.value)} />}
       {row.field_type === 'link'     && <input type="url" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="https://…" />}
-      {row.field_type === 'pieces' && <PiecesField value={value} onChange={onChange} />}
+      {row.field_type === 'pieces' && <PiecesField value={value} onChange={onChange} stockFor={stockFor} />}
       {isDropdown && (
         <select className={`input ${alerting ? '!border-red-400 !bg-red-50' : ''}`} value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">-- Select --</option>

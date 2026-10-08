@@ -30,7 +30,8 @@ const FIELD_TYPES = [
   { value: 'link',     label: 'Link' },
   { value: 'dropdown', label: 'Dropdown' },
   { value: 'upload',   label: 'Upload' },
-  // Steps only: "number of pieces" + one thickness box per piece.
+  // Steps only: one thickness box per slab blocked to the row's order +
+  // area in the stock list (typed piece count when there are none).
   { value: PIECES_TYPE, label: 'Thickness per Piece' },
   // Intake form only: a date box that fills itself in (start date + days by
   // another field's value) when left blank — see lib/dateOffset.js.

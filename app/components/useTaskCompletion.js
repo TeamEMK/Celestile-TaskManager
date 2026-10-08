@@ -33,6 +33,7 @@ export function useTaskCompletion() {
           planValue: task.planValue,
           orderNo: task.orderNo || '',
           refValues: task.refValues || {},
+          area: task.area || '',
           data: Object.fromEntries((task.details || []).map((x) => [x.header, x.value])),
         },
       });
@@ -58,6 +59,7 @@ export function useTaskCompletion() {
           planValue: task.planValue,
           orderNo: task.orderNo || '',
           refValues: task.refValues || {},
+          area: task.area || '',
           data: Object.fromEntries((task.details || []).map((x) => [x.header, x.value])),
         },
       });
