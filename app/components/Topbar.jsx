@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import NewTaskVoiceAlert from './NewTaskVoiceAlert';
 
 const TITLES = {
@@ -24,6 +25,8 @@ const TITLES = {
 export default function Topbar({ onMenuClick = () => {} }) {
   const pathname = usePathname();
   const title = TITLES[pathname] || '';
+  const { data: session } = useSession();
+  const festUser = session?.user?.id || session?.user?.email || '';
 
   // Compute "today" only after mount so the server-rendered HTML and the
   // first client render match exactly (avoids React hydration error #418,
@@ -33,12 +36,16 @@ export default function Topbar({ onMenuClick = () => {} }) {
     setToday(new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }));
   }, []);
 
+  // Festival greeting pill (public/festival.js) — it fills the empty slot
+  // below; React never renders children into it, so the two don't collide.
+  useEffect(() => { window.Festival?.decorateTopbar(); }, [pathname, festUser]);
+
   return (
     // Neutral bar matching the #F7F7F8 page ground — the warm cream + gold
     // border was a leftover of the "gold wash" the app deliberately dropped
     // (see globals.css base comment).
     <header className="sticky top-0 z-20 backdrop-blur-md"
-      style={{ background: 'rgba(247,247,248,0.86)', borderBottom: '1px solid #E5E7EB' }}>
+      style={{ background: 'var(--c-topbar-bg)', borderBottom: '1px solid #E5E7EB' }}>
       <div className="px-4 lg:px-8 h-14 flex items-center gap-3 lg:gap-4">
 
         <button onClick={onMenuClick} aria-label="Open menu"
@@ -46,17 +53,17 @@ export default function Topbar({ onMenuClick = () => {} }) {
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
         </button>
 
-        <h1 className="font-display text-[16.5px] font-semibold tracking-tight truncate whitespace-nowrap text-slate-900">
+        <h1 className="font-display text-[16.5px] font-semibold tracking-tight truncate whitespace-nowrap" style={{ color: 'var(--c-title)' }}>
           {title}
         </h1>
 
-        <div className="flex-1" />
+        <div className="flex-1 min-w-0 flex justify-center" data-fest-slot="topbar" data-user={festUser} />
 
         {/* Speaks any task the moment it is delegated to you, and doubles as
             the on/off switch for that alert. */}
         <NewTaskVoiceAlert />
 
-        <div className="hidden xl:flex items-center text-[12px] whitespace-nowrap text-slate-400">
+        <div className="hidden xl:flex items-center text-[12px] whitespace-nowrap text-slate-400" data-topbar-date>
           <svg className="w-3.5 h-3.5 mr-1.5 text-primary-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
           </svg>

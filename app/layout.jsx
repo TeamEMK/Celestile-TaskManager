@@ -1,5 +1,6 @@
 import './globals.css';
 import { headers } from 'next/headers';
+import Script from 'next/script';
 import Providers from './components/Providers';
 import AppShell from './components/AppShell';
 import { isAccessEnabled } from '@/lib/access';
@@ -64,7 +65,9 @@ export default async function RootLayout({ children }) {
   }
 
   return (
-    <html lang="en">
+    // suppressHydrationWarning: festival.js sets data-fest on <html> before
+    // React hydrates, so the attribute differs from the server render on purpose.
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* globals.css @imports Google Fonts (Inter + Fraunces) — warming the
             connections shaves the serif page-title flash on first paint. */}
@@ -72,6 +75,9 @@ export default async function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body>
+        {/* Navratri / Dussehra theme. A plain file in public/, so Next does not
+            hash it — bump ?v= whenever festival.js changes. */}
+        <Script src="/festival.js?v=1" strategy="beforeInteractive" />
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>

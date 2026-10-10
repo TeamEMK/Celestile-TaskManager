@@ -4,21 +4,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Brand — gold-yellow accent (#eebc2e), replaces the old warm terracotta.
-        // Reused everywhere `primary-*` is already referenced app-wide.
-        primary: {
-          50:  '#FDF6E3',
-          100: '#FBEAB8',
-          200: '#F7DA85',
-          300: '#F3C955',
-          400: '#EEBC2E',
-          500: '#D9A81F',
-          600: '#B78A16',
-          700: '#8F6B10',
-          800: '#664D0B',
-          900: '#3D2E06',
-          950: '#241A03',
-        },
+        // Brand — gold-yellow accent (#eebc2e). The values live as CSS tokens in
+        // globals.css (:root --c-primary-*) so a theme can swap the whole scale.
+        primary: Object.fromEntries(
+          [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
+            .map((k) => [k, `rgb(var(--c-primary-${k}) / <alpha-value>)`])
+        ),
         // Ink — neutral near-black scale for dark shell surfaces (sidebar, login).
         ink: {
           50:  '#F5F5F5',

@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AddMasterModal   from './components/AddMasterModal';
 import AddDelegateModal from './components/AddDelegateModal';
@@ -39,6 +39,11 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
     fmsAssign, setFmsAssign, openFmsAssign,
   } = useTaskCompletion();
   const { ask, ConfirmUI } = useConfirmToast();
+
+  // Festival decorations (public/festival.js) — toran, petals, corner art.
+  // It adds its own nodes to this wrapper and cleans up after itself.
+  const festWrap = useRef(null);
+  useEffect(() => { window.Festival?.mount(festWrap.current); }, []);
 
   // Computed only after mount (not during the SSR/initial-hydration render)
   // so the server-rendered HTML and the first client render match exactly.
@@ -192,7 +197,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 
   /* ── render ─────────────────────────────────────────────────────── */
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div ref={festWrap} className="space-y-5 animate-fade-in">
 
       {/* ── Header ───────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-end justify-between gap-3">

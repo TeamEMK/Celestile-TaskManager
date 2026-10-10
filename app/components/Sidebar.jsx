@@ -130,24 +130,24 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
         md:translate-x-0 md:w-[230px]
         ${expanded ? 'lg:w-[230px]' : 'lg:w-16'}`}
         style={{
-          background: '#0B0B0C',
+          background: 'var(--c-sidebar-bg)',
           borderRight: '1px solid rgba(255,255,255,0.08)',
           boxShadow: 'none',
         }}>
 
       {/* Brand */}
       <div className="h-14 px-3 flex items-center gap-2.5 shrink-0"
-        style={{ borderBottom: '1px solid rgba(238,188,46,0.14)' }}>
+        style={{ borderBottom: '1px solid rgb(var(--c-sidebar-accent) / 0.14)' }}>
         {/* Single logo icon — always visible */}
         <div className="relative w-9 h-9 rounded-lg shrink-0 overflow-hidden grid place-items-center"
-          style={{ background: '#000000', border: '1px solid rgba(238,188,46,0.30)' }}>
+          style={{ background: '#000000', border: '1px solid rgb(var(--c-sidebar-accent) / 0.30)' }}>
           <img src="/logo.jpeg" alt="Celestile" className="w-9 h-9 object-contain" />
           <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2"
             style={{ background: '#34d399', borderColor: '#000000' }}></span>
         </div>
         {/* Brand name — fades in when sidebar expands */}
         <div className={`leading-tight min-w-0 opacity-100 md:opacity-100 ${lgLabel} transition-opacity duration-200 whitespace-nowrap`}>
-          <div className="font-display text-[15px] font-semibold tracking-tight" style={{ color: '#FBEAB8' }}>Celestile</div>
+          <div className="font-display text-[15px] font-semibold tracking-tight" style={{ color: 'var(--c-sidebar-accent-soft)' }}>Celestile</div>
           <div className="text-[9px] font-medium tracking-wide" style={{ color: '#6B7280' }}>Task Manager</div>
         </div>
         {/* Close button — mobile drawer only */}
@@ -173,23 +173,23 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {}, expand
                     <Link key={n.href} href={n.href} title={n.label} onClick={onClose}
                       className={`group/item flex items-center gap-3 h-10 px-2.5 rounded-lg text-[14px] relative transition-colors duration-150 min-w-0 ${active ? 'font-bold' : 'font-medium'}`}
                       style={{
-                        background: active ? 'rgba(238,188,46,0.18)' : 'transparent',
-                        color: active ? '#FBEAB8' : '#D4D4D4',
+                        background: active ? 'rgb(var(--c-sidebar-accent) / 0.18)' : 'transparent',
+                        color: active ? 'var(--c-sidebar-accent-soft)' : '#D4D4D4',
                       }}
                       onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; } }}
                       onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; } }}
                     >
                       {active && (
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
-                          style={{ background: '#EEBC2E' }} />
+                          style={{ background: 'rgb(var(--c-sidebar-accent))' }} />
                       )}
                       <span className="relative shrink-0">
                         <IconComp className="w-[17px] h-[17px]"
-                          style={{ color: active ? '#F3C955' : 'inherit' }} />
+                          style={{ color: active ? 'rgb(var(--c-sidebar-accent))' : 'inherit' }} />
                         {((n.href === '/approvals' && pendingCount > 0) || (n.href === '/help-tickets' && ticketCount > 0)) && (
                           <span
                             className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] rounded-full text-[9px] font-bold text-black flex items-center justify-center"
-                            style={{ background: '#EEBC2E', boxShadow: '0 0 0 2px #000000' }}
+                            style={{ background: 'rgb(var(--c-sidebar-accent))', boxShadow: '0 0 0 2px #000000' }}
                           >
                             {n.href === '/approvals' ? pendingCount : ticketCount}
                           </span>

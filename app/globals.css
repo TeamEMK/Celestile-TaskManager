@@ -5,11 +5,30 @@
 @tailwind utilities;
 
 @layer base {
+  /* Colour tokens. Tailwind's primary-* scale reads these (as RGB triplets so
+     /opacity modifiers still work), and so does the shell — page ground,
+     topbar, sidebar, buttons, focus rings. Defaults are the house gold;
+     public/festival.js overrides them under html[data-fest] on festival days. */
+  :root {
+    --c-primary-50: 253 246 227;  --c-primary-100: 251 234 184; --c-primary-200: 247 218 133;
+    --c-primary-300: 243 201 85;  --c-primary-400: 238 188 46;  --c-primary-500: 217 168 31;
+    --c-primary-600: 183 138 22;  --c-primary-700: 143 107 16;  --c-primary-800: 102 77 11;
+    --c-primary-900: 61 46 6;     --c-primary-950: 36 26 3;
+    --c-ring: 238 188 46;
+    --c-btn: #EEBC2E; --c-btn-hover: #E0AF1E; --c-btn-active: #D4A51B; --c-btn-ink: #000000;
+    --c-page-bg: #F7F7F8;
+    --c-topbar-bg: rgba(247,247,248,0.86);
+    --c-title: #111111;
+    --c-sidebar-bg: #0B0B0C;
+    --c-sidebar-accent: 238 188 46;
+    --c-sidebar-accent-soft: #FBEAB8;
+  }
+
   html, body {
     /* A flat, quiet field. The gold wash that used to sit here tinted every
        white card on top of it, which is what made the whole app read as
        "colourful" no matter how restrained an individual page was. */
-    background: #F7F7F8;
+    background: var(--c-page-bg);
     color: #09090B;
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     font-size: 16px;
@@ -60,12 +79,12 @@
   .btn { @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-[13.5px] font-medium leading-5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none active:scale-[0.98]; }
   /* Keyboard users got nothing before: `focus:outline-none` beat the global
      *:focus-visible rule on every button in the app. */
-  .btn:focus-visible { box-shadow: 0 0 0 3px rgba(238,188,46,0.35); }
+  .btn:focus-visible { box-shadow: 0 0 0 3px rgb(var(--c-ring) / 0.35); }
   /* Gold stays, but flat and only on the primary action — one accent on a
      page, not a gradient with a halo under it. */
-  .btn-primary   { @apply btn text-black; background: #EEBC2E; box-shadow: 0 1px 2px rgba(9,9,11,0.08); }
-  .btn-primary:hover  { background: #E0AF1E; }
-  .btn-primary:active { background: #D4A51B; }
+  .btn-primary   { @apply btn; color: var(--c-btn-ink); background: var(--c-btn); box-shadow: 0 1px 2px rgba(9,9,11,0.08); }
+  .btn-primary:hover  { background: var(--c-btn-hover); }
+  .btn-primary:active { background: var(--c-btn-active); }
   .btn-secondary { @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300; box-shadow: 0 1px 2px rgba(9,9,11,0.04); }
   .btn-ghost     { @apply btn text-slate-500 hover:bg-slate-100 hover:text-slate-700; }
   .btn-danger    { @apply btn bg-red-600 text-white hover:bg-red-700; box-shadow: 0 1px 2px rgba(9,9,11,0.08); }
@@ -78,7 +97,7 @@
   /* Form */
   .pill  { @apply inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-medium leading-4 rounded-full; }
   .input { @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[14px] leading-5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-400 transition disabled:opacity-60 disabled:bg-slate-50 disabled:cursor-not-allowed; }
-  .input:focus { box-shadow: 0 0 0 3px rgba(238,188,46,0.22); }
+  .input:focus { box-shadow: 0 0 0 3px rgb(var(--c-ring) / 0.22); }
   .label { @apply block text-[12px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5; }
 
   /* Typography helpers — Fraunces serif for an editorial, atelier-grade voice */
@@ -135,7 +154,7 @@
            transition focus:outline-none focus:border-primary-400 hover:border-slate-300
            disabled:opacity-60 disabled:bg-slate-50 disabled:cursor-not-allowed;
   }
-  .ctl:focus { box-shadow: 0 0 0 3px rgba(238,188,46,0.22); }
+  .ctl:focus { box-shadow: 0 0 0 3px rgb(var(--c-ring) / 0.22); }
   /* Native select/date rendering is kept on purpose: a hand-rolled chevron
      costs an inline data-URI in a class name and breaks the OS date picker. */
   .select    { @apply ctl pl-2.5 pr-7 cursor-pointer; }
@@ -187,7 +206,7 @@ aside ::-webkit-scrollbar-thumb, aside::-webkit-scrollbar-thumb { background: rg
 aside * { scrollbar-color: rgba(255,255,255,0.22) transparent; }
 
 /* Text selection in the brand gold instead of browser-default blue. */
-::selection { background: rgba(238,188,46,0.35); color: #09090B; }
+::selection { background: rgb(var(--c-ring) / 0.35); color: #09090B; }
 
 /* ── Sticky header backdrops ────────────────────────────────────── */
 thead.bg-slate-50\/95, thead.bg-slate-50\/80 { background-color: transparent; }
@@ -202,8 +221,8 @@ thead.bg-slate-50\/95, thead.bg-slate-50\/80 { background-color: transparent; }
 .animate-fade-in { animation: fade-in-up 0.28s cubic-bezier(.16,1,.3,1) both; }
 
 /* ── Focus ring for accessibility ───────────────────────────────── */
-*:focus-visible { outline: 2px solid #EEBC2E; outline-offset: 2px; }
-.seg-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(238,188,46,0.35); }
+*:focus-visible { outline: 2px solid rgb(var(--c-ring)); outline-offset: 2px; }
+.seg-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgb(var(--c-ring) / 0.35); }
 
 /* ── Number inputs ──────────────────────────────────────────────────
    The data-entry tables are full of number cells; the browser's spinner

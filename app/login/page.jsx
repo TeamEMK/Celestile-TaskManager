@@ -45,6 +45,11 @@ export default function LoginPage() {
 
   useEffect(() => () => clearTimeout(pokeTimer.current), []);
 
+  // Festival theme (public/festival.js): it fills the data-fest-slot divs and
+  // hides the .fest-swap pieces on Navratri / Dussehra.
+  const pageRef = useRef(null);
+  useEffect(() => { window.Festival?.decorateLogin(pageRef.current); }, []);
+
   function showToast(msg, type = 'error') { setToast({ msg, type }); }
 
   function poke() {
@@ -170,16 +175,16 @@ export default function LoginPage() {
           background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.10); border-radius:13px;
           color:#F5F5F5; font-size:15px; outline:none; transition: border-color .18s, box-shadow .18s, background .18s; }
         .lx-input::placeholder { color:#737373; }
-        .lx-input:focus { border-color: rgba(238,188,46,.65); background: rgba(255,255,255,.06);
-          box-shadow: 0 0 0 3px rgba(238,188,46,.14); }
+        .lx-input:focus { border-color: rgb(var(--c-ring) / .65); background: rgba(255,255,255,.06);
+          box-shadow: 0 0 0 3px rgb(var(--c-ring) / .14); }
 
         .lx-btn { position:relative; overflow:hidden; width:100%; padding:14px; border:none; border-radius:13px;
-          color:#000000; font-weight:800; font-size:15px; letter-spacing:.02em; cursor:pointer;
-          background: linear-gradient(135deg,#F3C955 0%,#EEBC2E 45%,#B78A16 100%);
-          box-shadow: 0 10px 30px rgba(183,138,22,.40), inset 0 1px 0 rgba(255,255,255,.45);
+          color:var(--c-btn-ink); font-weight:800; font-size:15px; letter-spacing:.02em; cursor:pointer;
+          background: linear-gradient(135deg,rgb(var(--c-primary-300)) 0%,rgb(var(--c-primary-400)) 45%,rgb(var(--c-primary-600)) 100%);
+          box-shadow: 0 10px 30px rgb(var(--c-primary-600) / .40), inset 0 1px 0 rgba(255,255,255,.45);
           transition: transform .15s, box-shadow .2s, filter .2s;
           display:flex; align-items:center; justify-content:center; gap:9px; }
-        .lx-btn:hover:not(:disabled) { transform: translateY(-2px); filter:brightness(1.04); box-shadow:0 16px 40px rgba(183,138,22,.5), inset 0 1px 0 rgba(255,255,255,.5); }
+        .lx-btn:hover:not(:disabled) { transform: translateY(-2px); filter:brightness(1.04); box-shadow:0 16px 40px rgb(var(--c-primary-600) / .5), inset 0 1px 0 rgba(255,255,255,.5); }
         .lx-btn:active:not(:disabled){ transform: translateY(0); }
         .lx-btn:disabled { cursor:not-allowed; opacity:.75; }
         .lx-btn::after { content:''; position:absolute; top:0; left:-120%; width:55%; height:100%;
@@ -230,7 +235,7 @@ export default function LoginPage() {
         }}>{toast.msg}</div>
       )}
 
-      <div style={{
+      <div ref={pageRef} style={{
         position: 'relative', minHeight: '100vh', overflow: 'hidden',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem',
         background: 'radial-gradient(ellipse at 70% 20%, #171717 0%, #0D0D0D 45%, #000000 100%)',
@@ -243,9 +248,10 @@ export default function LoginPage() {
 
           {/* ── Brand panel (desktop): the buddy is the whole show ── */}
           <aside className="lx-brand lx-stagger" style={{ alignItems: 'center', textAlign: 'center', gap: 12 }}>
-            <div className="lx-bubble" key={quip}>{quip}</div>
+            <div className="lx-bubble fest-swap" key={quip}>{quip}</div>
+            <div data-fest-slot="login-brand" />
 
-            <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+            <div className="fest-swap" style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
               <Buddy size={186} {...buddyProps} />
               {party && <Confetti />}
             </div>
@@ -280,6 +286,7 @@ export default function LoginPage() {
               </div>
 
               <div>
+                <div data-fest-slot="login-chip" />
                 <h1 className="font-display" style={{ margin: '0 0 6px', fontSize: 30, fontWeight: 600, color: '#FAFAFA' }}>Welcome back </h1>
                 <p style={{ margin: '0 0 26px', fontSize: 14, color: '#9CA3AF' }}>Sign in to your Celestile workspace</p>
               </div>
