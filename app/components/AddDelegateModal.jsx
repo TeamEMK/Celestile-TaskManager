@@ -42,7 +42,10 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
   // router.refresh() after every mutation — copying it into state and
   // re-fetching /api/users on each open was one avoidable round trip.
   const users = useMemo(
-    () => propUsers.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+    // Deactivated accounts can't log in to do the work, so they don't belong
+    // in the Assign To / Approver lists.
+    () => propUsers.filter((u) => u.active ?? true)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '')),
     [propUsers]);
 
   if (!open) return null;

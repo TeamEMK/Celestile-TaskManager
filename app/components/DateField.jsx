@@ -59,6 +59,17 @@ export default function DateField({
   const [text, setText] = useState(() => isoToDisplay(value));
   const nativeRef = useRef(null);
   const typing = useRef(false);
+  // Phones and tablets: a tap on the box opens the OS calendar instead of the
+  // numeric keyboard — picking a date beats typing one on a touch screen.
+  const [touch, setTouch] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia?.('(pointer: coarse)');
+    if (!mq) return;
+    setTouch(mq.matches);
+    const on = (e) => setTouch(e.matches);
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
 
   // Follow the parent when it sets the date itself (a "Today" button, a form
   // reset) — but never while someone is mid-keystroke in the box.
@@ -113,7 +124,8 @@ export default function DateField({
         title={title}
         required={required}
         disabled={disabled}
-        autoFocus={autoFocus}
+        autoFocus={autoFocus && !touch}
+        readOnly={touch}
         size={10}
         className={`${className} !pr-8`}
         placeholder={placeholder}
@@ -132,7 +144,8 @@ export default function DateField({
       >
         <Icon name="calendar" className="w-3.5 h-3.5" />
       </button>
-      {/* The browser's own picker, kept for the calendar button and for tablets */}
+      {/* The browser's own picker: behind the calendar button on desktop, laid
+          over the whole box on touch screens so a tap lands on it directly */}
       <input
         ref={nativeRef}
         type="date"
@@ -143,7 +156,9 @@ export default function DateField({
         max={max}
         value={value || ''}
         onChange={(e) => { typing.current = false; setText(isoToDisplay(e.target.value)); emit(e.target.value); }}
-        className="absolute right-2 bottom-0 w-px h-px opacity-0 pointer-events-none"
+        className={touch
+          ? 'absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer'
+          : 'absolute right-2 bottom-0 w-px h-px opacity-0 pointer-events-none'}
       />
     </span>
   );
