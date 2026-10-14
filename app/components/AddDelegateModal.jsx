@@ -53,7 +53,10 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
   const router = useRouter();
   const { data: session } = useSession();
   const myBranch = branchOf(session?.user);
-  const [allBranches, setAllBranches] = useState(false);
+  // null = not picked yet → follow the delegator's own branch (the session
+  // can arrive after the first render); '' = all branches.
+  const [branchPick, setBranchPick] = useState(null);
+  const branch = branchPick ?? myBranch;
   const [form, setForm] = useState(blank());
   const [saving, setSaving] = useState(false);
   // { text, ok } — never a bare string: the colour must come from the
@@ -72,14 +75,24 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
       .sort((a, b) => (a.name || '').localeCompare(b.name || '')),
     [propUsers]);
 
-  // Branch-wise: a delegator sees their own branch's people (plus anyone with
-  // no branch set, so nobody silently vanishes) unless they tick "Show all
-  // branches". No branch on the delegator (e.g. admin) → everyone.
-  const pickable = useMemo(
-    () => (!myBranch || allBranches) ? users
-      : users.filter((u) => !branchOf(u) || branchOf(u) === myBranch
-        || u.id === form.doerId || u.id === form.approverId),
-    [users, myBranch, allBranches, form.doerId, form.approverId]);
+  // The Branch field narrows Assign To to that branch's people (plus anyone
+  // with no branch set, so nobody silently vanishes). It starts on the
+  // delegator's own branch; "All branches" lists everyone, grouped.
+  const branches = useMemo(
+    () => [...new Set(users.map(branchOf).filter(Boolean))].sort(),
+    [users]);
+  const doers = useMemo(
+    () => !branch ? users : users.filter((u) => !branchOf(u) || branchOf(u) === branch),
+    [users, branch]);
+
+  function pickBranch(b) {
+    setBranchPick(b);
+    // A doer from another branch would sit selected but invisible.
+    setForm((f) => {
+      const d = users.find((u) => u.id === f.doerId);
+      return d && b && branchOf(d) && branchOf(d) !== b ? { ...f, doerId: '' } : f;
+    });
+  }
 
   if (!open) return null;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -181,29 +194,32 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
         <div className="px-6 py-5 space-y-3.5">
 
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Branch">
+              <select className="input" value={branch} onChange={(e) => pickBranch(e.target.value)}>
+                <option value="">All branches</option>
+                {branches.map((b) => <option key={b} value={b}>{BRANCH_LABEL[b] || b}</option>)}
+              </select>
+            </Field>
             <Field label="Assign To" required>
               <select className="input" value={form.doerId} onChange={(e) => set('doerId', e.target.value)}>
                 <option value="">Select person</option>
-                <PersonOptions list={pickable} />
+                <PersonOptions list={doers} />
               </select>
-              {myBranch && (
-                <label className="flex items-center gap-1.5 mt-1 text-[10.5px] text-slate-500 cursor-pointer select-none">
-                  <input type="checkbox" checked={allBranches} onChange={(e) => setAllBranches(e.target.checked)} />
-                  Show all branches
-                </label>
-              )}
-            </Field>
-            <Field label="Due Date" required>
-              <DateField className="input" value={form.dueDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => set('dueDate', e.target.value)} />
             </Field>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Due Date" required>
+              <DateField className="input" value={form.dueDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => set('dueDate', e.target.value)} />
+            </Field>
             <Field label="Priority">
               <select className="input" value={form.priority} onChange={(e) => set('priority', e.target.value)}>
                 {['Low', 'Medium', 'High'].map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Approval">
               <select
                 className="input"
@@ -220,7 +236,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
             <Field label="Approver" required>
               <select className="input" value={form.approverId} onChange={(e) => set('approverId', e.target.value)}>
                 <option value="">Select approver</option>
-                <PersonOptions list={pickable} />
+                <PersonOptions list={users} />
               </select>
               <p className="text-[10.5px] text-slate-400 mt-1">Task will wait for this person's approval once marked done.</p>
             </Field>
