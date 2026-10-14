@@ -21,7 +21,7 @@ export default async function AllTasksPage() {
                   FROM delegations
                   ORDER BY created_at DESC`)
         .then(([r]) => r).catch(() => []),
-      pool.query('SELECT id, name, email, department, roles, active FROM users ORDER BY id')
+      pool.query('SELECT id, name, email, department, roles, active, branch FROM users ORDER BY id')
         .then(([r]) => r).catch(() => []),
       pool.query('SELECT id, task, assigned_to AS assignedTo, frequency, require_file AS requireFile, attachment, created_at AS createdAt FROM masters ORDER BY created_at DESC')
         .then(([r]) => r).catch(() => []),

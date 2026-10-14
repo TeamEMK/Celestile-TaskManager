@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { parseCsvRows } from '@/lib/csv';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { fileToThumbnail, fileToDataUrl } from '@/app/quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
 import Icon from '../components/Icon';
@@ -21,6 +22,26 @@ const parseCSV = (text) => parseCsvRows(text,
   ['doer_email', 'due_date', 'priority', 'approval', 'description', 'remarks', 'client_name'],
   ['doer_email', 'description']);
 
+const BRANCH_LABEL = { bangalore: 'Bangalore', hyderabad: 'Hyderabad', factory: 'Factory' };
+const branchOf = (u) => String(u?.branch || '').toLowerCase().trim();
+
+// One branch → plain options; several → an <optgroup> per branch so a long
+// cross-branch list still reads at a glance.
+function PersonOptions({ list }) {
+  const groups = new Map();
+  list.forEach((u) => {
+    const b = branchOf(u);
+    if (!groups.has(b)) groups.set(b, []);
+    groups.get(b).push(u);
+  });
+  if (groups.size <= 1) return list.map((u) => <option key={u.id} value={u.id}>{u.name}</option>);
+  return [...groups.keys()].sort((a, b) => (a ? 0 : 1) - (b ? 0 : 1) || a.localeCompare(b)).map((b) => (
+    <optgroup key={b || 'none'} label={BRANCH_LABEL[b] || b || 'No branch'}>
+      {groups.get(b).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+    </optgroup>
+  ));
+}
+
 const Field = ({ label, required, children }) => (
   <div>
     <label className="label">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
@@ -30,6 +51,9 @@ const Field = ({ label, required, children }) => (
 
 export default function AddDelegateModal({ open, onClose, users: propUsers = [] }) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const myBranch = branchOf(session?.user);
+  const [allBranches, setAllBranches] = useState(false);
   const [form, setForm] = useState(blank());
   const [saving, setSaving] = useState(false);
   // { text, ok } — never a bare string: the colour must come from the
@@ -47,6 +71,15 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
     () => propUsers.filter((u) => u.active ?? true)
       .sort((a, b) => (a.name || '').localeCompare(b.name || '')),
     [propUsers]);
+
+  // Branch-wise: a delegator sees their own branch's people (plus anyone with
+  // no branch set, so nobody silently vanishes) unless they tick "Show all
+  // branches". No branch on the delegator (e.g. admin) → everyone.
+  const pickable = useMemo(
+    () => (!myBranch || allBranches) ? users
+      : users.filter((u) => !branchOf(u) || branchOf(u) === myBranch
+        || u.id === form.doerId || u.id === form.approverId),
+    [users, myBranch, allBranches, form.doerId, form.approverId]);
 
   if (!open) return null;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -151,8 +184,14 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
             <Field label="Assign To" required>
               <select className="input" value={form.doerId} onChange={(e) => set('doerId', e.target.value)}>
                 <option value="">Select person</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                <PersonOptions list={pickable} />
               </select>
+              {myBranch && (
+                <label className="flex items-center gap-1.5 mt-1 text-[10.5px] text-slate-500 cursor-pointer select-none">
+                  <input type="checkbox" checked={allBranches} onChange={(e) => setAllBranches(e.target.checked)} />
+                  Show all branches
+                </label>
+              )}
             </Field>
             <Field label="Due Date" required>
               <DateField className="input" value={form.dueDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => set('dueDate', e.target.value)} />
@@ -181,7 +220,7 @@ export default function AddDelegateModal({ open, onClose, users: propUsers = [] 
             <Field label="Approver" required>
               <select className="input" value={form.approverId} onChange={(e) => set('approverId', e.target.value)}>
                 <option value="">Select approver</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                <PersonOptions list={pickable} />
               </select>
               <p className="text-[10.5px] text-slate-400 mt-1">Task will wait for this person's approval once marked done.</p>
             </Field>
