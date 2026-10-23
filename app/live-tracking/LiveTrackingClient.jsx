@@ -199,11 +199,28 @@ export default function LiveTrackingClient() {
     return [...seen].map(([label, rail]) => ({ label, rail }));
   }, [data, cols]);
 
+  // FMS live views carry a "Pending On" column; the step chips filter on it.
+  const [stage, setStage] = useState('');
+  useEffect(() => { setStage(''); }, [activeId]);
+  const stageIdx = useMemo(() => (data?.stages ? (data.headers || []).indexOf('Pending On') : -1), [data]);
+
+  // Step-wise counts under every other filter, in flow order (data.stages).
+  const stageCounts = useMemo(() => {
+    if (stageIdx < 0) return [];
+    const n = {};
+    for (const row of statusCounts.rows) n[row[stageIdx]] = (n[row[stageIdx]] || 0) + 1;
+    return (data.stages || []).map((s) => ({ name: s.name, count: n[s.name] || 0 })).filter((s) => s.count);
+  }, [statusCounts, stageIdx, data]);
+
   const filteredRows = useMemo(() => {
-    if (!filters.status) return statusCounts.rows;
-    const wantDone = filters.status === 'done';
-    return statusCounts.rows.filter((row) => isRowDone(row, cols.doneIdx) === wantDone);
-  }, [statusCounts, filters.status, cols]);
+    let rows = statusCounts.rows;
+    if (filters.status) {
+      const wantDone = filters.status === 'done';
+      rows = rows.filter((row) => isRowDone(row, cols.doneIdx) === wantDone);
+    }
+    if (stage && stageIdx >= 0) rows = rows.filter((row) => row[stageIdx] === stage);
+    return rows;
+  }, [statusCounts, filters.status, cols, stage, stageIdx]);
 
   const nActive = activeFilterCount(filters);
 
@@ -328,7 +345,7 @@ export default function LiveTrackingClient() {
             <Icon name="refresh" className={`w-3.5 h-3.5 ${loadingData ? 'animate-spin' : ''}`} /> {loadingData ? 'Refreshing' : 'Refresh'}
           </button>
         )}
-        {isAdmin && activeId && (
+        {isAdmin && activeId && activeTracker?.kind !== 'fms' && (
           <>
             <button className="btn-secondary btn-sm" onClick={openEdit}><Icon name="edit" className="w-3.5 h-3.5" /> Edit</button>
             <button className="btn-secondary btn-sm !text-red-600 hover:!bg-red-50 hover:!border-red-200" onClick={removeActive}>
@@ -368,6 +385,7 @@ export default function LiveTrackingClient() {
                     active ? 'bg-primary-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}>
                   {s.name || s.sheet_name}
+                  {s.kind === 'fms' && <span className={`ml-1 text-[10px] ${active ? 'text-white/70' : 'text-slate-400'}`}>FMS</span>}
                 </button>
               );
             })}
@@ -421,6 +439,26 @@ export default function LiveTrackingClient() {
               No rows match the current search / status / date filters, so there is nothing to break down yet.
             </div>
           ) : null}
+
+          {stageCounts.length > 0 && (
+            <div className="space-y-1.5">
+              <SectionTitle note="where every entry stands · click a step to filter the table">Step-wise</SectionTitle>
+              <div className="flex flex-wrap gap-2">
+                {stageCounts.map((s) => {
+                  const on = stage === s.name;
+                  return (
+                    <button key={s.name} type="button" onClick={() => setStage(on ? '' : s.name)}
+                      className={`px-3 py-1.5 rounded-lg border text-[12px] font-medium transition-colors ${
+                        on ? 'bg-primary-600 border-primary-600 text-white'
+                          : s.name === 'Completed' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                      {s.name} <span className={`ml-1 tabular-nums font-semibold ${on ? 'text-white' : 'text-primary-600'}`}>{s.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* AppSheet upload columns hold a filename, not a link. If the app
               can't reach the Drive folder holding those files, say so once

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { currentUser, currentUserIsAdmin, redactSheetIds, requireAdmin, requireUser, requireUserCtx } from '@/lib/api';
 import { deleteLiveTracker, getLiveTracker, getLiveTrackerData, setLiveTrackerCell, updateLiveTracker } from '@/lib/liveTracking';
 import { branchScopeFor, detectColumns, rowInBranchScope, PROGRAM_SENT_OPTIONS } from '@/lib/liveTrackingView';
-import { isSheetTimeout } from '@/lib/fmsSheet';
+import { isSheetTimeout, getFmsLiveView, canViewFmsLive } from '@/lib/fmsSheet';
 
 // Config + a fresh live read of the connected tab — open to any signed-in
 // user (that's the whole point: browsing the live data), editing stays admin-only.
@@ -10,13 +10,27 @@ export async function GET(req, { params }) {
   const gate = await requireUser(); if (gate) return gate;
   try {
     const { id } = await params;
-    const tracker = await getLiveTracker(id);
-    if (!tracker) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const data = await getLiveTrackerData(tracker);
+    const isAdmin = await currentUserIsAdmin();
+    let tracker, data;
+    if (String(id).startsWith('fms-')) {
+      // An FMS live view (see getFmsLiveView) — only for flows this user
+      // can see on the FMS page.
+      const fmsId = String(id).slice(4);
+      if (!(await canViewFmsLive(fmsId, (await currentUser())?.id, isAdmin))) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      }
+      const view = await getFmsLiveView(fmsId);
+      if (!view) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      ({ tracker, ...data } = view);
+    } else {
+      tracker = await getLiveTracker(id);
+      if (!tracker) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      data = await getLiveTrackerData(tracker);
+    }
     // Admin-only right: without the sheet id there's no "Open in Sheets" link
     // to build. Only the tracker is redacted — `data.rows` is the live sheet
     // content this page exists to show, and can run to thousands of rows.
-    const shown = redactSheetIds(tracker, await currentUserIsAdmin());
+    const shown = redactSheetIds(tracker, isAdmin);
 
     // Branch users only ever see their own branch's rows — which branch a row
     // belongs to is read off its order number (H… Hyderabad, B… Bangalore).
