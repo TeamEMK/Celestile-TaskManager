@@ -189,6 +189,31 @@ function FilePane({ item }) {
   );
 }
 
+// A file the app has no copy of — an AppSheet upload whose Drive folder
+// isn't shared with the service account, one deleted from Drive, or a plain
+// non-Drive link. Says why in place rather than throwing the viewer onto a
+// Google "request access" page.
+function NoAccessPane({ item }) {
+  const msg = item.missing
+    ? 'This upload has been deleted from Drive.'
+    : item.unresolved
+      ? "The app can't read this sheet's upload folder yet, so the file can't be shown here. The folder owner needs to share it (Viewer) with celestile-fms@celestile.iam.gserviceaccount.com."
+      : "This link isn't a file the app can show here.";
+  return (
+    <div className="bg-white rounded-xl shadow-2xl px-8 py-8 text-center max-w-md">
+      <Icon name={item.missing ? 'alert' : 'file'} className="w-10 h-10 mx-auto text-slate-400" />
+      <div className="mt-3 font-semibold text-slate-800 break-all">{item.name}</div>
+      <div className="mt-2 text-[12px] text-slate-500">{msg}</div>
+      {!item.missing && item.href && (
+        <a href={item.href} target="_blank" rel="noopener noreferrer"
+          className="inline-block mt-3 text-[12px] text-primary-600 underline underline-offset-2">
+          Open in Drive instead <Icon name="external" className="w-3.5 h-3.5" />
+        </a>
+      )}
+    </div>
+  );
+}
+
 // Full-screen viewer for a *set* of attachments — one sheet cell routinely
 // holds several uploaded photos, so the viewer has to page through them
 // rather than being opened once per file. Items with a `src` (served by the
@@ -253,7 +278,7 @@ export function Gallery({ items = [], start = 0, onClose }) {
       )}
 
       <div onClick={(e) => e.stopPropagation()} className="max-w-[92vw] cursor-default">
-        {cur.src ? <FilePane key={cur.src} item={cur} /> : (
+        {cur.src ? <FilePane key={cur.src} item={cur} /> : !cur.candidates ? <NoAccessPane item={cur} /> : (
           <SmartImg
             candidates={cur.candidates}
             href={cur.href}

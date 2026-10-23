@@ -808,11 +808,11 @@ function CellValue({ value, fileLinks, indexed }) {
   const val = String(value ?? '').trim();
   const att = useMemo(() => cellAttachments(val, fileLinks, indexed), [val, fileLinks, indexed]);
   const { text, images, files: allFiles } = att;
-  // Everything the app itself can serve opens in the on-page viewer; only
-  // links it can't (an unreachable AppSheet folder, a non-Drive URL) still
-  // leave the page.
-  const viewable = useMemo(() => [...images, ...allFiles.filter((f) => f.src)], [images, allFiles]);
-  const files = allFiles.filter((f) => !f.src);
+  // Every attachment opens in the on-page viewer — never a new tab. Files
+  // the app can serve show inline; the rest (an AppSheet folder not shared
+  // with the service account, a deleted upload) get a message there instead.
+  const viewable = useMemo(() => [...images, ...allFiles.filter((f) => f.src || /^https?:/i.test(f.href))], [images, allFiles]);
+  const files = allFiles.filter((f) => !viewable.includes(f));
 
   if (!val) return <>—</>;
   if (!viewable.length && !files.length) return <>{val}</>;
