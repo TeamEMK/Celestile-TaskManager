@@ -122,6 +122,51 @@ function deptToFormType(dept) {
   return 'Designer';
 }
 
+// Excel-style movement through the entry grid, so a row can be filled without
+// reaching for the mouse (asked for in the 23-10-2026 review): Up/Down/Enter
+// move a row, Left/Right move a cell once the caret is at the edge of the text.
+// A dropdown keeps Up/Down for picking its option.
+const FOCUSABLE = 'input:not([type=hidden]):not([type=file]):not(:disabled), select:not(:disabled), textarea:not(:disabled)';
+
+function cellField(td) {
+  return td?.querySelector(FOCUSABLE) || null;
+}
+
+function gridKeyNav(e) {
+  const el = e.target;
+  if (!el.matches?.(FOCUSABLE) || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const td = el.closest('td');
+  const tr = td?.parentElement;
+  const body = tr?.parentElement;
+  if (!td || !body || body.tagName !== 'TBODY') return;
+
+  const isSelect = el.tagName === 'SELECT';
+  const isArea = el.tagName === 'TEXTAREA';
+  let caret = null;
+  try { caret = el.selectionStart; } catch { /* number/checkbox inputs have no caret */ }
+  const len = String(el.value ?? '').length;
+
+  let target = null;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || (e.key === 'Enter' && !isArea)) {
+    if (isSelect && e.key !== 'Enter') return;
+    if (isArea && caret !== null && (e.key === 'ArrowUp' ? caret > 0 : caret < len)) return;
+    const rows = [...body.rows];
+    const next = rows[rows.indexOf(tr) + (e.key === 'ArrowUp' ? -1 : 1)];
+    target = cellField(next?.cells[td.cellIndex]);
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    const left = e.key === 'ArrowLeft';
+    if (caret !== null && el.selectionEnd === caret && (left ? caret > 0 : caret < len)) return;
+    for (let c = td.cellIndex + (left ? -1 : 1); c >= 0 && c < tr.cells.length && !target; c += left ? -1 : 1) {
+      target = cellField(tr.cells[c]);
+    }
+  } else return;
+
+  if (!target) return;
+  e.preventDefault();
+  target.focus();
+  try { target.select?.(); } catch { /* not selectable */ }
+}
+
 // The Executive Assistant fills TWO forms (Walk-in + Payments), so unlike
 // every other department they get a form switcher instead of one fixed form.
 function isEaDept(dept) {
@@ -564,7 +609,7 @@ export default function DailyTaskClient() {
             )}
 
             <div className="overflow-x-auto overflow-y-auto max-h-[520px] rounded-lg border border-slate-200">
-              <table className="w-full">
+              <table className="w-full" onKeyDown={gridKeyNav}>
                 <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
                   <tr>
                     {isWalkin ? (
