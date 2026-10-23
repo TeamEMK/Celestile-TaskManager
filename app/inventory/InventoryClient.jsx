@@ -27,7 +27,23 @@ const TAB_IDS = ['inward', 'stock', 'blocked', 'step2'];
 // dispatch sheet) instead of free text, so downstream logic that keys off
 // these values (e.g. "is there a material issue?") can't be broken by a typo.
 const STEP2_MATERIALS = ['Tile', 'Stone', 'Wood Vineer', 'Acralic', 'WPC', 'PLY Wood', 'MOP'];
-const STEP2_ISSUES = ['No', 'Chiping', 'Breakage', 'Grain Opening', 'Flaking', 'Color Matching'];
+// Free-text stone type ("VIETNAM WHITE MARBLE", "TILE:LUCIDO DIOR") → one of
+// STEP2_MATERIALS. Checked most specific first: "MOP on Bottochino Marble"
+// is a stone job, "Print on Tile" a tile one. '' when nothing fits.
+function materialCategory(text) {
+  const s = String(text || '').toLowerCase();
+  if (!s.trim()) return '';
+  if (/\btiles?\b/.test(s)) return 'Tile';
+  if (/\bwpc\b/.test(s)) return 'WPC';
+  if (/\bply/.test(s)) return 'PLY Wood';
+  if (/acr[yi]?lic|acralic/.test(s)) return 'Acralic';
+  if (/wood|vin?eer|veneer/.test(s) && !/stone\s*vin?eer/.test(s)) return 'Wood Vineer';
+  if (/marble|stone|granite|sand\s*stone|basalt|nero|satuario|satvario|statuario|vietnam|jaisalmer|kadapa|slate|mandana|mocc?a|selenite|gem/.test(s)) return 'Stone';
+  if (/\bmop\b|mother\s*of\s*pearl/.test(s)) return 'MOP';
+  return '';
+}
+
+const STEP2_ISSUES =['No', 'Chiping', 'Breakage', 'Grain Opening', 'Flaking', 'Color Matching'];
 // Where a slab is going in the client's home. Blocking is per area, so the
 // factory can see which slabs were set aside for the kitchen and which for
 // the puja room of the same order.
@@ -886,7 +902,9 @@ function Step2({ inv, reload, initialOrder = '' }) {
       const c = {};
       (d.slabs || []).forEach((s) => { c[s.id] = { cutting: 'No', cuttingReason: '', cuttingSizeL: '', cuttingSizeW: '' }; });
       setCut(c);
-      setHdr((h) => ({ ...h, material: (d.slabs || [])[0]?.material || '' }));
+      // The order form's Stone Type decides the category (23-10-2026
+      // review); the slab's own stone name is the fallback.
+      setHdr((h) => ({ ...h, material: materialCategory(d.stoneType) || materialCategory((d.slabs || [])[0]?.material) }));
       setStatus(d.slabs?.length ? '' : 'No slabs for this order (block slabs to this order first).');
     } catch (e) { setStatus(e.message); }
   }

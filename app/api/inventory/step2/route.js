@@ -5,6 +5,7 @@ import { requireAccess } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 import { newId } from '@/lib/ids';
 import { findByOrder, resolveRow, writeRows, appendSlabs } from '@/lib/imsSheet';
+import { lookupOrderStoneType } from '@/lib/fmsSheet';
 
 // Slabs come from the IMS spreadsheet (lib/imsSheet.js). The Step-2 header
 // record has no home in that sheet's layout, so it stays in the app's own
@@ -28,8 +29,11 @@ export async function GET(req) {
       client: r.client, area: r.area,
     }));
     if (!slabs.length) return NextResponse.json({ orderNo, key: orderNo, client: '', area: '', slabs: [] });
+    // What the order form said the stone is — the Material dropdown starts
+    // from it. A sheet hiccup just leaves the dropdown for the doer.
+    const stoneType = await lookupOrderStoneType(orderNo).catch(() => '');
     return NextResponse.json({
-      orderNo, key: slabs[0].key || orderNo, client: slabs[0].client || '', area: slabs[0].area || '', slabs,
+      orderNo, key: slabs[0].key || orderNo, client: slabs[0].client || '', area: slabs[0].area || '', slabs, stoneType,
     });
   } catch (err) {
     console.error('[inventory/step2 GET]', err.message);
