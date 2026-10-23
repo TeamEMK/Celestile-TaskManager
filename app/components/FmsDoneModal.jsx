@@ -10,7 +10,7 @@ import DateField from './DateField';
 import OrderNumberInput from './OrderNumberInput';
 import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
 import ImsThicknessSelect from './ImsThicknessSelect';
-import { isThicknessField, isMaterialField } from '@/lib/imsFields';
+import { isThicknessField, isMaterialField, isPiecesField } from '@/lib/imsFields';
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
 // The resulting data: URI is swapped for a Drive URL server-side (writeStepDone)
@@ -93,7 +93,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
       if (required && !extraValues[r.col_letter]?.trim()) { setErr(`"${r.row_label || r.col_letter}" is required.`); return; }
       const typed = extraValues[r.col_letter]?.trim();
       if (isOrderField(r) && typed && !isValidOrderNumber(typed)) { setErr(`"${r.row_label || r.col_letter}" — ${ORDER_HINT}`); return; }
-      if (r.field_type === 'pieces' && typed && !piecesComplete(typed)) { setErr(`"${r.row_label || r.col_letter}" — enter the thickness of every piece.`); return; }
+      if (isPiecesField(r) && typed && !piecesComplete(typed)) { setErr(`"${r.row_label || r.col_letter}" — enter the thickness of every piece.`); return; }
     }
     setSaving(true);
     try {
@@ -333,18 +333,19 @@ function ExtraField({ row, value, onChange, material = '', alerting = false, sto
   const dropdownOptions = (row.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean);
   // A dropdown with nothing to pick from would be impossible to fill in.
   const isDropdown = row.field_type === 'dropdown' && dropdownOptions.length > 0;
+  const pieces = isPiecesField(row);
   const isText = (!row.field_type || row.field_type === 'text' || (row.field_type === 'dropdown' && !isDropdown))
-    && !isOrderField(row) && !isThicknessField(row);
+    && !isOrderField(row) && !isThicknessField(row) && !pieces;
   return (
     <div>
       <label className="label">
         {label} {required ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal normal-case">(optional)</span>}
         <span className="text-slate-400 font-normal normal-case ml-1">(COL {row.col_letter})</span>
       </label>
-      {row.field_type === 'number'   && <input type="number" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter number…" />}
+      {row.field_type === 'number' && !pieces && <input type="number" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Enter number…" />}
       {row.field_type === 'date'     && <DateField className="input" value={value} onChange={(e) => onChange(e.target.value)} />}
       {row.field_type === 'link'     && <input type="url" className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="https://…" />}
-      {row.field_type === 'pieces' && <PiecesField value={value} onChange={onChange} stockFor={stockFor} />}
+      {pieces && <PiecesField value={value} onChange={onChange} stockFor={stockFor} />}
       {isDropdown && (
         <select className={`input ${alerting ? '!border-red-400 !bg-red-50' : ''}`} value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">-- Select --</option>
