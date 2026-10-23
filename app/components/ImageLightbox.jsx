@@ -120,9 +120,79 @@ export function SmartImg({ candidates = [], alt = '', className = '', href = '',
   );
 }
 
+// Browsers render these inline; anything else (RAR, ZIP, DWG, Office files)
+// gets a download card instead of an iframe that would just start a download.
+const INLINE_MIME = /^(application\/pdf|text\/|video\/|audio\/)/i;
+
+function fmtSize(n) {
+  if (!n) return '';
+  if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// One attachment served through the app (`item.src` = /api/drive/<id>), so
+// nobody is sent to Drive to request access. Asks the route what the file is
+// first, then shows it inline or offers a download. If the app can't serve
+// it, image links still get their public-thumbnail candidates and the rest a
+// link to the original.
+function FilePane({ item }) {
+  const [meta, setMeta] = useState(null); // null = loading, false = not servable
+  useEffect(() => {
+    let live = true;
+    setMeta(null);
+    fetch(`${item.src}?meta=1`)
+      .then((r) => (r.ok ? r.json() : false))
+      .then((m) => { if (live) setMeta(m); })
+      .catch(() => { if (live) setMeta(false); });
+    return () => { live = false; };
+  }, [item.src]);
+
+  const box = 'w-[92vw] h-[86vh] rounded-xl shadow-2xl bg-white';
+  if (meta === null) {
+    return <div className="text-white/80 text-[13px]">Loading…</div>;
+  }
+  if (meta === false) {
+    const rest = (item.candidates || []).filter((c) => c !== item.src);
+    if (rest.length) {
+      return <SmartImg candidates={rest} href={item.href} alt={item.name || ''}
+        className="max-h-[86vh] max-w-[92vw] object-contain rounded-xl shadow-2xl bg-white cursor-default" />;
+    }
+    return (
+      <div className="text-center text-white/80 text-[13px] px-6 py-10">
+        <div>This file isn&apos;t in the app&apos;s Drive, so it can&apos;t be shown here.</div>
+        {item.href && /^https?:/i.test(item.href) && (
+          <a href={item.href} target="_blank" rel="noopener noreferrer"
+            className="inline-block mt-2 underline underline-offset-2 text-white">
+            Try opening it in Drive <Icon name="external" className="w-3.5 h-3.5" />
+          </a>
+        )}
+      </div>
+    );
+  }
+  if (/^image\//i.test(meta.mimeType)) {
+    return <img src={item.src} alt={meta.name}
+      className="max-h-[86vh] max-w-[92vw] object-contain rounded-xl shadow-2xl bg-white cursor-default" />;
+  }
+  if (INLINE_MIME.test(meta.mimeType)) {
+    return <iframe src={item.src} title={meta.name} className={box} />;
+  }
+  return (
+    <div className="bg-white rounded-xl shadow-2xl px-8 py-8 text-center max-w-md">
+      <Icon name="file" className="w-10 h-10 mx-auto text-primary-600" />
+      <div className="mt-3 font-semibold text-slate-800 break-all">{meta.name}</div>
+      <div className="mt-1 text-[12px] text-slate-500">
+        {fmtSize(meta.size)}{meta.size ? ' · ' : ''}This file type can&apos;t be previewed — download it to open.
+      </div>
+      <a href={`${item.src}?download=1`} download={meta.name}
+        className="btn-primary btn-sm inline-flex mt-4">Download</a>
+    </div>
+  );
+}
+
 // Full-screen viewer for a *set* of attachments — one sheet cell routinely
 // holds several uploaded photos, so the viewer has to page through them
-// rather than being opened once per file.
+// rather than being opened once per file. Items with a `src` (served by the
+// app) can be any file type; the rest are treated as images.
 export function Gallery({ items = [], start = 0, onClose }) {
   const [i, setI] = useState(start);
   const count = items.length;
@@ -156,16 +226,19 @@ export function Gallery({ items = [], start = 0, onClose }) {
     >
       <div className="absolute top-3 right-4 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
         {count > 1 && <span className="text-white/60 text-[12px]">{i + 1} / {count}</span>}
-        <a
-          href={cur.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-white/70 hover:text-white text-[12px] underline underline-offset-2"
-        >
-          Open in new tab
-        </a>
-        <button type="button" className="text-white/70 hover:text-white text-3xl leading-none"
-          onClick={onClose} aria-label="Close">×</button>
+        {cur.src ? (
+          <a href={`${cur.src}?download=1`}
+            className="text-white/70 hover:text-white text-[12px] underline underline-offset-2">
+            Download
+          </a>
+        ) : (
+          <a href={cur.href} target="_blank" rel="noopener noreferrer"
+            className="text-white/70 hover:text-white text-[12px] underline underline-offset-2">
+            Open in new tab
+          </a>
+        )}
+        <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)"
+          className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/30 text-white grid place-items-center text-2xl leading-none">×</button>
       </div>
 
       {count > 1 && (
@@ -179,13 +252,15 @@ export function Gallery({ items = [], start = 0, onClose }) {
         </>
       )}
 
-      <div onClick={(e) => e.stopPropagation()} className="max-w-[92vw]">
-        <SmartImg
-          candidates={cur.candidates}
-          href={cur.href}
-          alt={cur.name || ''}
-          className="max-h-[86vh] max-w-[92vw] object-contain rounded-xl shadow-2xl bg-white cursor-default"
-        />
+      <div onClick={(e) => e.stopPropagation()} className="max-w-[92vw] cursor-default">
+        {cur.src ? <FilePane key={cur.src} item={cur} /> : (
+          <SmartImg
+            candidates={cur.candidates}
+            href={cur.href}
+            alt={cur.name || ''}
+            className="max-h-[86vh] max-w-[92vw] object-contain rounded-xl shadow-2xl bg-white cursor-default"
+          />
+        )}
       </div>
     </div>,
     document.body,

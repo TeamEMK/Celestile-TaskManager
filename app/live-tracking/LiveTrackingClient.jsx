@@ -807,19 +807,24 @@ function CellValue({ value, fileLinks, indexed }) {
   const [galleryAt, setGalleryAt] = useState(null);
   const val = String(value ?? '').trim();
   const att = useMemo(() => cellAttachments(val, fileLinks, indexed), [val, fileLinks, indexed]);
-  const { text, images, files } = att;
+  const { text, images, files: allFiles } = att;
+  // Everything the app itself can serve opens in the on-page viewer; only
+  // links it can't (an unreachable AppSheet folder, a non-Drive URL) still
+  // leave the page.
+  const viewable = useMemo(() => [...images, ...allFiles.filter((f) => f.src)], [images, allFiles]);
+  const files = allFiles.filter((f) => !f.src);
 
   if (!val) return <>—</>;
-  if (!images.length && !files.length) return <>{val}</>;
+  if (!viewable.length && !files.length) return <>{val}</>;
 
   return (
     <span className="inline-flex items-center gap-2 align-middle flex-wrap">
       {text && <span>{text}</span>}
-      {images.length > 0 && (
+      {viewable.length > 0 && (
         <button type="button" onClick={() => setGalleryAt(0)}
-          title={images.length > 1 ? `${images.length} files — click to view` : (images[0].name || 'Click to view')}
+          title={viewable.length > 1 ? `${viewable.length} files — click to view` : (viewable[0].name || 'Click to view')}
           className="text-primary-600 hover:text-primary-700 hover:underline font-medium">
-          <Icon name="image" className="w-3.5 h-3.5" /> Click here{images.length > 1 ? ` (${images.length})` : ''}
+          <Icon name={images.length === viewable.length ? 'image' : 'file'} className="w-3.5 h-3.5" /> Click here{viewable.length > 1 ? ` (${viewable.length})` : ''}
         </button>
       )}
       {files.map((f, i) => (
@@ -834,7 +839,7 @@ function CellValue({ value, fileLinks, indexed }) {
         </a>
       ))}
       {galleryAt !== null && (
-        <Gallery items={images} start={galleryAt} onClose={() => setGalleryAt(null)} />
+        <Gallery items={viewable} start={galleryAt} onClose={() => setGalleryAt(null)} />
       )}
     </span>
   );

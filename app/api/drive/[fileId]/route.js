@@ -57,6 +57,12 @@ export async function GET(req, { params }) {
     }
 
     const size = Number(meta.data.size || 0);
+    const url = new URL(req.url);
+    // ?meta=1 — what the in-page viewer needs to decide between an inline
+    // preview and a download card, without pulling the bytes first.
+    if (url.searchParams.get('meta')) {
+      return NextResponse.json({ name: meta.data.name || '', mimeType: meta.data.mimeType || '', size });
+    }
     if (size > MAX_BYTES) {
       return NextResponse.json({ error: 'Attachment too large to display' }, { status: 413 });
     }
@@ -70,7 +76,7 @@ export async function GET(req, { params }) {
       status: 200,
       headers: {
         'Content-Type': meta.data.mimeType || 'application/octet-stream',
-        'Content-Disposition': `inline; filename="${(meta.data.name || 'file').replace(/"/g, '')}"`,
+        'Content-Disposition': `${url.searchParams.get('download') ? 'attachment' : 'inline'}; filename="${(meta.data.name || 'file').replace(/[^\x20-\x7e]|"/g, '')}"`,
         // Drive file contents never change once written, so let the browser
         // hold on to them instead of re-fetching on every table render.
         'Cache-Control': 'private, max-age=86400',
