@@ -11,6 +11,7 @@ export default function QcAlertsPanel() {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState([]);
   const [showGroups, setShowGroups] = useState(false);
+  const [showDelay, setShowDelay] = useState(false);
 
   useEffect(() => {
     fetch('/api/qc-alerts').then((r) => r.json())
@@ -56,10 +57,14 @@ export default function QcAlertsPanel() {
           <button className="btn-secondary btn-sm whitespace-nowrap" onClick={() => setShowGroups((v) => !v)}>
             WhatsApp Groups{unsetCount ? ` (${unsetCount} not set)` : ''}
           </button>
+          <button className="btn-secondary btn-sm whitespace-nowrap" onClick={() => setShowDelay((v) => !v)}>
+            Delay Alerts
+          </button>
         </div>
       </div>
 
       {showGroups && groups && <GroupsEditor groups={groups} onSaved={setGroups} />}
+      {showDelay && <DelayAlertsEditor groupNames={Object.keys(groups || {})} />}
 
       {err && <div className="rounded-lg bg-red-50 border border-red-100 text-red-600 text-[12.5px] px-3 py-2">{err}</div>}
 
@@ -173,6 +178,71 @@ function GroupsEditor({ groups, onSaved }) {
         <button type="button" className="btn-primary btn-sm" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save Groups'}</button>
         {msg && <span className="text-[12px] text-slate-600">{msg}</span>}
       </div>
+    </div>
+  );
+}
+
+// Which group each FMS step's overdue items go to (lib/delayAlerts.js). Sent
+// as one digest per group every morning; "Send now" runs it on demand.
+function DelayAlertsEditor({ groupNames }) {
+  const [flows, setFlows] = useState(null);
+  const [config, setConfig] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    fetch('/api/qc-alerts/delay').then((r) => r.json())
+      .then((d) => { if (d.error) setMsg(d.error); else { setFlows(d.flows || []); setConfig(d.config || {}); } })
+      .catch((e) => setMsg(e.message));
+  }, []);
+
+  async function call(method) {
+    setSaving(true); setMsg('');
+    try {
+      const res = await fetch('/api/qc-alerts/delay', {
+        method, headers: { 'Content-Type': 'application/json' },
+        body: method === 'PUT' ? JSON.stringify({ config }) : undefined,
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed');
+      if (method === 'PUT') { setConfig(d.config); setMsg('Saved'); }
+      else {
+        const sent = d.groups.map((g) => `${g.name}: ${g.items}${g.sent ? '' : ' (not sent)'}`).join(' · ');
+        setMsg(`${d.overdue} overdue item${d.overdue === 1 ? '' : 's'}. ${sent || 'No group to send to.'}${d.unset.length ? ` Groups without an ID: ${d.unset.join(', ')}.` : ''}`);
+      }
+    } catch (e) { setMsg(e.message); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="card p-4 space-y-3">
+      <div className="text-[12px] text-slate-600">
+        When a step&apos;s <b>Planned</b> time passes and it isn&apos;t done, it goes to the group named here — one message per group every
+        morning at 10 AM (Mon–Sat) listing order, client, step, due date, how late, and the doer. Use the group names
+        from <b>WhatsApp Groups</b> (several with commas; <b>Stone Order {'{branch}'}</b> works here too). Leave blank for no alert.
+      </div>
+      <datalist id="delay-groups">{groupNames.map((n) => <option key={n} value={n} />)}</datalist>
+      {!flows ? (
+        <div className="text-[12px] text-slate-400">{msg || 'Loading…'}</div>
+      ) : flows.map((f) => (
+        <div key={f.fmsId} className="space-y-1.5">
+          <div className="text-[12px] font-semibold text-slate-700">{f.fmsName}</div>
+          {f.steps.map((s) => (
+            <div key={s.id} className="grid grid-cols-[minmax(0,1fr)_260px] gap-2 items-center">
+              <span className="text-[12px] text-slate-600 truncate" title={s.name}>{s.name}</span>
+              <input className="input !py-1 !text-[12px]" list="delay-groups" placeholder="No alert" value={config[s.id] || ''}
+                onChange={(e) => setConfig((c) => ({ ...c, [s.id]: e.target.value }))} />
+            </div>
+          ))}
+        </div>
+      ))}
+      {flows && (
+        <div className="flex items-center gap-2 pt-1 flex-wrap">
+          <button type="button" className="btn-primary btn-sm" disabled={saving} onClick={() => call('PUT')}>{saving ? 'Working…' : 'Save'}</button>
+          <button type="button" className="btn-secondary btn-sm" disabled={saving} onClick={() => call('POST')}>Send now</button>
+          {msg && <span className="text-[12px] text-slate-600">{msg}</span>}
+        </div>
+      )}
     </div>
   );
 }
