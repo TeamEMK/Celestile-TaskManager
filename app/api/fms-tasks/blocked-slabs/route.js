@@ -1,6 +1,7 @@
 import { requireUser, json, fail } from '@/lib/api';
 import { findByOrder } from '@/lib/imsSheet';
 import { filterByArea } from '@/lib/areaMatch';
+import { lookupOrderPieces } from '@/lib/fmsSheet';
 
 // Slabs blocked to one area of an order — what a "Thickness per Piece" field
 // on an FMS step lists, one thickness box per slab. Open to any signed-in
@@ -20,7 +21,10 @@ export async function GET(req) {
     const slabs = filterByArea(live, area)
       .map((r) => ({ slab: String(r.slab || ''), material: r.material || '', thickness: r.thickness || '', area: r.area || '' }))
       .sort((a, b) => a.slab.localeCompare(b.slab, undefined, { numeric: true }));
-    return json({ orderNo, area, slabs });
+    // The order form's "Number of pieces", when it has one — the field then
+    // asks for exactly that many thicknesses.
+    const pieces = await lookupOrderPieces(orderNo).catch(() => 0);
+    return json({ orderNo, area, slabs, pieces });
   } catch (err) {
     console.error('[fms blocked-slabs]', err.message);
     return fail('Could not read the stock list', 500);

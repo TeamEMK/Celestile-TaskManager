@@ -1001,10 +1001,17 @@ function Step2({ inv, reload, initialOrder = '' }) {
   }
 
   const cuttingMissing = cuttingErrors();
+  // "Bina photo ke aage na jaaye" (23-10-2026 review): the grain photo always,
+  // the material photo whenever a material issue is reported.
+  const photoMissing = [
+    !hdr.grainImg && 'Grain Photo',
+    hdr.issue && hdr.issue !== 'No' && !hdr.matImg && 'Material Photo (issue reported)',
+  ].filter(Boolean);
 
   async function submit() {
     if (!data || !editableSlabs.length) return;
     if (cuttingMissing.length) { setStatus('Cut L & Cut W required for: ' + cuttingMissing.join(', ')); return; }
+    if (photoMissing.length) { setStatus('Upload first: ' + photoMissing.join(', ')); return; }
     setSaving(true); setStatus('Submitting…');
     try {
       const cuttingRows = editableSlabs.map((s) => ({ id: s.id, slab: s.slab, ...cut[s.id] }));
@@ -1152,8 +1159,9 @@ function Step2({ inv, reload, initialOrder = '' }) {
           </div>
           <div className="flex flex-wrap justify-end items-center gap-2">
             {cuttingMissing.length > 0 && <span className="text-[12px] text-red-600">Cut L &amp; Cut W required for: {cuttingMissing.join(', ')}</span>}
+            {photoMissing.length > 0 && <span className="text-[12px] text-red-600">Upload first: {photoMissing.join(', ')}</span>}
             <button className="btn-secondary" onClick={printReport}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Cutting Report</button>
-            <button className="btn-warn" disabled={saving || !editableSlabs.length || cuttingMissing.length > 0} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
+            <button className="btn-warn" disabled={saving || !editableSlabs.length || cuttingMissing.length > 0 || photoMissing.length > 0} onClick={submit}>{saving ? 'Submitting…' : 'Submit Blocking'}</button>
           </div>
           <p className="text-[11.5px] text-slate-500">Cutting "Yes" → slab marked <b className="text-slate-700">Used</b>, a remnant slab (size − cut) is auto-created as Available, and a WhatsApp update is sent. Cut L &amp; Cut W are required whenever Cutting is Yes.</p>
         </>

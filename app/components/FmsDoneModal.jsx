@@ -260,6 +260,7 @@ function formatPieces(entries) {
 function PiecesField({ value, onChange, stockFor }) {
   const { orderNo = '', area = '' } = stockFor || {};
   const [slabs, setSlabs] = useState(null); // null = loading/not looked up
+  const [orderPieces, setOrderPieces] = useState(0); // "Number of pieces" on the order form
   const [lookupErr, setLookupErr] = useState('');
 
   useEffect(() => {
@@ -267,7 +268,7 @@ function PiecesField({ value, onChange, stockFor }) {
     let live = true;
     fetch(`/api/fms-tasks/blocked-slabs?orderNo=${encodeURIComponent(orderNo)}&area=${encodeURIComponent(area)}`)
       .then((r) => r.json())
-      .then((d) => { if (live) { if (d.error) setLookupErr(d.error); setSlabs(d.slabs || []); } })
+      .then((d) => { if (live) { if (d.error) setLookupErr(d.error); setOrderPieces(parseInt(d.pieces, 10) || 0); setSlabs(d.slabs || []); } })
       .catch((e) => { if (live) { setLookupErr(e.message); setSlabs([]); } });
     return () => { live = false; };
   }, [orderNo, area]);
@@ -275,10 +276,19 @@ function PiecesField({ value, onChange, stockFor }) {
   const { count, list } = parsePieces(value);
   const valOf = (label, i) => (label ? list.find((x) => x.label === label)?.val : list[i]?.val) ?? '';
 
+  // The order form says how many pieces — start from that count (still
+  // editable below), ahead of the slab list (23-10-2026 review).
+  useEffect(() => {
+    if (orderPieces > 0 && !count) {
+      onChange(formatPieces(Array.from({ length: Math.min(orderPieces, 200) }, () => ({ label: '', val: '' }))));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderPieces]);
+
   if (slabs === null) return <div className="text-[12px] text-slate-400">Reading the stock list for {orderNo}{area ? ` · ${area}` : ''}…</div>;
 
   // Slabs found → one box per slab, in stock-list order.
-  if (slabs.length) {
+  if (slabs.length && !orderPieces) {
     const set = (i, v) => onChange(formatPieces(slabs.map((sl, j) => ({ label: sl.slab, val: j === i ? v.replace(/[,=]/g, '') : valOf(sl.slab, j) }))));
     return (
       <div className="space-y-2">
@@ -307,9 +317,13 @@ function PiecesField({ value, onChange, stockFor }) {
   const vals = list.map((x) => x.val);
   return (
     <div className="space-y-2">
-      <div className="text-[11.5px] text-amber-700">
-        {lookupErr ? `Couldn't read the stock list (${lookupErr}).` : orderNo ? `No slabs are blocked for ${orderNo}${area ? ` · ${area}` : ''} in the stock list.` : 'This row has no order number to look up in the stock list.'} Enter the number of pieces.
-      </div>
+      {orderPieces > 0 ? (
+        <div className="text-[11.5px] text-slate-500">
+          The order form for {orderNo} says {orderPieces} piece{orderPieces > 1 ? 's' : ''} — enter each one&apos;s measured thickness.
+        </div>
+      ) : <div className="text-[11.5px] text-amber-700">
+        {lookupErr ?`Couldn't read the stock list (${lookupErr}).` : orderNo ? `No slabs are blocked for ${orderNo}${area ? ` · ${area}` : ''} in the stock list.` : 'This row has no order number to look up in the stock list.'} Enter the number of pieces.
+      </div>}
       <input type="number" min="1" max="200" className="input" value={count} placeholder="Number of pieces…"
         onChange={(e) => emit(e.target.value, vals)} />
       {n > 0 && (
