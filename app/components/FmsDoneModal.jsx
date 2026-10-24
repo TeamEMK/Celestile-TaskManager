@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { pickUploadFile } from '../quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
 import { stepOpenUrl } from '@/lib/fmsOpenUrl';
-import { fieldVisibility, matchesCondition } from '@/lib/fieldVisibility';
+import { fieldVisibility, matchesCondition, alertWhen } from '@/lib/fieldVisibility';
 import Icon from '../components/Icon';
 import DateField from './DateField';
 import OrderNumberInput from './OrderNumberInput';
@@ -62,9 +62,9 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   );
   const extraRows = configuredRows.filter((_, i) => shown[i]);
   // Answers that will send a QC alert (and keep the step pending) on save.
-  const alerting = extraRows.filter((r) => String(r.alert_on || '').trim() && String(r.alert_to || '').trim()
-    && (extraValues[r.col_letter] || '').trim() && matchesCondition(extraValues[r.col_letter], r.alert_on));
-  const alertGroups = [...new Set(alerting.flatMap((r) => r.alert_to.split(/[,\n]+/).map((g) => g.trim()).filter(Boolean)))];
+  const alerting = extraRows.filter((r) => alertWhen(r)
+    && (extraValues[r.col_letter] || '').trim() && matchesCondition(extraValues[r.col_letter], alertWhen(r)));
+  const alertGroups = [...new Set(alerting.flatMap((r) => String(r.alert_to || '').split(/[,\n]+/).map((g) => g.trim()).filter(Boolean)))];
   // The stone this step captured, if it captures one — narrows the thickness
   // list to the sizes that stone comes in.
   const materialValue = (() => {
@@ -189,7 +189,9 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
           {alerting.length > 0 && (
             <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-[12.5px] text-red-700">
               <div className="font-semibold mb-0.5"><Icon name="alert" className="w-3.5 h-3.5" /> This will raise a QC alert</div>
-              Your answers are saved and {alertGroups.join(', ')} {alertGroups.length > 1 ? 'are' : 'is'} alerted on WhatsApp. The step stays pending until it is rechecked.
+              Your answers are saved{alertGroups.length
+                ? ` and ${alertGroups.join(', ')} ${alertGroups.length > 1 ? 'are' : 'is'} alerted on WhatsApp`
+                : ' and logged as rework (no WhatsApp group is set for this question)'}. The step stays pending until it is rechecked.
             </div>
           )}
         </div>
