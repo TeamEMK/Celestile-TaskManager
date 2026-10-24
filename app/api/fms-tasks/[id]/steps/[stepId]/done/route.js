@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUser, currentUser } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 import { getFmsSheet, getFullSteps, writeStepDone, isSheetTimeout } from '@/lib/fmsSheet';
+import { notifyStepDone } from '@/lib/delayAlerts';
 
 // Writes the Actual timestamp (+ delay reason + extra fields + doer name)
 // back to the exact cells of the live Google Sheet — or, when a checklist
@@ -37,6 +38,12 @@ export async function POST(req, { params }) {
     const result = await writeStepDone({
       sheet, step, rowNumber, delayReason, extraInputs, doerName: user?.name || '', doerId: user?.id || null,
     });
+    // The step's "on done" group, if any (lib/delayAlerts.js) — not awaited:
+    // the completion is saved, the doer shouldn't wait on WhatsApp.
+    if (!result.held) {
+      notifyStepDone({ sheet, step, rowNumber, doerName: user?.name || '' })
+        .catch((e) => console.error('[fms done notify]', e.message));
+    }
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
     const code = err?.code || err?.response?.status;

@@ -58,7 +58,7 @@ export default function QcAlertsPanel() {
             WhatsApp Groups{unsetCount ? ` (${unsetCount} not set)` : ''}
           </button>
           <button className="btn-secondary btn-sm whitespace-nowrap" onClick={() => setShowDelay((v) => !v)}>
-            Delay Alerts
+            Step Alerts
           </button>
         </div>
       </div>
@@ -182,8 +182,9 @@ function GroupsEditor({ groups, onSaved }) {
   );
 }
 
-// Which group each FMS step's overdue items go to (lib/delayAlerts.js). Sent
-// as one digest per group every morning; "Send now" runs it on demand.
+// Per FMS step, which group hears about it (lib/delayAlerts.js): its late
+// items and its pending list as one digest per group every morning, and each
+// row the moment it's done. "Send now" runs the morning digests on demand.
 function DelayAlertsEditor({ groupNames }) {
   const [flows, setFlows] = useState(null);
   const [config, setConfig] = useState({});
@@ -207,8 +208,8 @@ function DelayAlertsEditor({ groupNames }) {
       if (!res.ok) throw new Error(d.error || 'Failed');
       if (method === 'PUT') { setConfig(d.config); setMsg('Saved'); }
       else {
-        const sent = d.groups.map((g) => `${g.name}: ${g.items}${g.sent ? '' : ' (not sent)'}`).join(' · ');
-        setMsg(`${d.overdue} overdue item${d.overdue === 1 ? '' : 's'}. ${sent || 'No group to send to.'}${d.unset.length ? ` Groups without an ID: ${d.unset.join(', ')}.` : ''}`);
+        const sent = d.groups.map((g) => `${g.name} (${g.kind === 'late' ? 'late' : 'list'}): ${g.items}${g.sent ? '' : ' — not sent'}`).join(' · ');
+        setMsg(`${d.overdue} late, ${d.pending} pending. ${sent || 'No group to send to.'}${d.unset.length ? ` Groups without an ID: ${d.unset.join(', ')}.` : ''}`);
       }
     } catch (e) { setMsg(e.message); }
     finally { setSaving(false); }
@@ -217,9 +218,13 @@ function DelayAlertsEditor({ groupNames }) {
   return (
     <div className="card p-4 space-y-3">
       <div className="text-[12px] text-slate-600">
-        When a step&apos;s <b>Planned</b> time passes and it isn&apos;t done, it goes to the group named here — one message per group every
-        morning at 10 AM (Mon–Sat) listing order, client, step, due date, how late, and the doer. Use the group names
-        from <b>WhatsApp Groups</b> (several with commas; <b>Stone Order {'{branch}'}</b> works here too). Leave blank for no alert.
+        For each step, name the group that should hear about it — group names from <b>WhatsApp Groups</b>, several with commas;
+        <b>Stone Order {'{branch}'}</b> picks HYD / BLR from the order number. Blank = nothing sent.
+        <ul className="list-disc ml-5 mt-1 space-y-0.5">
+          <li><b>Late</b> — items past their Planned time, every morning at 10 AM (Mon–Sat): order, client, due date, how late, doer.</li>
+          <li><b>Daily list</b> — every item still pending at the step, same time, with how long it has waited (⚠️ past 7 days). E.g. Dispatch → what is packed but not sent.</li>
+          <li><b>On done</b> — the moment a row is marked done, its order details (e.g. Packing done → material ready).</li>
+        </ul>
       </div>
       <datalist id="delay-groups">{groupNames.map((n) => <option key={n} value={n} />)}</datalist>
       {!flows ? (
@@ -227,11 +232,16 @@ function DelayAlertsEditor({ groupNames }) {
       ) : flows.map((f) => (
         <div key={f.fmsId} className="space-y-1.5">
           <div className="text-[12px] font-semibold text-slate-700">{f.fmsName}</div>
+          <div className="grid grid-cols-[minmax(0,1fr)_repeat(3,170px)] gap-2 text-[10.5px] uppercase tracking-wide text-slate-400">
+            <span>Step</span><span>Late</span><span>Daily list</span><span>On done</span>
+          </div>
           {f.steps.map((s) => (
-            <div key={s.id} className="grid grid-cols-[minmax(0,1fr)_260px] gap-2 items-center">
+            <div key={s.id} className="grid grid-cols-[minmax(0,1fr)_repeat(3,170px)] gap-2 items-center">
               <span className="text-[12px] text-slate-600 truncate" title={s.name}>{s.name}</span>
-              <input className="input !py-1 !text-[12px]" list="delay-groups" placeholder="No alert" value={config[s.id] || ''}
-                onChange={(e) => setConfig((c) => ({ ...c, [s.id]: e.target.value }))} />
+              {['late', 'list', 'done'].map((k) => (
+                <input key={k} className="input !py-1 !text-[12px]" list="delay-groups" placeholder="—" value={config[s.id]?.[k] || ''}
+                  onChange={(e) => setConfig((c) => ({ ...c, [s.id]: { ...(c[s.id] || {}), [k]: e.target.value } }))} />
+              ))}
             </div>
           ))}
         </div>
