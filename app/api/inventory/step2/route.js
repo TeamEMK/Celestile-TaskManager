@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { pool, ensureSchema } from '@/lib/db';
 import { sendWhatsApp, isWhatsappConfigured } from '@/lib/whatsapp';
-import { requireAccess } from '@/lib/api';
+import { requireAccess, currentUser } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 import { newId } from '@/lib/ids';
 import { findByOrder, resolveRow, writeRows, appendSlabs } from '@/lib/imsSheet';
-import { lookupOrderStoneType } from '@/lib/fmsSheet';
+import { lookupOrderStoneType, completeLinkedStepRows } from '@/lib/fmsSheet';
 
 // Slabs come from the IMS spreadsheet (lib/imsSheet.js). The Step-2 header
 // record has no home in that sheet's layout, so it stays in the app's own
@@ -149,7 +149,22 @@ export async function POST(req) {
       try { await sendWhatsApp(NOTIFY(), message); } catch (err) { console.error('[step2 notify]', err.message); }
     }
 
-    return NextResponse.json({ ok: true, count: updates.length });
+    // The FMS step that sends the doer here ("Sort Raw Material and Quality
+    // checking") is done by this submit — mark it, for the areas whose slabs
+    // were just used. Best-effort: the blocking is already saved.
+    let stepsDone = 0;
+    if (updates.length) {
+      try {
+        const user = await currentUser();
+        stepsDone = await completeLinkedStepRows({
+          urlRe: /\/inventory\b[^#]*tab=step2/i, orderNo,
+          areas: [...new Set(updates.map((u) => String(u.obj.area || '').trim()))],
+          doerName: user?.name || '', doerId: user?.id || null,
+        });
+      } catch (err) { console.error('[step2 → fms step]', err.message); }
+    }
+
+    return NextResponse.json({ ok: true, count: updates.length, stepsDone });
   } catch (err) {
     console.error('[inventory/step2 POST]', err.message);
     return NextResponse.json({ error: 'Failed to submit step 2' }, { status: 500 });

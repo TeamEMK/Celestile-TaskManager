@@ -1019,7 +1019,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
       const res = await fetch('/api/inventory/step2', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed');
-      setStatus('Saved — slabs marked Used, remnants created.');
+      setStatus(`Saved — slabs marked Used, remnants created.${d.stepsDone ? ` ${d.stepsDone} FMS task${d.stepsDone > 1 ? 's' : ''} marked done.` : ''}`);
       setData(null); setCut({}); setOrderNo(''); await reload();
     } catch (e) { setStatus(e.message); }
     finally { setSaving(false); }
