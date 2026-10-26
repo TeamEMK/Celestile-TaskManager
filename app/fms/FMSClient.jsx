@@ -9,7 +9,7 @@ import PcView from './PcView';
 import FmsAssignModal from '../components/FmsAssignModal';
 import { ZoomImg } from '../components/ImageLightbox';
 import Icon from '../components/Icon';
-import { fieldVisibility, colKey } from '@/lib/fieldVisibility';
+import { fieldVisibility, colKey, isRequiredField } from '@/lib/fieldVisibility';
 import DateField from '../components/DateField';
 import OrderNumberInput from '../components/OrderNumberInput';
 import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
@@ -185,7 +185,7 @@ export default function FMSClient() {
         extraRows: (s.extraRows || []).map((r) => ({
           label: r.row_label || r.col_letter, col_letter: r.col_letter,
           field_type: r.field_type || 'text', dropdown_options: r.dropdown_options || '',
-          required: r.required == null ? 1 : (r.required ? 1 : 0),
+          required: isRequiredField(r) ? 1 : 0,
           depends_on: r.depends_on || '', depends_value: r.depends_value || '',
           alert_on: r.alert_on || '', alert_to: r.alert_to || '',
         })),
@@ -221,7 +221,7 @@ export default function FMSClient() {
     setIntakeFields((fieldsRes.fields || []).map((f) => ({
       label: f.field_label || f.col_letter, col_letter: f.col_letter,
       field_type: f.field_type || 'text', dropdown_options: f.dropdown_options || '',
-      required: f.required == null ? 1 : (f.required ? 1 : 0),
+      required: isRequiredField(f) ? 1 : 0,
       unique_value: f.unique_value ? 1 : 0,
       auto_fill: f.auto_fill || '', auto_fill_value: f.auto_fill_value || '',
       depends_on: f.depends_on || '', depends_value: f.depends_value || '',
@@ -935,7 +935,7 @@ function ExtraRowConfig({ row, headers, onChange, onRemove, showAutoFill, siblin
         </select>
       ))}
       <label className="flex items-center gap-1 text-[10.5px] text-slate-500 whitespace-nowrap pt-2">
-        <input type="checkbox" checked={!!row.required} onChange={(e) => onChange({ required: e.target.checked ? 1 : 0 })} className="accent-primary-600" disabled={!!row.auto_fill || isOffset} />
+        <input type="checkbox" checked={isRequiredField(row)} onChange={(e) => onChange({ required: e.target.checked ? 1 : 0 })} className="accent-primary-600" disabled={!!row.auto_fill || isOffset} />
         Req.
       </label>
       {showUnique && (
@@ -1176,7 +1176,7 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
 
   async function submit() {
     setErr('');
-    const missing = visibleFields.find((f) => f.required && !isDateOffsetField(f) && !String(values[f.id] || '').trim());
+    const missing = visibleFields.find((f) => isRequiredField(f) && !isDateOffsetField(f) && !String(values[f.id] || '').trim());
     if (missing) { setErr(`"${missing.field_label || missing.col_letter}" is required`); return; }
     // An order number is a join key with no table behind it — one typed
     // "H 1774" splits that job's history in every report that groups by it.
@@ -1250,7 +1250,7 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
             {visibleFields.map((f) => (
               <div key={f.id}>
                 <label className="label">
-                  {f.field_label || f.col_letter}{f.required ? ' *' : ''}
+                  {f.field_label || f.col_letter}{isRequiredField(f) ? ' *' : ''}
                   {isUniqueField(f) && !dupes[f.id]?.message && (
                     <span className="ml-1.5 font-normal normal-case text-[10.5px] text-slate-400">
                       {dupes[f.id]?.checking ? 'checking…' : 'no duplicates'}
