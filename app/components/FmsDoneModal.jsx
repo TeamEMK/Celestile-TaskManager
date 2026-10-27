@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { pickUploadFile } from '../quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
-import { stepOpenUrl } from '@/lib/fmsOpenUrl';
+import { stepOpenUrl, selfCompletes } from '@/lib/fmsOpenUrl';
 import { fieldVisibility, matchesCondition, alertWhen } from '@/lib/fieldVisibility';
 import Icon from '../components/Icon';
 import DateField from './DateField';
@@ -138,7 +138,9 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
 
           {openUrl && (
             <div className="rounded-lg bg-violet-50 border border-violet-200 p-3 flex items-center justify-between gap-2">
-              <span className="text-[12.5px] text-violet-800"><Icon name="paperclip" className="w-3.5 h-3.5" /> This step has a linked form — it should have opened in a new tab when you clicked Mark Done.</span>
+              <span className="text-[12.5px] text-violet-800"><Icon name="paperclip" className="w-3.5 h-3.5" /> {selfCompletes(openUrl)
+                ? 'This step has a linked form. Fill it with Open Form, then save the fields below — they need answers that form can't give.'
+                : 'This step has a linked form — it should have opened in a new tab when you clicked Mark Done.'}</span>
               <button type="button" onClick={() => window.open(openUrl, '_blank', 'noopener')}
                 className="btn-secondary btn-sm !py-1.5 !px-2.5 whitespace-nowrap"><Icon name="external" className="w-3 h-3" /> Open Form</button>
             </div>

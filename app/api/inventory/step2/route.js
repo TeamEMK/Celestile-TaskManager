@@ -6,6 +6,7 @@ import { maybeUploadToDrive } from '@/lib/googleDrive';
 import { newId } from '@/lib/ids';
 import { findByOrder, resolveRow, writeRows, appendSlabs } from '@/lib/imsSheet';
 import { lookupOrderStoneType, completeLinkedStepRows } from '@/lib/fmsSheet';
+import { STEP2_URL_RE } from '@/lib/fmsOpenUrl';
 
 // Slabs come from the IMS spreadsheet (lib/imsSheet.js). The Step-2 header
 // record has no home in that sheet's layout, so it stays in the app's own
@@ -157,7 +158,7 @@ export async function POST(req) {
       try {
         const user = await currentUser();
         stepsDone = await completeLinkedStepRows({
-          urlRe: /\/inventory\b[^#]*tab=step2/i, orderNo,
+          urlRe: STEP2_URL_RE, orderNo,
           areas: [...new Set(updates.map((u) => String(u.obj.area || '').trim()))],
           doerName: user?.name || '', doerId: user?.id || null,
         });

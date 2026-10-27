@@ -4,7 +4,7 @@
 // duplicated lines including the popup-blocking comment below).
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { stepOpenUrl } from '@/lib/fmsOpenUrl';
+import { stepOpenUrl, selfCompletes, linkedStepAutoAnswers } from '@/lib/fmsOpenUrl';
 import { fileToDataUrl } from '@/app/quotation/imageThumb';
 
 export function useTaskCompletion() {
@@ -46,11 +46,17 @@ export function useTaskCompletion() {
     // Opened synchronously, before the await below, so it still counts as a
     // direct response to the click — an async-deferred window.open gets
     // silently popup-blocked by most browsers.
-    if (task.openUrl) window.open(stepOpenUrl(task.openUrl, task), '_blank', 'noopener');
+    // A page that completes the step itself (Inventory Step 2) is the whole
+    // job: it opens in this tab instead, and the Mark Done form is skipped
+    // unless the step asks for something that page can't answer.
+    const linked = task.openUrl ? stepOpenUrl(task.openUrl, task) : '';
+    const self = selfCompletes(linked);
+    if (linked && !self) window.open(linked, '_blank', 'noopener');
     setFmsDoneLoading(true);
     try {
       const d = await fetch(`/api/fms-tasks/${task.fmsId}`).then((r) => r.json());
       const step = (d.steps || []).find((s) => String(s.id) === String(task.stepId));
+      if (self && step && linkedStepAutoAnswers(step.extraRows)) { window.location.assign(linked); return; }
       setFmsDone({
         fmsId: task.fmsId,
         step: step || { id: task.stepId, extraRows: [] },
