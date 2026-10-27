@@ -1,19 +1,24 @@
-import { runDailyReport, REPORTS } from '@/lib/dailyReport';
+import { NextResponse } from 'next/server';
+import { sendAllDailyReports, dailyReportsSentToday } from '@/lib/dailyReport';
+import { requireCron } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 // Three teams' worth of WhatsApp sends in one request, one message per
 // person, all sequential — well past the 10s a function gets by default.
 export const maxDuration = 60;
 
-// All three daily reports (designer, sales, site engineer) off ONE cron hit —
-// so the existing 9:30 PM designer job just needs its URL pointed here
-// instead of two more jobs being created alongside it.
-//
-// Each team still gets its own group and its own per-person messages; this
-// route only saves the scheduler three round trips (and reads today's rows
-// once instead of three times). Same auth as the individual routes:
-// `Authorization: Bearer <CRON_SECRET>`, schedule "30 21 * * 1-6" IST
-// (= "0 16 * * 1-6" UTC).
+// All the daily reports (designer, sales HYD + BLR, site engineer) in one
+// hit. The in-app scheduler sends them at 9:30 PM IST on its own
+// (lib/scheduler.js); this route is for an external cron or a manual run, and
+// skips a day that has already gone out unless called with ?force=1 — so a
+// leftover cron job can't post every report a second time.
+// Auth: `Authorization: Bearer <CRON_SECRET>`.
 export async function GET(req) {
-  return runDailyReport(req, [REPORTS.design, REPORTS.sales, REPORTS.salesBlr, REPORTS.site]);
+  const gate = requireCron(req); if (gate) return gate;
+  const force = new URL(req.url).searchParams.get('force') === '1';
+  if (!force && await dailyReportsSentToday()) {
+    return NextResponse.json({ ok: true, skipped: 'already sent today' });
+  }
+  const r = await sendAllDailyReports();
+  return NextResponse.json(r, { status: r.ok ? 200 : 400 });
 }
