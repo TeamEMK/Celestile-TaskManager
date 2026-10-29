@@ -7,6 +7,7 @@ import { newId } from '@/lib/ids';
 import { findByOrder, resolveRow, writeRows, appendSlabs } from '@/lib/imsSheet';
 import { lookupOrderStoneType, completeLinkedStepRows } from '@/lib/fmsSheet';
 import { STEP2_URL_RE } from '@/lib/fmsOpenUrl';
+import { raiseQcAlert } from '@/lib/qcAlerts';
 
 // Slabs come from the IMS spreadsheet (lib/imsSheet.js). The Step-2 header
 // record has no home in that sheet's layout, so it stays in the app's own
@@ -148,6 +149,23 @@ export async function POST(req) {
 
     if ((hasCutting || hasIssue) && isWhatsappConfigured()) {
       try { await sendWhatsApp(NOTIFY(), message); } catch (err) { console.error('[step2 notify]', err.message); }
+    }
+
+    // "Step 2 No hone pe msg SKM group mai" (28-10-2026 review): a No on
+    // Grain matching or All pieces used goes to SKM as a QC alert (logged
+    // as rework on the order too). The blocking itself is still saved.
+    const isNo = (v) => /^(n|no)$/i.test(String(v || '').trim());
+    const raiser = await currentUser().catch(() => null);
+    for (const [check, v, photo] of [['Grain matching', info.grain, grainImg], ['All pieces used?', info.allPieces, '']]) {
+      if (!isNo(v)) continue;
+      try {
+        await raiseQcAlert({
+          source: 'Inventory Step 2', stepName: 'Sort Raw Material and Quality checking',
+          orderNo, material: info.material || '', check, answer: 'No', photo: photo || '',
+          note: hasIssue ? `Material issue: ${info.issue}` : '', to: 'SKM',
+          raisedBy: raiser?.name || '', raisedById: raiser?.id || null,
+        });
+      } catch (err) { console.error('[step2 qc alert]', err.message); }
     }
 
     // The FMS step that sends the doer here ("Sort Raw Material and Quality

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAccess, currentUser } from '@/lib/api';
 import { getFmsSheet, getIntakeFields, submitIntakeRow, effectiveIntakeSheet, isSheetTimeout } from '@/lib/fmsSheet';
+import { sendIntakePdf } from '@/lib/intakePdf';
 
 // GET the configured intake-form fields, for rendering the "+ New Entry" form.
 export async function GET(req, { params }) {
@@ -29,7 +30,12 @@ export async function POST(req, { params }) {
 
     const user = await currentUser();
     const result = await submitIntakeRow(effectiveIntakeSheet(sheet), fields, values || {}, { userName: user?.name || '' });
-    return NextResponse.json({ success: true, ...result });
+    // The form as a PDF to this FMS's WhatsApp group (Factory O2D → Program
+    // Required Factory). Best-effort: the row is already in the sheet.
+    let pdf = null;
+    try { pdf = await sendIntakePdf({ sheet, fields, values: values || {}, submittedBy: user?.name || '' }); }
+    catch (e) { console.error('[intake pdf]', e.message); }
+    return NextResponse.json({ success: true, ...result, pdf });
   } catch (err) {
     const code = err?.code || err?.response?.status;
     if (code === 403) return NextResponse.json({ error: 'Access denied. Sheet write permission needed.' }, { status: 400 });
