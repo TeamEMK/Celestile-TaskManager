@@ -47,6 +47,7 @@ export default function AllTasksClient({ grouped, users }) {
 
   const isAdmin = isAdminRoles(session?.user?.roles);
   const currentUserName = session?.user?.name;
+  const currentUserId = String(session?.user?.id ?? '');
   const { ask, ConfirmUI } = useConfirmToast();
 
   const fmt = fmtDMY;
@@ -362,6 +363,10 @@ export default function AllTasksClient({ grouped, users }) {
                           {g.tasks.map((t) => {
                             globalSerial += 1;
                             const canComplete = !isAdmin || t.doer === currentUserName;
+                            // All Tasks shows the whole org's FMS queue; the server only
+                            // takes Done from that step's doers (or an admin), so a
+                            // non-doer got "This step is not assigned to you" (29-10-2026).
+                            const canCompleteFms = isAdmin ? canComplete : (t.doerIds || []).includes(currentUserId);
                             return (
                               <tr key={t.id} className="table-row">
                                 {/* ACTION */}
@@ -396,7 +401,7 @@ export default function AllTasksClient({ grouped, users }) {
                                       <button title="Choose who does this step" disabled={fmsDoneLoading} onClick={() => openFmsAssign(t)}
                                         className="pill bg-primary-50 text-primary-700 hover:bg-primary-100 cursor-pointer text-[11px] disabled:opacity-50">Assign</button>
                                     )}
-                                    {t.type === 'FMS' && t.status !== 'done' && !t.needsAssign && canComplete && (
+                                    {t.type === 'FMS' && t.status !== 'done' && !t.needsAssign && canCompleteFms && (
                                       <button title="Mark Done" disabled={fmsDoneLoading} onClick={() => openFmsDone(t)}
                                         className="pill bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer text-[11px] disabled:opacity-50">Done</button>
                                     )}
