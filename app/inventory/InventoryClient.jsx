@@ -373,9 +373,12 @@ function Stock({ inv, loading, masters, reload }) {
     return { avail, blocked, used, availSft: Math.round(availSft * 100) / 100 };
   }, [inv]);
 
+  // Resolves to the server's error message, or '' when the change went in.
   async function patch(body) {
-    await fetch('/api/inventory', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await fetch('/api/inventory', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await res.json().catch(() => ({}));
     reload();
+    return res.ok ? '' : (d.error || 'Failed to save');
   }
   const askUnblock = (r) => setConfirm({
     title: 'Unblock Slab', danger: true,
@@ -403,7 +406,8 @@ function Stock({ inv, loading, masters, reload }) {
     }
     setSaving(true);
     try {
-      await patch({ ids, status: 'Blocked', orderNo: block.orderNo, client: block.client, area: block.area });
+      const err = await patch({ ids, status: 'Blocked', orderNo: block.orderNo, client: block.client, area: block.area });
+      if (err) { setBlock({ ...block, err }); return; }
       setSel((s) => s.filter((x) => !ids.includes(x)));
       setBlock(null);
     } finally { setSaving(false); }

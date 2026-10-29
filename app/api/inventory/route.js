@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendWhatsApp, slabBlockedMessage, slabReleasedMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { requireAccess } from '@/lib/api';
+import { isValidOrderNumber, normalizeOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
 import { maybeUploadToDriveWithLink } from '@/lib/googleDrive';
 import { listSlabs, resolveRow, appendSlabs, writeRows, deleteRow, nextLotKey, publicSlab } from '@/lib/imsSheet';
 
@@ -11,6 +12,17 @@ import { listSlabs, resolveRow, appendSlabs, writeRows, deleteRow, nextLotKey, p
 // Slab block/release alerts go to the inventory WhatsApp *group*, not a single
 // number. formatNumber() passes a …@g.us JID through untouched.
 const NOTIFY = () => process.env.INVENTORY_NOTIFY || '120363428784416671@g.us';
+
+// A slab blocked to "SARJAPUR DISPLAY" instead of its order number is
+// invisible to Inventory Step 2 and the FMS step that opens it — the doer
+// lands on "No slabs for this order" (B507, 29-10-2026). Order numbers are
+// normalised (b 507 → B507) and anything that isn't one is refused.
+// Returns [value, error].
+function checkOrderNo(v) {
+  if (v === undefined || v === null || String(v).trim() === '') return [v, null];
+  const n = normalizeOrderNumber(v);
+  return isValidOrderNumber(n) ? [n, null] : [null, `"${String(v).trim()}" is not an order number. ${ORDER_HINT}`];
+}
 
 export async function GET() {
   const gate = await requireAccess('/inventory'); if (gate) return gate;
@@ -38,6 +50,12 @@ export async function POST(req) {
     // Photos become shareable Drive links: that is what the sheet has always
     // held, and a cell is capped at 50,000 characters so base64 is not an
     // option here.
+    for (const e of entries) {
+      const [orderNo, bad] = checkOrderNo(e.orderNo);
+      if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+      e.orderNo = orderNo;
+    }
+
     const rows = [];
     for (const e of entries) {
       const slabPhoto = await maybeUploadToDriveWithLink(e.slabPhoto, 'slab-photo');
@@ -82,6 +100,9 @@ export async function PATCH(req) {
   const gate = await requireAccess('/inventory'); if (gate) return gate;
   try {
     const e = await req.json();
+    const [orderNo, bad] = checkOrderNo(e.orderNo);
+    if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+    if (e.orderNo !== undefined) e.orderNo = orderNo;
     const ids = Array.isArray(e.ids) && e.ids.length ? e.ids : (e.id ? [e.id] : []);
     if (!ids.length) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
