@@ -60,7 +60,17 @@ export default async function DashboardPage() {
   // checklist + FMS together BEFORE capping — newest first, undated rows
   // last — so capping doesn't push whole FMS's off the list.
   const when = (t) => { const ms = new Date(t.createdAt || t.date || t.dueDate || '').getTime(); return Number.isNaN(ms) ? -Infinity : ms; };
-  data.pendingTasks = [...data.pendingTasks, ...fmsTasks].sort((a, b) => when(b) - when(a)).slice(0, 50);
+  // The cap is per group — delegations/checklist, then each FMS flow — not
+  // one 50 overall: a busy flow (Factory O2D, hundreds of rows) used to fill
+  // the list alone, so picking "Design O2D" in the FMS filter showed 1 of 32.
+  const LIST_CAP = 50;
+  const perGroup = {};
+  data.pendingTasks = [...data.pendingTasks, ...fmsTasks].sort((a, b) => when(b) - when(a))
+    .filter((t) => {
+      const g = t.type === 'FMS' ? `fms:${t.fmsName}` : 'tasks';
+      perGroup[g] = (perGroup[g] || 0) + 1;
+      return perGroup[g] <= LIST_CAP;
+    });
 
   return (
     <DashboardClient
