@@ -10,6 +10,7 @@ const TITLES = {
   '/approvals':      'Approvals',
   '/users':          'Users',
   '/mis':            'MIS Report',
+  '/revision-report': 'Revision Report',
   '/masters':        'Checklists',
   '/fms':            'FMS',
   '/profile':        'Profile',
