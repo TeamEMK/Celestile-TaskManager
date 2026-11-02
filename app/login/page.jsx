@@ -67,7 +67,7 @@ export default function LoginPage() {
     if (res?.error) {
       setMoodAndQuip('sad');
       setShake(true); setTimeout(() => setShake(false), 620);
-      showToast('Invalid email or password ', 'error');
+      showToast('Invalid email/mobile or password ', 'error');
       setTimeout(() => setMoodAndQuip('idle'), 2600);
     } else {
       setMoodAndQuip('happy');
@@ -294,15 +294,15 @@ export default function LoginPage() {
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {/* Email */}
                 <div>
-                  <label style={lblStyle}>Email Address</label>
+                  <label style={lblStyle}>Email or Mobile Number</label>
                   <div style={{ position: 'relative' }}>
                     <span style={iconStyle}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
                     </span>
-                    <input className="lx-input" type="email" required value={email}
+                    <input className="lx-input" type="text" autoComplete="username" required value={email}
                       onFocus={() => { setEmailFocus(true); if (!loading) setMoodAndQuip('typing'); }}
                       onBlur={() => { setEmailFocus(false); if (!loading) setMoodAndQuip('idle'); }}
-                      onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
+                      onChange={e => setEmail(e.target.value)} placeholder="you@company.com or 98765 43210" />
                   </div>
                 </div>
 

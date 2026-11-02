@@ -8,6 +8,7 @@ import { useConfirmToast } from '../components/ConfirmToast';
 import Icon from '../components/Icon';
 import { canManageUsers } from '@/lib/pages';
 import { DEPARTMENTS } from '@/lib/departments';
+import { isValidMobile } from '@/lib/phone';
 
 const ROLES = ['Admin', 'User', 'HOD'];
 
@@ -283,7 +284,9 @@ function UserModal({ canPickRoles = true, open, onClose, user, departments, onAd
   const [newDeptName,    setNewDeptName]   = useState('');
   const [savingDept,     setSavingDept]    = useState(false);
   const [pictureChanged, setPictureChanged]= useState(false);
-  const [saving,         setSaving]        = useState(false);
+  // 'email' | 'mobile' — a mobile-login user has no email and signs in with their number.
+  const [loginVia,       setLoginVia]      = useState('email');
+  const [saving,        setSaving]        = useState(false);
   const [bulkFile,       setBulkFile]      = useState(null);
   const [bulkSaving,     setBulkSaving]    = useState(false);
   // { text, ok } rather than an emoji-prefixed string — see AddDelegateModal.
@@ -340,7 +343,9 @@ function UserModal({ canPickRoles = true, open, onClose, user, departments, onAd
       if (user) {
         setForm({ id: user.id, name: user.name || '', email: user.email || '', phone: user.phone || '', department: user.department || '', branch: user.branch || '', roles: normalizeRoles(user.roles), active: user.active !== false, notifEmail: user.notifEmail || '' });
         setPicture(user.picture || null);
+        setLoginVia(user.email ? 'email' : 'mobile');
       } else {
+        setLoginVia('email');
         setForm({ name: '', email: '', phone: '', department: '', branch: defaultBranch, roles: ['User'], password: '', notifEmail: '' });
         setPicture(null);
       }
@@ -406,14 +411,17 @@ function UserModal({ canPickRoles = true, open, onClose, user, departments, onAd
 
   async function save() {
     if (!form.name?.trim())       { alert('Full Name is required.');   return; }
-    if (!form.email?.trim())      { alert('Email is required.');       return; }
+    const mobileLogin = loginVia === 'mobile';
+    if (!mobileLogin && !form.email?.trim()) { alert('Email is required.'); return; }
     if (!form.phone?.trim())      { alert('Phone Number is required.'); return; }
+    if (mobileLogin && !isValidMobile(form.phone)) { alert('Enter a valid 10-digit mobile number.'); return; }
     if (!form.department?.trim()) { alert('Department is required.');  return; }
     if (!user && !form.password?.trim()) { alert('Password is required.'); return; }
     if (!form.roles?.length)      { alert('Please select at least one role.'); return; }
 
     setSaving(true);
     const payload = { ...form };
+    if (mobileLogin && !user) payload.email = '';
     if (pictureChanged) payload.picture = picture;
     try {
       const res = await fetch('/api/users', {
@@ -489,16 +497,35 @@ function UserModal({ canPickRoles = true, open, onClose, user, departments, onAd
             </div>
           </div>
 
-          {/* Name + Email */}
+          {/* Login via — new users only; an existing user keeps whatever they sign in with */}
+          {!user && (
+            <div>
+              <label className="label">Login With</label>
+              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-lg">
+                {[['email', 'Email'], ['mobile', 'Mobile Number']].map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setLoginVia(k)}
+                    className={`text-[12px] font-semibold py-1.5 rounded-md transition ${loginVia === k ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Name + Email / Mobile (login id) */}
           <div className="grid grid-cols-2 gap-2.5">
             <UFieldC label="Full Name" placeholder="Enter full name" value={form.name||''} onChange={v=>setForm({...form,name:v})} autoComplete="off" />
-            <UFieldC label="Email (Login)" placeholder="Enter login email" type="email" value={form.email||''} onChange={v=>setForm({...form,email:v})} autoComplete="off" />
+            {loginVia === 'mobile'
+              ? <UFieldC label="Mobile Number (Login)" placeholder="10-digit mobile" type="tel" value={form.phone||''} onChange={v=>setForm({...form,phone:v})} autoComplete="off" />
+              : <UFieldC label="Email (Login)" placeholder="Enter login email" type="email" value={form.email||''} onChange={v=>setForm({...form,email:v})} autoComplete="off" />}
           </div>
 
           {/* Notification Email + Phone */}
           <div className="grid grid-cols-2 gap-2.5">
             <UFieldC label="Notification Email" sublabel="Real Gmail for notifications" placeholder="notification email" value={form.notifEmail||''} onChange={v=>setForm({...form,notifEmail:v})} autoComplete="off" />
-            <UFieldC label="Phone Number" placeholder="Enter phone number" value={form.phone||''} onChange={v=>setForm({...form,phone:v})} autoComplete="off" />
+            {loginVia === 'mobile'
+              ? (user && <UFieldC label="Email" sublabel="optional" placeholder="Enter email" type="email" value={form.email||''} onChange={v=>setForm({...form,email:v})} autoComplete="off" />)
+              : <UFieldC label="Phone Number" placeholder="Enter phone number" value={form.phone||''} onChange={v=>setForm({...form,phone:v})} autoComplete="off" />}
           </div>
 
           {/* Department + Branch */}

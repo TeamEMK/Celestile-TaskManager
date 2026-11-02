@@ -5,6 +5,16 @@ import { requireUser, requireUserCtx, requireAdmin, currentUser, sanitizeUser, s
 import { nextSeqId } from '@/lib/ids';
 import { isAdminRoles, canManageUsers } from '@/lib/pages';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
+import { phoneKey, isValidMobile } from '@/lib/phone';
+
+// A user may be created with a mobile number instead of an email; they then
+// sign in with that number, so it has to identify exactly one account.
+async function phoneTaken(phone) {
+  const key = phoneKey(phone);
+  if (!key) return false;
+  const [rows] = await pool.query('SELECT phone FROM users');
+  return rows.some((r) => phoneKey(r.phone) === key);
+}
 
 // nextSeqId() is a read-then-compute — two concurrent creates can read the
 // same snapshot and land on the same id. On MySQL the second INSERT throws a
@@ -85,22 +95,37 @@ export async function POST(req) {
       for (const [i, row] of body.bulk.entries()) {
         const name  = (row.name  || '').trim();
         const email = (row.email || '').trim().toLowerCase();
-        if (!name || !email) { errors.push(`Row ${i+1}: name/email missing`); continue; }
-        const [ex] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
-        if (ex.length) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
+        const phone = (row.phone || '').trim();
+        if (!name || (!email && !phone)) { errors.push(`Row ${i+1}: name and email or mobile required`); continue; }
+        if (email) {
+          const [ex] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+          if (ex.length) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
+        }
+        if (!email && !isValidMobile(phone)) { errors.push(`Row ${i+1}: invalid mobile ${phone}`); continue; }
+        if (!email && await phoneTaken(phone)) { errors.push(`Row ${i+1}: mobile ${phone} already exists`); continue; }
         const roles = callerIsAdmin ? parseRoles(row.role || '', row.user_role || '') : ['User'];
         const hash = row.password ? await bcrypt.hash(row.password, 10) : null;
         await insertUserWithUniqueId((id) => pool.query(
           'INSERT INTO users (id,name,email,phone,department,roles,active,password_hash,created_at) VALUES (?,?,?,?,?,?,1,?,NOW())',
-          [id, name, email, row.phone||'', row.department||'', roles.join(','), hash]
+          [id, name, email, phone, row.department||'', roles.join(','), hash]
         ));
         inserted++;
       }
       return NextResponse.json({ success: true, inserted, errors }, { status: 201 });
     }
 
-    if (!body.name || !body.email)
-      return NextResponse.json({ error: 'Name and email required' }, { status: 400 });
+    const email = (body.email || '').trim();
+    const phone = (body.phone || '').trim();
+    if (!body.name || (!email && !phone))
+      return NextResponse.json({ error: 'Name and email or mobile number required' }, { status: 400 });
+    if (!email && !isValidMobile(phone))
+      return NextResponse.json({ error: 'Enter a valid 10-digit mobile number' }, { status: 400 });
+    if (email) {
+      const [ex] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+      if (ex.length) return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 });
+    }
+    if (!email && await phoneTaken(phone))
+      return NextResponse.json({ error: 'A user with this mobile number already exists' }, { status: 409 });
 
     // Numeric max over every row. 'ORDER BY id DESC LIMIT 1' sorted ids as
     // STRINGS, so once the table passed U999 the next id 'U1000' sorted below
@@ -109,7 +134,7 @@ export async function POST(req) {
     const hash = body.password ? await bcrypt.hash(body.password, 10) : null;
     const id = await insertUserWithUniqueId((id) => pool.query(
       'INSERT INTO users (id, name, email, phone, department, branch, roles, active, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())',
-      [id, body.name.trim(), body.email.trim(), body.phone || '', body.department || '', body.branch || '', roles.join(','), hash]
+      [id, body.name.trim(), email, phone, body.department || '', body.branch || '', roles.join(','), hash]
     ));
     if (body.picture) {
       const picture = await maybeUploadToDrive(body.picture, 'user-photo');

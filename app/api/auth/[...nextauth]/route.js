@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 // and would force the default password instead of the real one.
 import '@/lib/db';
 import { parseAccess } from '@/lib/pages';
+import { phoneKey } from '@/lib/phone';
 
 // Starting password for a user row that has no password_hash yet. Set
 // DEFAULT_USER_PASSWORD in the environment — the literal fallback below is
@@ -68,7 +69,32 @@ async function isAppActive() {
   } catch { return true; }
 }
 
+// Users created with only a mobile number sign in with it. Anything without
+// an '@' is treated as a mobile number; it must match exactly one active user
+// so a shared office number can never pick an arbitrary account.
+async function findUserByPhone(identifier) {
+  const key = phoneKey(identifier);
+  if (key.length !== 10) return { user: null };
+  try {
+    const { pool, ensureSchema, USE_SHEETS } = await import('@/lib/db');
+    await ensureSchema();
+    let users;
+    if (USE_SHEETS) {
+      const { loadSubset } = await import('@/lib/sheets-client');
+      ({ users } = await loadSubset(['users']));
+    } else {
+      [users] = await pool.query('SELECT * FROM users WHERE active = 1');
+    }
+    const matches = users.filter((u) => Number(u.active) === 1 && phoneKey(u.phone) === key);
+    return { user: matches.length === 1 ? matches[0] : null };
+  } catch (err) {
+    console.error('[auth] DB error:', err.message);
+    return { user: null };
+  }
+}
+
 async function findUser(email) {
+  if (!String(email || '').includes('@')) return findUserByPhone(email);
   try {
     const { pool, ensureSchema, USE_SHEETS } = await import('@/lib/db');
     await ensureSchema();
@@ -152,7 +178,7 @@ export const authOptions = {
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email:    { label: 'Email',    type: 'email'    },
+        email:    { label: 'Email or mobile', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
 
