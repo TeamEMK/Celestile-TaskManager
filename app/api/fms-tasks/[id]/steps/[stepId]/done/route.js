@@ -40,7 +40,7 @@ export async function POST(req, { params }) {
     });
     // The step's "on done" group, if any (lib/delayAlerts.js) — not awaited:
     // the completion is saved, the doer shouldn't wait on WhatsApp.
-    if (!result.held) {
+    if (!result.held && !result.sentBack) {
       notifyStepDone({ sheet, step, rowNumber, doerName: user?.name || '' })
         .catch((e) => console.error('[fms done notify]', e.message));
     }

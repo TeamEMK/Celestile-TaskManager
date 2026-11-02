@@ -11,6 +11,7 @@ import OrderNumberInput from './OrderNumberInput';
 import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
 import ImsThicknessSelect from './ImsThicknessSelect';
 import { isThicknessField, isMaterialField, isPiecesField } from '@/lib/imsFields';
+import { isApprovalField, isRejection } from '@/lib/fmsRework';
 
 // PDFs are kept as-is (no resize); images are downscaled to a JPEG thumbnail.
 // The resulting data: URI is swapped for a Drive URL server-side (writeStepDone)
@@ -65,6 +66,8 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   const alerting = extraRows.filter((r) => alertWhen(r)
     && (extraValues[r.col_letter] || '').trim() && matchesCondition(extraValues[r.col_letter], alertWhen(r)));
   const alertGroups = [...new Set(alerting.flatMap((r) => String(r.alert_to || '').split(/[,\n]+/).map((g) => g.trim()).filter(Boolean)))];
+  // "Approved? No" on a review step sends the work back (lib/fmsRework.js).
+  const sendingBack = extraRows.some((r) => isApprovalField(r) && isRejection(extraValues[r.col_letter]));
   // The stone this step captured, if it captures one — narrows the thickness
   // list to the sizes that stone comes in.
   const materialValue = (() => {
@@ -200,8 +203,8 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
 
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
           <button onClick={onClose} disabled={saving} className="btn-secondary">Cancel</button>
-          <button onClick={save} disabled={saving} className={alerting.length ? 'btn-danger' : 'btn-success'}>
-            {saving ? 'Saving…' : alerting.length ? 'Save & Raise Alert' : 'Save to Sheet'}
+          <button onClick={save} disabled={saving} className={alerting.length || sendingBack ? 'btn-danger' : 'btn-success'}>
+            {saving ? 'Saving…' : sendingBack ? 'Not Approved — Send Back' : alerting.length ? 'Save & Raise Alert' : 'Save to Sheet'}
           </button>
         </div>
         </>)}
