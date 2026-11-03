@@ -346,6 +346,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                         <div className="flex items-center gap-1.5">
                           <Avatar name={t.doer} />
                           <span className="text-slate-700">{t.doer}</span>
+                          {t.needsAssign && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-100 whitespace-nowrap">to assign</span>}
                         </div>
                       </td>
                       <td className="table-td">

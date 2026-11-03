@@ -454,7 +454,7 @@ export default function AllTasksClient({ grouped, users }) {
                                   )}
                                 </td>
                                 {/* DOER */}
-                                <td className="table-td text-slate-700 whitespace-nowrap">{t.doer || '—'}</td>
+                                <td className="table-td text-slate-700 whitespace-nowrap">{t.doer || '—'}{t.needsAssign && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-100">to assign</span>}</td>
                                 {/* ASSIGNEE */}
                                 <td className="table-td text-slate-600 whitespace-nowrap">{getUserName(t.delegatedBy)}</td>
                                 {/* DATE */}
