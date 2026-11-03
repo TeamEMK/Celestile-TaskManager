@@ -34,9 +34,12 @@ export default function FmsDetails({ task }) {
   // lists that column among the ones to display — lead with it regardless,
   // it's what tells one row of a step from the next.
   const order = String(task.orderNo || '').trim();
-  const rows = order && !details.some((d) => String(d.value ?? '').trim() === order)
-    ? [{ header: 'Order No', value: order }, ...details]
-    : details;
+  // Remarks / rejection counts only matter once something was sent back
+  // (03-11-2026) — an empty "Jibin Remarks: —" on every card is noise.
+  const shown = details.filter((d) => String(d.value ?? '').trim() || !/remarks|rejections/i.test(String(d.header || '')));
+  const rows = order && !shown.some((d) => String(d.value ?? '').trim() === order)
+    ? [{ header: 'Order No', value: order }, ...shown]
+    : shown;
   if (!rows.length) return null;
   return (
     <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">

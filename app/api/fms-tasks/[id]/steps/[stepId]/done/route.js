@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser, currentUser } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
-import { getFmsSheet, getFullSteps, writeStepDone, isSheetTimeout } from '@/lib/fmsSheet';
+import { getFmsSheet, getFullSteps, writeStepDone, isSheetTimeout, canDoRow } from '@/lib/fmsSheet';
 import { notifyStepDone } from '@/lib/delayAlerts';
 
 // Writes the Actual timestamp (+ delay reason + extra fields + doer name)
@@ -30,7 +30,8 @@ export async function POST(req, { params }) {
     // own name written into the sheet's doer column — on work belonging to
     // someone else, in a flow they were never given.
     const isAdmin = isAdminRoles(user?.roles);
-    const isStepDoer = (step.doers || []).some((d) => String(d.user_id) === String(user?.id ?? ''));
+    // A CRM Approval row: only the CRMs of that order's branch (canDoRow).
+    const isStepDoer = !isAdmin && await canDoRow(sheet, step, rowNumber, user?.id ?? '');
     if (!isAdmin && !isStepDoer) {
       return NextResponse.json({ error: 'This step is not assigned to you' }, { status: 403 });
     }
