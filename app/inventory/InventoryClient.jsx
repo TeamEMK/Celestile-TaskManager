@@ -82,6 +82,15 @@ export default function InventoryClient() {
   }
   useEffect(() => { loadMasters(); loadInv(); }, []);
 
+  // The order being worked on, carried between Stock and Blocking for
+  // Jointing: blocking slabs to it in Stock lands back on the Jointing page
+  // with it loaded (03-11-2026), and the Jointing page's "no slabs" state
+  // sends you to Stock with it filled in.
+  const [jointOrder, setJointOrder] = useState(searchParams.get('orderNo') || '');
+  const [stockOrder, setStockOrder] = useState('');
+  const goJointing = (o) => { setJointOrder(String(o || '').trim()); setTab('step2'); };
+  const goStock = (o) => { setStockOrder(String(o || '').trim()); setTab('stock'); };
+
   const TABS = [['inward', 'Inward'], ['stock', 'Stock'], ['blocked', 'Blocked Stock'], ['step2', 'Blocking for Jointing']];
 
   return (
@@ -102,9 +111,9 @@ export default function InventoryClient() {
       </div>
 
       {tab === 'inward' && <Inward masters={masters} reloadMasters={loadMasters} onSaved={loadInv} />}
-      {tab === 'stock' && <Stock inv={inv} loading={loading} masters={masters} reload={loadInv} />}
+      {tab === 'stock' && <Stock inv={inv} loading={loading} masters={masters} reload={loadInv} forOrder={stockOrder} onBlocked={goJointing} />}
       {tab === 'blocked' && <BlockedStock inv={inv} loading={loading} />}
-      {tab === 'step2' && <Step2 inv={inv} reload={loadInv} initialOrder={searchParams.get('orderNo') || ''} />}
+      {tab === 'step2' && <Step2 inv={inv} reload={loadInv} initialOrder={jointOrder} onNeedSlabs={goStock} />}
     </div>
   );
 }
@@ -259,7 +268,7 @@ function Inward({ masters, reloadMasters, onSaved }) {
 }
 
 /* ───────────────────────── STOCK ───────────────────────── */
-function Stock({ inv, loading, masters, reload }) {
+function Stock({ inv, loading, masters, reload, forOrder = '', onBlocked }) {
   const [minSft, setMinSft] = useState('');
   const [mat, setMat] = useState('');
   const [thk, setThk] = useState('');
@@ -326,7 +335,9 @@ function Stock({ inv, loading, masters, reload }) {
     groups.forEach((slabs, key) => {
       const sfts = slabs.map((s) => num(s.sft));
       const total = Math.round(sfts.reduce((a, b) => a + b, 0) * 100) / 100;
-      if (need && total < need) return;
+      // Enough, but not a lot far bigger than the job (03-11-2026): at most
+      // 20% over the SFT needed, so big lots aren't broken into for small work.
+      if (need && (total < need || total > need * 1.2)) return;
       // Dedupe on the normalised name, show the spelling the sheet used —
       // otherwise "Mint" and "mint " in one lot read as "Mixed (2)".
       const uniq = (vals, norm) => {
@@ -395,6 +406,9 @@ function Stock({ inv, loading, masters, reload }) {
     message: `"${r.slab}" will be set back to Available.`,
     onConfirm: () => { setConfirm(null); patch({ id: r.id, status: 'Available' }); },
   });
+  // An order blocked before carries its client name over (same as typing it).
+  const clientOf = (o) => (o ? inv.find((r) => r.client && String(r.orderNo || '').trim().toUpperCase() === String(o).trim().toUpperCase())?.client || '' : '');
+
   // One PATCH for whatever the dialog was opened with — a single row's Block
   // button, or the ticked selection, which may span several lots.
   async function confirmBlock() {
@@ -410,6 +424,8 @@ function Stock({ inv, loading, masters, reload }) {
       if (err) { setBlock({ ...block, err }); return; }
       setSel((s) => s.filter((x) => !ids.includes(x)));
       setBlock(null);
+      // Next is blocking for jointing — open it on this order.
+      onBlocked?.(block.orderNo);
     } finally { setSaving(false); }
   }
   async function saveEdit() {
@@ -441,7 +457,8 @@ function Stock({ inv, loading, masters, reload }) {
         </div>
         <button className="btn-secondary" disabled={!rows.length} onClick={csv}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Export CSV</button>
         <div className="w-full text-[11px] text-slate-400 -mt-1">
-          Min SFT = material you need — lots whose slabs add up to at least that much are listed. Open a lot to pick and block its slabs.
+          Min SFT = material you need — lots whose slabs add up to that much, and at most 20% more, are listed. Open a lot to pick and block its slabs.
+          {forOrder && <> Blocking for order <b className="text-slate-700">{forOrder}</b> — you go back to Blocking for Jointing once it is done.</>}
         </div>
       </div>
 
@@ -457,7 +474,7 @@ function Stock({ inv, loading, masters, reload }) {
           <div className="text-[12.5px] text-slate-700"><b>{sel.length}</b> slab{sel.length > 1 ? 's' : ''} selected</div>
           <div className="flex gap-2">
             <button className="btn-ghost !px-2 !py-1" onClick={() => setSel([])}>Clear</button>
-            <button className="btn-warn !px-3 !py-1" onClick={() => setBlock({ ids: sel, orderNo: '', client: '', area: '' })}>Block Selected</button>
+            <button className="btn-warn !px-3 !py-1" onClick={() => setBlock({ ids: sel, orderNo: forOrder, client: clientOf(forOrder), area: '' })}>Block Selected</button>
           </div>
         </div>
       )}
@@ -566,7 +583,7 @@ function Stock({ inv, loading, masters, reload }) {
                                       <td className="table-td max-w-[140px] truncate" title={r.remarks}>{r.remarks || '—'}</td>
                                       <td className="table-td whitespace-nowrap">
                                         <div className="flex gap-1 justify-end">
-                                          {r.status === 'Available' && <button className="btn-danger !px-2 !py-1" onClick={() => setBlock({ ids: [r.id], slab: r.slab, orderNo: '', client: '', area: '' })}>Block</button>}
+                                          {r.status === 'Available' && <button className="btn-danger !px-2 !py-1" onClick={() => setBlock({ ids: [r.id], slab: r.slab, orderNo: forOrder, client: clientOf(forOrder), area: '' })}>Block</button>}
                                           {r.status === 'Blocked' && <button className="btn-success !px-2 !py-1" onClick={() => askUnblock(r)}>Unblock</button>}
                                           {r.status === 'Sold' && <button className="btn-success !px-2 !py-1" onClick={() => askRevertSold(r)}>Revert</button>}
                                           <button className="btn-ghost !px-2 !py-1" onClick={() => setEdit({ id: r.id, slab: r.slab, status: r.status, material: r.material, thickness: r.thickness, sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, remarks: r.remarks, photo: r.slabPhoto })}>Edit</button>
@@ -868,7 +885,7 @@ function BlockedStock({ inv, loading }) {
 // tab) → Used (on final submit) — with Sold as a side-exit straight from
 // Available. Order dropdown only lists orders still in Blocked/Step2 since
 // those are the only ones with anything left to do here.
-function Step2({ inv, reload, initialOrder = '' }) {
+function Step2({ inv, reload, initialOrder = '', onNeedSlabs }) {
   const [orderNo, setOrderNo] = useState(initialOrder);
   const [data, setData] = useState(null); // {key, client, area, slabs}
   const [cut, setCut] = useState({}); // { [slabId]: {cutting, cuttingReason, cuttingSizeL, cuttingSizeW} }
@@ -1116,6 +1133,7 @@ function Step2({ inv, reload, initialOrder = '' }) {
           </div>
           <div className="text-[13.5px] font-semibold text-slate-700">No slabs for this order</div>
           <div className="text-[12px] text-slate-500 mt-0.5">Block slabs to this order first from the Stock tab.</div>
+          {onNeedSlabs && <button className="btn-warn mt-3" onClick={() => onNeedSlabs(orderNo)}>Block slabs for {orderNo} in Stock →</button>}
         </div>
       )}
 
