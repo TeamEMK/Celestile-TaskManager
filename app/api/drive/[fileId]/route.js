@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getDrive, resolveFolderId } from '@/lib/googleDrive';
+import { getDrive, resolveFolderId, driveFileSig } from '@/lib/googleDrive';
+import { timingSafeEqual } from '@/lib/api';
 import { isKnownAppFolder, warmAppFolders } from '@/lib/liveTrackingFiles';
 import { requireUser } from '@/lib/api';
 
@@ -41,9 +42,13 @@ async function isAppOwnedFile(drive, meta) {
 }
 
 export async function GET(req, { params }) {
-  const gate = await requireUser(); if (gate) return gate;
+  const { fileId } = await params;
+  // A signed link (lib/googleDrive.js publicDriveUrl) opens without a login —
+  // it is what goes into sheets and messages, for people outside the app.
+  const sig = new URL(req.url).searchParams.get('sig') || '';
+  const signed = !!fileId && !!sig && timingSafeEqual(sig, driveFileSig(fileId));
+  if (!signed) { const gate = await requireUser(); if (gate) return gate; }
   try {
-    const { fileId } = await params;
     if (!fileId) return NextResponse.json({ error: 'fileId required' }, { status: 400 });
 
     const drive = getDrive();
@@ -79,7 +84,7 @@ export async function GET(req, { params }) {
         'Content-Disposition': `${url.searchParams.get('download') ? 'attachment' : 'inline'}; filename="${(meta.data.name || 'file').replace(/[^\x20-\x7e]|"/g, '')}"`,
         // Drive file contents never change once written, so let the browser
         // hold on to them instead of re-fetching on every table render.
-        'Cache-Control': 'private, max-age=86400',
+        'Cache-Control': signed ? 'public, max-age=86400' : 'private, max-age=86400',
       },
     });
   } catch (err) {
