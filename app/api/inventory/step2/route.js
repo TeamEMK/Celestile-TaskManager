@@ -15,6 +15,20 @@ import { raiseQcAlert } from '@/lib/qcAlerts';
 
 const NOTIFY = () => process.env.INVENTORY_NOTIFY || '120363428784416671@g.us';
 const num = (v) => parseFloat(v) || 0;
+const isNo = (v) => /^(n|no)$/i.test(String(v || '').trim());
+
+// "Checklist mai No hai to aage ke step mai nahi jayega jab tak puri Yes nahi
+// ho jati" (03-11-2026): a No on Grain matching / All pieces used keeps the
+// FMS step pending. The slabs are Used by then, so the form can't be sent
+// again — the order's latest Step-2 record says whether it still needs a
+// re-check, which the page offers until both answers are Yes.
+async function pendingRecheck(orderNo) {
+  await ensureSchema();
+  const [rows] = await pool.query('SELECT * FROM fsm_step2 WHERE order_no = ?', [orderNo]);
+  const last = (rows || []).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
+  if (!last || !(isNo(last.grain) || isNo(last.all_pieces))) return null;
+  return { grain: last.grain || '', allPieces: last.all_pieces || '', material: last.material || '', at: last.created_at };
+}
 
 // GET ?orderNo=... → every slab ever attached to that order, any status —
 // Used/Sold rows stay visible for context, the UI just disables editing on
@@ -30,12 +44,13 @@ export async function GET(req) {
       sizeL: r.sizeL, sizeW: r.sizeW, sft: r.sft, status: r.status, key: r.key,
       client: r.client, area: r.area,
     }));
-    if (!slabs.length) return NextResponse.json({ orderNo, key: orderNo, client: '', area: '', slabs: [] });
+    const recheck = await pendingRecheck(orderNo).catch(() => null);
+    if (!slabs.length) return NextResponse.json({ orderNo, key: orderNo, client: '', area: '', slabs: [], recheck });
     // What the order form said the stone is — the Material dropdown starts
     // from it. A sheet hiccup just leaves the dropdown for the doer.
     const stoneType = await lookupOrderStoneType(orderNo).catch(() => '');
     return NextResponse.json({
-      orderNo, key: slabs[0].key || orderNo, client: slabs[0].client || '', area: slabs[0].area || '', slabs, stoneType,
+      orderNo, key: slabs[0].key || orderNo, client: slabs[0].client || '', area: slabs[0].area || '', slabs, stoneType, recheck,
     });
   } catch (err) {
     console.error('[inventory/step2 GET]', err.message);
@@ -69,6 +84,7 @@ export async function POST(req) {
     await ensureSchema();
     const info = await req.json();
     const orderNo = String(info.orderNo || '').trim();
+    if (info.recheck) return recheckStep2(orderNo, info);
     const cuttingRows = Array.isArray(info.cuttingRows) ? info.cuttingRows : [];
 
     let message = '🪨 *STEP 2 UPDATE*\n\n';
@@ -154,7 +170,6 @@ export async function POST(req) {
     // "Step 2 No hone pe msg SKM group mai" (28-10-2026 review): a No on
     // Grain matching or All pieces used goes to SKM as a QC alert (logged
     // as rework on the order too). The blocking itself is still saved.
-    const isNo = (v) => /^(n|no)$/i.test(String(v || '').trim());
     const raiser = await currentUser().catch(() => null);
     for (const [check, v, photo] of [['Grain matching', info.grain, grainImg], ['All pieces used?', info.allPieces, '']]) {
       if (!isNo(v)) continue;
@@ -171,8 +186,10 @@ export async function POST(req) {
     // The FMS step that sends the doer here ("Sort Raw Material and Quality
     // checking") is done by this submit — mark it, for the areas whose slabs
     // were just used. Best-effort: the blocking is already saved.
+    // …unless the checklist said No: then it waits for a re-check.
+    const held = isNo(info.grain) || isNo(info.allPieces);
     let stepsDone = 0;
-    if (updates.length) {
+    if (updates.length && !held) {
       try {
         const user = await currentUser();
         stepsDone = await completeLinkedStepRows({
@@ -183,9 +200,46 @@ export async function POST(req) {
       } catch (err) { console.error('[step2 → fms step]', err.message); }
     }
 
-    return NextResponse.json({ ok: true, count: updates.length, stepsDone });
+    return NextResponse.json({ ok: true, count: updates.length, stepsDone, held });
   } catch (err) {
     console.error('[inventory/step2 POST]', err.message);
     return NextResponse.json({ error: 'Failed to submit step 2' }, { status: 500 });
+  }
+}
+
+// Re-check after a No: { recheck: true, orderNo, grain, allPieces }. Logged
+// as a Step-2 record like the first answer; all Yes marks the FMS step done,
+// another No alerts SKM again and keeps it waiting.
+async function recheckStep2(orderNo, info) {
+  try {
+    if (!orderNo) return NextResponse.json({ error: 'orderNo required' }, { status: 400 });
+    const yesNo = (v) => /^(y|yes|n|no)$/i.test(String(v || '').trim());
+    if (!yesNo(info.grain) || !yesNo(info.allPieces)) {
+      return NextResponse.json({ error: 'Answer both: Grain matching and All pieces used' }, { status: 400 });
+    }
+    const prev = await pendingRecheck(orderNo);
+    const user = await currentUser().catch(() => null);
+    await pool.query(
+      `INSERT INTO fsm_step2 (id, inv_key, created_at, order_no, material, all_pieces, grain, grain_img, issue, cutting_required, mat_img, sizes_packing)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [newId('FSM'), orderNo, new Date().toISOString(), orderNo, prev?.material || '', info.allPieces, info.grain, '',
+       `Re-check by ${user?.name || 'unknown'}`, '', '', '']
+    );
+    const failed = [['Grain matching', info.grain], ['All pieces used?', info.allPieces]].filter(([, v]) => isNo(v));
+    for (const [check] of failed) {
+      try {
+        await raiseQcAlert({
+          source: 'Inventory Step 2 (re-check)', stepName: 'Sort Raw Material and Quality checking',
+          orderNo, material: prev?.material || '', check, answer: 'No', photo: '', note: 'Still No on re-check',
+          to: 'SKM', raisedBy: user?.name || '', raisedById: user?.id || null,
+        });
+      } catch (err) { console.error('[step2 recheck alert]', err.message); }
+    }
+    if (failed.length) return NextResponse.json({ ok: true, held: true, stepsDone: 0 });
+    const stepsDone = await completeLinkedStepRows({ urlRe: STEP2_URL_RE, orderNo, doerName: user?.name || '', doerId: user?.id || null });
+    return NextResponse.json({ ok: true, held: false, stepsDone });
+  } catch (err) {
+    console.error('[inventory/step2 recheck]', err.message);
+    return NextResponse.json({ error: 'Failed to save the re-check' }, { status: 500 });
   }
 }

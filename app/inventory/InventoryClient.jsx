@@ -1012,6 +1012,25 @@ function Step2({ inv, reload, initialOrder = '' }) {
     hdr.issue && hdr.issue !== 'No' && !hdr.matImg && 'Material Photo (issue reported)',
   ].filter(Boolean);
 
+  // Re-check of a Step 2 that said No (see /api/inventory/step2).
+  const [rc, setRc] = useState({ grain: '', allPieces: '' });
+  async function submitRecheck() {
+    if (!rc.grain || !rc.allPieces) { setStatus('Answer both: Grain matching and All pieces used'); return; }
+    setSaving(true); setStatus('Saving re-check…');
+    try {
+      const res = await fetch('/api/inventory/step2', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recheck: true, orderNo: orderNo.trim(), ...rc }) });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed');
+      setRc({ grain: '', allPieces: '' });
+      await load(orderNo.trim());
+      setStatus(d.held
+        ? 'Still No — SKM alerted again. The FMS step stays pending.'
+        : `Re-check passed.${d.stepsDone ? ` ${d.stepsDone} FMS task${d.stepsDone > 1 ? 's' : ''} marked done — the order moves on.` : ''}`);
+    } catch (e) { setStatus(e.message); }
+    finally { setSaving(false); }
+  }
+
   async function submit() {
     if (!data || !editableSlabs.length) return;
     if (cuttingMissing.length) { setStatus('Cut L & Cut W required for: ' + cuttingMissing.join(', ')); return; }
@@ -1023,6 +1042,14 @@ function Step2({ inv, reload, initialOrder = '' }) {
       const res = await fetch('/api/inventory/step2', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed');
+      if (d.held) {
+        // A No on the checklist: the FMS step waits — keep the order open so
+        // the re-check box below is right there.
+        const o = orderNo.trim();
+        setCut({}); await reload(); await load(o);
+        setStatus('Saved — slabs marked Used. Checklist has a No: SKM is alerted and the FMS step stays pending until a re-check is all Yes.');
+        return;
+      }
       setStatus(`Saved — slabs marked Used, remnants created.${d.stepsDone ? ` ${d.stepsDone} FMS task${d.stepsDone > 1 ? 's' : ''} marked done.` : ''}`);
       setData(null); setCut({}); setOrderNo(''); await reload();
     } catch (e) { setStatus(e.message); }
@@ -1054,6 +1081,31 @@ function Step2({ inv, reload, initialOrder = '' }) {
           </div>
           <div className="text-[13.5px] font-semibold text-slate-700">No order loaded yet</div>
           <div className="text-[12px] text-slate-500 mt-0.5">Pick an order above to begin blocking for jointing. Only orders with slabs Blocked or in Step 2 review are listed.</div>
+        </div>
+      )}
+
+      {data?.recheck && (
+        <div className="card p-5 border-amber-200 bg-amber-50/40">
+          <div className="text-[13px] font-semibold text-amber-800">Re-check needed — the FMS step is on hold</div>
+          <div className="text-[12px] text-slate-600 mt-0.5 mb-3">
+            Step 2 for {orderNo} was submitted with {[
+              /^(n|no)$/i.test(data.recheck.grain) && 'Grain matching: No',
+              /^(n|no)$/i.test(data.recheck.allPieces) && 'All pieces used: No',
+            ].filter(Boolean).join(', ')}. It moves to the next step only when both are Yes.
+          </div>
+          <div className="flex items-end gap-3 flex-wrap">
+            <F label="Grain matching">
+              <select className="input" value={rc.grain} onChange={(e) => setRc({ ...rc, grain: e.target.value })}>
+                <option value="">Select</option><option value="Y">Y</option><option value="N">N</option>
+              </select>
+            </F>
+            <F label="All pieces used?">
+              <select className="input" value={rc.allPieces} onChange={(e) => setRc({ ...rc, allPieces: e.target.value })}>
+                <option value="">Select</option><option>Yes</option><option>No</option>
+              </select>
+            </F>
+            <button className="btn-warn" disabled={saving || !rc.grain || !rc.allPieces} onClick={submitRecheck}>{saving ? 'Saving…' : 'Save Re-check'}</button>
+          </div>
         </div>
       )}
 
