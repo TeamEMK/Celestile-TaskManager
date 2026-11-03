@@ -335,9 +335,7 @@ function Stock({ inv, loading, masters, reload, forOrder = '', onBlocked }) {
     groups.forEach((slabs, key) => {
       const sfts = slabs.map((s) => num(s.sft));
       const total = Math.round(sfts.reduce((a, b) => a + b, 0) * 100) / 100;
-      // Enough, but not a lot far bigger than the job (03-11-2026): at most
-      // 20% over the SFT needed, so big lots aren't broken into for small work.
-      if (need && (total < need || total > need * 1.2)) return;
+      if (need && total < need) return;
       // Dedupe on the normalised name, show the spelling the sheet used —
       // otherwise "Mint" and "mint " in one lot read as "Mixed (2)".
       const uniq = (vals, norm) => {
@@ -457,7 +455,7 @@ function Stock({ inv, loading, masters, reload, forOrder = '', onBlocked }) {
         </div>
         <button className="btn-secondary" disabled={!rows.length} onClick={csv}><Icon name="arrowDown" className="w-3.5 h-3.5" /> Export CSV</button>
         <div className="w-full text-[11px] text-slate-400 -mt-1">
-          Min SFT = material you need — lots whose slabs add up to that much, and at most 20% more, are listed. Open a lot to pick and block its slabs.
+          Min SFT = material you need — lots whose slabs add up to at least that much are listed. Open a lot to pick and block its slabs.
           {forOrder && <> Blocking for order <b className="text-slate-700">{forOrder}</b> — you go back to Blocking for Jointing once it is done.</>}
         </div>
       </div>
