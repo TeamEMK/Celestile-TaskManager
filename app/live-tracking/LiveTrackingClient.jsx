@@ -203,6 +203,16 @@ export default function LiveTrackingClient() {
   const [stage, setStage] = useState('');
   useEffect(() => { setStage(''); }, [activeId]);
   const stageIdx = useMemo(() => (data?.stages ? (data.headers || []).indexOf('Pending On') : -1), [data]);
+  // SFT blocked in inventory vs the SFT the row needs: red past 20% over
+  // (03-11-2026).
+  const sftCols = useMemo(() => {
+    const h = (data?.headers || []).map((x) => String(x || '').trim());
+    return { need: h.indexOf('Area SFT Required'), blocked: h.indexOf('SFT Blocked') };
+  }, [data]);
+  const overBlocked = (row) => {
+    const need = parseFloat(row[sftCols.need]), got = parseFloat(row[sftCols.blocked]);
+    return need > 0 && got > need * 1.2;
+  };
 
   // Step-wise counts under every other filter, in flow order (data.stages).
   const stageCounts = useMemo(() => {
@@ -580,6 +590,8 @@ export default function LiveTrackingClient() {
                                       {!PROGRAM_SENT_OPTIONS.includes(val) && <option value="" disabled>{val || '—'}</option>}
                                       {PROGRAM_SENT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                                     </select>
+                                  : ci === sftCols.blocked && sftCols.need >= 0 && overBlocked(row)
+                                  ? <span className="font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5" title="More than 20% over the SFT required">{val}</span>
                                   : badge
                                   ? <span className={badge}>{val}</span>
                                   : isDoneCol
