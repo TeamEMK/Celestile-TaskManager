@@ -11,6 +11,7 @@ const JOBS = [
   ['Design flow switch', () => import('@/lib/designFlowMigrate').then((m) => m.migrateDesignFlow())],
   ['Design CRM revision', () => import('@/lib/designRevisionMigrate').then((m) => m.migrateDesignRevision())],
   ['Design review remarks', () => import('@/lib/designRemarksMigrate').then((m) => m.migrateDesignReviewRemarks())],
+  ['Design New Entry: SFT / Stone Type / Thickness', () => import('@/lib/designIntakeMigrate').then((m) => m.migrateDesignIntakeStone())],
   ['Drive links → open for everyone', () => import('@/lib/driveLinksMigrate').then((m) => m.migrateDriveLinks())],
 ];
 
