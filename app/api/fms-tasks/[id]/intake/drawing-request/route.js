@@ -30,7 +30,9 @@ export async function POST(req, { params }) {
     try { parsed = await parseDrawingRequest(buf, m[1]); }
     catch (e) {
       console.error('[drawing-request] parse', e);
-      return NextResponse.json({ error: 'Could not read this file — upload the Drawing Request as PDF or Excel.' }, { status: 400 });
+      // The reason too: "not a PDF" and "the server can't load the PDF
+      // reader" read the same otherwise.
+      return NextResponse.json({ error: `Could not read this file — upload the Drawing Request as PDF or Excel. (${e.message})` }, { status: 400 });
     }
     if (!parsed.entries.length) {
       return NextResponse.json({ error: 'No rows found — the file needs the AREA / TECHNOLOGY / TOTAL SQFT table of a Drawing Request.' }, { status: 400 });
