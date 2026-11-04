@@ -65,7 +65,28 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
 
   const fmt = fmtDMY;
 
-  const visibleTasks = data.pendingTasks;
+  // The server sends at most 50 rows per FMS (newest first), so a flow with
+  // hundreds pending (Factory O2D) hid its older steps — Dispatch had 214
+  // rows and none on the Dashboard to mark done (04-11-2026). Picking one
+  // FMS loads all of its rows; a step filter then narrows them.
+  const [stepFilter, setStepFilter] = useState('All');
+  const [fullFms, setFullFms] = useState(null); // every FMS row, or null
+  const [fullLoading, setFullLoading] = useState(false);
+  useEffect(() => { setFullFms(null); }, [data]); // a refresh (e.g. after Done) re-reads
+  useEffect(() => {
+    if (subTab !== 'FMS' || fmsNameFilter === 'All' || fullFms || fullLoading) return;
+    setFullLoading(true);
+    fetch('/api/fms-dashboard').then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.rows)) setFullFms(d.rows); })
+      .catch(() => {})
+      .finally(() => setFullLoading(false));
+  }, [subTab, fmsNameFilter, fullFms, fullLoading]);
+  const visibleTasks = useMemo(() => (fullFms && fmsNameFilter !== 'All'
+    ? [...data.pendingTasks.filter((t) => t.type !== 'FMS'), ...fullFms]
+    : data.pendingTasks), [data, fullFms, fmsNameFilter]);
+  const stepNames = useMemo(() => [...new Set(visibleTasks
+    .filter((t) => t.type === 'FMS' && t.fmsName === fmsNameFilter).map((t) => t.stepName).filter(Boolean))],
+  [visibleTasks, fmsNameFilter]);
   const allDoers = useMemo(() => users.map((u) => u.name).sort(), [users]);
   const allFmsNames = useMemo(
     () => [...new Set(visibleTasks.filter((t) => t.type === 'FMS').map((t) => t.fmsName).filter(Boolean))].sort(),
@@ -85,12 +106,13 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
       // Only meaningful on the FMS tab — non-FMS tasks have no fmsName, so
       // gate on subTab rather than comparing t.fmsName directly, or picking
       // an FMS name would also hide every Delegation/Checklist row.
-      (subTab !== 'FMS' || fmsNameFilter === 'All' || t.fmsName === fmsNameFilter)
+      (subTab !== 'FMS' || fmsNameFilter === 'All' || t.fmsName === fmsNameFilter) &&
+      (subTab !== 'FMS' || fmsNameFilter === 'All' || stepFilter === 'All' || t.stepName === stepFilter)
     )
     // Undated rows (an FMS plan cell that isn't a date) sort last instead
     // of comparing as NaN and landing anywhere.
     .sort((a, b) => when(b) - when(a)),
-    [visibleTasks, subTab, userFilter, fmsNameFilter]);
+    [visibleTasks, subTab, userFilter, fmsNameFilter, stepFilter]);
 
   // When an admin picks a specific employee from the filter, the KPI cards
   // should reflect that person, not the whole org — computeDashboard() /
@@ -277,10 +299,20 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {subTab === 'FMS' && allFmsNames.length > 0 && (
-                <select value={fmsNameFilter} onChange={(e) => setFmsNameFilter(e.target.value)} className="input !w-auto !py-2 !text-[12.5px]">
+                <select value={fmsNameFilter} onChange={(e) => { setFmsNameFilter(e.target.value); setStepFilter('All'); }} className="input !w-auto !py-2 !text-[12.5px]">
                   <option value="All">All FMS</option>
                   {allFmsNames.map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
+              )}
+              {subTab === 'FMS' && fmsNameFilter !== 'All' && (
+                fullLoading && !fullFms
+                  ? <span className="text-[11.5px] text-slate-400">Loading all steps…</span>
+                  : stepNames.length > 0 && (
+                    <select value={stepFilter} onChange={(e) => setStepFilter(e.target.value)} className="input !w-auto !py-2 !text-[12.5px]">
+                      <option value="All">All steps</option>
+                      {stepNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  )
               )}
               <div className="seg">
                 {['All', 'Delegation', 'Checklist', ...(FMS_ENABLED ? ['FMS'] : [])].map((t) => (
