@@ -171,12 +171,13 @@ export async function POST(req) {
     // Grain matching or All pieces used goes to SKM as a QC alert (logged
     // as rework on the order too). The blocking itself is still saved.
     const raiser = await currentUser().catch(() => null);
+    const usedAreas = [...new Set(updates.map((u) => String(u.obj.area || '').trim()).filter(Boolean))].join(', ');
     for (const [check, v, photo] of [['Grain matching', info.grain, grainImg], ['All pieces used?', info.allPieces, '']]) {
       if (!isNo(v)) continue;
       try {
         await raiseQcAlert({
           source: 'Inventory Step 2', stepName: 'Sort Raw Material and Quality checking',
-          orderNo, material: info.material || '', check, answer: 'No', photo: photo || '',
+          orderNo, area: usedAreas, material: info.material || '', check, answer: 'No', photo: photo || '',
           note: hasIssue ? `Material issue: ${info.issue}` : '', to: 'SKM',
           raisedBy: raiser?.name || '', raisedById: raiser?.id || null,
         });
@@ -225,12 +226,16 @@ async function recheckStep2(orderNo, info) {
       [newId('FSM'), orderNo, new Date().toISOString(), orderNo, prev?.material || '', info.allPieces, info.grain, '',
        `Re-check by ${user?.name || 'unknown'}`, '', '', '']
     );
+    // The slabs were attached on the first submit — their areas name the
+    // order's areas for the alert. A sheet hiccup just leaves it out.
+    const areas = [...new Set((await findByOrder(orderNo).catch(() => []))
+      .map((r) => String(r.area || '').trim()).filter(Boolean))].join(', ');
     const failed = [['Grain matching', info.grain], ['All pieces used?', info.allPieces]].filter(([, v]) => isNo(v));
     for (const [check] of failed) {
       try {
         await raiseQcAlert({
           source: 'Inventory Step 2 (re-check)', stepName: 'Sort Raw Material and Quality checking',
-          orderNo, material: prev?.material || '', check, answer: 'No', photo: '', note: 'Still No on re-check',
+          orderNo, area: areas, material: prev?.material || '', check, answer: 'No', photo: '', note: 'Still No on re-check',
           to: 'SKM', raisedBy: user?.name || '', raisedById: user?.id || null,
         });
       } catch (err) { console.error('[step2 recheck alert]', err.message); }
