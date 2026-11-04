@@ -39,15 +39,16 @@ const LOG_FILE = () => join(process.cwd(), 'deploy.log');
 // command is a fixed string with nothing from the request in it. `npm
 // install` first, so a package added in the pulled commit is there for the
 // build (04-11-2026: pdfjs-dist was not); `npm run build` is `next build`
-// (package.json); `pm2 reload` keeps one instance up while the other
+// (package.json) — a failed install is logged and the build still runs,
+// so it can never hold every later deploy back; `pm2 reload` keeps one instance up while the other
 // restarts, and --update-env picks up any changed env.
 function buildAndReload() {
   const fd = openSync(LOG_FILE(), 'a');
   const isWin = process.platform === 'win32';
-  const script = 'echo "=== deploy $(date) ===" && npm install --no-audit --no-fund && npm run build && pm2 reload all --update-env && echo "=== done ==="';
+  const script = 'echo "=== deploy $(date) ===" && (npm install --no-audit --no-fund || echo "=== npm install failed, building anyway ===") && npm run build && pm2 reload all --update-env && echo "=== done ==="';
   const child = spawn(
     isWin ? 'cmd.exe' : 'sh',
-    isWin ? ['/c', 'npm install --no-audit --no-fund && npm run build && pm2 reload all --update-env'] : ['-c', script],
+    isWin ? ['/c', '(npm install --no-audit --no-fund || echo npm install failed) && npm run build && pm2 reload all --update-env'] : ['-c', script],
     { cwd: process.cwd(), detached: true, stdio: ['ignore', fd, fd], env: process.env },
   );
   child.unref();
