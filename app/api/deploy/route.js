@@ -36,16 +36,18 @@ function verifyGitHub(rawBody, header) {
 const LOG_FILE = () => join(process.cwd(), 'deploy.log');
 
 // Build, then reload — one detached child so it outlives this request. The
-// command is a fixed string with nothing from the request in it. `npm run
-// build` is `next build` (package.json); `pm2 reload` keeps one instance up
-// while the other restarts, and --update-env picks up any changed env.
+// command is a fixed string with nothing from the request in it. `npm
+// install` first, so a package added in the pulled commit is there for the
+// build (04-11-2026: pdfjs-dist was not); `npm run build` is `next build`
+// (package.json); `pm2 reload` keeps one instance up while the other
+// restarts, and --update-env picks up any changed env.
 function buildAndReload() {
   const fd = openSync(LOG_FILE(), 'a');
   const isWin = process.platform === 'win32';
-  const script = 'echo "=== deploy $(date) ===" && npm run build && pm2 reload all --update-env && echo "=== done ==="';
+  const script = 'echo "=== deploy $(date) ===" && npm install --no-audit --no-fund && npm run build && pm2 reload all --update-env && echo "=== done ==="';
   const child = spawn(
     isWin ? 'cmd.exe' : 'sh',
-    isWin ? ['/c', 'npm run build && pm2 reload all --update-env'] : ['-c', script],
+    isWin ? ['/c', 'npm install --no-audit --no-fund && npm run build && pm2 reload all --update-env'] : ['-c', script],
     { cwd: process.cwd(), detached: true, stdio: ['ignore', fd, fd], env: process.env },
   );
   child.unref();
