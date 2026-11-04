@@ -1174,7 +1174,105 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
     return f ? (values[f.id] || '') : '';
   })();
 
+  // Drawing Request import — a form that captures Area / Technology / SFT
+  // (Design O2D) can be filled from the client's Drawing Request PDF or Excel:
+  // one entry per Area + Technology (lib/drawingRequest.js), checked in a
+  // table here and then submitted one by one like any other entry.
+  const rowFields = useMemo(() => {
+    const plain = (f) => !f.auto_fill && f.field_type !== 'upload';
+    const by = (re) => fields.find((f) => plain(f) && re.test(f.field_label || ''));
+    return {
+      area: by(/\barea\b/i),
+      technology: by(/technolog/i),
+      sft: by(/^(total\s*)?s(q\.?)?\s*ft\b|^sqft$/i),
+      stoneType: fields.find((f) => plain(f) && isMaterialField(f)),
+      thickness: fields.find((f) => plain(f) && isThicknessField(f)),
+    };
+  }, [fields]);
+  const canImport = !!(rowFields.area && rowFields.technology && rowFields.sft);
+  const [dr, setDr] = useState(null); // { entries, pieces, fileName } once a file is read
+  const [drBusy, setDrBusy] = useState('');
+  const drIds = new Set(Object.values(rowFields).filter(Boolean).map((f) => f.id));
+  const formFields = dr ? visibleFields.filter((f) => !drIds.has(f.id)) : visibleFields;
+
+  async function readDrawingRequest(file) {
+    if (!file) return;
+    setErr(''); setDrBusy('Reading the file…');
+    try {
+      const data = await new Promise((ok, bad) => {
+        const r = new FileReader();
+        r.onload = () => ok(String(r.result));
+        r.onerror = () => bad(new Error('Could not read the file'));
+        r.readAsDataURL(file);
+      });
+      const res = await fetch(`/api/fms-tasks/${fmsId}/intake/drawing-request`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: data }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(d.error || 'Could not read the Drawing Request'); return; }
+      setDr({ fileName: file.name, pieces: d.pieces || [], entries: d.entries.map((e) => ({ ...e, include: true, status: '' })) });
+      // Order number and the file link go in the fields the rows share,
+      // unless already filled in.
+      setValues((s) => {
+        const next = { ...s };
+        const order = fields.find((f) => isOrderField(f) && !f.auto_fill);
+        if (order && d.orderNo && !String(next[order.id] || '').trim()) next[order.id] = d.orderNo;
+        const upload = fields.find((f) => f.field_type === 'upload' && !f.auto_fill);
+        if (upload && d.fileUrl && !String(next[upload.id] || '').trim()) next[upload.id] = d.fileUrl;
+        return next;
+      });
+    } catch (e) {
+      setErr(`Could not read the Drawing Request: ${e?.message || 'network error'}`);
+    } finally { setDrBusy(''); }
+  }
+
+  const setEntry = (n, patch) => setDr((s) => ({ ...s, entries: s.entries.map((e, i) => (i === n ? { ...e, ...patch } : e)) }));
+
+  async function submitDrawingRequest() {
+    setErr('');
+    const missing = formFields.find((f) => isRequiredField(f) && !isDateOffsetField(f) && !String(values[f.id] || '').trim());
+    if (missing) { setErr(`"${missing.field_label || missing.col_letter}" is required`); return; }
+    const badOrder = formFields.find((f) => (
+      isOrderField(f) && String(values[f.id] || '').trim() && !isValidOrderNumber(values[f.id])
+    ));
+    if (badOrder) { setErr(`"${badOrder.field_label || badOrder.col_letter}" — ${ORDER_HINT}`); return; }
+    const todo = dr.entries.map((e, n) => ({ e, n })).filter(({ e }) => e.include && e.status !== 'saved');
+    if (!todo.length) { setErr('No rows ticked'); return; }
+    const blank = todo.find(({ e }) => ['area', 'technology', 'sft', 'stoneType', 'thickness']
+      .some((k) => rowFields[k] && isRequiredField(rowFields[k]) && !String(e[k] ?? '').trim()));
+    if (blank) { setErr(`Row ${blank.n + 1} (${blank.e.area || 'no area'}) has an empty box — fill it or untick the row`); return; }
+
+    setSaving(true);
+    let failed = 0;
+    for (const [k, { e, n }] of todo.entries()) {
+      setDrBusy(`Saving ${k + 1} of ${todo.length}…`);
+      const payload = {};
+      fields.forEach((f, i) => { if (shown[i] && !drIds.has(f.id)) payload[f.id] = values[f.id] ?? ''; });
+      for (const key of Object.keys(rowFields)) if (rowFields[key]) payload[rowFields[key].id] = String(e[key] ?? '');
+      try {
+        const res = await fetch(`/api/fms-tasks/${fmsId}/intake`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ values: payload }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok || !d.cellsWritten || d.verified === false) {
+          failed++;
+          setEntry(n, { status: d.error || (d.verified === false ? `Row ${d.targetRow} did not save back` : 'Not saved') });
+        } else setEntry(n, { status: 'saved', row: d.targetRow });
+      } catch (x) {
+        failed++;
+        setEntry(n, { status: `Failed: ${x?.message || 'network error'}` });
+      }
+    }
+    setDrBusy(''); setSaving(false);
+    if (failed) { setErr(`${failed} row${failed > 1 ? 's' : ''} not saved — see the table, then press Submit again for them`); return; }
+    setSavedInfo(`${todo.length} entr${todo.length > 1 ? 'ies' : 'y'} saved (verified)`);
+    setTimeout(onSaved, 1600);
+  }
+
   async function submit() {
+    if (dr) return submitDrawingRequest();
     setErr('');
     const missing = visibleFields.find((f) => isRequiredField(f) && !isDateOffsetField(f) && !String(values[f.id] || '').trim());
     if (missing) { setErr(`"${missing.field_label || missing.col_letter}" is required`); return; }
@@ -1246,8 +1344,26 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
               <Icon name="clock" className="w-3.5 h-3.5" /> Auto-filled on submit: {autoFields.map((f) => f.field_label || f.col_letter).join(', ')}
             </div>
           )}
+          {canImport && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-primary-200 bg-primary-50/40 px-3 py-2.5">
+              <div className="flex-1 min-w-[200px] text-[12px] text-slate-600">
+                {dr
+                  ? <><b>{dr.fileName}</b> — {dr.entries.length} entr{dr.entries.length > 1 ? 'ies' : 'y'} by Area + Technology ({dr.pieces.length} lines). Check them below.</>
+                  : <>Client's <b>Drawing Request</b> (PDF / Excel) — fills one entry per Area + Technology.</>}
+              </div>
+              {drBusy && <span className="text-[11.5px] text-slate-500">{drBusy}</span>}
+              <label className={`btn-secondary btn-sm cursor-pointer${drBusy || saving ? ' opacity-50 pointer-events-none' : ''}`}>
+                {dr ? 'Another file' : 'Upload Drawing Request'}
+                <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,application/pdf"
+                  onChange={(e) => { readDrawingRequest(e.target.files?.[0]); e.target.value = ''; }} />
+              </label>
+              {dr && !saving && (
+                <button className="btn-ghost btn-sm" onClick={() => setDr(null)}>Fill by hand</button>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-            {visibleFields.map((f) => (
+            {formFields.map((f) => (
               <div key={f.id}>
                 <label className="label">
                   {f.field_label || f.col_letter}{isRequiredField(f) ? ' *' : ''}
@@ -1292,13 +1408,57 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
               </div>
             ))}
           </div>
+          {dr && (
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-[12px]">
+                <thead className="bg-slate-50 text-slate-500 text-left">
+                  <tr>
+                    <th className="px-2 py-1.5 w-6"></th>
+                    {[['area', 'Area'], ['technology', 'Technology'], ['sft', 'SFT'], ['stoneType', 'Stone Type'], ['thickness', 'Thickness']]
+                      .filter(([k]) => rowFields[k]).map(([k, l]) => <th key={k} className="px-2 py-1.5 font-medium">{rowFields[k].field_label || l}</th>)}
+                    <th className="px-2 py-1.5 font-medium">2D / 3D</th>
+                    <th className="px-2 py-1.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dr.entries.map((e, n) => {
+                    const locked = saving || e.status === 'saved';
+                    return (
+                      <tr key={n} className={`border-t border-slate-100 align-top${e.include ? '' : ' opacity-50'}`}>
+                        <td className="px-2 py-1.5">
+                          <input type="checkbox" checked={e.include} disabled={locked} onChange={(x) => setEntry(n, { include: x.target.checked })} />
+                        </td>
+                        {['area', 'technology', 'sft', 'stoneType', 'thickness'].filter((k) => rowFields[k]).map((k) => (
+                          <td key={k} className="px-1 py-1">
+                            <input className={`input !py-1 !text-[12px] ${k === 'sft' ? 'w-20' : k === 'area' ? 'min-w-[170px]' : 'min-w-[110px]'}`}
+                              type={k === 'sft' ? 'number' : 'text'} value={e[k] ?? ''} disabled={locked}
+                              list={k === 'technology' ? `dr-tech-${fmsId}` : undefined}
+                              onChange={(x) => setEntry(n, { [k]: x.target.value })} />
+                          </td>
+                        ))}
+                        <td className="px-2 py-1.5 text-slate-500">{e.dim}</td>
+                        <td className="px-2 py-1.5 text-[11px] whitespace-nowrap">
+                          {e.status === 'saved' ? <span className="text-emerald-600">Saved · row {e.row}</span>
+                            : e.status ? <span className="text-red-600 whitespace-normal">{e.status}</span>
+                            : <span className="text-slate-400">{e.lines} line{e.lines > 1 ? 's' : ''}</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <datalist id={`dr-tech-${fmsId}`}>
+                {String(rowFields.technology?.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean).map((o) => <option key={o} value={o} />)}
+              </datalist>
+            </div>
+          )}
         </div>
 
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 shrink-0">
           <button className="btn-secondary" onClick={onClose} disabled={saving || !!savedInfo}>Cancel</button>
           <button className="btn-primary" onClick={submit} disabled={saving || !!savedInfo || !!blockingDupe}
             title={blockingDupe ? blockingDupe.message : undefined}>
-            {saving ? 'Submitting…' : 'Submit'}
+            {saving ? 'Submitting…' : dr ? `Submit ${dr.entries.filter((e) => e.include && e.status !== 'saved').length} entries` : 'Submit'}
           </button>
 
         </div>
