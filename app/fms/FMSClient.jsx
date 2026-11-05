@@ -1354,7 +1354,7 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
               {drBusy && <span className="text-[11.5px] text-slate-500">{drBusy}</span>}
               <label className={`btn-secondary btn-sm cursor-pointer${drBusy || saving ? ' opacity-50 pointer-events-none' : ''}`}>
                 {dr ? 'Another file' : 'Upload Drawing Request'}
-                <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,application/pdf"
+                <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.csv,application/pdf,text/csv"
                   onChange={(e) => { readDrawingRequest(e.target.files?.[0]); e.target.value = ''; }} />
               </label>
               {dr && !saving && (
