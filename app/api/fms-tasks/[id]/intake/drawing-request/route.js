@@ -3,6 +3,8 @@ import { requireAccess } from '@/lib/api';
 import { getFmsSheet } from '@/lib/fmsSheet';
 import { parseDrawingRequest } from '@/lib/drawingRequest';
 import { maybeUploadToDriveWithLink } from '@/lib/googleDrive';
+import { listSlabs, listMaterials } from '@/lib/imsSheet';
+import { checkPiecesAgainstStock, stockWarningText } from '@/lib/stockCheck';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,8 +40,21 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: 'No rows found — the file needs the AREA / TECHNOLOGY / TOTAL SQFT table of a Drawing Request.' }, { status: 400 });
     }
 
-    const link = await maybeUploadToDriveWithLink(file, 'drawing-request');
-    return NextResponse.json({ ...parsed, fileUrl: String(link).startsWith('data:') ? '' : link });
+    // Stone + thickness checked against the stock register / Stone Name
+    // master (lib/stockCheck.js). Advisory: an unreadable IMS sheet means no
+    // warnings, never a failed import.
+    const [link, slabs, materials] = await Promise.all([
+      maybeUploadToDriveWithLink(file, 'drawing-request'),
+      listSlabs().catch((e) => { console.error('[drawing-request] stock', e.message); return []; }),
+      listMaterials().catch(() => []),
+    ]);
+    const stockWarnings = checkPiecesAgainstStock(parsed.pieces, slabs, materials).map((w) => ({ ...w, text: stockWarningText(w) }));
+    const keyOf = (x) => `${String(x.area || '').toUpperCase()}|${String(x.technology || '').toUpperCase()}`;
+    const entries = parsed.entries.map((e) => {
+      const mine = checkPiecesAgainstStock(parsed.pieces.filter((p) => keyOf(p) === keyOf(e)), slabs, materials);
+      return mine.length ? { ...e, stockWarning: mine.map(stockWarningText).join(' ') } : e;
+    });
+    return NextResponse.json({ ...parsed, entries, stockWarnings, fileUrl: String(link).startsWith('data:') ? '' : link });
   } catch (err) {
     console.error('[drawing-request]', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

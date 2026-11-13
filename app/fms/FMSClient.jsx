@@ -1237,7 +1237,7 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setErr(d.error || 'Could not read the Drawing Request'); return; }
-      setDr({ fileName: file.name, pieces: d.pieces || [], entries: d.entries.map((e) => ({ ...e, include: true, status: '' })) });
+      setDr({ fileName: file.name, pieces: d.pieces || [], stockWarnings: d.stockWarnings || [], entries: d.entries.map((e) => ({ ...e, include: true, status: '' })) });
       // Order number and the file link go in the fields the rows share,
       // unless already filled in.
       setValues((s) => {
@@ -1434,6 +1434,16 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
               </div>
             ))}
           </div>
+          {dr?.stockWarnings?.length > 0 && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-[12px] text-amber-800">
+              <div className="font-semibold mb-1">⚠ Check with the stock list before submitting — {dr.stockWarnings.length} stone{dr.stockWarnings.length > 1 ? 's' : ''} asked in a thickness we don't have:</div>
+              <ul className="list-disc pl-5 space-y-0.5">
+                {dr.stockWarnings.map((w, i) => (
+                  <li key={i}>{w.text}{w.areas?.length ? <span className="text-amber-700/80"> · {w.areas.join(', ')}</span> : null}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {dr && (
             <div className="overflow-x-auto rounded-lg border border-slate-200">
               <table className="w-full text-[12px]">
@@ -1467,6 +1477,9 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
                           {e.status === 'saved' ? <span className="text-emerald-600">Saved · row {e.row}</span>
                             : e.status ? <span className="text-red-600 whitespace-normal">{e.status}</span>
                             : <span className="text-slate-400">{e.lines} line{e.lines > 1 ? 's' : ''}</span>}
+                          {e.stockWarning && e.status !== 'saved' && (
+                            <div className="mt-1 max-w-[260px] whitespace-normal text-amber-700 font-medium">⚠ {e.stockWarning}</div>
+                          )}
                         </td>
                       </tr>
                     );
