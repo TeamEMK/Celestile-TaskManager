@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import DateField from '../components/DateField';
 import Avatar from '../components/Avatar';
+import { usePaged, Pager } from '../components/Pager';
 import { fmtDMY } from '@/lib/dates';
 import { mergeDepartments } from '@/lib/departments';
 
@@ -107,6 +108,7 @@ export default function LeaveTrackerClient({ userId, userName, canApprove, isAdm
       (!t || (l.userName + l.reason + l.type).toLowerCase().includes(t))
     );
   }, [leaves, tab, q]);
+  const { pageRows, pager } = usePaged(filtered, { resetKey: [tab, q] });
 
   const trackedBalances = balances.filter((b) => b.quota > 0);
   const currentQuota = Number(settings.quotas?.[form.type] || 0);
@@ -187,7 +189,7 @@ export default function LeaveTrackerClient({ userId, userName, canApprove, isAdm
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((l) => (
+                  {pageRows.map((l) => (
                     <tr key={l.id} className="table-row">
                       <td className="table-td">
                         <div className="flex items-center gap-1.5">
@@ -223,6 +225,7 @@ export default function LeaveTrackerClient({ userId, userName, canApprove, isAdm
               </table>
             </div>
           )}
+          <Pager {...pager} noun="request" />
         </div>
       </div>
 

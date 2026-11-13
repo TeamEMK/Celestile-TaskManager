@@ -6,10 +6,11 @@ import { getMyFmsPendingRows } from '@/lib/fmsSheet';
 // Pending FMS rows across every sheet/step visible to the caller — powers
 // the Dashboard FMS tab and the All-Tasks FMS tab (client-side refresh path;
 // initial server-render calls getMyFmsPendingRows directly).
-export async function GET() {
+export async function GET(req) {
   const { gate, user } = await requireUserCtx(); if (gate) return gate;
   try {
-    const rows = await getMyFmsPendingRows({ userId: user.id, userName: user.name, isAdmin: isAdminRoles(user.roles), branch: user.branch, department: user.department });
+    const rows = await getMyFmsPendingRows({ userId: user.id, userName: user.name, isAdmin: isAdminRoles(user.roles), branch: user.branch, department: user.department,
+      fmsName: new URL(req.url).searchParams.get('fmsName') || undefined });
     return NextResponse.json({ rows });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

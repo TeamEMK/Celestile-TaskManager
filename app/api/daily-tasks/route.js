@@ -29,7 +29,13 @@ export async function GET(req) {
   const callerBranch = (caller?.branch || '').toLowerCase();
   try {
     await ensureSchema();
-    let doerId = new URL(req.url).searchParams.get('doerId');
+    const sp = new URL(req.url).searchParams;
+    let doerId = sp.get('doerId');
+    // Optional entry_date window (YYYY-MM-DD, inclusive). Daily Reports only
+    // ever shows one month / range but used to download every entry ever.
+    const isDay = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
+    const from = isDay(sp.get('from')) ? sp.get('from') : '';
+    const to   = isDay(sp.get('to'))   ? sp.get('to')   : '';
     // `doerId` selects the SELECT_COLS branch, which includes the inline
     // base64 pre_install_image meant only for the doer's own "My Past
     // Submissions" view. Without this check any signed-in user could pull a
@@ -54,6 +60,15 @@ export async function GET(req) {
       rows = rows.filter((r) => {
         const b = String(r.branch || '').toLowerCase();
         return !b || b === callerBranch;
+      });
+    }
+    if (from || to) {
+      // Same day key the browser derives (JSON date → split at 'T'), so the
+      // server keeps exactly the rows the client-side window filter would.
+      const dayOf = (v) => (v instanceof Date ? v.toISOString() : String(v || '')).split('T')[0];
+      rows = rows.filter((r) => {
+        const d = dayOf(r.entryDate);
+        return (!from || d >= from) && (!to || d <= to);
       });
     }
     return NextResponse.json(rows);

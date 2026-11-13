@@ -9,6 +9,7 @@ import Icon from '../components/Icon';
 import { canManageUsers } from '@/lib/pages';
 import { DEPARTMENTS } from '@/lib/departments';
 import { isValidMobile } from '@/lib/phone';
+import { usePaged, Pager } from '../components/Pager';
 
 const ROLES = ['Admin', 'User', 'HOD'];
 
@@ -106,7 +107,8 @@ export default function UsersClient() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = users
+  // Memoised: it re-sorted every user on each render (modal toggles etc.).
+  const filtered = useMemo(() => users
     .slice()
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
     .filter((u) => {
@@ -118,7 +120,8 @@ export default function UsersClient() {
         (u?.phone      || '').toLowerCase().includes(s) ||
         (u?.department || '').toLowerCase().includes(s)
       );
-    });
+    }), [users, search]);
+  const { pageRows, pager } = usePaged(filtered, { resetKey: search });
 
   function openAdd()    { setEditing(null); setModalOpen(true); }
   function openEdit(u)  { setEditing({ ...u, roles: normalizeRoles(u?.roles) }); setModalOpen(true); }
@@ -203,7 +206,7 @@ export default function UsersClient() {
                     <div className="text-[12px] text-slate-500 mt-0.5">Try adjusting your search terms.</div>
                   </td>
                 </tr>
-              ) : filtered.map((u) => (
+              ) : pageRows.map((u) => (
                 <tr key={u.id} className="table-row">
                   <td className="table-td">
                     <div className="flex items-center gap-2.5">
@@ -251,6 +254,7 @@ export default function UsersClient() {
             </tbody>
           </table>
         </div>
+        <Pager {...pager} noun="user" />
 
       </div>
 

@@ -5,7 +5,23 @@
 // action it does carry is Assign / Reassign for steps whose doer is picked
 // per row: `canAssign(stepId)` says whether the viewer may do that for a
 // step, `onAssign(item)` opens the picker.
+import { useMemo, useState } from 'react';
+import { usePaged, Pager } from '../components/Pager';
+
 export default function PcView({ items, canAssign, onAssign }) {
+  // Every pending row across all steps used to be drawn at once (and the
+  // column list rebuilt on each render). Now: memoised columns, a search box,
+  // and one page of rows. Columns still come from every item.
+  const [q, setQ] = useState('');
+  const colKeys = useMemo(() => [...new Set(items.flatMap((it) => Object.keys(it.data)))], [items]);
+  const matched = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return items;
+    return items.filter((it) => [it.stepName, it.doer, it.plannedDate, ...Object.values(it.data || {})]
+      .some((v) => String(v ?? '').toLowerCase().includes(t)));
+  }, [items, q]);
+  const { pageRows, pager } = usePaged(matched, { resetKey: q });
+
   if (!items.length) {
     return (
       <div className="card p-14 text-center">
@@ -17,11 +33,15 @@ export default function PcView({ items, canAssign, onAssign }) {
     );
   }
 
-  const colKeys = [...new Set(items.flatMap((it) => Object.keys(it.data)))];
   const showActions = !!onAssign && items.some((it) => it.assigned && canAssign?.(it.stepId));
 
   return (
     <div className="card overflow-hidden">
+      {items.length > 25 && (
+        <div className="px-4 py-2.5 border-b border-slate-100">
+          <input className="input max-w-sm" placeholder="Search step / doer / order…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+      )}
       <div className="overflow-x-auto max-h-[calc(100vh-320px)]">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-slate-50/95 backdrop-blur z-10">
@@ -34,7 +54,7 @@ export default function PcView({ items, canAssign, onAssign }) {
             </tr>
           </thead>
           <tbody>
-            {items.map((it, i) => (
+            {pageRows.map((it, i) => (
               <tr key={i} className="table-row">
                 <td className="table-td font-medium text-slate-800">{it.stepName}</td>
                 <td className="table-td text-slate-700">
@@ -58,7 +78,9 @@ export default function PcView({ items, canAssign, onAssign }) {
             ))}
           </tbody>
         </table>
+        {matched.length === 0 && <div className="p-8 text-center text-[12.5px] text-slate-400">No pending entry matches "{q}".</div>}
       </div>
+      <Pager {...pager} noun="entry" />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { usePaged, Pager } from '../components/Pager';
 import Icon from '../components/Icon';
 import DateField from '../components/DateField';
 import { downloadCsv } from '@/lib/csv';
@@ -60,20 +62,23 @@ export default function DailyReportsClient({ isAdmin }) {
   const [client, setClient] = useState('All');
   const [note, setNote] = useState('');
 
-  async function load() {
-    try {
-      const res = await fetch('/api/daily-tasks');
-      const data = await res.json();
-      setEntries(Array.isArray(data) ? data : []);
-    } catch { /* ignore */ }
-  }
-  useEffect(() => { load(); }, []);
-
   // active date window
   const win = useMemo(() => {
     if (from && to) return { from, to };
     return monthRange(month);
   }, [from, to, month]);
+
+  // Only the window's entries are fetched (was: every entry ever, then
+  // filtered here). Re-fetched when the window changes; inWindow below
+  // still applies the same rule, so the result is unchanged.
+  useEffect(() => {
+    let live = true;
+    const qs = new URLSearchParams({ from: win.from, to: win.to });
+    fetch('/api/daily-tasks?' + qs).then((r) => r.json())
+      .then((data) => { if (live) setEntries(Array.isArray(data) ? data : []); })
+      .catch(() => { /* ignore */ });
+    return () => { live = false; };
+  }, [win.from, win.to]);
 
   const inWindow = useMemo(() => {
     return entries.filter((e) => {
@@ -115,8 +120,21 @@ export default function DailyReportsClient({ isAdmin }) {
       ]));
   }
 
+  // The table shows one page at a time; printing (the PDF button or Ctrl+P)
+  // must still include every filtered row.
+  const [printAll, setPrintAll] = useState(false);
+  useEffect(() => {
+    const before = () => flushSync(() => setPrintAll(true));
+    const after = () => setPrintAll(false);
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => { window.removeEventListener('beforeprint', before); window.removeEventListener('afterprint', after); };
+  }, []);
+  const { pageRows, pager } = usePaged(filtered, { resetKey: [win, q, doer, client] });
+  const shownRows = printAll ? filtered : pageRows;
+
   // PDF via browser print (user picks "Save as PDF")
-  const downloadPDF = () => window.print();
+  const downloadPDF = () => { flushSync(() => setPrintAll(true)); window.print(); };
 
   function resetFilters() { setMonth(curMonth()); setFrom(''); setTo(''); setQ(''); setDoer('All'); setClient('All'); }
 
@@ -273,7 +291,7 @@ export default function DailyReportsClient({ isAdmin }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((e) => (
+                {shownRows.map((e) => (
                   <tr key={e.id} className="table-row">
                     <td className="table-td whitespace-nowrap">{fmt(e.entryDate)}</td>
                     <td className="table-td">{e.doer}</td>
@@ -293,6 +311,7 @@ export default function DailyReportsClient({ isAdmin }) {
             </table>
           </div>
         )}
+        {!printAll && <Pager {...pager} noun="entry" className="print:hidden" />}
       </div>
     </div>
   );

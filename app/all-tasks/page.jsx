@@ -2,11 +2,16 @@ import AllTasksClient from './AllTasksClient';
 import { pool } from '@/lib/db';
 import { FMS_ENABLED } from '@/lib/config';
 import { getMyFmsPendingRows } from '@/lib/fmsSheet';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { isAdminRoles } from '@/lib/pages';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AllTasksPage() {
   let delegations = [], users = [], masters = [], completions = [], fmsTasks = [];
+  const session = await getServerSession(authOptions);
+  const isAdmin = isAdminRoles(session?.user?.roles);
 
   {
     // FMS pending-rows (a separate, independent Google Sheets fetch) used to
@@ -35,7 +40,7 @@ export default async function AllTasksPage() {
 
   const completedToday = new Set(completions.map((c) => c.master_id));
 
-  const allTasks = [
+  let allTasks = [
     ...delegations,
     ...masters.map((m) => ({
       id: m.id, description: m.task, doer: m.assignedTo, doerId: null,
@@ -45,6 +50,19 @@ export default async function AllTasksPage() {
     })),
     ...fmsTasks,
   ];
+
+  // A non-admin's screen only ever shows their own doer group, plus — on
+  // "Delegate by Me" — delegations they handed out (AllTasksClient
+  // getBaseGroups / filterTasks). Everything else was shipped to the browser
+  // and thrown away there: every delegation ever + the org's whole FMS queue.
+  // Keep exactly that superset (looser id match than the client's ===, so
+  // nothing it would show is lost) and drop the rest before serialising.
+  if (!isAdmin) {
+    const myName = session?.user?.name;
+    const myId = String(session?.user?.id ?? '');
+    allTasks = allTasks.filter((t) => t.doer === myName
+      || ((t.type || 'delegation').toLowerCase() === 'delegation' && myId && String(t.delegatedBy ?? '') === myId));
+  }
 
   const byDoer = {};
   users.forEach((u) => { byDoer[u.name] = { doer: u.name, doerId: u.id, tasks: [] }; });

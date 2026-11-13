@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import AddMasterModal from '../components/AddMasterModal';
 import CsvImport from '../components/CsvImport';
 import Avatar from '../components/Avatar';
+import { usePaged, Pager } from '../components/Pager';
 
 const FREQ_TONE = {
   Daily:              'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -33,6 +34,7 @@ export default function MastersClient({ masters, users = [] }) {
       return true;
     });
   }, [masters, search, freq]);
+  const { pageRows, pager } = usePaged(filtered, { resetKey: [search, freq] });
 
   const counts = useMemo(() => {
     const c = {
@@ -121,7 +123,7 @@ export default function MastersClient({ masters, users = [] }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((m) => (
+                {pageRows.map((m) => (
                   <tr key={m.id} className="table-row">
                     <td className="table-td font-mono text-xs text-slate-500">{m.id}</td>
                     <td className="table-td font-medium text-slate-800">{m.task}</td>
@@ -144,6 +146,7 @@ export default function MastersClient({ masters, users = [] }) {
             </table>
           </div>
         )}
+        <Pager {...pager} noun="checklist" />
       </div>
 
       <AddMasterModal open={open} onClose={() => setOpen(false)} users={users} />

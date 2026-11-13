@@ -132,15 +132,32 @@ export default function FMSClient() {
     }).catch(() => {});
   }
 
+  // Per-flow memory, so flipping between flows doesn't blank the screen and
+  // re-download everything: the last step config is shown at once (and
+  // refreshed quietly), and the PC Report — a full read of the flow's Google
+  // Sheet — is reused for PC_FRESH_MS.
+  const PC_FRESH_MS = 30000;
+  const detailCache = useRef(new Map());
+  const pcCache = useRef(new Map()); // id -> { items, at }
+  const activeRef = useRef(activeId);
+  activeRef.current = activeId;
+  const forgetFlow = (id) => { detailCache.current.delete(id); pcCache.current.delete(id); };
+
   useEffect(() => {
     if (!activeId) { setDetail(null); return; }
     let cancelled = false;
-    setLoadingDet(true);
+    const cachedDetail = detailCache.current.get(activeId);
+    const cachedPc = pcCache.current.get(activeId);
+    setDetail(cachedDetail || null);
+    setLoadingDet(!cachedDetail);
     setShowPc(false);
-    setPcItems(null);
+    setLoadingPc(false); // an in-flight load for the previous flow is ignored
+    setPcItems(cachedPc && Date.now() - cachedPc.at < PC_FRESH_MS ? cachedPc.items : null);
     setSubmitFields([]);
-    fetch(`/api/fms/${activeId}`).then((r) => r.json()).then((d) => {
+    const id = activeId;
+    fetch(`/api/fms/${id}`).then((r) => r.json()).then((d) => {
       if (cancelled) return;
+      if (d && d.sheet) detailCache.current.set(id, d);
       setDetail(d);
       setLoadingDet(false);
     }).catch(() => { if (!cancelled) setLoadingDet(false); });
@@ -149,10 +166,15 @@ export default function FMSClient() {
   }, [activeId, canSubmitIntake]);
 
   function loadPc() {
+    const id = activeId;
     setLoadingPc(true);
-    fetch(`/api/fms/${activeId}/pc`).then((r) => r.json()).then((d) => {
-      setPcItems(d.items || []); setLoadingPc(false);
-    }).catch(() => setLoadingPc(false));
+    fetch(`/api/fms/${id}/pc`).then((r) => r.json()).then((d) => {
+      const items = d.items || [];
+      pcCache.current.set(id, { items, at: Date.now() });
+      // A slow response for the previous flow must not land in this one.
+      if (activeRef.current !== id) return;
+      setPcItems(items); setLoadingPc(false);
+    }).catch(() => { if (activeRef.current === id) setLoadingPc(false); });
   }
   function togglePc() {
     setShowPc((v) => !v);
@@ -317,10 +339,13 @@ export default function FMSClient() {
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setErr(d.error || 'Failed to save'); setSaving(false); return; }
       closeModal();
+      if (activeId) forgetFlow(activeId);
+      if (d.id) forgetFlow(d.id);
       await loadSheets();
       if (d.id) setActiveId(d.id);
       else if (activeId) {
         const dd = await fetch(`/api/fms/${activeId}`).then((r) => r.json());
+        if (dd && dd.sheet) detailCache.current.set(activeId, dd);
         setDetail(dd);
       }
     } finally { setSaving(false); }
@@ -330,6 +355,7 @@ export default function FMSClient() {
     if (!detail) return;
     ask(`Delete "${detail.sheet.fms_name || detail.sheet.sheet_name}"? Step config is removed — the Google Sheet itself is untouched.`, async () => {
       await fetch(`/api/fms/${activeId}`, { method: 'DELETE' });
+      forgetFlow(activeId);
       setActiveId(null);
       loadSheets();
     });

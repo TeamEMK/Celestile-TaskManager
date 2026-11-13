@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePaged, Pager } from '../components/Pager';
 import Icon from '../components/Icon';
 import { StatCard as UiStatCard, Modal } from '../components/ui';
 import DateField from '../components/DateField';
@@ -35,7 +36,9 @@ export default function QuotationAdminClient() {
   const [to, setTo] = useState('');
   const [modal, setModal] = useState(BLANK_MODAL);
 
+  const lastLoad = useRef(0);
   function loadRows() {
+    lastLoad.current = Date.now();
     setRefreshing(true);
     // ?list=1 returns only the columns this table renders — ?full=1 dragged
     // every quotation's item/PDF blobs down on each load and window focus.
@@ -49,7 +52,8 @@ export default function QuotationAdminClient() {
     loadRows();
     // New quotations are created from a different tab/device — refetch when the
     // admin returns to this tab so newly-saved rows show up without a hard reload.
-    const onFocus = () => loadRows();
+    // Throttled: every alt-tab back re-downloaded the whole list.
+    const onFocus = () => { if (Date.now() - lastLoad.current > 60000) loadRows(); };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, []);
@@ -70,6 +74,9 @@ export default function QuotationAdminClient() {
       return true;
     });
   }, [rows, branch, q, win, statusFilter]);
+
+  // One page in the table; summary cards and CSV export use all of `filtered`.
+  const { pageRows, pager } = usePaged(filtered, { resetKey: [branch, statusFilter, q, month, from, to] });
 
   const summary = useMemo(() => {
     let total = 0, bng = 0, hyd = 0, approved = 0, pending = 0, rejected = 0;
@@ -245,7 +252,7 @@ export default function QuotationAdminClient() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => {
+                {pageRows.map((r, i) => {
                   const isPending = (r.status || 'pending') === 'pending';
                   return (
                     <tr key={r.refNo + i} className="table-row">
@@ -287,6 +294,7 @@ export default function QuotationAdminClient() {
             </table>
           </div>
         )}
+        <Pager {...pager} noun="quotation" />
       </div>
     </div>
   );

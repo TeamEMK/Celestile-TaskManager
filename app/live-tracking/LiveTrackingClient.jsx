@@ -17,6 +17,7 @@ import {
   BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass, PROGRAM_SENT_OPTIONS,
 } from '@/lib/liveTrackingView';
 import DateField from '../components/DateField';
+import { usePaged, Pager } from '../components/Pager';
 import { isAdminRoles } from '@/lib/pages';
 
 const blankForm = () => ({ name: '', sheetLink: '', sheetName: '', headerRow: 1, startRow: '' });
@@ -100,25 +101,57 @@ export default function LiveTrackingClient() {
     setActiveId((cur) => cur && arr.some((s) => s.id === cur) ? cur : (arr[0]?.id || null));
   }
 
+  // Last snapshot per tracker, so switching back to a tab shows its rows at
+  // once (then refreshes quietly) instead of blanking and re-downloading.
+  const dataCache = useRef(new Map());
+  const activeRef = useRef(activeId);
+  activeRef.current = activeId;
   const loadData = useCallback((silent = false) => {
     if (!activeId) return;
+    const id = activeId;
     if (!silent) { setLoadingData(true); setDataErr(''); }
-    fetch(`/api/live-tracking/${activeId}`).then(async (r) => {
+    fetch(`/api/live-tracking/${id}`).then(async (r) => {
       const d = await r.json().catch(() => ({}));
+      // A response for a tracker the user has since switched away from must
+      // not be drawn into the current tab.
+      if (activeRef.current !== id) { if (r.ok) dataCache.current.set(id, { data: d, at: Date.now() }); return; }
       if (!r.ok) { setDataErr(d.error || 'Failed to load sheet data'); setLoadingData(false); return; }
+      dataCache.current.set(id, { data: d, at: Date.now() });
       setData(d);
       setDataErr('');
       setUpdatedAt(new Date());
       setLoadingData(false);
-    }).catch(() => { setDataErr('Failed to load sheet data'); setLoadingData(false); });
+    }).catch(() => { if (activeRef.current === id) { setDataErr('Failed to load sheet data'); setLoadingData(false); } });
   }, [activeId]);
 
+  // Local edits (the optimistic "Program file sent" change, or its rollback)
+  // replace `data`; keep the cached snapshot in step so switching away and
+  // back doesn't resurrect the pre-edit value.
   useEffect(() => {
-    setData(null); setDataErr(''); setFilters(EMPTY_FILTERS);
+    if (!data || !activeId) return;
+    const c = dataCache.current.get(activeId);
+    if (c && c.data !== data) dataCache.current.set(activeId, { ...c, data });
+  }, [data, activeId]);
+
+  useEffect(() => {
+    const cached = activeId ? dataCache.current.get(activeId) : null;
+    setData(cached ? cached.data : null); setDataErr(''); setFilters(EMPTY_FILTERS);
     if (!activeId) return;
-    loadData(false);
-    const t = setInterval(() => loadData(true), REFRESH_MS);
-    return () => clearInterval(t);
+    if (cached) setUpdatedAt(new Date(cached.at));
+    // A fresh-enough snapshot is shown as-is; an older one is refreshed in
+    // the background (no spinner — the cached rows stay on screen).
+    if (!cached) loadData(false);
+    else if (Date.now() - cached.at > REFRESH_MS) loadData(true);
+    // Each poll is a full read of the Google Sheet, so skip it while the
+    // browser tab is hidden and catch up as soon as it is visible again.
+    const tick = () => { if (document.visibilityState === 'visible') loadData(true); };
+    const t = setInterval(tick, REFRESH_MS);
+    const onVis = () => {
+      const c = dataCache.current.get(activeId);
+      if (document.visibilityState === 'visible' && (!c || Date.now() - c.at > REFRESH_MS)) loadData(true);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVis); };
   }, [activeId, loadData]);
 
   // Which columns carry the priority, the branch, the "actual complete" date
@@ -233,6 +266,11 @@ export default function LiveTrackingClient() {
   }, [statusCounts, filters.status, cols, stage, stageIdx]);
 
   const nActive = activeFilterCount(filters);
+
+  // Only one page of rows reaches the DOM — a tracker can hold thousands of
+  // rows × 30+ columns. Counts, stats and the stage chips above still work
+  // on the full filteredRows.
+  const { pageRows, pager } = usePaged(filteredRows, { pageSize: 100, resetKey: [activeId, filters, stage] });
 
   // Sheet row number for each row object — filtering keeps the same array
   // references, so a row found in filteredRows maps straight back to the
@@ -555,7 +593,7 @@ export default function LiveTrackingClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRows.map((row, ri) => {
+                    {pageRows.map((row, ri) => {
                       // The whole line carries the colour: green once the sheet
                       // records an Actual Complete date, otherwise its priority.
                       // The badge in the priority column stays — it names the
@@ -612,6 +650,7 @@ export default function LiveTrackingClient() {
                 </table>
               </div>
             )}
+            {data && filteredRows.length > 0 && <Pager {...pager} />}
           </div>
         </>
       )}

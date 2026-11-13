@@ -7,6 +7,7 @@ import Icon from '../components/Icon';
 import { StatCard as UiStatCard } from '../components/ui';
 import OrderNumberInput from '../components/OrderNumberInput';
 import { downloadCsv } from '@/lib/csv';
+import { usePaged, Pager } from '../components/Pager';
 
 const num = (v) => parseFloat(v) || 0;
 // The register is hand-fed by the old forms, so the same material/thickness
@@ -725,14 +726,20 @@ function BlockedStock({ inv, loading }) {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.orderNo.localeCompare(b.orderNo));
   }, [inv]);
 
-  const t = q.trim().toLowerCase();
-  const rows = orders.filter((o) => {
-    if (statusF === 'Blocked' && !o.blocked) return false;
-    if (statusF === 'Step2' && !o.step2) return false;
-    if (!t) return true;
-    return [o.orderNo, o.client, o.area, ...o.materials, ...o.slabs.map((s) => s.slab)]
-      .some((v) => String(v || '').toLowerCase().includes(t));
-  });
+  // Memoised (it re-ran over every order on each expand/collapse click).
+  const rows = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return orders.filter((o) => {
+      if (statusF === 'Blocked' && !o.blocked) return false;
+      if (statusF === 'Step2' && !o.step2) return false;
+      if (!t) return true;
+      return [o.orderNo, o.client, o.area, ...o.materials, ...o.slabs.map((s) => s.slab)]
+        .some((v) => String(v || '').toLowerCase().includes(t));
+    });
+  }, [orders, q, statusF]);
+  // One page of orders on screen; CSV export and "expand all" still cover
+  // every matching order.
+  const { pageRows, pager } = usePaged(rows, { resetKey: [q, statusF] });
 
   const totals = useMemo(() => ({
     orders: orders.length,
@@ -799,7 +806,7 @@ function BlockedStock({ inv, loading }) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((o) => {
+                {pageRows.map((o) => {
                   const isOpen = open.includes(o.orderNo);
                   return (
                     <Fragment key={o.orderNo}>
@@ -871,6 +878,7 @@ function BlockedStock({ inv, loading }) {
             </table>
           )}
         </div>
+        <Pager {...pager} noun="order" />
       </div>
 
       {photo && <Lightbox src={photo} onClose={() => setPhoto('')} />}
@@ -909,6 +917,18 @@ function Step2({ inv, reload, initialOrder = '', onNeedSlabs }) {
   }, [inv, initialOrder]);
 
   const availableSlabs = useMemo(() => inv.filter((r) => r.status === 'Available'), [inv]);
+  // The picker listed every Available slab (2,000+) as rows at once. It is
+  // now searchable and paged; "select all" covers every slab that matches.
+  const [addQ, setAddQ] = useState('');
+  const addMatches = useMemo(() => {
+    const t = addQ.trim().toLowerCase();
+    if (!t) return availableSlabs;
+    return availableSlabs.filter((r) => [r.slab, r.block, r.material, r.thickness, `${r.sizeL}x${r.sizeW}`, r.sft]
+      .some((v) => String(v ?? '').toLowerCase().includes(t)));
+  }, [availableSlabs, addQ]);
+  const addSelSet = useMemo(() => new Set(addSel), [addSel]);
+  const allAddMatchesSelected = addMatches.length > 0 && addMatches.every((r) => addSelSet.has(r.id));
+  const { pageRows: addPageRows, pager: addPager } = usePaged(addMatches, { resetKey: [addQ, addOpen] });
 
   async function load(o) {
     const target = (o ?? orderNo).trim();
@@ -985,7 +1005,7 @@ function Step2({ inv, reload, initialOrder = '', onNeedSlabs }) {
     });
   }
 
-  function openAddSlabs() { setAddSel([]); setAddOpen(true); }
+  function openAddSlabs() { setAddSel([]); setAddQ(''); setAddOpen(true); }
   async function confirmAddSlabs() {
     if (!addSel.length) return;
     setSaving(true);
@@ -1242,21 +1262,31 @@ function Step2({ inv, reload, initialOrder = '', onNeedSlabs }) {
       {addOpen && (
         <Modal title="Choose Slabs" onClose={() => setAddOpen(false)}>
           <p className="text-[12px] text-slate-500 -mt-1 mb-2">Select from available slabs to block them for order {orderNo}.</p>
+          {availableSlabs.length > 0 && (
+            <input className="input mb-2" placeholder="Search slab / block / material / size…" value={addQ} onChange={(e) => setAddQ(e.target.value)} />
+          )}
           <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg">
             {availableSlabs.length === 0 ? (
               <div className="p-6 text-center text-[12px] text-slate-400">No available slabs.</div>
+            ) : addMatches.length === 0 ? (
+              <div className="p-6 text-center text-[12px] text-slate-400">No available slab matches "{addQ}".</div>
             ) : (
               <table className="w-full text-[12px]">
                 <thead className="sticky top-0 bg-slate-50">
                   <tr>
-                    <th className="table-th"><input type="checkbox" checked={addSel.length === availableSlabs.length} onChange={(e) => setAddSel(e.target.checked ? availableSlabs.map((r) => r.id) : [])} /></th>
+                    <th className="table-th"><input type="checkbox" checked={allAddMatchesSelected} onChange={(e) => {
+                      const ids = new Set(addMatches.map((r) => r.id));
+                      setAddSel((sel) => e.target.checked
+                        ? [...sel.filter((x) => !ids.has(x)), ...ids]
+                        : sel.filter((x) => !ids.has(x)));
+                    }} /></th>
                     <th className="table-th">Slab</th><th className="table-th">Material</th><th className="table-th">Size</th><th className="table-th">SFT</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {availableSlabs.map((r) => (
+                  {addPageRows.map((r) => (
                     <tr key={r.id} className="table-row">
-                      <td className="table-td"><input type="checkbox" checked={addSel.includes(r.id)} onChange={(e) => setAddSel((sel) => e.target.checked ? [...sel, r.id] : sel.filter((x) => x !== r.id))} /></td>
+                      <td className="table-td"><input type="checkbox" checked={addSelSet.has(r.id)} onChange={(e) => setAddSel((sel) => e.target.checked ? [...sel, r.id] : sel.filter((x) => x !== r.id))} /></td>
                       <td className="table-td font-medium text-slate-800">{r.slab}</td>
                       <td className="table-td">{r.material}</td>
                       <td className="table-td">{r.sizeL}x{r.sizeW}</td>
@@ -1267,6 +1297,7 @@ function Step2({ inv, reload, initialOrder = '', onNeedSlabs }) {
               </table>
             )}
           </div>
+          <Pager {...addPager} onPageSize={undefined} noun="slab" className="!px-0" />
           <div className="flex gap-2 justify-end mt-3">
             <button className="btn-ghost" onClick={() => setAddOpen(false)}>Cancel</button>
             <button className="btn-warn" disabled={!addSel.length || saving} onClick={confirmAddSlabs}>Block Selected ({addSel.length})</button>

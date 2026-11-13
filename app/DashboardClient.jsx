@@ -19,6 +19,7 @@ import FmsDetails from './components/FmsDetails';
 import DateField from './components/DateField';
 import Avatar from './components/Avatar';
 import { fmtDMY } from '@/lib/dates';
+import { usePaged, Pager } from './components/Pager';
 
 export default function DashboardClient({ data, performance, pendingApprovals, holidays, users = [], isAdmin, userName = '' }) {
   const router = useRouter();
@@ -70,19 +71,26 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   // rows and none on the Dashboard to mark done (04-11-2026). Picking one
   // FMS loads all of its rows; a step filter then narrows them.
   const [stepFilter, setStepFilter] = useState('All');
-  const [fullFms, setFullFms] = useState(null); // every FMS row, or null
+  // Full rows per FMS name, fetched for just the flow that was picked (the
+  // route used to return every flow's rows — 13k+ — to show one of them).
+  const [fullFmsBy, setFullFmsBy] = useState({}); // { [fmsName]: rows }
   const [fullLoading, setFullLoading] = useState(false);
-  useEffect(() => { setFullFms(null); }, [data]); // a refresh (e.g. after Done) re-reads
+  useEffect(() => { setFullFmsBy({}); }, [data]); // a refresh (e.g. after Done) re-reads
+  const fullFms = fmsNameFilter !== 'All' ? fullFmsBy[fmsNameFilter] || null : null;
   useEffect(() => {
     if (subTab !== 'FMS' || fmsNameFilter === 'All' || fullFms || fullLoading) return;
+    const name = fmsNameFilter;
     setFullLoading(true);
-    fetch('/api/fms-dashboard').then((r) => r.json())
-      .then((d) => { if (Array.isArray(d.rows)) setFullFms(d.rows); })
+    fetch('/api/fms-dashboard?fmsName=' + encodeURIComponent(name)).then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.rows)) setFullFmsBy((m) => ({ ...m, [name]: d.rows })); })
       .catch(() => {})
       .finally(() => setFullLoading(false));
   }, [subTab, fmsNameFilter, fullFms, fullLoading]);
-  const visibleTasks = useMemo(() => (fullFms && fmsNameFilter !== 'All'
-    ? [...data.pendingTasks.filter((t) => t.type !== 'FMS'), ...fullFms]
+  // The picked flow's capped server rows are swapped for its full list;
+  // every other flow keeps its server rows (so the FMS-name dropdown below
+  // still lists them all).
+  const visibleTasks = useMemo(() => (fullFms
+    ? [...data.pendingTasks.filter((t) => t.type !== 'FMS' || t.fmsName !== fmsNameFilter), ...fullFms]
     : data.pendingTasks), [data, fullFms, fmsNameFilter]);
   const stepNames = useMemo(() => [...new Set(visibleTasks
     .filter((t) => t.type === 'FMS' && t.fmsName === fmsNameFilter).map((t) => t.stepName).filter(Boolean))],
@@ -113,6 +121,10 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
     // of comparing as NaN and landing anywhere.
     .sort((a, b) => when(b) - when(a)),
     [visibleTasks, subTab, userFilter, fmsNameFilter, stepFilter]);
+
+  // One page of the list in the DOM; the count above and the filters still
+  // use the full `filtered`.
+  const { pageRows: pageTasks, pager } = usePaged(filtered, { resetKey: [subTab, userFilter, fmsNameFilter, stepFilter] });
 
   // When an admin picks a specific employee from the filter, the KPI cards
   // should reflect that person, not the whole org — computeDashboard() /
@@ -344,7 +356,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((t) => (
+                  {pageTasks.map((t) => (
                     <tr key={t.id} className="table-row">
                       <td className="table-td"><TypePill type={t.type} /></td>
                       <td className={`table-td ${t.type === 'FMS' ? 'max-w-[380px]' : 'max-w-[260px]'} font-medium text-slate-800`} title={t.type === 'FMS' ? '' : t.description}>
@@ -441,6 +453,7 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
               </table>
             )}
           </div>
+          <Pager {...pager} noun="task" />
         </div>
 
         {/* ── Overview panel ─────────────────────────────────────────── */}

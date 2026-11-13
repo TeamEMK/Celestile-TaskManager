@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { usePaged, Pager } from '../components/Pager';
 
 // Design revision report: how many times each designer's work was sent back,
 // and how many times each order was revised — by the internal review
@@ -83,6 +84,7 @@ export default function RevisionReportClient() {
   const listed = pick
     ? inRange.filter((r) => (pick.kind === 'designer' ? (r.designer || '—') : (r.order_no || '—')) === pick.key)
     : inRange;
+  const { pageRows, pager } = usePaged(listed, { resetKey: [period, offset, q, pick] });
 
   const designerCount = inRange.filter((r) => r.source !== 'CRM').length;
   const crmCount = inRange.length - designerCount;
@@ -212,7 +214,7 @@ export default function RevisionReportClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {listed.map((r) => (
+                    {pageRows.map((r) => (
                       <tr key={r.id} className="align-top">
                         <td className="table-td whitespace-nowrap text-slate-600">{fmtWhen(r.created_at)}</td>
                         <td className="table-td font-medium">{r.order_no || '—'}</td>
@@ -232,6 +234,7 @@ export default function RevisionReportClient() {
                   </tbody>
                 </table>
               </div>
+              <Pager {...pager} noun="revision" />
             </>
           )}
         </>

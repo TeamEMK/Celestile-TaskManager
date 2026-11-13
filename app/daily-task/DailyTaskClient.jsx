@@ -8,6 +8,7 @@ import OrderNumberInput from '../components/OrderNumberInput';
 import { isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber';
 import { isAdminRoles } from '@/lib/pages';
 import { fmtDMY, todayISO } from '@/lib/dates';
+import { usePaged, Pager } from '../components/Pager';
 
 /* ── Bangalore Site Engineer constants ───────────────────────────────── */
 const BLR_PURPOSE_OPTIONS = [
@@ -444,6 +445,9 @@ export default function DailyTaskClient() {
     }
     return Object.entries(g).sort((a, b) => b[0].localeCompare(a[0]));
   }, [past]);
+
+  // Days of history (each with its photos) drawn a page at a time.
+  const { pageRows: pageDays, pager: dayPager } = usePaged(grouped, { pageSize: 10 });
 
   const formReady = !isAdmin || !!selectedForm;
 
@@ -951,7 +955,7 @@ export default function DailyTaskClient() {
           </div>
         ) : (
           <div className="space-y-3">
-            {grouped.map(([date, entries]) => {
+            {pageDays.map(([date, entries]) => {
               const dayTotal = entries.reduce((s, e) => s + (Number(e.minutes) || 0), 0);
               return (
                 <div key={date} className="border border-slate-200 rounded-lg p-3 card-hover transition-all duration-200">
@@ -1009,6 +1013,7 @@ export default function DailyTaskClient() {
                 </div>
               );
             })}
+            {grouped.length > 10 && <Pager {...dayPager} noun="day" className="!px-0" />}
           </div>
         )}
       </div>

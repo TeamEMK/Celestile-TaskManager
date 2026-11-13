@@ -40,7 +40,13 @@ export default function DailyTaskPage() {
   return (
     <div className="space-y-4">
       <PageTabs tabs={tabs} active={tab} onChange={setTab} />
-      {tab === 'form'  && <DailyTaskClient />}
+      {/* The form stays mounted (hidden) while the Admin View is open:
+          unmounting it re-downloaded the user's whole history, photos
+          included, on every switch back and threw away a half-filled form.
+          Its data only changes through its own submit, which reloads it.
+          The Admin View still mounts fresh each time, so it always shows
+          entries submitted meanwhile. */}
+      <div hidden={tab !== 'form'}><DailyTaskClient /></div>
       {tab === 'admin' && isAdmin && <DailyTaskAdminClient />}
     </div>
   );

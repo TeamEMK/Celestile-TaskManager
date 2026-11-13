@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useConfirmToast } from '../components/ConfirmToast';
+import { usePaged, Pager } from '../components/Pager';
 
 const blankForm = () => ({
   name: '', contactPerson: '', contactNumber: '', email: '', industry: '', status: 'active', notes: '',
@@ -32,6 +33,7 @@ export default function ClientMasterClient({ canEdit }) {
       (!t || (c.name + c.contactPerson + c.email + c.industry).toLowerCase().includes(t))
     );
   }, [list, q, status]);
+  const { pageRows, pager } = usePaged(filtered, { resetKey: [q, status] });
 
   function openAdd() { setEditing(null); setForm(blankForm()); setOpen(true); }
   function openEdit(c) {
@@ -121,7 +123,7 @@ export default function ClientMasterClient({ canEdit }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c) => (
+                {pageRows.map((c) => (
                   <tr key={c.id} className="table-row">
                     <td className="table-td text-slate-400 font-mono text-[11px]">{c.id}</td>
                     <td className="table-td font-medium text-slate-800">{c.name}</td>
@@ -148,6 +150,7 @@ export default function ClientMasterClient({ canEdit }) {
             </table>
           </div>
         )}
+        <Pager {...pager} noun="client" />
       </div>
 
       {open && (

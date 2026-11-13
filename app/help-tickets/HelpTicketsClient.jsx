@@ -27,6 +27,17 @@ export default function HelpTicketsClient({ userId, isAdmin }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // The search box fired a request per keystroke; it now waits until typing
+  // pauses. Every other filter still applies immediately.
+  const [debouncedQ, setDebouncedQ] = useState(filters.q);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(filters.q), 300);
+    return () => clearTimeout(t);
+  }, [filters.q]);
+  const { q: _typedQ, ...otherFilters } = filters;
+  const otherKey = JSON.stringify(otherFilters);
+  const queryFilters = useMemo(() => ({ ...JSON.parse(otherKey), q: debouncedQ }), [otherKey, debouncedQ]);
+
   // Accepts an explicit page so a caller that also just changed `page` state
   // (React batches that, so it isn't visible yet) can still ask for the right
   // page instead of the stale one closed over from the render it was called in.
@@ -34,7 +45,7 @@ export default function HelpTicketsClient({ userId, isAdmin }) {
     setLoading(true);
     try {
       const qs = new URLSearchParams({ page: String(pageOverride ?? page) });
-      Object.entries(filters).forEach(([k, v]) => { if (v) qs.set(k, v); });
+      Object.entries(queryFilters).forEach(([k, v]) => { if (v) qs.set(k, v); });
       const res = await fetch(`/api/help-tickets?${qs.toString()}`);
       const body = await res.json().catch(() => ({}));
       // Never fall through to the empty state on a failure — "No tickets yet"
@@ -48,7 +59,7 @@ export default function HelpTicketsClient({ userId, isAdmin }) {
     } finally {
       setLoading(false);
     }
-  }, [filters, page]);
+  }, [queryFilters, page]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sendWhatsApp, sendWhatsAppDocument, quotationRevisionMessage, quotationApprovalRequestMessage, isWhatsappConfigured } from '@/lib/whatsapp';
 import { normalizeBranch, isRevision, baseRef, buildChangeList } from '@/lib/quotation';
-import { requireUser } from '@/lib/api';
+import { requireUser, requireAdmin } from '@/lib/api';
 import { maybeUploadToDrive } from '@/lib/googleDrive';
 import { computeBangaloreCharges, computeHyderabadCharges } from '@/lib/quotation-pdf';
 
@@ -116,6 +116,12 @@ export async function GET(req) {
     const branchParam = searchParams.get('branch');
     const ref = searchParams.get('ref');
     const full = searchParams.get('full');
+
+    // The all-branch lists (every quotation, approval tokens, blobs) feed
+    // only the Admin View, which is Admin/HOD-only — the API now says so too.
+    if (searchParams.get('list') || full) {
+      const adminGate = await requireAdmin(); if (adminGate) return adminGate;
+    }
 
     if (searchParams.get('list')) {
       // Admin panel table: only the columns it actually renders. `full=1`

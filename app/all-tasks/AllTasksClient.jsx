@@ -37,6 +37,12 @@ export default function AllTasksClient({ grouped, users }) {
   const [reviseDate,       setReviseDate]       = useState('');
   const [reviseSaving,     setReviseSaving]     = useState(false);
   const [employeeFilter, setEmployeeFilter] = useState('All');
+  // Rows drawn per expanded group. An admin's "Expand all" over the whole
+  // org used to put every task ever into the DOM at once; groups now show
+  // GROUP_PAGE rows and grow on "Show more". Counts / filters still use the
+  // full g.tasks.
+  const GROUP_PAGE = 50;
+  const [groupLimit, setGroupLimit] = useState({});
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const {
@@ -321,6 +327,11 @@ export default function AllTasksClient({ grouped, users }) {
 
               // Track start index for this group before rendering
               const groupStartSerial = globalSerial + 1;
+              // Advance by the whole group (was once per rendered row, which
+              // was every row of an open group) so the #a–#b ranges are
+              // unchanged now that only a page of rows is drawn.
+              if (isOpen) globalSerial += g.tasks.length;
+              const shownCount = Math.min(g.tasks.length, groupLimit[g.doer] || GROUP_PAGE);
 
               return (
                 <li key={g.doer} className="border-b border-slate-100 last:border-0">
@@ -360,8 +371,7 @@ export default function AllTasksClient({ grouped, users }) {
                           </tr>
                         </thead>
                         <tbody>
-                          {g.tasks.map((t) => {
-                            globalSerial += 1;
+                          {g.tasks.slice(0, groupLimit[g.doer] || GROUP_PAGE).map((t) => {
                             const canComplete = !isAdmin || t.doer === currentUserName;
                             // All Tasks shows the whole org's FMS queue; the server only
                             // takes Done from that step's doers (or an admin), so a
@@ -483,6 +493,21 @@ export default function AllTasksClient({ grouped, users }) {
                           })}
                         </tbody>
                       </table>
+                      {shownCount < g.tasks.length && (
+                        <div className="px-4 py-2.5 border-t border-slate-100 flex items-center justify-between gap-3 text-[11.5px] text-slate-500">
+                          <span>Showing <b className="text-slate-800">{shownCount.toLocaleString()}</b> of {g.tasks.length.toLocaleString()} tasks</span>
+                          <span className="flex gap-2">
+                            <button type="button" className="btn-secondary btn-sm"
+                              onClick={() => setGroupLimit((m) => ({ ...m, [g.doer]: shownCount + GROUP_PAGE }))}>
+                              Show {Math.min(GROUP_PAGE, g.tasks.length - shownCount)} more
+                            </button>
+                            <button type="button" className="btn-ghost btn-sm"
+                              onClick={() => setGroupLimit((m) => ({ ...m, [g.doer]: g.tasks.length }))}>
+                              Show all
+                            </button>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </li>
