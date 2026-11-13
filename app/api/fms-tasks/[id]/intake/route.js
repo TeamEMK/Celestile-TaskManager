@@ -33,7 +33,7 @@ export async function POST(req, { params }) {
     // The form as a PDF to this FMS's WhatsApp group (Factory O2D → Program
     // Required Factory). Best-effort: the row is already in the sheet.
     let pdf = null;
-    try { pdf = await sendIntakePdf({ sheet, fields, values: values || {}, submittedBy: user?.name || '' }); }
+    try { pdf = await sendIntakePdf({ sheet, fields, values: values || {}, submittedBy: user?.name || '', uploads: result?.uploads || [] }); }
     catch (e) { console.error('[intake pdf]', e.message); }
     return NextResponse.json({ success: true, ...result, pdf });
   } catch (err) {
