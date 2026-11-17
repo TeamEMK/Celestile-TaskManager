@@ -16,6 +16,7 @@ import { isOrderField, isValidOrderNumber, ORDER_HINT } from '@/lib/orderNumber'
 import ImsThicknessSelect from '../components/ImsThicknessSelect';
 import { isThicknessField, isMaterialField } from '@/lib/imsFields';
 import { isUniqueField, compareKey } from '@/lib/uniqueIntake';
+import { CITY_NAMES, stateForCity, isCityField, isStateField } from '@/lib/indianCities';
 import { DATE_OFFSET_TYPE, isDateOffsetField, computeDateOffset, parseDateOffsetConfig, serializeDateOffsetConfig, parseDaysTable, formatDaysTable } from '@/lib/dateOffset';
 import { fmtDMY, todayISO } from '@/lib/dates';
 import { isAdminRoles } from '@/lib/pages';
@@ -1144,7 +1145,19 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
   const visibleFields = fields.filter((f, i) => shown[i] && !f.auto_fill);
   const autoFields = fields.filter((f, i) => shown[i] && f.auto_fill);
 
-  const setVal = (id, v) => setValues((s) => ({ ...s, [id]: v }));
+  // City fills State (17-11-2026) — unless State was typed by hand, which a
+  // later city change then leaves alone.
+  const cityField = fields.find((f) => isCityField(f) && !f.auto_fill);
+  const stateField = fields.find((f) => isStateField(f) && !f.auto_fill);
+  const setVal = (id, v) => setValues((s) => {
+    const next = { ...s, [id]: v };
+    if (cityField && stateField && id === cityField.id) {
+      const was = String(s[stateField.id] ?? '').trim();
+      const found = stateForCity(v);
+      if (found && (!was || was === stateForCity(s[id]))) next[stateField.id] = found;
+    }
+    return next;
+  });
 
   // What a blank Tentative Date will be saved as, shown under its box as the
   // form is filled. Same arithmetic as the server (lib/dateOffset); the
@@ -1424,6 +1437,7 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
                   <input
                     className={`input${dupes[f.id]?.message ? ' !border-red-300 !bg-red-50' : ''}`}
                     type={f.field_type === 'number' ? 'number' : f.field_type === 'link' ? 'url' : 'text'}
+                    list={cityField && f.id === cityField.id ? `cities-${fmsId}` : undefined}
                     value={values[f.id] || ''}
                     onChange={(e) => setVal(f.id, e.target.value)}
                   />
@@ -1443,6 +1457,11 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
                 ))}
               </ul>
             </div>
+          )}
+          {cityField && (
+            <datalist id={`cities-${fmsId}`}>
+              {CITY_NAMES.map((c) => <option key={c} value={c} />)}
+            </datalist>
           )}
           {dr && (
             <div className="overflow-x-auto rounded-lg border border-slate-200">
