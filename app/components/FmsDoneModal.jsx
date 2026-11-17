@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { pickUploadFile } from '../quotation/imageThumb';
 import { ZoomImg } from './ImageLightbox';
 import { stepOpenUrl, selfCompletes } from '@/lib/fmsOpenUrl';
-import { fieldVisibility, matchesCondition, alertWhen } from '@/lib/fieldVisibility';
+import { fieldVisibility, matchesCondition, alertWhen, followUpTripped } from '@/lib/fieldVisibility';
 import Icon from '../components/Icon';
 import DateField from './DateField';
 import OrderNumberInput from './OrderNumberInput';
@@ -44,6 +44,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   // Set when the save raised a QC alert instead of completing the step —
   // { alerts: [{ check, answer, sentTo, unset, error }] }.
   const [heldResult, setHeldResult] = useState(null);
+  const [followUpAt, setFollowUpAt] = useState('');
 
   // Only prompt for a delay reason if this step actually has a Delay Reason
   // Column configured — otherwise there's nowhere to write it, and the user
@@ -66,6 +67,9 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   const alerting = extraRows.filter((r) => alertWhen(r)
     && (extraValues[r.col_letter] || '').trim() && matchesCondition(extraValues[r.col_letter], alertWhen(r)));
   const alertGroups = [...new Set(alerting.flatMap((r) => String(r.alert_to || '').split(/[,\n]+/).map((g) => g.trim()).filter(Boolean)))];
+  // A follow-up answer keeps the task and brings it back on the next date
+  // (lib/fieldVisibility.js isFollowUpRow).
+  const followingUp = extraRows.some((r) => followUpTripped(r, extraValues[r.col_letter]));
   // "Approved? No" on a review step sends the work back (lib/fmsRework.js).
   const sendingBack = extraRows.some((r) => isApprovalField(r) && sendsBack(r, extraValues[r.col_letter]));
   // The stone this step captured, if it captures one — narrows the thickness
@@ -111,6 +115,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setErr(d.error || 'Failed to save'); setSaving(false); return; }
       if (d.held) { setHeldResult(d); setSaving(false); return; }
+      if (d.followUp) { setFollowUpAt(d.followUp); setTimeout(onSaved, 1800); return; }
       onSaved();
     } catch (e) {
       setErr(e.message); setSaving(false);
@@ -191,6 +196,13 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
             </div>
           )}
 
+          {(followingUp || followUpAt) && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-[12.5px] text-amber-800">
+              {followUpAt
+                ? <><b>Saved.</b> This task comes back on {followUpAt.replace(/ 10:00:00$/, '')} for the next follow up.</>
+                : <>Not done yet — the task stays with you and comes back on the next follow up date (next working day if none is given).</>}
+            </div>
+          )}
           {alerting.length > 0 && (
             <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-[12.5px] text-red-700">
               <div className="font-semibold mb-0.5"><Icon name="alert" className="w-3.5 h-3.5" /> This will raise a QC alert</div>
@@ -204,7 +216,7 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
           <button onClick={onClose} disabled={saving} className="btn-secondary">Cancel</button>
           <button onClick={save} disabled={saving} className={alerting.length || sendingBack ? 'btn-danger' : 'btn-success'}>
-            {saving ? 'Saving…' : sendingBack ? 'Send Back for Revision' : alerting.length ? 'Save & Raise Alert' : 'Save to Sheet'}
+            {saving ? 'Saving…' : sendingBack ? 'Send Back for Revision' : alerting.length ? 'Save & Raise Alert' : followingUp ? 'Save — Follow up again' : 'Save to Sheet'}
           </button>
         </div>
         </>)}

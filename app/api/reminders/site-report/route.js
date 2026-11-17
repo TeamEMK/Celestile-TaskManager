@@ -12,5 +12,5 @@ export const maxDuration = 60;
 // Same cron wiring as design-report, or use /api/reminders/daily-reports to
 // run all three teams off one job.
 export async function GET(req) {
-  return runDailyReport(req, REPORTS.site);
+  return runDailyReport(req, [REPORTS.site, REPORTS.siteBlr]);
 }

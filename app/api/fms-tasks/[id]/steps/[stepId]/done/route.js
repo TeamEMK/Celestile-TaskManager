@@ -3,6 +3,7 @@ import { requireUser, currentUser } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 import { getFmsSheet, getFullSteps, writeStepDone, isSheetTimeout, canDoRow } from '@/lib/fmsSheet';
 import { notifyStepDone } from '@/lib/delayAlerts';
+import { notifyEnquiryAssigned } from '@/lib/enquiryAlerts';
 
 // Writes the Actual timestamp (+ delay reason + extra fields + doer name)
 // back to the exact cells of the live Google Sheet — or, when a checklist
@@ -41,9 +42,12 @@ export async function POST(req, { params }) {
     });
     // The step's "on done" group, if any (lib/delayAlerts.js) — not awaited:
     // the completion is saved, the doer shouldn't wait on WhatsApp.
-    if (!result.held && !result.sentBack) {
+    if (!result.held && !result.sentBack && !result.followUp) {
       notifyStepDone({ sheet, step, rowNumber, doerName: user?.name || '' })
         .catch((e) => console.error('[fms done notify]', e.message));
+      // An Enquiry lead given to a sales person → their WhatsApp.
+      notifyEnquiryAssigned({ sheet, step, rowNumber })
+        .catch((e) => console.error('[enquiry assigned notify]', e.message));
     }
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
