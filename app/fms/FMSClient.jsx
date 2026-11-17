@@ -1158,6 +1158,17 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
     }
     return next;
   });
+  // A picked Area / Location suggestion brings its city and state along —
+  // into boxes still empty (or holding the state the old city gave).
+  const pickPlace = (it) => setValues((s) => {
+    const next = { ...s };
+    if (cityField && it.city && !String(s[cityField.id] ?? '').trim()) next[cityField.id] = it.city;
+    if (stateField && it.state) {
+      const was = String(s[stateField.id] ?? '').trim();
+      if (!was || was === stateForCity(s[cityField?.id])) next[stateField.id] = it.state;
+    }
+    return next;
+  });
 
   // What a blank Tentative Date will be saved as, shown under its box as the
   // form is filled. Same arithmetic as the server (lib/dateOffset); the
@@ -1427,6 +1438,8 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
                   <DateOffsetInput field={f} value={values[f.id] || ''} onChange={(v) => setVal(f.id, v)} preview={offsetPreview(f)} />
                 ) : isOrderField(f) ? (
                   <OrderNumberInput value={values[f.id] || ''} onChange={(e) => setVal(f.id, e.target.value)} />
+                ) : isLocationField(f) ? (
+                  <LocationInput value={values[f.id] || ''} onChange={(v) => setVal(f.id, v)} onPick={pickPlace} />
                 ) : isThicknessField(f) ? (
                   <ImsThicknessSelect
                     value={values[f.id] || ''}
@@ -1521,6 +1534,69 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
 
         </div>
       </div>
+    </div>
+  );
+}
+
+// "Area / Location", "Address", "Locality" — not a design form's "Area Name"
+// (a room of the house, not a place on a map).
+const isLocationField = (f) => (f.field_type || 'text') === 'text' && /location|address|locality/i.test(f.field_label || '');
+
+// "Area / Location" with suggestions as you type, as a map search gives them
+// (/api/places). Picking one fills the box and hands its city / state to
+// onPick; typing freely still works — a suggestion is never required.
+function LocationInput({ value, onChange, onPick }) {
+  const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const typed = useRef(false);
+
+  useEffect(() => {
+    const q = String(value || '').trim();
+    if (!typed.current || q.length < 3) { setItems([]); return; }
+    let dead = false;
+    const t = setTimeout(async () => {
+      const list = await fetch(`/api/places?q=${encodeURIComponent(q)}`).then((r) => r.json()).catch(() => []);
+      if (!dead) { setItems(Array.isArray(list) ? list : []); setActive(-1); setOpen(true); }
+    }, 350);
+    return () => { dead = true; clearTimeout(t); };
+  }, [value]);
+
+  const pick = (it) => {
+    typed.current = false;
+    onChange(it.label);
+    onPick?.(it);
+    setOpen(false); setItems([]);
+  };
+
+  return (
+    <div className="relative">
+      <input
+        className="input" value={value} autoComplete="off" placeholder="Start typing — e.g. Gachibowli"
+        onChange={(e) => { typed.current = true; onChange(e.target.value); }}
+        onFocus={() => items.length && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(e) => {
+          if (!open || !items.length) return;
+          if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(items.length - 1, a + 1)); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
+          else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); pick(items[active]); }
+          else if (e.key === 'Escape') setOpen(false);
+        }}
+      />
+      {open && items.length > 0 && (
+        <ul className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto text-[12.5px]">
+          {items.map((it, i) => (
+            <li key={it.label}
+              className={`px-3 py-2 cursor-pointer flex items-start gap-2 ${i === active ? 'bg-primary-50' : 'hover:bg-slate-50'}`}
+              onMouseDown={(e) => { e.preventDefault(); pick(it); }}>
+              <svg className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+              <span><span className="font-medium text-slate-800">{it.name}</span>
+                <span className="text-slate-500">{it.label.slice(it.name.length)}</span></span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
