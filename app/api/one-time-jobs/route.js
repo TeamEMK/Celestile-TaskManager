@@ -14,6 +14,7 @@ const JOBS = [
   ['Design New Entry: SFT / Stone Type / Thickness', () => import('@/lib/designIntakeMigrate').then((m) => m.migrateDesignIntakeStone())],
   ['Design Jointing Detail → Blocking for Jointing page', () => import('@/lib/designJointingMigrate').then((m) => m.migrateDesignJointingPage())],
   ['Enquiry FMS steps → sheet columns', () => import('@/lib/enquiryStepsMigrate').then((m) => m.migrateEnquirySteps())],
+  ['Enquiry: Sales Person dropdown, no delay reason', () => import('@/lib/enquiryStepsMigrate').then((m) => m.migrateEnquirySalesDropdown())],
   ['Drive links → open for everyone', () => import('@/lib/driveLinksMigrate').then((m) => m.migrateDriveLinks())],
 ];
 
