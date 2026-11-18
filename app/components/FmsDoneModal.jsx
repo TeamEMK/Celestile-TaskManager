@@ -50,7 +50,16 @@ export default function FmsDoneModal({ row, step, fmsId, onClose, onSaved }) {
   // Column configured — otherwise there's nowhere to write it, and the user
   // was being forced to type a reason that silently went nowhere.
   const delayed = isDelayed(row.planValue) && !!step?.delay_reason_col;
-  const configuredRows = useMemo(() => (step?.extraRows || []).filter((r) => r.col_letter), [step]);
+  // A people dropdown that knows each name's branch (@dept:sales) offers
+  // this row's branch only — plus anyone with no branch set. A row of no
+  // known branch keeps the whole list.
+  const rowBranch = row?.refValues?.__branch || '';
+  const configuredRows = useMemo(() => (step?.extraRows || []).filter((r) => r.col_letter).map((r) => {
+    if (!r.option_branches || !rowBranch) return r;
+    const opts = String(r.dropdown_options || '').split(',').map((o) => o.trim()).filter(Boolean)
+      .filter((o) => !r.option_branches[o] || r.option_branches[o] === rowBranch);
+    return { ...r, dropdown_options: opts.join(',') };
+  }), [step, rowBranch]);
   // Conditional fields — a row configured with "Show only when …" appears
   // only once its controlling row holds the configured value (e.g. a date
   // that's only asked for when "Received?" is answered Yes).
