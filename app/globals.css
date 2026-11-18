@@ -142,6 +142,8 @@
   .table-row.row-high:hover   { background: #FEE2E2; }
   .table-row.row-regular { background: #EFF6FF; }
   .table-row.row-regular:hover { background: #DBEAFE; }
+  .table-row.row-due    { background: #FFFBEB; }
+  .table-row.row-due:hover    { background: #FEF3C7; }
 
 
   /* ── Controls ──────────────────────────────────────────────────────

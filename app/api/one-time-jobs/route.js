@@ -16,6 +16,7 @@ const JOBS = [
   ['Enquiry FMS steps → sheet columns', () => import('@/lib/enquiryStepsMigrate').then((m) => m.migrateEnquirySteps())],
   ['Enquiry: Sales Person dropdown, no delay reason', () => import('@/lib/enquiryStepsMigrate').then((m) => m.migrateEnquirySalesDropdown())],
   ['Enquiry: 7-step sheet layout, follow ups, sales doers', () => import('@/lib/enquiryStepsMigrate').then((m) => m.migrateEnquiryStepsV3())],
+  ['Enquiry: Share Quotation takes an upload', () => import('@/lib/enquiryStepsMigrate').then((m) => m.migrateEnquiryQuotationUpload())],
   ['Drive links → open for everyone', () => import('@/lib/driveLinksMigrate').then((m) => m.migrateDriveLinks())],
 ];
 

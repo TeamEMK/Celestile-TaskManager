@@ -11,7 +11,7 @@ import {
 } from '../components/ui';
 import {
   buildPriorityStats, cellAttachments, detectColumns,
-  priorityOf, rowBranch, isRowDone, rowTint,
+  priorityOf, rowBranch, isRowDone, rowTint, fmsRowTint, fmsRowState, FMS_ROW_TINT,
   parseSheetDate, formatSheetDate, dateToInput,
   EMPTY_FILTERS, activeFilterCount, rowMatchesFilters,
   BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass, PROGRAM_SENT_OPTIONS,
@@ -220,7 +220,19 @@ export default function LiveTrackingClient() {
   // A key for the row colours. Built from the sheet's own labels, so a tracker
   // that says "Regular" gets a "Regular" swatch — a fixed High/Medium/Low
   // legend would name three colours the table never shows.
+  // An FMS view is coloured by where each row stands (fmsRowTint), the
+  // trackers by Actual Complete date / priority (rowTint).
+  const fmsCols = useMemo(() => {
+    const h = data?.stages ? (data.headers || []) : [];
+    return { stageIdx: h.indexOf('Pending On'), delayIdx: h.indexOf('Delay') };
+  }, [data]);
+  const tintOf = useCallback((row) => (fmsCols.stageIdx >= 0 ? fmsRowTint(row, fmsCols) : rowTint(row, cols)), [fmsCols, cols]);
   const legend = useMemo(() => {
+    if (data?.rows && fmsCols.stageIdx >= 0) {
+      const counts = {};
+      for (const row of data.rows) { const st = fmsRowState(row, fmsCols); if (st) counts[st] = (counts[st] || 0) + 1; }
+      return Object.keys(FMS_ROW_TINT).filter((k) => counts[k]).map((k) => ({ label: `${k} (${counts[k]})`, rail: FMS_ROW_TINT[k].rail }));
+    }
     if (!data?.rows || cols.priorityIdx < 0) return [];
     const seen = new Map();
     for (const row of data.rows) {
@@ -230,7 +242,7 @@ export default function LiveTrackingClient() {
       if (label && !seen.has(label)) seen.set(label, tint.rail);
     }
     return [...seen].map(([label, rail]) => ({ label, rail }));
-  }, [data, cols]);
+  }, [data, cols, fmsCols]);
 
   // FMS live views carry a "Pending On" column; the step chips filter on it.
   const [stage, setStage] = useState('');
@@ -599,7 +611,7 @@ export default function LiveTrackingClient() {
                       // The badge in the priority column stays — it names the
                       // colour for anyone who can't tell amber from red.
                       const done = isRowDone(row, cols.doneIdx);
-                      const tint = rowTint(row, cols);
+                      const tint = tintOf(row);
                       return (
                         <tr key={ri} className={`table-row${tint ? ` ${tint.cls}` : ''}`}>
                           {row.map((c, ci) => {
