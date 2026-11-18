@@ -24,7 +24,12 @@ function cityOf(p) {
     const c = cityForPlace(raw);
     if (c) return c;
   }
-  return '';
+  // Not one we know: the map's own city, else its county without
+  // "mandal" / "taluk" / "East"… — better than an empty City box.
+  const own = [p.city, p.county].map((x) => String(x || '')
+    .replace(/\b(municipal\s*corporation|municipality|mandal|tahsil|tehsil|taluka?|district|division|east|west|north|south|urban|rural|central)\b/gi, ' ')
+    .replace(/\s+/g, ' ').trim()).find(Boolean);
+  return own || '';
 }
 
 // Places people live in, not the shop or office that happens to be there.

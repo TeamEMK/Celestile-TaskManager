@@ -1158,15 +1158,14 @@ function IntakeFormModal({ fmsId, fields, formName, onClose, onSaved }) {
     }
     return next;
   });
-  // A picked Area / Location suggestion brings its city and state along —
-  // into boxes still empty (or holding the state the old city gave).
+  // A picked Area / Location suggestion brings its city and state along.
+  // Picking is a deliberate choice of place, so it sets both (18-11-2026:
+  // City stayed blank after picking a location); either can still be
+  // corrected by hand afterwards.
   const pickPlace = (it) => setValues((s) => {
     const next = { ...s };
-    if (cityField && it.city && !String(s[cityField.id] ?? '').trim()) next[cityField.id] = it.city;
-    if (stateField && it.state) {
-      const was = String(s[stateField.id] ?? '').trim();
-      if (!was || was === stateForCity(s[cityField?.id])) next[stateField.id] = it.state;
-    }
+    if (cityField && it.city) next[cityField.id] = it.city;
+    if (stateField && it.state) next[stateField.id] = it.state;
     return next;
   });
 
