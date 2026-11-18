@@ -76,16 +76,28 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   const [fullFmsBy, setFullFmsBy] = useState({}); // { [fmsName]: rows }
   const [fullLoading, setFullLoading] = useState(false);
   useEffect(() => { setFullFmsBy({}); }, [data]); // a refresh (e.g. after Done) re-reads
+  // fullFmsBy[name] === false means the full read failed (or came back empty
+  // while the server had rows — a sheet read that errored returns []): keep
+  // the server's capped rows instead of wiping the flow off the list. That
+  // used to empty the list AND drop the name from the dropdown, which then
+  // showed "All FMS" while still filtering on the vanished flow — "0
+  // awaiting action" with 213 pending (18-11-2026). A failure also used to
+  // re-fire the fetch in a loop, since nothing was stored for it.
   const fullFms = fmsNameFilter !== 'All' ? fullFmsBy[fmsNameFilter] || null : null;
   useEffect(() => {
-    if (subTab !== 'FMS' || fmsNameFilter === 'All' || fullFms || fullLoading) return;
+    if (subTab !== 'FMS' || fmsNameFilter === 'All' || fullFmsBy[fmsNameFilter] !== undefined || fullLoading) return;
     const name = fmsNameFilter;
+    const serverHas = data.pendingTasks.some((t) => t.type === 'FMS' && t.fmsName === name);
     setFullLoading(true);
-    fetch('/api/fms-dashboard?fmsName=' + encodeURIComponent(name)).then((r) => r.json())
-      .then((d) => { if (Array.isArray(d.rows)) setFullFmsBy((m) => ({ ...m, [name]: d.rows })); })
-      .catch(() => {})
+    fetch('/api/fms-dashboard?fmsName=' + encodeURIComponent(name))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((d) => {
+        const ok = Array.isArray(d.rows) && (d.rows.length > 0 || !serverHas);
+        setFullFmsBy((m) => ({ ...m, [name]: ok ? d.rows : false }));
+      })
+      .catch(() => setFullFmsBy((m) => ({ ...m, [name]: false })))
       .finally(() => setFullLoading(false));
-  }, [subTab, fmsNameFilter, fullFms, fullLoading]);
+  }, [subTab, fmsNameFilter, fullFmsBy, fullLoading, data]);
   // The picked flow's capped server rows are swapped for its full list;
   // every other flow keeps its server rows (so the FMS-name dropdown below
   // still lists them all).
@@ -97,8 +109,13 @@ export default function DashboardClient({ data, performance, pendingApprovals, h
   [visibleTasks, fmsNameFilter]);
   const allDoers = useMemo(() => users.map((u) => u.name).sort(), [users]);
   const allFmsNames = useMemo(
-    () => [...new Set(visibleTasks.filter((t) => t.type === 'FMS').map((t) => t.fmsName).filter(Boolean))].sort(),
-    [visibleTasks]
+    // The picked flow always stays in the list — otherwise the <select>
+    // falls back to showing "All FMS" while the filter is still that flow.
+    () => [...new Set([
+      ...visibleTasks.filter((t) => t.type === 'FMS').map((t) => t.fmsName).filter(Boolean),
+      ...(fmsNameFilter !== 'All' ? [fmsNameFilter] : []),
+    ])].sort(),
+    [visibleTasks, fmsNameFilter]
   );
 
   // Memoized — this used to re-filter and re-sort (two Date allocations per
