@@ -1,11 +1,34 @@
 'use client';
 
+import { useEffect, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+
 // Route-level error boundary. Without this, an uncaught render error
 // anywhere under app/ (e.g. a future hydration mismatch) unmounts the
 // whole React tree and silently breaks client-side navigation — links
 // stop working until the user manually reloads the page. This gives
 // users a visible recovery path (Try again / Go home) instead.
+// A page open across a deploy asks for code files the new build no longer
+// has — the commonest way here (18-11-2026). That one fixes itself with a
+// reload, so it gets one automatically (once per minute, never a loop).
+const STALE_BUILD = /ChunkLoadError|Loading (CSS )?chunk|dynamically imported module|Failed to find Server Action|deployment/i;
+
 export default function Error({ error, reset }) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  useEffect(() => {
+    console.error('[page error]', error);
+    if (!STALE_BUILD.test(`${error?.name} ${error?.message}`)) return;
+    try {
+      const last = Number(sessionStorage.getItem('stale-build-reload') || 0);
+      if (Date.now() - last < 60000) return;
+      sessionStorage.setItem('stale-build-reload', String(Date.now()));
+    } catch { /* storage blocked — reload once anyway */ }
+    window.location.reload();
+  }, [error]);
+  // A server-rendered page's error clears only once its data is fetched
+  // again — reset() alone re-rendered the same failure.
+  const retry = () => startTransition(() => { router.refresh(); reset(); });
   return (
     <div style={{
       minHeight: '70vh', display: 'flex', alignItems: 'center',
@@ -36,7 +59,7 @@ export default function Error({ error, reset }) {
         </p>
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
           <button
-            onClick={() => reset()}
+            onClick={retry}
             style={{
               padding: '10px 20px', borderRadius: '10px', border: 'none',
               background: '#0f172a', color: '#fff', fontSize: '14px',
@@ -56,6 +79,12 @@ export default function Error({ error, reset }) {
             Go home
           </button>
         </div>
+        {/* What actually failed, small — so a screenshot of this says it. */}
+        {(error?.digest || error?.message) && (
+          <p style={{ fontSize: '11px', color: '#94a3b8', margin: '20px 0 0', wordBreak: 'break-word' }}>
+            {error.digest ? `Ref ${error.digest}` : String(error.message).slice(0, 160)}
+          </p>
+        )}
       </div>
     </div>
   );
