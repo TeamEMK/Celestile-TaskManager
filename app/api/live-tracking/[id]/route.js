@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { currentUser, currentUserIsAdmin, redactSheetIds, requireAdmin, requireUser, requireUserCtx } from '@/lib/api';
 import { deleteLiveTracker, getLiveTracker, getLiveTrackerData, setLiveTrackerCell, updateLiveTracker } from '@/lib/liveTracking';
 import { branchScopeFor, detectColumns, rowInBranchScope, PROGRAM_SENT_OPTIONS } from '@/lib/liveTrackingView';
-import { isSheetTimeout, getFmsLiveView, canViewFmsLive } from '@/lib/fmsSheet';
+import { isSheetTimeout, getFmsLiveView, getFmsSheetGrid, canViewFmsLive } from '@/lib/fmsSheet';
 
 // Config + a fresh live read of the connected tab — open to any signed-in
 // user (that's the whole point: browsing the live data), editing stays admin-only.
@@ -19,7 +19,10 @@ export async function GET(req, { params }) {
       if (!(await canViewFmsLive(fmsId, (await currentUser())?.id, isAdmin))) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
-      const view = await getFmsLiveView(fmsId);
+      // ?view=sheet — every step's Planned / Actual / doer / checklist
+      // answers, as the sheet holds them (Sheet view and Reports tabs).
+      const asSheet = new URL(req.url).searchParams.get('view') === 'sheet';
+      const view = asSheet ? await getFmsSheetGrid(fmsId) : await getFmsLiveView(fmsId);
       if (!view) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       ({ tracker, ...data } = view);
     } else {

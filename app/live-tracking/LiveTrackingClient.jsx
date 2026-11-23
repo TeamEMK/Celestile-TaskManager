@@ -17,6 +17,7 @@ import {
   BRANCHES, PRIORITIES, NO_PRIORITY, priorityBadgeClass, PROGRAM_SENT_OPTIONS,
 } from '@/lib/liveTrackingView';
 import DateField from '../components/DateField';
+import FmsSheetPanel from './FmsSheetPanel';
 import { usePaged, Pager } from '../components/Pager';
 import { isAdminRoles } from '@/lib/pages';
 
@@ -33,6 +34,9 @@ export default function LiveTrackingClient() {
   const [list, setList]           = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [activeId, setActiveId]   = useState(null);
+  // An FMS tab: 'live' (where each entry stands), 'sheet' (every step's
+  // values, as the sheet holds them) or 'reports' — FmsSheetPanel.jsx.
+  const [fmsMode, setFmsMode] = useState('live');
 
   const [data, setData]           = useState(null); // { tracker, headers, rows }
   const [loadingData, setLoadingData] = useState(false);
@@ -464,6 +468,20 @@ export default function LiveTrackingClient() {
 
           ) : null}
 
+          {activeTracker?.kind === 'fms' && (
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-[12.5px] font-medium">
+              {[['live', 'Live'], ['sheet', 'Sheet view'], ['reports', 'Reports']].map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setFmsMode(k)}
+                  className={`px-3 py-1 rounded-md ${fmsMode === k ? 'bg-primary-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeTracker?.kind === 'fms' && fmsMode !== 'live' ? (
+            <FmsSheetPanel key={activeId} id={activeId} mode={fmsMode} />
+          ) : (<>
           {/* Rows above "First Data Row" are left out on purpose — say so, or
               a sheet that holds 800 rows and shows 400 looks like a bug. */}
           {data?.skipped > 0 ? (
@@ -664,6 +682,7 @@ export default function LiveTrackingClient() {
             )}
             {data && filteredRows.length > 0 && <Pager {...pager} />}
           </div>
+          </>)}
         </>
       )}
 
