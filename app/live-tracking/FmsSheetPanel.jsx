@@ -37,6 +37,8 @@ function branchOf(row, idx) {
   const v = String(row[idx] ?? '').trim().toUpperCase();
   return v.startsWith('H') ? 'Hyderabad' : v.startsWith('B') ? 'Bangalore' : '';
 }
+// HD001 / BD001 — display pieces (25-11-2026), tracked apart from orders.
+const kindOf = (row, idx) => (/^[HB]D\d/.test(String(row[idx] ?? '').trim().toUpperCase()) ? 'Display' : 'Order');
 
 const YES = /^(yes|y|ok|done|completed|approved|pass|received)$/i;
 const NO = /^(no|n|not ok|fail|failed|rejected|reschedule|pending)$/i;
@@ -82,6 +84,7 @@ export default function FmsSheetPanel({ id, mode }) {
   // Filters shared by both tabs.
   const [q, setQ] = useState('');
   const [branch, setBranch] = useState('');
+  const [kind, setKind] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const keyIdx = useMemo(() => (data?.headers || []).slice(0, data?.ownCount || 0)
@@ -99,13 +102,14 @@ export default function FmsSheetPanel({ id, mode }) {
     const f = dayStart(from), t = dayEnd(to);
     return data.rows.filter((r) => {
       if (branch && keyIdx >= 0 && branchOf(r, keyIdx) !== branch) return false;
+      if (kind && keyIdx >= 0 && kindOf(r, keyIdx) !== kind) return false;
       if ((f || t) && dateIdx >= 0) {
         const ms = toMs(r[dateIdx]);
         if (!ms || (f && ms < f) || (t && ms > t)) return false;
       }
       return !needle || r.some((c) => String(c).toLowerCase().includes(needle));
     });
-  }, [data, q, branch, from, to, keyIdx, dateIdx]);
+  }, [data, q, branch, kind, from, to, keyIdx, dateIdx]);
 
   if (err) return <div className="card p-4 text-[12.5px] text-red-600">{err} <button className="btn-secondary btn-sm ml-2" onClick={load}>Retry</button></div>;
   if (!data) return <div className="card p-6 text-center text-[12.5px] text-slate-500">Loading the sheet…</div>;
@@ -124,6 +128,14 @@ export default function FmsSheetPanel({ id, mode }) {
           </select>
         </label>
       )}
+      {keyIdx >= 0 && data.rows.some((r) => kindOf(r, keyIdx) === 'Display') && (
+        <label className="flex flex-col gap-1">
+          <span className="text-slate-500">Type</span>
+          <select className="input !py-1.5" value={kind} onChange={(e) => setKind(e.target.value)}>
+            <option value="">All</option><option value="Order">Orders</option><option value="Display">Display (HD / BD)</option>
+          </select>
+        </label>
+      )}
       {dateIdx >= 0 && (<>
         <label className="flex flex-col gap-1">
           <span className="text-slate-500">{data.headers[dateIdx]} from</span>
@@ -134,7 +146,7 @@ export default function FmsSheetPanel({ id, mode }) {
           <input type="date" className="input !py-1.5" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
       </>)}
-      {(q || branch || from || to) && <button className="btn-secondary btn-sm" onClick={() => { setQ(''); setBranch(''); setFrom(''); setTo(''); }}>Clear</button>}
+      {(q || branch || kind || from || to) && <button className="btn-secondary btn-sm" onClick={() => { setQ(''); setBranch(''); setKind(''); setFrom(''); setTo(''); }}>Clear</button>}
       <span className="ml-auto text-slate-500">{rows.length.toLocaleString()} of {data.rows.length.toLocaleString()} entries</span>
       <button className="btn-secondary btn-sm" onClick={load} disabled={loading}><Icon name="refresh" className="w-3.5 h-3.5" /> {loading ? 'Loading…' : 'Refresh'}</button>
     </div>

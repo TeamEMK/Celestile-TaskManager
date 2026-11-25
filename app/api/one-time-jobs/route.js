@@ -18,6 +18,7 @@ const JOBS = [
   ['Enquiry: 7-step sheet layout, follow ups, sales doers', () => import('@/lib/enquiryStepsMigrate').then((m) => m.migrateEnquiryStepsV3())],
   ['Enquiry: Share Quotation takes an upload', () => import('@/lib/enquiryStepsMigrate').then((m) => m.migrateEnquiryQuotationUpload())],
   ['CRM Hyd FMS NEW: set up', () => import('@/lib/crmHydNewFmsSetup').then((m) => m.setupCrmHydNewFms())],
+  ['Factory O2D: Accounts Approval before Dispatch', () => import('@/lib/o2dAccountsApprovalMigrate').then((m) => m.migrateO2dAccountsApproval())],
   ['Drive links → open for everyone', () => import('@/lib/driveLinksMigrate').then((m) => m.migrateDriveLinks())],
 ];
 
