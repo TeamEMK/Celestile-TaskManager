@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sheetAccessMessage } from '@/lib/googleCreds';
 import { requireUserCtx } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 import { getFmsSheet, getFullSteps, assignStepDoer } from '@/lib/fmsSheet';
@@ -10,6 +11,7 @@ import { getFmsSheet, getFullSteps, assignStepDoer } from '@/lib/fmsSheet';
 // reassign — the cell is simply overwritten.
 export async function POST(req, { params }) {
   const { gate, user } = await requireUserCtx(); if (gate) return gate;
+  let sheetForError = null;
   try {
     const { id, stepId } = await params;
     const { rowNumber, userId } = await req.json();
@@ -17,6 +19,7 @@ export async function POST(req, { params }) {
     if (!userId)    return NextResponse.json({ error: 'Pick who should do this step' }, { status: 400 });
 
     const sheet = await getFmsSheet(id);
+    sheetForError = sheet;
     if (!sheet) return NextResponse.json({ error: 'FMS not found' }, { status: 404 });
     const steps = await getFullSteps(id);
     const step = steps.find((s) => String(s.id) === String(stepId));
@@ -35,7 +38,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
     const code = err?.code || err?.response?.status;
-    if (code === 403) return NextResponse.json({ error: 'Access denied. Sheet write permission needed.' }, { status: 400 });
+    if (code === 403) return NextResponse.json({ error: sheetForError ? sheetAccessMessage(sheetForError.sheet_id, sheetForError.sheet_name) : 'Access denied. Sheet write permission needed.' }, { status: 400 });
     if (err.status === 400) return NextResponse.json({ error: err.message }, { status: 400 });
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

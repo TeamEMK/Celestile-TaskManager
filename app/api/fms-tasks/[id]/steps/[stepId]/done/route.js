@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sheetAccessMessage } from '@/lib/googleCreds';
 import { requireUser, currentUser } from '@/lib/api';
 import { isAdminRoles } from '@/lib/pages';
 import { getFmsSheet, getFullSteps, writeStepDone, isSheetTimeout, canDoRow } from '@/lib/fmsSheet';
@@ -11,12 +12,14 @@ import { notifyEnquiryAssigned } from '@/lib/enquiryAlerts';
 // writeStepDone). The response says which: { held, alerts }.
 export async function POST(req, { params }) {
   const gate = await requireUser(); if (gate) return gate;
+  let sheetForError = null;
   try {
     const { id, stepId } = await params;
     const { rowNumber, delayReason, extraInputs } = await req.json();
     if (!rowNumber) return NextResponse.json({ error: 'rowNumber required' }, { status: 400 });
 
     const sheet = await getFmsSheet(id);
+    sheetForError = sheet;
     if (!sheet) return NextResponse.json({ error: 'FMS not found' }, { status: 404 });
     const steps = await getFullSteps(id);
     const step = steps.find((s) => String(s.id) === String(stepId));
@@ -52,7 +55,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
     const code = err?.code || err?.response?.status;
-    if (code === 403) return NextResponse.json({ error: 'Access denied. Sheet write permission needed.' }, { status: 400 });
+    if (code === 403) return NextResponse.json({ error: sheetForError ? sheetAccessMessage(sheetForError.sheet_id, sheetForError.sheet_name) : 'Access denied. Sheet write permission needed.' }, { status: 400 });
     if (err.message?.startsWith('Order number')) return NextResponse.json({ error: err.message }, { status: 400 });
     // Same "Google didn't answer in time" case as the intake route — see the
     // comment there. It can time out on the write itself, so it can't promise

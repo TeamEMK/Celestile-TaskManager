@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sheetAccessMessage } from '@/lib/googleCreds';
 import { requireAccess, currentUser } from '@/lib/api';
 import { getFmsSheet, getIntakeFields, expandIntakeDeptOptions, submitIntakeRow, effectiveIntakeSheet, isSheetTimeout } from '@/lib/fmsSheet';
 import { sendIntakePdf } from '@/lib/intakePdf';
@@ -20,10 +21,12 @@ export async function GET(req, { params }) {
 // Validate + append a brand-new row to the FMS's connected Google Sheet.
 export async function POST(req, { params }) {
   const gate = await requireAccess('fms-intake'); if (gate) return gate;
+  let sheetForError = null;
   try {
     const { id } = await params;
     const { values } = await req.json();
     const sheet = await getFmsSheet(id);
+    sheetForError = sheet;
     if (!sheet) return NextResponse.json({ error: 'FMS not found' }, { status: 404 });
     const fields = await getIntakeFields(id);
     if (!fields.length) return NextResponse.json({ error: 'No intake form configured for this FMS' }, { status: 400 });
@@ -38,7 +41,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ success: true, ...result, pdf });
   } catch (err) {
     const code = err?.code || err?.response?.status;
-    if (code === 403) return NextResponse.json({ error: 'Access denied. Sheet write permission needed.' }, { status: 400 });
+    if (code === 403) return NextResponse.json({ error: sheetForError ? sheetAccessMessage(effectiveIntakeSheet(sheetForError).sheet_id, effectiveIntakeSheet(sheetForError).sheet_name) : 'Access denied. Sheet write permission needed.' }, { status: 400 });
     if (err.message?.startsWith('Required field')) return NextResponse.json({ error: err.message }, { status: 400 });
     if (err.message?.startsWith('Order number'))   return NextResponse.json({ error: err.message }, { status: 400 });
     // Already entered. 409 rather than 400: nothing about the request is
